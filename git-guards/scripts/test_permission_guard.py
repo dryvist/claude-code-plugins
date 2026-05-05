@@ -102,6 +102,24 @@ all_pass &= check("git commit --amend --no-edit allow", "git commit --amend --no
 # DENY: remove hooks
 all_pass &= check("rm .git/hooks", "rm .git/hooks/pre-commit", "deny")
 
+# DENY: --no-gpg-sign disables commit signing (required_signatures rejects unsigned)
+all_pass &= check("git commit --no-gpg-sign", "git commit -m msg --no-gpg-sign", "deny")
+
+# DENY: -c commit.gpgsign=false bypasses signing for one invocation
+all_pass &= check("git -c commit.gpgsign=false commit", "git -c commit.gpgsign=false commit -m msg", "deny")
+
+# DENY: -c tag.gpgsign=false bypasses tag signing
+all_pass &= check("git -c tag.gpgsign=false tag", "git -c tag.gpgsign=false tag v1.0", "deny")
+
+# DENY: git config commit.gpgsign false persists the bypass
+all_pass &= check("git config commit.gpgsign false", "git config commit.gpgsign false", "deny")
+
+# DENY: git config --global tag.gpgsign false
+all_pass &= check("git config --global tag.gpgsign false", "git config --global tag.gpgsign false", "deny")
+
+# False positive guard: commit message containing 'commit.gpgsign' must not deny
+all_pass &= check("commit.gpgsign in message", 'git -c user.name=test tag v99-test -m "allow commit.gpgsign bypass example"', "silent_allow")
+
 # Non-git command: silent allow
 all_pass &= check("ls command", "ls -la", "silent_allow")
 

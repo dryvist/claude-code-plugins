@@ -24,10 +24,12 @@ DENY_ALWAYS = [
 # positives from matching substrings in gh api body text or other commands
 DENY_GIT_ONLY = [
     (r"commit\s+.*(?<![\w-])(-\w*n\w*|--no-verify)\b", "bypasses pre-commit hooks"),
+    (r"commit\s+.*--no-gpg-sign\b", "disables commit signing (required_signatures rejects unsigned commits)"),
     (r"merge\s+.*--no-verify", "bypasses merge hooks"),
     (r"cherry-pick\s+.*--no-verify", "bypasses commit hooks"),
     (r"rebase\s+.*--no-verify", "bypasses commit hooks"),
     (r"config\s+.*core\.hooksPath", "changes hook directory"),
+    (r"config\s+.*(commit|tag)\.gpgsign", "disables commit/tag signing"),
     (r"^push\s+.*(--force|--force-with-lease|-f)\b", "force-pushes overwrite remote history"),
 ]
 
@@ -328,12 +330,14 @@ def main():
         for pattern, reason in DENY_GIT_ONLY:
             if re.search(pattern, subcommand, re.IGNORECASE):
                 deny(f"This command {reason}. Fix the underlying issue instead.")
-        # Check git -c config options for hook bypass attempts.
+        # Check git -c config options for hook/signing bypass attempts.
         # Anchor to the key portion to avoid false positives where the value
-        # contains 'core.hooksPath' as a substring.
+        # contains the key name as a substring.
         for opt in git_config_opts:
             if re.match(r"core\.hooksPath\s*(?:=|$)", opt, re.IGNORECASE):
                 deny("This command bypasses configured hooks. Fix the underlying issue instead.")
+            if re.match(r"(commit|tag)\.gpgsign\s*(?:=|$)", opt, re.IGNORECASE):
+                deny("This command disables commit/tag signing. Fix the underlying issue instead.")
         # Fallback: detect -c core.hooksPath remaining in the subcommand when the
         # extraction loop broke early on an unrecognised git global option.
         # Successfully parsed -c opts are stripped from subcommand, so this
@@ -353,6 +357,8 @@ def main():
                 config_token = subcmd_tokens[i + 1]
                 if re.match(r"^core\.hooksPath(=|$)", config_token, re.IGNORECASE):
                     deny("This command bypasses configured hooks. Fix the underlying issue instead.")
+                if re.match(r"^(commit|tag)\.gpgsign(=|$)", config_token, re.IGNORECASE):
+                    deny("This command disables commit/tag signing. Fix the underlying issue instead.")
 
         if sub_tokens and sub_tokens[0] in BLOCKED_ON_MAIN and _is_on_main_branch():
             deny(
