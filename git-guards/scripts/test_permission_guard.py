@@ -102,11 +102,17 @@ all_pass &= check("git commit --amend --no-edit allow", "git commit --amend --no
 # DENY: remove hooks
 all_pass &= check("rm .git/hooks", "rm .git/hooks/pre-commit", "deny")
 
-# DENY: --no-gpg-sign disables commit signing (required_signatures rejects unsigned)
+# DENY: --no-gpg-sign on commit (required_signatures rejects unsigned)
 all_pass &= check("git commit --no-gpg-sign", "git commit -m msg --no-gpg-sign", "deny")
+
+# DENY: --no-gpg-sign on tag
+all_pass &= check("git tag --no-gpg-sign", "git tag --no-gpg-sign v1.0", "deny")
 
 # DENY: -c commit.gpgsign=false bypasses signing for one invocation
 all_pass &= check("git -c commit.gpgsign=false commit", "git -c commit.gpgsign=false commit -m msg", "deny")
+
+# DENY: -c commit.gpgsign=0 (numeric false form)
+all_pass &= check("git -c commit.gpgsign=0 commit", "git -c commit.gpgsign=0 commit -m msg", "deny")
 
 # DENY: -c tag.gpgsign=false bypasses tag signing
 all_pass &= check("git -c tag.gpgsign=false tag", "git -c tag.gpgsign=false tag v1.0", "deny")
@@ -116,6 +122,24 @@ all_pass &= check("git config commit.gpgsign false", "git config commit.gpgsign 
 
 # DENY: git config --global tag.gpgsign false
 all_pass &= check("git config --global tag.gpgsign false", "git config --global tag.gpgsign false", "deny")
+
+# DENY: git config --unset commit.gpgsign reverts to default-off
+all_pass &= check("git config --unset commit.gpgsign", "git config --unset commit.gpgsign", "deny")
+
+# ALLOW: -c commit.gpgsign=true forces signing for one invocation (legitimate)
+all_pass &= check("git -c commit.gpgsign=true commit", "git -c commit.gpgsign=true commit -m msg", "silent_allow")
+
+# ALLOW: -c commit.gpgsign with no value (git treats missing value as true)
+all_pass &= check("git -c commit.gpgsign commit", "git -c commit.gpgsign commit -m msg", "silent_allow")
+
+# ALLOW: enabling signing in config
+all_pass &= check("git config commit.gpgsign true", "git config commit.gpgsign true", "silent_allow")
+
+# ALLOW: reading signing config
+all_pass &= check("git config --get commit.gpgsign", "git config --get commit.gpgsign", "silent_allow")
+
+# ALLOW: listing signing config
+all_pass &= check("git config --list commit.gpgsign", "git config --list", "silent_allow")
 
 # False positive guard: commit message containing 'commit.gpgsign' must not deny
 all_pass &= check("commit.gpgsign in message", 'git -c user.name=test tag v99-test -m "allow commit.gpgsign bypass example"', "silent_allow")
