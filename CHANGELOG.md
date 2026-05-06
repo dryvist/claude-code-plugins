@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.2.0](https://github.com/JacobPEvans/claude-code-plugins/compare/v3.1.7...v3.2.0) (2026-05-06)
+
+
+### Features
+
+* **git-guards:** block sign-disable bypasses ([#284](https://github.com/JacobPEvans/claude-code-plugins/issues/284)) ([f8dc6ad](https://github.com/JacobPEvans/claude-code-plugins/commit/f8dc6addeecf999d44774d16eb5eacbf052ce061))
+
 ## [3.1.7](https://github.com/JacobPEvans/claude-code-plugins/compare/v3.1.6...v3.1.7) (2026-05-04)
 
 
