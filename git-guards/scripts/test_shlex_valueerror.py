@@ -8,11 +8,16 @@ than falling back to str.split(), which would reintroduce false-positive denies.
 """
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
 
 SCRIPT = Path(__file__).parent / "git-permission-guard.py"
+
+# Use the guard's explicit testing override to bypass _is_on_main_branch()
+# without relying on cwd manipulation. Any non-"main" value disables the check.
+_TEST_ENV = {**os.environ, "GIT_GUARD_BRANCH_OVERRIDE": "feature"}
 
 
 def run(cmd: str) -> dict:
@@ -22,6 +27,7 @@ def run(cmd: str) -> dict:
         input=inp,
         capture_output=True,
         text=True,
+        env=_TEST_ENV,
     )
     if result.stdout.strip():
         return json.loads(result.stdout.strip())
@@ -46,11 +52,11 @@ def check(label: str, cmd: str, expected_decision: str) -> bool:
 all_pass = True
 
 # --no-pager is now stripped by the extraction loop before -c is processed.
-# The loop extracts -c core.hooksPath=/dev/null directly → deny fires via the
+# The loop extracts -c core.hooksPath=/dev/null directly -> deny fires via the
 # direct git_config_opts path even though the trailing commit message is
 # malformed (unclosed quote). The shlex ValueError path is irrelevant here.
 all_pass &= check(
-    "--no-pager stripped; -c core.hooksPath extracted directly → deny (shlex path irrelevant)",
+    "--no-pager stripped; -c core.hooksPath extracted directly -> deny (shlex path irrelevant)",
     'git --no-pager -c core.hooksPath=/dev/null commit -m "unclosed',
     "deny",
 )
@@ -71,7 +77,7 @@ all_pass &= check(
 )
 
 # Sanity: bypass pattern appearing only inside a quoted commit message (valid
-# shell) must remain a silent allow — not denied.
+# shell) must remain a silent allow -- not denied.
 all_pass &= check(
     "hooksPath pattern inside quoted commit message stays silent_allow",
     'git --no-pager commit -m "testing -c core.hooksPath=/dev/null semantics"',
