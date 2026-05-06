@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.2.1](https://github.com/JacobPEvans/claude-code-plugins/compare/v3.2.0...v3.2.1) (2026-05-06)
+
+
+### Bug Fixes
+
+* add _TMPDIR cwd isolation to test_shlex_valueerror.py ([#278](https://github.com/JacobPEvans/claude-code-plugins/issues/278)) [issue-solver-2026-05-04] ([b22b9b6](https://github.com/JacobPEvans/claude-code-plugins/commit/b22b9b680cdf9d9a9eaeb53962547334b6c2bd4e))
+
 ## [3.2.0](https://github.com/JacobPEvans/claude-code-plugins/compare/v3.1.7...v3.2.0) (2026-05-06)
 
 
