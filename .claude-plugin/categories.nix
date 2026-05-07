@@ -9,15 +9,14 @@ let
   categoriesDir = ./categories;
   entries = builtins.readDir categoriesDir;
   isCategoryFile =
-    name: type:
-    type == "regular" && builtins.match ".+\\.nix" name != null && !(builtins.substring 0 1 name == ".");
+    name:
+    entries.${name} == "regular"
+    && builtins.match ".+\\.nix" name != null
+    && builtins.substring 0 1 name != ".";
 
-  categoryFileNames = builtins.attrNames (
-    builtins.foldl' (acc: name: if isCategoryFile name entries.${name} then acc // { ${name} = null; } else acc) { } (
-      builtins.attrNames entries
-    )
+  categoryNames = map (n: builtins.replaceStrings [ ".nix" ] [ "" ] n) (
+    builtins.filter isCategoryFile (builtins.attrNames entries)
   );
-  categoryNames = map (n: builtins.replaceStrings [ ".nix" ] [ "" ] n) categoryFileNames;
 
   loaded = builtins.listToAttrs (
     map (name: {
