@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.3.0](https://github.com/JacobPEvans/claude-code-plugins/compare/v3.2.1...v3.3.0) (2026-05-07)
+
+
+### Features
+
+* **categories:** add canonical category metadata schema ([#288](https://github.com/JacobPEvans/claude-code-plugins/issues/288)) ([102e4e7](https://github.com/JacobPEvans/claude-code-plugins/commit/102e4e7f0ad2c2ab24922438bb5b6ec0a6ceb637))
+
 ## [3.2.1](https://github.com/JacobPEvans/claude-code-plugins/compare/v3.2.0...v3.2.1) (2026-05-06)
 
 
