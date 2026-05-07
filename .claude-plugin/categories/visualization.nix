@@ -1,5 +1,10 @@
 # visualization — visual-explainer HTML diagram/slide generators.
 # Default OFF. Output-heavy; useful for write-ups, not coding.
+#
+# visual-explainer plugin lives in nicobailon/visual-explainer marketplace
+# which is not in claude-plugins-official. Its commands aren't synthesized to
+# skills today (the plugin isn't passed through discoverClaudeCommands), so
+# claudeCommands is empty pending an agent-skills wire-up update.
 {
   default = { enabled = false; };
 
@@ -17,13 +22,5 @@
     "fact-check"
   ];
 
-  claudeCommands = [
-    "visual-explainer-project-recap"
-    "visual-explainer-generate-web-diagram"
-    "visual-explainer-generate-slides"
-    "visual-explainer-diff-review"
-    "visual-explainer-plan-review"
-    "visual-explainer-generate-visual-plan"
-    "visual-explainer-fact-check"
-  ];
+  claudeCommands = [ ];
 }

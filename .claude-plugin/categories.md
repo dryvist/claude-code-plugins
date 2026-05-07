@@ -91,25 +91,54 @@ pattern.
 
 ## Adding a new category
 
-1. Pick a name (kebab-case, descriptive — e.g. `data-engineering`, `mobile-dev`).
-2. Add an entry to `defaults` with a sensible `enabled` default.
-3. Add the matching entry to `members` listing plugin refs, skill names, and any
-   synthesized command-skill names.
-4. Open a PR to claude-code-plugins.
-5. Once merged, bump the `jacobpevans-cc-plugins` flake input in nix-ai and run
-   `nix flake check` — eval-time assertions catch typos and structural bugs.
+`categories.nix` auto-discovers any `*.nix` file in `./categories/`. Adding a
+new category is a single-file change:
+
+1. Pick a name (kebab-case, descriptive — e.g. `data-engineering`,
+   `mobile-dev`). The filename (sans `.nix`) becomes the category name.
+2. Create `./categories/<name>.nix` returning an attrset:
+
+   ```nix
+   {
+     default = { enabled = false; };  # or true; add `alwaysOn = true;` for core-like
+     claudePlugins  = [ "<plugin>@<marketplace>" ];
+     skills         = [ "<skill-folder-name>" ];
+     claudeCommands = [ "<plugin>-<command>" ];   # synthesized; only for
+                                                  # plugins in marketplaces
+                                                  # that get discoverClaudeCommands
+   }
+   ```
+
+3. Open a PR to claude-code-plugins. The eval-time assertion in
+   `categories.nix` checks for duplicate skill names across categories.
+4. Once merged, bump the `jacobpevans-cc-plugins` flake input in nix-ai and
+   run `nix flake check` — additional structural assertions there catch
+   typos in the consumer wiring.
+
+You do NOT edit `categories.nix` itself when adding a category. It walks
+`./categories/` automatically.
 
 ## Renaming or removing a category
 
-Categories are user-facing API. Renames are breaking changes. If you must rename:
+Categories are user-facing API (users reference them in
+`programs.claude.plugins.categories.{disabled,enableOnly}`). Renames and
+removals are breaking changes.
 
-1. Add the new name to both `defaults` and `members` in one PR.
-2. Wait at least one nix-ai release cycle so users can migrate their `disabled`
-   / `enableOnly` lists.
-3. Remove the old name in a follow-up PR.
+To rename:
 
-For removals, the same two-step rule applies — leave the empty members entry
-around for one release before deleting.
+1. Copy the existing category file to the new name; keep both files in one PR.
+2. Wait at least one nix-ai release cycle so users can migrate their lists.
+3. Delete the old file in a follow-up PR.
+
+To remove:
+
+1. Empty the members lists (`claudePlugins = []; skills = []; claudeCommands = [];`)
+   but keep the file in place so the category name still exists. Bump version
+   notes.
+2. Delete the file after one nix-ai release cycle.
+
+The "empty file then delete" two-step gives users a release window to remove
+references from their configs without eval-time errors.
 
 ## Known limitations
 

@@ -1,18 +1,29 @@
 # infra — Terraform / Ansible / Proxmox / Kubernetes / cloud.
 # Default ON for homelab + cloud DR work.
+#
+# Notes on plugin refs:
+#  * ansible-workflows lives in basher83/lunar-claude marketplace, not in
+#    jacobpevans-cc-plugins. The agent-skills auto-discovery picks up its
+#    skills via discoverSkills when lunar-claude is registered as a marketplace.
+#  * terraform/proxmox/iac plugin refs from external marketplaces are not
+#    enumerated here yet — they were aspirational placeholders that didn't
+#    map to verified plugin@marketplace pairs. Add them in a follow-up PR
+#    once their canonical refs are confirmed.
 {
   default = { enabled = true; };
 
   claudePlugins = [
     "infra-orchestration@jacobpevans-cc-plugins"
     "infra-standards@jacobpevans-cc-plugins"
-    "ansible-workflows@jacobpevans-cc-plugins"
-    "terraform-module-builder@anthropic-agent-skills"
-    "proxmox-infrastructure@anthropic-agent-skills"
-    "infrastructure-as-code-generator@anthropic-agent-skills"
+    "ansible-workflows@lunar-claude"
   ];
 
   skills = [
+    # jacobpevans infra-orchestration
+    "orchestrate-infra"
+    "sync-inventory"
+    "test-e2e"
+    # ansible-workflows@lunar-claude (verified deployed names)
     "ansible-fundamentals"
     "ansible-playbook-design"
     "ansible-role-design"
@@ -21,21 +32,13 @@
     "ansible-secrets"
     "ansible-proxmox"
     "ansible-testing"
-    "building-terraform-modules"
-    "generating-infrastructure-as-code"
-    "proxmox-infrastructure"
-    "orchestrate-infra"
-    "sync-inventory"
-    "test-e2e"
   ];
 
   claudeCommands = [
-    "ansible-workflows-create-playbook"
-    "ansible-workflows-create-role"
-    "ansible-workflows-lint"
-    "ansible-workflows-analyze"
-    "infra-orchestration-orchestrate-infra"
-    "infra-orchestration-sync-inventory"
-    "infra-orchestration-test-e2e"
+    # No commands here — neither jacobpevans-cc-plugins nor lunar-claude is
+    # passed to discoverClaudeCommands today. If/when they are, add the
+    # synthesized "<plugin>-<command>" entries (e.g. "ansible-workflows-lint",
+    # "infra-orchestration-orchestrate-infra") and the agent-skills wire-up
+    # in nix-ai will start filtering them.
   ];
 }

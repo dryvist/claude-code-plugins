@@ -5,7 +5,9 @@
 
   claudePlugins = [
     "browser-use@browser-use-skills"
-    "playwright@playwright"
+    # playwright lives under claude-plugins-official's external_plugins/
+    # not in a top-level marketplace named "playwright"
+    "playwright@claude-plugins-official"
   ];
 
   skills = [
