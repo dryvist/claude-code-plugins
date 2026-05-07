@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.3.1](https://github.com/JacobPEvans/claude-code-plugins/compare/v3.3.0...v3.3.1) (2026-05-07)
+
+
+### Bug Fixes
+
+* **deps:** refresh gh-aw action SHA pins ([#291](https://github.com/JacobPEvans/claude-code-plugins/issues/291)) ([d70b10b](https://github.com/JacobPEvans/claude-code-plugins/commit/d70b10ba8a8d792e5249980743ec87eb2fc4b8bf))
+
 ## [3.3.0](https://github.com/JacobPEvans/claude-code-plugins/compare/v3.2.1...v3.3.0) (2026-05-07)
 
 
