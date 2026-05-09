@@ -1,0 +1,12 @@
+{
+  "name": "agent-teams-orchestrator",
+  "version": "1.0.0",
+  "description": "Reusable team configurations and templates for common Agent Team workflows",
+  "author": {
+    "name": "JacobPEvans"
+  },
+  "license": "Apache-2.0",
+  "repository": "https://github.com/JacobPEvans/claude-code-plugins",
+  "keywords": ["agent-teams", "orchestration", "templates", "workflow"],
+  "skills": ["./skills/team-templates"]
+}
