@@ -137,8 +137,8 @@ EOF
       [[ -z "$pattern" || "$pattern" == \#* ]] && continue
       # Strip trailing slash (directory patterns match the file inside too)
       pattern="${pattern%/}"
-      # Match: exact filename, or path ending with the pattern
-      if [[ "$lint_file" == "$pattern" || "$lint_file" == */"$pattern" || "$lint_file" == "$pattern"/* ]]; then
+      # Match: exact filename, path ending with pattern, or any depth under the pattern directory
+      if [[ "$lint_file" == "$pattern" || "$lint_file" == */"$pattern" || "$lint_file" == "$pattern"/* || "$lint_file" == */"$pattern"/* ]]; then
         exit 0
       fi
     done < "$ignore_file"
