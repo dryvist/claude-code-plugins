@@ -226,9 +226,9 @@ Proceed to Phase 5.
 
 ## Phase 5: Record Result
 
-**Single/current-branch mode**: Emit the **Canonical PR Status Summary** as defined in
-/gh-cli-patterns, titled `PR Status`. Section 1 = this PR. Section 2 = all open PRs in
-the current repo. Then append:
+**Single/current-branch mode**: Emit the **Canonical PR Status Summary** (Section 1 =
+this PR, Section 2 = all open PRs in current repo) as defined in /gh-cli-patterns,
+titled `PR Status`. Then append:
 
 ```text
 IMPORTANT: Do NOT merge this PR. Wait for the human to review and invoke
@@ -252,8 +252,8 @@ If ANY fails, loop back to Phase 2. CRITICAL: CodeQL is SEPARATE from CI — che
 Emit the **Canonical PR Status Summary** as defined in /gh-cli-patterns, titled
 `Finalization Summary`. Section 1 = all PRs processed this run. Section 2 = all open
 PRs in affected repos (current repo for `all` mode; all repos from Phase 1 discovery
-for `org` mode). Show the target repo as a label next to each merge command (not a `--repo` flag —
-`/squash-merge-pr` has no repo argument; the user runs it from the correct worktree).
+for `org` mode). Show the target repo as a label next to each merge command (no `--repo` flag; user
+runs from the correct worktree).
 Wait for explicit user merge commands.
 
 ## Workflow

@@ -201,7 +201,6 @@ All Open PRs — <OWNER>/<REPO>
   ✅  https://github.com/<OWNER>/<REPO>/pull/42   Ready for review
   🟡  https://github.com/<OWNER>/<REPO>/pull/43   CI pending
   🔴  https://github.com/<OWNER>/<REPO>/pull/44   Conflicts | 3 open comments
-  🔴  https://github.com/<OWNER>/<REPO>/pull/50   CHANGES_REQUESTED
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Ready to merge (1):
@@ -221,8 +220,6 @@ Blocked — needs human (2):
 
 ### Emoji mapping
 
-Fields are named explicitly — `mergeable` and `mergeStateStatus` are separate fields:
-
 | Emoji | Condition |
 |-------|-----------|
 | ✅ | `mergeable == MERGEABLE` AND `mergeStateStatus == CLEAN` or `HAS_HOOKS`, no unresolved threads |
@@ -231,9 +228,7 @@ Fields are named explicitly — `mergeable` and `mergeStateStatus` are separate 
 
 ### Status tags
 
-Append after the URL, separated by ` | `. Omit entirely when no issues exist ("Ready for review" suffices).
-
-Tags differ by section because Section 2 uses a lightweight query without per-PR thread counts:
+Append after the URL, separated by ` | `. Omit when no issues exist ("Ready for review" suffices).
 
 | Tag | Section 1 trigger | Section 2 trigger |
 |-----|-------------------|-------------------|
