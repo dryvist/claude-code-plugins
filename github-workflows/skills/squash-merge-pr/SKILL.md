@@ -1,38 +1,32 @@
 ---
 name: squash-merge-pr
 description: >-
-  Autonomously drive a PR to squash-merge: validates readiness, auto-invokes
-  /finalize-pr to resolve any blockers, then executes the squash merge. Handles
-  single PR from argument or current branch.
+  Squash-merge a PR into main. Invoke only when the user explicitly requests a
+  squash merge. Single PR by number or current branch.
 metadata:
   argument-hint: "[PR_NUMBER]"
 ---
 
 # Squash Merge PR
 
-Autonomous merge pipeline. Validates readiness, invokes `/finalize-pr` automatically
-for common blockers, then executes squash merge. Most blockers (review threads,
-conflicts, CI, CodeQL) are resolved autonomously. Some conditions require human
-action — closed/merged PR, draft PR, unresolvable conflicts, unrecoverable CI, or
-more than 100 review threads needing manual pagination.
+Validates readiness, invokes `/finalize-pr` for soft blocks, then squash-merges.
+Hard stops abort immediately. Some cases require human action: closed/merged PR,
+draft, unresolvable conflicts, unrecoverable CI, or more than 100 review threads.
 
 > **State warning**: Branch state, remote tracking, and PR status change between
 > invocations. Re-run all git/gh commands from Step 1.
 
 ## Critical Rules
 
-- **Never skip validation** — always run the GraphQL check before merging
-- **Never update PR metadata** — that's `/finalize-pr`'s job
-- **Auto-finalize when blocked** — invoke `/finalize-pr` for soft blocks rather than stopping
-- **Hard stops abort immediately** — no finalize attempted; report reason and exit
+- Run the GraphQL readiness gate on every invocation before merging
+- PR metadata updates are `/finalize-pr`'s responsibility
+- Invoke `/finalize-pr` for soft blocks; abort on hard stops with reason
 
 ## Step 1: Validate PR Ready
 
-Run the **canonical PR-readiness gate** from /gh-cli-patterns against
-`<PR_NUMBER>`. Replace `<OWNER>`, `<REPO>`, `<PR_NUMBER>` per the placeholder convention.
-
-Also run the **canonical code-scanning alert count** from /gh-cli-patterns (CodeQL is
-separate from CI and not reflected in `statusCheckRollup`).
+Run the **canonical PR-readiness gate** and **canonical code-scanning alert count**
+from /gh-cli-patterns. Replace `<OWNER>`, `<REPO>`, `<PR_NUMBER>` per the
+placeholder convention. CodeQL is separate from CI — check both.
 
 ### 1.1 Hard stops (abort immediately, no finalize)
 
@@ -58,13 +52,9 @@ full gate. If the gate still fails after finalization, abort with the specific r
 
 ### 1.3 Auto-finalize
 
-Invoke `/finalize-pr <PR_NUMBER>` via the Skill tool and wait for it to complete.
-`/finalize-pr` handles CodeQL, review threads, merge conflicts, CI failures, and
-metadata. If `/finalize-pr` itself reports that human intervention is needed
-(unresolvable conflict, unrecoverable CI failure), abort with its reason.
-
-After `/finalize-pr` completes, re-run the full readiness gate (Steps 1.1 + 1.2). If
-any soft block persists, abort with the specific failing field and reason.
+Invoke `/finalize-pr <PR_NUMBER>`. If it reports human intervention needed, abort with
+its reason. Then re-run the full gate (Steps 1.1 + 1.2); if any soft block persists,
+abort with the specific failing field.
 
 ## Step 2: Generate Squash Commit Message
 
