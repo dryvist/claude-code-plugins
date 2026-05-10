@@ -216,30 +216,36 @@ Blocked — needs human (2):
 **Title** by invocation:
 
 - `/ship` → `Ship Summary`
-- `/finalize-pr` (single PR or `all`) → `PR Status`
-- `/finalize-pr org` → `Finalization Summary`
+- `/finalize-pr` (single PR or current branch) → `PR Status`
+- `/finalize-pr all` or `/finalize-pr org` → `Finalization Summary`
 
 ### Emoji mapping
 
+Fields are named explicitly — `mergeable` and `mergeStateStatus` are separate fields:
+
 | Emoji | Condition |
 |-------|-----------|
-| ✅ | `mergeStateStatus` is `CLEAN` or `HAS_HOOKS`, no conflicts, no unresolved threads |
-| 🟡 | `BEHIND`, `UNKNOWN` (computing), `UNSTABLE` (checks pending), `REVIEW_REQUIRED`, `COMMENTED` |
-| 🔴 | `DIRTY`/`CONFLICTING` (conflicts), `BLOCKED`, `CHANGES_REQUESTED`, unresolved threads, `isDraft`, CI failed |
+| ✅ | `mergeable == MERGEABLE` AND `mergeStateStatus == CLEAN` or `HAS_HOOKS`, no unresolved threads |
+| 🟡 | `mergeStateStatus == BEHIND`/`UNKNOWN`/`UNSTABLE`, `reviewDecision == REVIEW_REQUIRED`, or `mergeable == UNKNOWN` (GitHub computing) |
+| 🔴 | `mergeable == CONFLICTING`, `mergeStateStatus == BLOCKED`/`DIRTY`/`DRAFT`, `reviewDecision == CHANGES_REQUESTED`, unresolved threads, `isDraft == true`, or CI failed |
 
 ### Status tags
 
 Append after the URL, separated by ` | `. Omit entirely when no issues exist ("Ready for review" suffices).
 
-| Tag | Trigger |
-|-----|---------|
-| `Conflicts` | `mergeable ≠ MERGEABLE` |
-| `N open comments` | Unresolved review thread count > 0 (Section 1: from Phase 3 gate data; Section 2: from `reviewDecision == CHANGES_REQUESTED` or `COMMENTED`) |
-| `CI pending` | `mergeStateStatus` is `UNKNOWN` or `UNSTABLE`, or `statusCheckRollup.state ≠ SUCCESS` |
-| `CI failed` | CI checks have terminal failure state |
-| `CHANGES_REQUESTED` | `reviewDecision == CHANGES_REQUESTED` |
-| `Draft` | `isDraft == true` |
-| `Behind main` | `mergeStateStatus == BEHIND` |
+Tags differ by section because Section 2 uses a lightweight query without per-PR thread counts:
+
+| Tag | Section 1 trigger | Section 2 trigger |
+|-----|-------------------|-------------------|
+| `Conflicts` | `mergeable == CONFLICTING` | `mergeable == CONFLICTING` |
+| `Computing` | `mergeable == UNKNOWN` | `mergeable == UNKNOWN` |
+| `N open comments` | Unresolved thread count from Phase 3 gate | _(not available — omit count)_ |
+| `CHANGES_REQUESTED` | `reviewDecision == CHANGES_REQUESTED` | `reviewDecision == CHANGES_REQUESTED` |
+| `Review required` | `reviewDecision == REVIEW_REQUIRED` | `reviewDecision == REVIEW_REQUIRED` |
+| `CI pending` | `statusCheckRollup.state != SUCCESS` | `mergeStateStatus == UNKNOWN`/`UNSTABLE` |
+| `CI failed` | CI checks terminal failure | `mergeStateStatus == BLOCKED` (when other fields clean) |
+| `Draft` | `isDraft == true` | `isDraft == true` |
+| `Behind main` | `mergeStateStatus == BEHIND` | `mergeStateStatus == BEHIND` |
 
 ### Data queries
 
@@ -249,14 +255,25 @@ Append after the URL, separated by ` | `. Omit entirely when no issues exist ("R
 gh pr view <PR_NUMBER> --json url --jq '.url'
 ```
 
-**Fetch all open PRs** (for Section 2 — one call per affected repo):
+**Fetch all open PRs** (for Section 2 — one GraphQL call per affected repo):
+
+`gh pr list --json` does NOT support `mergeStateStatus` — use GraphQL instead:
 
 ```bash
-gh pr list --state open --limit 50 \
-  --json number,url,title,mergeable,reviewDecision,mergeStateStatus,isDraft
+gh api graphql -f query='
+  query($owner:String!,$repo:String!){
+    repository(owner:$owner,name:$repo){
+      pullRequests(states:OPEN,first:50){
+        nodes{
+          number url title mergeable reviewDecision mergeStateStatus isDraft
+          commits(last:1){nodes{commit{statusCheckRollup{state}}}}
+        }
+      }
+    }
+  }' -f owner=<OWNER> -f repo=<REPO>
 ```
 
-For org-wide mode, add `--repo <OWNER>/<REPO>` per repo from Phase 1 discovery.
+For org-wide mode, run once per repo from Phase 1 discovery, replacing `<OWNER>`/`<REPO>`.
 
 ### "Affected repos" definition
 
@@ -274,8 +291,15 @@ For org-wide mode, add `--repo <OWNER>/<REPO>` per repo from Phase 1 discovery.
 
 ### Merge commands
 
-- Single-repo context: `/squash-merge-pr <NUMBER>   (<OWNER>/<REPO>)`
-- Org-wide mode: `/squash-merge-pr <NUMBER> --repo <OWNER>/<REPO>`
+All modes: `/squash-merge-pr <NUMBER>` — run from the worktree of the target repo.
+The repo context is shown as a label, not a flag (the skill has no `--repo` argument):
+
+```text
+Ready to merge (1):
+  /squash-merge-pr 42   (JacobPEvans/claude-code-plugins)
+```
+
+For org-wide mode, note the target repo so the user knows which worktree to navigate to.
 
 ## Heredoc Body Pattern
 

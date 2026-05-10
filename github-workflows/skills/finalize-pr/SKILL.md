@@ -252,7 +252,8 @@ If ANY fails, loop back to Phase 2. CRITICAL: CodeQL is SEPARATE from CI — che
 Emit the **Canonical PR Status Summary** as defined in /gh-cli-patterns, titled
 `Finalization Summary`. Section 1 = all PRs processed this run. Section 2 = all open
 PRs in affected repos (current repo for `all` mode; all repos from Phase 1 discovery
-for `org` mode). For org-wide mode, include `--repo <OWNER>/<REPO>` on merge commands.
+for `org` mode). Show the target repo as a label next to each merge command (not a `--repo` flag —
+`/squash-merge-pr` has no repo argument; the user runs it from the correct worktree).
 Wait for explicit user merge commands.
 
 ## Workflow
