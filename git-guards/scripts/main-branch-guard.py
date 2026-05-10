@@ -8,6 +8,7 @@ Ignores files outside git repositories (like ~/.claude/plans/).
 Exit codes: 0=allow (JSON on stdout), 0=deny (JSON on stdout with permissionDecision=deny)
 """
 
+import fnmatch
 import json
 import subprocess
 import sys
@@ -83,6 +84,61 @@ def get_current_branch(file_path: str) -> str:
     return ""
 
 
+def is_gitignored(file_path: str) -> bool:
+    """Run `git check-ignore` from the file's directory.
+
+    Pass only the basename and set cwd to the parent so the lookup is correct
+    regardless of whether the input was absolute or relative. Exit 0 = ignored;
+    anything else (1, 128, OSError) is treated as not ignored.
+    """
+    path = Path(file_path)
+    try:
+        result = subprocess.run(
+            ["git", "check-ignore", "-q", "--", path.name],
+            cwd=str(path.parent),
+            capture_output=True,
+        )
+        return result.returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
+def is_tracked(file_path: str) -> bool:
+    """Return True if `file_path` is tracked in the index.
+
+    Uses `git ls-files --error-unmatch`: exit 0 = tracked, 1 = not tracked.
+    Same cwd-and-basename trick as `is_gitignored` for path-safety.
+    """
+    path = Path(file_path)
+    try:
+        result = subprocess.run(
+            ["git", "ls-files", "--error-unmatch", "--", path.name],
+            cwd=str(path.parent),
+            capture_output=True,
+        )
+        return result.returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
+def is_local_exempt(file_path: str) -> bool:
+    """Local-only files are editable on main; tracked files are not.
+
+    - `*.local.*` (e.g. `settings.local.json`) — local override convention,
+      allowed unless the file slipped into the index, in which case the worktree
+      workflow re-applies.
+    - gitignored dotfiles (e.g. `.env`, `.env.local`) — machine-specific config.
+      Tracked dotfiles like `.gitignore` and `.envrc` are not gitignored, so they
+      stay blocked.
+    """
+    basename = Path(file_path).name
+    if fnmatch.fnmatch(basename, "*.local.*"):
+        return not is_tracked(file_path)
+    if basename.startswith("."):
+        return is_gitignored(file_path)
+    return False
+
+
 def main() -> None:
     try:
         hook_input = json.load(sys.stdin)
@@ -96,6 +152,9 @@ def main() -> None:
     tool_input = hook_input.get("tool_input", {})
     file_path = tool_input.get("file_path") or tool_input.get("notebook_path", "")
     if not file_path:
+        sys.exit(0)
+
+    if is_local_exempt(file_path):
         sys.exit(0)
 
     if not is_in_git_worktree(file_path):
