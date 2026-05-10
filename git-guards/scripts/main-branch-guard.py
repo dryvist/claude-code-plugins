@@ -8,6 +8,7 @@ Ignores files outside git repositories (like ~/.claude/plans/).
 Exit codes: 0=allow (JSON on stdout), 0=deny (JSON on stdout with permissionDecision=deny)
 """
 
+import fnmatch
 import json
 import subprocess
 import sys
@@ -83,6 +84,38 @@ def get_current_branch(file_path: str) -> str:
     return ""
 
 
+def is_gitignored(file_path: str) -> bool:
+    """Run `git check-ignore` from the file's directory.
+
+    Exit 0 means the file is ignored. Anything else (1 = not ignored, 128 = error,
+    OSError) is treated as not ignored.
+    """
+    file_dir = str(Path(file_path).parent)
+    try:
+        result = subprocess.run(
+            ["git", "check-ignore", "-q", "--", file_path],
+            cwd=file_dir,
+            capture_output=True,
+        )
+        return result.returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
+def is_local_exempt(file_path: str) -> bool:
+    """Local-only files are always editable, even on main.
+
+    - `*.local.*` (e.g. `settings.local.json`) — local override files by convention
+    - gitignored dotfiles (e.g. `.env`, `.env.local`) — machine-specific config
+    """
+    basename = Path(file_path).name
+    if fnmatch.fnmatch(basename, "*.local.*"):
+        return True
+    if basename.startswith("."):
+        return is_gitignored(file_path)
+    return False
+
+
 def main() -> None:
     try:
         hook_input = json.load(sys.stdin)
@@ -96,6 +129,9 @@ def main() -> None:
     tool_input = hook_input.get("tool_input", {})
     file_path = tool_input.get("file_path") or tool_input.get("notebook_path", "")
     if not file_path:
+        sys.exit(0)
+
+    if is_local_exempt(file_path):
         sys.exit(0)
 
     if not is_in_git_worktree(file_path):

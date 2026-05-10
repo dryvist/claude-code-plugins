@@ -122,7 +122,7 @@ WRONG_MUTATIONS = {
 def _is_on_main_branch() -> bool:
     """Check if current working directory is on the main branch.
 
-    Uses two-stage detection matching main-branch-guard.sh:
+    Uses two-stage detection matching main-branch-guard.py:
     1. Worktree directory name == "main" (fast, convention-based)
     2. Current branch name == "main" (fallback, git-based)
 

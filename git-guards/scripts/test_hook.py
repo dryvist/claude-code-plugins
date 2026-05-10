@@ -154,6 +154,28 @@ def test_allow_non_edit_tools():
     print("✅ Ignore other tools: None")
 
 
+def test_allow_file_outside_git_repo():
+    """Test that editing a file outside any git repository is allowed."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        outside = Path(tmpdir) / "scratch.txt"
+        outside.write_text("data")
+
+        output = run_hook("Edit", {"file_path": str(outside)})
+        actual = output["hookSpecificOutput"]["permissionDecision"] if output else None
+
+        assert actual is None, f"Expected allow for file outside git, got {actual!r}"
+        print("✅ Allow file outside git repo: None")
+
+
+def test_allow_empty_input():
+    """Test that empty/missing tool_input is allowed (fail-open)."""
+    output = run_hook("Edit", {})
+    actual = output["hookSpecificOutput"]["permissionDecision"] if output else None
+
+    assert actual is None, f"Expected allow for empty input, got {actual!r}"
+    print("✅ Allow empty input: None")
+
+
 def test_allow_bare_repo_sibling():
     """Regression: scratch dirs sibling to a bare-repo + main worktree must be allowed.
 
@@ -247,14 +269,82 @@ def test_notebook_edit():
         print("✅ Deny NotebookEdit in main: deny")
 
 
+def test_allow_local_pattern_in_main():
+    """Files matching *.local.* are always allowed, even in main worktree."""
+    with setup_test_repo() as main_worktree:
+        local_file = main_worktree / "settings.local.json"
+
+        output = run_hook("Write", {"file_path": str(local_file)})
+        actual = output["hookSpecificOutput"]["permissionDecision"] if output else None
+
+        assert actual is None, f"Expected allow for *.local.* in main, got {actual!r}"
+        print("✅ Allow *.local.* in main: None")
+
+
+def test_allow_gitignored_env_in_main():
+    """Gitignored dotfiles (e.g. .env) are allowed in main worktree."""
+    with setup_test_repo() as main_worktree:
+        gitignore = main_worktree / ".gitignore"
+        gitignore.write_text(".env\n")
+        subprocess.run(
+            ["git", "add", ".gitignore"],
+            cwd=main_worktree,
+            capture_output=True,
+            check=True,
+        )
+        subprocess.run(
+            ["git", "commit", "-m", "ignore .env"],
+            cwd=main_worktree,
+            capture_output=True,
+            check=True,
+        )
+
+        env_file = main_worktree / ".env"
+        output = run_hook("Write", {"file_path": str(env_file)})
+        actual = output["hookSpecificOutput"]["permissionDecision"] if output else None
+
+        assert actual is None, f"Expected allow for gitignored .env in main, got {actual!r}"
+        print("✅ Allow gitignored .env in main: None")
+
+
+def test_deny_tracked_dotfile_in_main():
+    """Tracked dotfiles (e.g. .gitignore itself) are still denied in main worktree."""
+    with setup_test_repo() as main_worktree:
+        gitignore = main_worktree / ".gitignore"
+        gitignore.write_text("*.pyc\n")
+        subprocess.run(
+            ["git", "add", ".gitignore"],
+            cwd=main_worktree,
+            capture_output=True,
+            check=True,
+        )
+        subprocess.run(
+            ["git", "commit", "-m", "add gitignore"],
+            cwd=main_worktree,
+            capture_output=True,
+            check=True,
+        )
+
+        output = run_hook("Edit", {"file_path": str(gitignore)})
+        actual = output["hookSpecificOutput"]["permissionDecision"] if output else None
+
+        assert actual == "deny", f"Expected deny for tracked .gitignore in main, got {actual!r}"
+        print("✅ Deny tracked .gitignore in main: deny")
+
+
 def main():
     """Run all tests."""
     test_deny_in_main_worktree()
     test_deny_on_main_branch()
     test_allow_for_non_main()
     test_allow_non_edit_tools()
+    test_allow_file_outside_git_repo()
+    test_allow_empty_input()
     test_notebook_edit()
     test_allow_bare_repo_sibling()
+    test_allow_local_pattern_in_main()
+    test_allow_gitignored_env_in_main()
+    test_deny_tracked_dotfile_in_main()
 
 
 if __name__ == "__main__":
