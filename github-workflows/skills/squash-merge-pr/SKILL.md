@@ -10,9 +10,11 @@ metadata:
 
 # Squash Merge PR
 
-Fully autonomous merge pipeline. Validates readiness, invokes `/finalize-pr`
-automatically when blockers are found, then executes squash merge. The only
-conditions that require human action are: PR is closed/merged, or PR is in draft.
+Autonomous merge pipeline. Validates readiness, invokes `/finalize-pr` automatically
+for common blockers, then executes squash merge. Most blockers (review threads,
+conflicts, CI, CodeQL) are resolved autonomously. Some conditions require human
+action — closed/merged PR, draft PR, unresolvable conflicts, unrecoverable CI, or
+more than 100 review threads needing manual pagination.
 
 > **State warning**: Branch state, remote tracking, and PR status change between
 > invocations. Re-run all git/gh commands from Step 1.
@@ -21,40 +23,45 @@ conditions that require human action are: PR is closed/merged, or PR is in draft
 
 - **Never skip validation** — always run the GraphQL check before merging
 - **Never update PR metadata** — that's `/finalize-pr`'s job
-- **Auto-finalize when blocked** — invoke `/finalize-pr` rather than stopping
-- **Two hard stops only** — `state != OPEN` and `isDraft == true` abort without finalize
+- **Auto-finalize when blocked** — invoke `/finalize-pr` for soft blocks rather than stopping
+- **Hard stops abort immediately** — no finalize attempted; report reason and exit
 
 ## Step 1: Validate PR Ready
 
 Run the **canonical PR-readiness gate** from /gh-cli-patterns against
 `<PR_NUMBER>`. Replace `<OWNER>`, `<REPO>`, `<PR_NUMBER>` per the placeholder convention.
 
+Also run the **canonical code-scanning alert count** from /gh-cli-patterns (CodeQL is
+separate from CI and not reflected in `statusCheckRollup`).
+
 ### 1.1 Hard stops (abort immediately, no finalize)
 
-| Field | Abort condition | Message |
-|-------|-----------------|---------|
-| `state` | `!= OPEN` | "PR is closed or merged — nothing to do" |
-| `isDraft` | `true` | "PR is a draft — mark it ready for review first" |
+| Condition | Message |
+|-----------|---------|
+| `state != OPEN` | "PR is closed or merged — nothing to do" |
+| `isDraft == true` | "PR is a draft — mark it ready for review first" |
+| `reviewThreads.pageInfo.hasNextPage == true` | ">100 review threads — paginate manually and re-verify before merging" |
 
 ### 1.2 Soft blocks (invoke /finalize-pr, then re-verify)
 
 If any of the following fail, proceed to Step 1.3 (auto-finalize), then re-run the
 full gate. If the gate still fails after finalization, abort with the specific reason.
 
-| Field | Must be |
+| Check | Must be |
 |-------|---------|
 | `mergeable` | `MERGEABLE` |
 | `mergeStateStatus` | `CLEAN` or `HAS_HOOKS` |
 | `reviewDecision` | `APPROVED` or `null` |
 | `statusCheckRollup.state` | `SUCCESS` |
 | All `reviewThreads.isResolved` | `true` |
-| `reviewThreads.pageInfo.hasNextPage` | `false` |
+| CodeQL alert count | `0` |
 
 ### 1.3 Auto-finalize
 
 Invoke `/finalize-pr <PR_NUMBER>` via the Skill tool and wait for it to complete.
 `/finalize-pr` handles CodeQL, review threads, merge conflicts, CI failures, and
-metadata — everything needed to reach a mergeable state.
+metadata. If `/finalize-pr` itself reports that human intervention is needed
+(unresolvable conflict, unrecoverable CI failure), abort with its reason.
 
 After `/finalize-pr` completes, re-run the full readiness gate (Steps 1.1 + 1.2). If
 any soft block persists, abort with the specific failing field and reason.
