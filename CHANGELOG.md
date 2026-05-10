@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.4.0](https://github.com/JacobPEvans/claude-code-plugins/compare/v3.3.2...v3.4.0) (2026-05-10)
+
+
+### Features
+
+* **github-workflows:** auto-finalize blockers in squash-merge-pr ([#298](https://github.com/JacobPEvans/claude-code-plugins/issues/298)) ([d99964a](https://github.com/JacobPEvans/claude-code-plugins/commit/d99964a7e31b3c980a0ed5630b5268c21b00c231))
+* **github-workflows:** standardize PR status summary with full URLs and repo-wide view ([#297](https://github.com/JacobPEvans/claude-code-plugins/issues/297)) ([991ca13](https://github.com/JacobPEvans/claude-code-plugins/commit/991ca13b805dc968c6dd6ddac0ce7bd1d7260172))
+
 ## [3.3.2](https://github.com/JacobPEvans/claude-code-plugins/compare/v3.3.1...v3.3.2) (2026-05-10)
 
 
