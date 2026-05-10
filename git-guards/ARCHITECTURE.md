@@ -21,13 +21,13 @@ flowchart TD
     WR_CHECK -->|No| WR_WARN["Inject worktree reminder"]
 
     PG --> PG_CLASSIFY{"Classify\ncommand"}
-    PG_CLASSIFY -->|"force-push to main\nhook bypass --no-verify\nmerge on main\nhard reset\nbranch -D on main\ngh pr comment"| PG_BLOCK["Exit 2 — BLOCKED"]
-    PG_CLASSIFY -->|"merge, rebase\nforce-push to branch\nworktree remove"| PG_CONFIRM["Exit 2 — CONFIRM"]
-    PG_CLASSIFY -->|"Everything else"| PG_ALLOW["Exit 0 — allowed"]
+    PG_CLASSIFY -->|"force-push to main\nhook bypass --no-verify\nmerge on main\nhard reset\nbranch -D on main\ngh pr comment"| PG_BLOCK["permissionDecision: deny\n(BLOCKED)"]
+    PG_CLASSIFY -->|"merge, rebase\nforce-push to branch\nworktree remove"| PG_CONFIRM["permissionDecision: ask\n(CONFIRM)"]
+    PG_CLASSIFY -->|"Everything else"| PG_ALLOW["exit 0 / no decision\n(allowed)"]
 
     MBG --> MBG_CHECK{"On main\nbranch?"}
-    MBG_CHECK -->|No| MBG_ALLOW["Exit 0 — allowed"]
-    MBG_CHECK -->|Yes| MBG_BLOCK["Exit 2 — BLOCKED\n(force worktree workflow)"]
+    MBG_CHECK -->|No / local-only file| MBG_ALLOW["exit 0 / no decision\n(allowed)"]
+    MBG_CHECK -->|Yes & not exempt| MBG_BLOCK["permissionDecision: deny\n(force worktree workflow)"]
 
     classDef hook fill:#fff3e0,stroke:#e65100,color:#bf360c
     classDef block fill:#ffebee,stroke:#c62828,color:#b71c1c
@@ -71,13 +71,18 @@ flowchart LR
 ## Fail-Open Philosophy
 
 Every hook follows a strict fail-open contract: if the hook errors or crashes, it exits 0
-and allows the operation. Only an explicit decision to block produces exit 2.
+with no decision and the operation proceeds. Blocking is signalled by emitting a JSON
+`permissionDecision` (`deny` or `ask`) on stdout while still exiting 0; the worktree
+reminder writes a stderr message instead. The legacy exit-2 path (still used by
+`worktree-reminder.sh`) is preserved for shell hooks but no longer used by the Python
+guards.
 
-| Outcome | Exit Code | Effect |
+| Outcome | Mechanism | Effect |
 |---------|-----------|--------|
-| Intentional allow | 0 | Operation proceeds |
-| Intentional block | 2 | Operation denied |
-| Hook crash / error | 0 | Fail-open — proceeds anyway |
+| Intentional allow | exit 0, no decision | Operation proceeds |
+| Intentional block | exit 0 with `permissionDecision: deny` | Operation denied |
+| User confirmation | exit 0 with `permissionDecision: ask` | User prompted |
+| Hook crash / error | exit 0 (no JSON) | Fail-open — proceeds anyway |
 
 ## Relationship to git-standards
 

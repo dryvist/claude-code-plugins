@@ -332,6 +332,33 @@ def test_deny_tracked_dotfile_in_main():
         print("✅ Deny tracked .gitignore in main: deny")
 
 
+def test_deny_tracked_local_pattern_in_main():
+    """Regression for review feedback: `*.local.*` files that slipped into the
+    index must not bypass the guard — once tracked, they belong to a feature
+    branch like everything else."""
+    with setup_test_repo() as main_worktree:
+        local_file = main_worktree / "settings.local.json"
+        local_file.write_text("{}")
+        subprocess.run(
+            ["git", "add", "settings.local.json"],
+            cwd=main_worktree,
+            capture_output=True,
+            check=True,
+        )
+        subprocess.run(
+            ["git", "commit", "-m", "add tracked local file"],
+            cwd=main_worktree,
+            capture_output=True,
+            check=True,
+        )
+
+        output = run_hook("Edit", {"file_path": str(local_file)})
+        actual = output["hookSpecificOutput"]["permissionDecision"] if output else None
+
+        assert actual == "deny", f"Expected deny for tracked *.local.* in main, got {actual!r}"
+        print("✅ Deny tracked *.local.* in main: deny")
+
+
 def main():
     """Run all tests."""
     test_deny_in_main_worktree()
@@ -345,6 +372,7 @@ def main():
     test_allow_local_pattern_in_main()
     test_allow_gitignored_env_in_main()
     test_deny_tracked_dotfile_in_main()
+    test_deny_tracked_local_pattern_in_main()
 
 
 if __name__ == "__main__":
