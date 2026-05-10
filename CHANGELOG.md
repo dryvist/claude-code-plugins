@@ -137,13 +137,6 @@
 
 * **ci:** add gh-aw-pin-refresh workflow and recompile lock files ([1348be9](https://github.com/JacobPEvans/claude-code-plugins/commit/1348be9bedd444f7199dee3781c13ffb9adfc109))
 
-## [3.0.6](https://github.com/JacobPEvans/claude-code-plugins/compare/v3.0.5...v3.0.6) (2026-04-17)
-
-
-### Bug Fixes
-
-* **content-guards:** remove cspell entirely ([e1d3852](https://github.com/JacobPEvans/claude-code-plugins/commit/e1d38523944ea2ecca6fc8b4dbac6c161d2331f1))
-
 ## [3.0.5](https://github.com/JacobPEvans/claude-code-plugins/compare/v3.0.4...v3.0.5) (2026-04-17)
 
 
@@ -194,7 +187,7 @@
 * add ci and local test automation ([#41](https://github.com/JacobPEvans/claude-code-plugins/issues/41)) ([181c6a5](https://github.com/JacobPEvans/claude-code-plugins/commit/181c6a58f7baeb98ba77642c23582ba269dcb02a))
 * add codeql-resolver plugin with 3-tier resolution architecture ([#8](https://github.com/JacobPEvans/claude-code-plugins/issues/8)) ([a45ac3b](https://github.com/JacobPEvans/claude-code-plugins/commit/a45ac3bd8f2bd54cb00de6d29954ba03adfb2983))
 * add full AI workflow suite ([#75](https://github.com/JacobPEvans/claude-code-plugins/issues/75)) ([4a1d6fe](https://github.com/JacobPEvans/claude-code-plugins/commit/4a1d6fecef0dcdef504f566764868b75ad4ac06b))
-* add gh-aw agentic workflows and cspell config ([#64](https://github.com/JacobPEvans/claude-code-plugins/issues/64)) ([9f90f33](https://github.com/JacobPEvans/claude-code-plugins/commit/9f90f331b815e957749a1d9078710f082bf3eaef))
+* add gh-aw agentic workflows ([#64](https://github.com/JacobPEvans/claude-code-plugins/issues/64)) ([9f90f33](https://github.com/JacobPEvans/claude-code-plugins/commit/9f90f331b815e957749a1d9078710f082bf3eaef))
 * add pal-health plugin with SessionStart Doppler check ([#156](https://github.com/JacobPEvans/claude-code-plugins/issues/156)) ([7c4959c](https://github.com/JacobPEvans/claude-code-plugins/commit/7c4959cbd80f45ff5e16d504564ca40e799611e1))
 * add plugin validation CI ([#138](https://github.com/JacobPEvans/claude-code-plugins/issues/138)) ([79a7c51](https://github.com/JacobPEvans/claude-code-plugins/commit/79a7c51657abcda547cddaf55bda37cd8a744836))
 * add rate limiting, README validation, and externalize init-worktree ([#72](https://github.com/JacobPEvans/claude-code-plugins/issues/72)) ([97bfa05](https://github.com/JacobPEvans/claude-code-plugins/commit/97bfa05a43de066c58fa637acc41d9734fad0ab6))
@@ -209,7 +202,6 @@
 * **config-management:** add permission-format rule ([#139](https://github.com/JacobPEvans/claude-code-plugins/issues/139)) ([110fd57](https://github.com/JacobPEvans/claude-code-plugins/commit/110fd579ee77ae7f0afd639f994775378a7cca07))
 * consolidate plugins from 15 to 8 with consistent naming ([#31](https://github.com/JacobPEvans/claude-code-plugins/issues/31)) ([d36a028](https://github.com/JacobPEvans/claude-code-plugins/commit/d36a028c4e62d0a89fea8f902a1689a29c34b1f4))
 * **content-guards:** enforce 100-branch repository limit ([#124](https://github.com/JacobPEvans/claude-code-plugins/issues/124)) ([89af553](https://github.com/JacobPEvans/claude-code-plugins/commit/89af553b1782103d27459e7fc22368235355523f))
-* **cspell:** migrate to shared org-wide dictionary hierarchy ([34c08ed](https://github.com/JacobPEvans/claude-code-plugins/commit/34c08ed47c0d539f6e7fc6b24fd2a73d9057a5a9))
 * disable automatic triggers on Claude-executing workflows ([6c42de9](https://github.com/JacobPEvans/claude-code-plugins/commit/6c42de9d7f8cb3bfc28271714e462f91f8f3c53d))
 * enhance resolve-pr-threads with comment reading ([#46](https://github.com/JacobPEvans/claude-code-plugins/issues/46)) ([fc6a34c](https://github.com/JacobPEvans/claude-code-plugins/commit/fc6a34c553a3699b932dc92cb70325ee9e2d139b))
 * **finalize-pr:** add multi-PR modes, bot support, and skill authoring guidance ([#70](https://github.com/JacobPEvans/claude-code-plugins/issues/70)) ([7704876](https://github.com/JacobPEvans/claude-code-plugins/commit/7704876d2c012f4f9d854a9a49e2ed7d84d6682f))
@@ -300,13 +292,6 @@
 * use Go to install cclint, validate both plugins ([0e0890c](https://github.com/JacobPEvans/claude-code-plugins/commit/0e0890c45e8f9ce405eb746f592ef31072f54932))
 * use version-file config option for VERSION instead of extra-files ([#150](https://github.com/JacobPEvans/claude-code-plugins/issues/150)) ([5dd1f41](https://github.com/JacobPEvans/claude-code-plugins/commit/5dd1f413e4ad8e7e8be3c93c26276d887db793a3))
 
-## [2.6.0](https://github.com/JacobPEvans/claude-code-plugins/compare/v2.5.0...v2.6.0) (2026-04-12)
-
-
-### Features
-
-* **cspell:** migrate to shared org-wide dictionary hierarchy ([34c08ed](https://github.com/JacobPEvans/claude-code-plugins/commit/34c08ed47c0d539f6e7fc6b24fd2a73d9057a5a9))
-
 ## [2.5.0](https://github.com/JacobPEvans/claude-code-plugins/compare/v2.4.0...v2.5.0) (2026-04-09)
 
 
@@ -384,7 +369,7 @@
 * add ci and local test automation ([#41](https://github.com/JacobPEvans/claude-code-plugins/issues/41)) ([181c6a5](https://github.com/JacobPEvans/claude-code-plugins/commit/181c6a58f7baeb98ba77642c23582ba269dcb02a))
 * add codeql-resolver plugin with 3-tier resolution architecture ([#8](https://github.com/JacobPEvans/claude-code-plugins/issues/8)) ([a45ac3b](https://github.com/JacobPEvans/claude-code-plugins/commit/a45ac3bd8f2bd54cb00de6d29954ba03adfb2983))
 * add full AI workflow suite ([#75](https://github.com/JacobPEvans/claude-code-plugins/issues/75)) ([4a1d6fe](https://github.com/JacobPEvans/claude-code-plugins/commit/4a1d6fecef0dcdef504f566764868b75ad4ac06b))
-* add gh-aw agentic workflows and cspell config ([#64](https://github.com/JacobPEvans/claude-code-plugins/issues/64)) ([9f90f33](https://github.com/JacobPEvans/claude-code-plugins/commit/9f90f331b815e957749a1d9078710f082bf3eaef))
+* add gh-aw agentic workflows ([#64](https://github.com/JacobPEvans/claude-code-plugins/issues/64)) ([9f90f33](https://github.com/JacobPEvans/claude-code-plugins/commit/9f90f331b815e957749a1d9078710f082bf3eaef))
 * add pal-health plugin with SessionStart Doppler check ([#156](https://github.com/JacobPEvans/claude-code-plugins/issues/156)) ([7c4959c](https://github.com/JacobPEvans/claude-code-plugins/commit/7c4959cbd80f45ff5e16d504564ca40e799611e1))
 * add plugin validation CI ([#138](https://github.com/JacobPEvans/claude-code-plugins/issues/138)) ([79a7c51](https://github.com/JacobPEvans/claude-code-plugins/commit/79a7c51657abcda547cddaf55bda37cd8a744836))
 * add rate limiting, README validation, and externalize init-worktree ([#72](https://github.com/JacobPEvans/claude-code-plugins/issues/72)) ([97bfa05](https://github.com/JacobPEvans/claude-code-plugins/commit/97bfa05a43de066c58fa637acc41d9734fad0ab6))
@@ -618,7 +603,7 @@
 * add ci and local test automation ([#41](https://github.com/JacobPEvans/claude-code-plugins/issues/41)) ([181c6a5](https://github.com/JacobPEvans/claude-code-plugins/commit/181c6a58f7baeb98ba77642c23582ba269dcb02a))
 * add codeql-resolver plugin with 3-tier resolution architecture ([#8](https://github.com/JacobPEvans/claude-code-plugins/issues/8)) ([a45ac3b](https://github.com/JacobPEvans/claude-code-plugins/commit/a45ac3bd8f2bd54cb00de6d29954ba03adfb2983))
 * add full AI workflow suite ([#75](https://github.com/JacobPEvans/claude-code-plugins/issues/75)) ([4a1d6fe](https://github.com/JacobPEvans/claude-code-plugins/commit/4a1d6fecef0dcdef504f566764868b75ad4ac06b))
-* add gh-aw agentic workflows and cspell config ([#64](https://github.com/JacobPEvans/claude-code-plugins/issues/64)) ([9f90f33](https://github.com/JacobPEvans/claude-code-plugins/commit/9f90f331b815e957749a1d9078710f082bf3eaef))
+* add gh-aw agentic workflows ([#64](https://github.com/JacobPEvans/claude-code-plugins/issues/64)) ([9f90f33](https://github.com/JacobPEvans/claude-code-plugins/commit/9f90f331b815e957749a1d9078710f082bf3eaef))
 * add rate limiting, README validation, and externalize init-worktree ([#72](https://github.com/JacobPEvans/claude-code-plugins/issues/72)) ([97bfa05](https://github.com/JacobPEvans/claude-code-plugins/commit/97bfa05a43de066c58fa637acc41d9734fad0ab6))
 * add token-validator and issue-limiter plugins ([#2](https://github.com/JacobPEvans/claude-code-plugins/issues/2)) ([8a64289](https://github.com/JacobPEvans/claude-code-plugins/commit/8a642899d2c5287cb2cdb48c3f2b5209c796ba79))
 * add webfetch-guard and markdown-validator plugins ([705dbe8](https://github.com/JacobPEvans/claude-code-plugins/commit/705dbe82f0ddfac8ef6c2aeb24ec6b7aad3ba0fc))

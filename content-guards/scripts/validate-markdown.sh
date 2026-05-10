@@ -128,6 +128,22 @@ EOF
     lint_file="${file_path#${lint_dir}/}"
   fi
 
+  # markdownlint-cli2 only applies .markdownlintignore to glob-discovered files,
+  # not explicitly passed paths. Check the ignore file manually before linting.
+  ignore_file="$lint_dir/.markdownlintignore"
+  if [[ -f "$ignore_file" ]]; then
+    while IFS= read -r pattern || [[ -n "$pattern" ]]; do
+      # Skip blank lines and comments
+      [[ -z "$pattern" || "$pattern" == \#* ]] && continue
+      # Strip trailing slash (directory patterns match the file inside too)
+      pattern="${pattern%/}"
+      # Match: exact filename, path ending with pattern, or any depth under the pattern directory
+      if [[ "$lint_file" == "$pattern" || "$lint_file" == */"$pattern" || "$lint_file" == "$pattern"/* || "$lint_file" == */"$pattern"/* ]]; then
+        exit 0
+      fi
+    done < "$ignore_file"
+  fi
+
   if ! markdownlint_output=$( {
     cd "$lint_dir" || exit 1
     if (( ${#config_flag[@]} > 0 )); then
