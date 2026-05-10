@@ -181,6 +181,102 @@ gh api graphql --raw-field 'query=mutation {
 Failure guide: stale `<THREAD_ID>` → re-fetch threads; permission error → `gh auth status`;
 wrong mutation name → check table above.
 
+## Canonical PR Status Summary
+
+Single authoritative format for all PR status output. Reference this section from any
+skill that emits a summary — do NOT define local output formats in individual skills.
+
+### Output format
+
+```text
+{Title}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ✅  https://github.com/<OWNER>/<REPO>/pull/42   Ready for review
+  🟡  https://github.com/<OWNER>/<REPO>/pull/43   CI pending
+  🔴  https://github.com/<OWNER>/<REPO>/pull/44   Conflicts | 3 open comments
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+All Open PRs — <OWNER>/<REPO>
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ✅  https://github.com/<OWNER>/<REPO>/pull/42   Ready for review
+  🟡  https://github.com/<OWNER>/<REPO>/pull/43   CI pending
+  🔴  https://github.com/<OWNER>/<REPO>/pull/44   Conflicts | 3 open comments
+  🔴  https://github.com/<OWNER>/<REPO>/pull/50   CHANGES_REQUESTED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Ready to merge (1):
+  /squash-merge-pr 42   (<OWNER>/<REPO>)
+
+Blocked — needs human (2):
+  https://github.com/<OWNER>/<REPO>/pull/43 — CI pending
+  https://github.com/<OWNER>/<REPO>/pull/44 — Conflicts | 3 open comments
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+**Title** by invocation:
+
+- `/ship` → `Ship Summary`
+- `/finalize-pr` (single PR or `all`) → `PR Status`
+- `/finalize-pr org` → `Finalization Summary`
+
+### Emoji mapping
+
+| Emoji | Condition |
+|-------|-----------|
+| ✅ | `mergeStateStatus` is `CLEAN` or `HAS_HOOKS`, no conflicts, no unresolved threads |
+| 🟡 | `BEHIND`, `UNKNOWN` (computing), `UNSTABLE` (checks pending), `REVIEW_REQUIRED`, `COMMENTED` |
+| 🔴 | `DIRTY`/`CONFLICTING` (conflicts), `BLOCKED`, `CHANGES_REQUESTED`, unresolved threads, `isDraft`, CI failed |
+
+### Status tags
+
+Append after the URL, separated by ` | `. Omit entirely when no issues exist ("Ready for review" suffices).
+
+| Tag | Trigger |
+|-----|---------|
+| `Conflicts` | `mergeable ≠ MERGEABLE` |
+| `N open comments` | Unresolved review thread count > 0 (Section 1: from Phase 3 gate data; Section 2: from `reviewDecision == CHANGES_REQUESTED` or `COMMENTED`) |
+| `CI pending` | `mergeStateStatus` is `UNKNOWN` or `UNSTABLE`, or `statusCheckRollup.state ≠ SUCCESS` |
+| `CI failed` | CI checks have terminal failure state |
+| `CHANGES_REQUESTED` | `reviewDecision == CHANGES_REQUESTED` |
+| `Draft` | `isDraft == true` |
+| `Behind main` | `mergeStateStatus == BEHIND` |
+
+### Data queries
+
+**Fetch PR URL** (for Section 1 — current PRs):
+
+```bash
+gh pr view <PR_NUMBER> --json url --jq '.url'
+```
+
+**Fetch all open PRs** (for Section 2 — one call per affected repo):
+
+```bash
+gh pr list --state open --limit 50 \
+  --json number,url,title,mergeable,reviewDecision,mergeStateStatus,isDraft
+```
+
+For org-wide mode, add `--repo <OWNER>/<REPO>` per repo from Phase 1 discovery.
+
+### "Affected repos" definition
+
+| Invocation | Affected repos for Section 2 |
+|-----------|------------------------------|
+| `/ship` | Current repo |
+| `/finalize-pr` (single or `all`) | Current repo |
+| `/finalize-pr org` | All repos with open PRs from Phase 1 discovery |
+
+### Section 1 vs Section 2
+
+- **Section 1**: Only the PRs targeted by this invocation (the ones being finalized/shipped)
+- **Section 2**: ALL open PRs in every affected repo — including ones completely unrelated to
+  this invocation. This gives a full picture of outstanding work.
+
+### Merge commands
+
+- Single-repo context: `/squash-merge-pr <NUMBER>   (<OWNER>/<REPO>)`
+- Org-wide mode: `/squash-merge-pr <NUMBER> --repo <OWNER>/<REPO>`
+
 ## Heredoc Body Pattern
 
 ```bash
