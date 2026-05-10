@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.3.2](https://github.com/JacobPEvans/claude-code-plugins/compare/v3.3.1...v3.3.2) (2026-05-10)
+
+
+### Bug Fixes
+
+* **git-guards:** exempt local-only files from main-branch-guard ([#295](https://github.com/JacobPEvans/claude-code-plugins/issues/295)) ([2c2245c](https://github.com/JacobPEvans/claude-code-plugins/commit/2c2245c9dbe9cf0e02cea66e25f2fd6f3a8ee0cf))
+
 ## [3.3.1](https://github.com/JacobPEvans/claude-code-plugins/compare/v3.3.0...v3.3.1) (2026-05-07)
 
 
