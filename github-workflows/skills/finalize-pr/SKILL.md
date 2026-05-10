@@ -226,12 +226,11 @@ Proceed to Phase 5.
 
 ## Phase 5: Record Result
 
-**Single/current-branch mode**: Report ready status and wait for user:
+**Single/current-branch mode**: Emit the **Canonical PR Status Summary** (Section 1 =
+this PR, Section 2 = all open PRs in current repo) as defined in /gh-cli-patterns,
+titled `PR Status`. Then append:
 
 ```text
-✅ PR #<PR_NUMBER> ready for final review!
-
-All checks passed and PR metadata is up to date.
 IMPORTANT: Do NOT merge this PR. Wait for the human to review and invoke
   /squash-merge-pr    # Squash all commits into one
   /rebase-pr          # Rebase commits onto main (preserves history)
@@ -250,9 +249,12 @@ If ANY fails, loop back to Phase 2. CRITICAL: CodeQL is SEPARATE from CI — che
 
 ## Phase 6: Aggregate Report (Multi-PR Only)
 
-After processing all PRs, emit a summary listing ready PRs with merge commands
-and blocked PRs with reasons. For org-wide mode, include `--repo` on merge
-commands. Wait for explicit user merge commands.
+Emit the **Canonical PR Status Summary** as defined in /gh-cli-patterns, titled
+`Finalization Summary`. Section 1 = all PRs processed this run. Section 2 = all open
+PRs in affected repos (current repo for `all` mode; all repos from Phase 1 discovery
+for `org` mode). Show the target repo as a label next to each merge command (no `--repo` flag; user
+runs from the correct worktree).
+Wait for explicit user merge commands.
 
 ## Workflow
 
