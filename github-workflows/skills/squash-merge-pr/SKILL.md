@@ -47,14 +47,14 @@ separate from CI and not reflected in `statusCheckRollup`).
 If any of the following fail, proceed to Step 1.3 (auto-finalize), then re-run the
 full gate. If the gate still fails after finalization, abort with the specific reason.
 
-| Check | Must be |
-|-------|---------|
-| `mergeable` | `MERGEABLE` |
-| `mergeStateStatus` | `CLEAN` or `HAS_HOOKS` |
-| `reviewDecision` | `APPROVED` or `null` |
-| `statusCheckRollup.state` | `SUCCESS` |
-| All `reviewThreads.isResolved` | `true` |
-| CodeQL alert count | `0` |
+| Check | Must be | Abort message (if still failing after finalize) |
+|-------|---------|------------------------------------------------|
+| `mergeable` | `MERGEABLE` | "PR has git conflicts — unresolvable" |
+| `mergeStateStatus` | `CLEAN` or `HAS_HOOKS` | "PR merge state is {value} — still blocked after finalize" |
+| `reviewDecision` | `APPROVED` or `null` | "Review decision is {value}" |
+| `statusCheckRollup.state` | `SUCCESS` | "CI is {state} — unrecoverable" |
+| All `reviewThreads.isResolved` | `true` | "Unresolved review threads remain" |
+| CodeQL alert count | `0` | "Open CodeQL alerts remain — run /resolve-codeql manually" |
 
 ### 1.3 Auto-finalize
 
