@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.4.2](https://github.com/JacobPEvans/claude-code-plugins/compare/v3.4.1...v3.4.2) (2026-05-11)
+
+
+### Bug Fixes
+
+* **git-guards:** semantic branch detection and trailer compliance ([#303](https://github.com/JacobPEvans/claude-code-plugins/issues/303)) ([d11a7be](https://github.com/JacobPEvans/claude-code-plugins/commit/d11a7be5637ece1b2eaff32585c0d07d0d3cc17c))
+
 ## [3.4.1](https://github.com/JacobPEvans/claude-code-plugins/compare/v3.4.0...v3.4.1) (2026-05-11)
 
 
