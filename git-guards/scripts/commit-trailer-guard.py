@@ -21,15 +21,21 @@ _GIT_GLOBAL_BOOL = re.compile(r'^(-p|-P|--paginate|--no-pager|--no-replace-objec
 
 
 def _get_model_from_transcript(transcript_path: str) -> str:
-    """Read the most recent model name from the session transcript jsonl."""
+    """Read the most recent model name from the session transcript jsonl.
+
+    Reads at most 8 KB from the tail to avoid loading large transcripts.
+    """
     if not transcript_path:
         return ""
     path = Path(transcript_path)
     if not path.exists():
         return ""
     try:
-        lines = path.read_text(encoding="utf-8").splitlines()
-        for line in reversed(lines):
+        with open(path, "rb") as f:
+            f.seek(0, 2)
+            f.seek(max(0, f.tell() - 8192))
+            tail = f.read().decode("utf-8", errors="replace")
+        for line in reversed(tail.splitlines()):
             line = line.strip()
             if not line:
                 continue

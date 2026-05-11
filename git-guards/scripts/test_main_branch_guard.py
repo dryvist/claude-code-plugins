@@ -41,9 +41,9 @@ def _setup_fixtures():
     (seed / "init.txt").write_text("init")
     _git("add", "init.txt", cwd=str(seed))
     _git("commit", "--no-gpg-sign", "-m", "init", cwd=str(seed))
-    _git("push", "origin", "main", cwd=str(seed))
+    _git("push", "origin", "HEAD:main", cwd=str(seed))
     _git("checkout", "-b", "feature/x", cwd=str(seed))
-    _git("push", "origin", "feature/x", cwd=str(seed))
+    _git("push", "origin", "HEAD:feature/x", cwd=str(seed))
     shutil.rmtree(str(seed))
 
     # Worktrees from the bare repo
@@ -75,8 +75,8 @@ _FIXTURE_OK = False
 try:
     _BARE, _MAIN_WT, _FEAT_WT, _ALT_WT = _setup_fixtures()
     _FIXTURE_OK = True
-except Exception as exc:
-    print(f"WARNING: fixture setup failed: {exc}", file=sys.stderr)
+except FileNotFoundError:
+    print("SKIP: git not found, skipping worktree tests", file=sys.stderr)
 
 
 # ---------------------------------------------------------------------------
