@@ -30,9 +30,9 @@ def setup_test_repo():
         main_worktree = repo_root / "main"
         main_worktree.mkdir()
 
-        # Initialize git repo
+        # Initialize git repo on main branch explicitly (default branch varies by system)
         subprocess.run(
-            ["git", "init"], cwd=main_worktree, capture_output=True, check=True
+            ["git", "init", "-b", "main"], cwd=main_worktree, capture_output=True, check=True
         )
         subprocess.run(
             ["git", "config", "user.email", "test@example.com"],

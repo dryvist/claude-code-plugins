@@ -16,6 +16,63 @@ SCRIPT = Path(__file__).parent / "git-permission-guard.py"
 _TMPDIR = tempfile.mkdtemp(prefix="test_guard_")
 atexit.register(shutil.rmtree, _TMPDIR, ignore_errors=True)
 
+# ---------------------------------------------------------------------------
+# Git fixtures for BLOCKED_ON_MAIN branch-detection tests
+# ---------------------------------------------------------------------------
+
+_GITBASE = tempfile.mkdtemp(prefix="test_guard_git_")
+atexit.register(shutil.rmtree, _GITBASE, ignore_errors=True)
+
+
+def _git(*args, cwd):
+    subprocess.run(["git"] + list(args), cwd=cwd, capture_output=True, check=True)
+
+
+def _setup_git_fixture():
+    base = Path(_GITBASE)
+    bare = base / "repo.git"
+    main_wt = base / "main"
+    feat_wt = base / "feature" / "x"
+
+    _git("init", "--bare", str(bare), cwd=_GITBASE)
+
+    seed = base / "_seed"
+    _git("clone", str(bare), str(seed), cwd=_GITBASE)
+    _git("config", "user.email", "t@t.com", cwd=str(seed))
+    _git("config", "user.name", "T", cwd=str(seed))
+    (seed / "init.txt").write_text("init")
+    _git("add", "init.txt", cwd=str(seed))
+    _git("commit", "--no-gpg-sign", "-m", "init", cwd=str(seed))
+    _git("push", "origin", "HEAD:main", cwd=str(seed))
+    _git("checkout", "-b", "feature/x", cwd=str(seed))
+    _git("push", "origin", "HEAD:feature/x", cwd=str(seed))
+    shutil.rmtree(str(seed))
+
+    main_wt.mkdir(parents=True)
+    _git("worktree", "add", str(main_wt), "main", cwd=str(bare))
+    _git("config", "user.email", "t@t.com", cwd=str(main_wt))
+    _git("config", "user.name", "T", cwd=str(main_wt))
+
+    feat_wt.parent.mkdir(parents=True)
+    _git("worktree", "add", str(feat_wt), "feature/x", cwd=str(bare))
+
+    return bare, main_wt, feat_wt
+
+
+_BARE: Path = Path("/nonexistent")
+_MAIN_WT: Path = Path("/nonexistent")
+_FEAT_WT: Path = Path("/nonexistent")
+_GIT_FIXTURE_OK = False
+try:
+    _BARE, _MAIN_WT, _FEAT_WT = _setup_git_fixture()
+    _GIT_FIXTURE_OK = True
+except FileNotFoundError:
+    print("SKIP: git not found, skipping BLOCKED_ON_MAIN worktree tests", file=sys.stderr)
+
+# ---------------------------------------------------------------------------
+# Test helpers
+# ---------------------------------------------------------------------------
+
 
 def run(cmd: str) -> dict:
     inp = json.dumps({"tool_name": "Bash", "tool_input": {"command": cmd}})
@@ -25,6 +82,25 @@ def run(cmd: str) -> dict:
         capture_output=True,
         text=True,
         cwd=_TMPDIR,
+    )
+    if result.stdout.strip():
+        return json.loads(result.stdout.strip())
+    return {}
+
+
+def run_cwd(cmd: str, hook_cwd: str = "", proc_cwd: str = "") -> dict:
+    """Run with an explicit hook cwd field and/or process cwd."""
+    inp = json.dumps({
+        "tool_name": "Bash",
+        "tool_input": {"command": cmd},
+        "cwd": hook_cwd,
+    })
+    result = subprocess.run(
+        ["python3", str(SCRIPT)],
+        input=inp,
+        capture_output=True,
+        text=True,
+        cwd=proc_cwd or _TMPDIR,
     )
     if result.stdout.strip():
         return json.loads(result.stdout.strip())
@@ -41,6 +117,17 @@ def check(label: str, cmd: str, expected_decision: str) -> bool:
     ok = actual == expected_decision
     status = "PASS" if ok else "FAIL"
     print(f"{status} [{label}]: decision={actual}")
+    if not ok:
+        print(f"  Expected: {expected_decision}, Got: {actual}")
+    return ok
+
+
+def check_cwd(label: str, cmd: str, expected_decision: str,
+              hook_cwd: str = "", proc_cwd: str = "") -> bool:
+    out = run_cwd(cmd, hook_cwd=hook_cwd, proc_cwd=proc_cwd)
+    actual = out["hookSpecificOutput"]["permissionDecision"] if out else "silent_allow"
+    ok = actual == expected_decision
+    print(f"{'PASS' if ok else 'FAIL'} [{label}]: decision={actual}")
     if not ok:
         print(f"  Expected: {expected_decision}, Got: {actual}")
     return ok
@@ -164,6 +251,77 @@ all_pass &= check("valid -c then --bare then -c hooksPath", "git -c user.name=te
 # False positive guard: tag message containing the bypass pattern as a substring must not deny
 # Uses 'git tag' (not in BLOCKED_ON_MAIN) to test the tokenizer false-positive scenario on any branch
 all_pass &= check("hooksPath in tag message", 'git -c user.name=test tag v99-test -m "allow -c core.hooksPath bypass example"', "silent_allow")
+
+# ---------------------------------------------------------------------------
+# BLOCKED_ON_MAIN: worktree + bare-repo branch-detection tests
+# ---------------------------------------------------------------------------
+
+if _GIT_FIXTURE_OK:
+    # 1. git commit from main worktree (no -C) → deny
+    all_pass &= check_cwd(
+        "commit from main-wt denied",
+        "git commit -m msg",
+        "deny",
+        hook_cwd=str(_MAIN_WT),
+    )
+
+    # 2. git add from main worktree (no -C) → deny
+    all_pass &= check_cwd(
+        "add from main-wt denied",
+        "git add file.txt",
+        "deny",
+        hook_cwd=str(_MAIN_WT),
+    )
+
+    # 3. git commit from feature worktree (no -C) → silent_allow
+    all_pass &= check_cwd(
+        "commit from feature-wt allowed",
+        "git commit -m msg",
+        "silent_allow",
+        hook_cwd=str(_FEAT_WT),
+    )
+
+    # 4. git -C <feature-wt> commit from main-wt CWD → silent_allow (regression: -C bug)
+    all_pass &= check_cwd(
+        "-C feature-wt from main-wt CWD allowed",
+        f"git -C {_FEAT_WT} commit -m msg",
+        "silent_allow",
+        hook_cwd=str(_MAIN_WT),
+    )
+
+    # 5. git -C <feature-wt> add from main-wt CWD → silent_allow
+    all_pass &= check_cwd(
+        "-C feature-wt add from main-wt CWD allowed",
+        f"git -C {_FEAT_WT} add file.txt",
+        "silent_allow",
+        hook_cwd=str(_MAIN_WT),
+    )
+
+    # 6. git -C <main-wt> commit from feature-wt CWD → deny (-C redirects to main)
+    all_pass &= check_cwd(
+        "-C main-wt from feature-wt CWD denied",
+        f"git -C {_MAIN_WT} commit -m msg",
+        "deny",
+        hook_cwd=str(_FEAT_WT),
+    )
+
+    # 7. git commit from bare repo dir → silent_allow (bare repo, not a work tree)
+    all_pass &= check_cwd(
+        "commit from bare-repo dir allowed",
+        "git commit -m msg",
+        "silent_allow",
+        hook_cwd=str(_BARE),
+    )
+
+    # 8. Relative -C ../feature/x resolved against hook_cwd → silent_allow
+    all_pass &= check_cwd(
+        "relative -C feature-wt allowed",
+        "git -C ../feature/x commit -m msg",
+        "silent_allow",
+        hook_cwd=str(_MAIN_WT),
+    )
+else:
+    print("SKIP: git fixture unavailable, skipping BLOCKED_ON_MAIN worktree tests")
 
 print()
 print("ALL TESTS PASSED" if all_pass else "SOME TESTS FAILED")

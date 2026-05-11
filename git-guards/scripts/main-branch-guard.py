@@ -48,23 +48,6 @@ def is_in_git_worktree(file_path: str) -> bool:
         return False
 
 
-def get_worktree_root(file_path: str) -> str:
-    """Get the git worktree root directory for the given file."""
-    path = Path(file_path)
-    file_dir = str(path.parent)
-    try:
-        result = subprocess.run(
-            ["git", "rev-parse", "--show-toplevel"],
-            cwd=file_dir,
-            capture_output=True,
-            text=True,
-        )
-        if result.returncode == 0:
-            return result.stdout.strip()
-    except (OSError, subprocess.SubprocessError):
-        pass
-    return ""
-
 
 def get_current_branch(file_path: str) -> str:
     """Get the current git branch from the file's directory."""
@@ -159,14 +142,6 @@ def main() -> None:
 
     if not is_in_git_worktree(file_path):
         sys.exit(0)
-
-    worktree_root = get_worktree_root(file_path)
-    if worktree_root and Path(worktree_root).name == "main":
-        deny(
-            f"BLOCKED: File '{file_path}' is in the main worktree. "
-            "Editing files in the main worktree is not allowed.\n\n"
-            "Create a worktree using `/superpowers:using-git-worktrees`.",
-        )
 
     current_branch = get_current_branch(file_path)
     if current_branch == "main":

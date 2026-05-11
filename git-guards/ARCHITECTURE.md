@@ -14,6 +14,7 @@ flowchart TD
 
     UP -->|"matcher: *"| WR["worktree-reminder.sh\n(UserPromptSubmit)"]
     PT_BASH -->|"matcher: Bash"| PG["git-permission-guard.py\n(PreToolUse)"]
+    PT_BASH -->|"matcher: Bash"| TG["commit-trailer-guard.py\n(PreToolUse)"]
     PT_EDIT -->|"matcher: Edit, Write, NotebookEdit"| MBG["main-branch-guard.py\n(PreToolUse)"]
 
     WR --> WR_CHECK{"In a\nworktree?"}
@@ -48,6 +49,7 @@ flowchart LR
         direction TB
         WR2["worktree-reminder.sh\nfires on every prompt"]
         PG2["git-permission-guard.py\nfires on every Bash call"]
+        TG2["commit-trailer-guard.py\nfires on every Bash call"]
         MBG2["main-branch-guard.py\nfires on every file edit"]
 
         subgraph INNER["All other plugin operations"]
