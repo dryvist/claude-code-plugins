@@ -8,13 +8,15 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for integration diagrams.
 
 - **git-permission-guard**: Blocks dangerous git/gh commands (force push, hard reset, destructive operations)
 - **main-branch-guard**: Prevents file edits on main branch (enforces worktree workflow)
+- **commit-trailer-guard**: Rewrites `Assisted-by: Claude <...>` to kernel coding-assistants format (`Assisted-by: Claude:<model>`)
 
 ## Usage
 
-No manual invocation required. All three hooks activate automatically:
+No manual invocation required. All hooks activate automatically:
 
 - **worktree-reminder** — fires on every user prompt, reminds if not in a worktree
 - **git-permission-guard** — fires on every Bash call, blocks dangerous git/gh commands
+- **commit-trailer-guard** — fires on every Bash call, rewrites `Assisted-by` trailer in `git commit` commands to the [Linux kernel coding-assistants spec](https://docs.kernel.org/process/coding-assistants.html)
 - **main-branch-guard** — fires on every file edit, blocks edits on main branch
 
 ## Installation

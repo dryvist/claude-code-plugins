@@ -119,31 +119,59 @@ WRONG_MUTATIONS = {
 }
 
 
-def _is_on_main_branch() -> bool:
-    """Check if current working directory is on the main branch.
+def _is_inside_work_tree(target_dir: str = "") -> bool:
+    """Return True only if target_dir (or process cwd) is inside a git work tree.
 
-    Uses two-stage detection matching main-branch-guard.py:
-    1. Worktree directory name == "main" (fast, convention-based)
-    2. Current branch name == "main" (fallback, git-based)
+    git rev-parse --is-inside-work-tree exits 0 but prints "false" inside a
+    bare repo, so exit code alone is insufficient — stdout must equal "true".
+    """
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--is-inside-work-tree"],
+            cwd=target_dir or None,
+            capture_output=True, text=True, timeout=2,
+        )
+        return result.returncode == 0 and result.stdout.strip() == "true"
+    except (subprocess.SubprocessError, OSError):
+        return False
 
-    Returns False (fail-open) on any error.
+
+def _resolve_effective_dir(target_dir: str, hook_cwd: str) -> str:
+    """Resolve the effective git working directory for branch checks.
+
+    - Absolute target_dir → use it directly.
+    - Relative target_dir + hook_cwd → join them.
+    - No target_dir → use hook_cwd (empty string means subprocess uses process cwd).
+    """
+    if not target_dir:
+        return hook_cwd
+    target_dir = os.path.expanduser(target_dir)
+    if os.path.isabs(target_dir):
+        return target_dir
+    if hook_cwd:
+        return os.path.join(hook_cwd, target_dir)
+    return target_dir
+
+
+def _is_on_main_branch(target_dir: str = "") -> bool:
+    """Check if target_dir (or process cwd when empty) is on the main branch.
+
+    Semantic check: work-tree guard first (bare repos and non-git dirs return
+    False immediately), then branch-name lookup. Layout-agnostic — no
+    directory-name convention assumed.
 
     GIT_GUARD_BRANCH_OVERRIDE: when set, returns (value == "main") without
-    touching git. Intended for CI/test use only — setting this in production
-    bypasses the branch guard entirely.
+    touching git. Intended for CI/test use only.
     """
     override = os.environ.get("GIT_GUARD_BRANCH_OVERRIDE")
     if override is not None:
         return override == "main"
+    if not _is_inside_work_tree(target_dir):
+        return False
     try:
         result = subprocess.run(
-            ["git", "rev-parse", "--show-toplevel"],
-            capture_output=True, text=True, timeout=2,
-        )
-        if result.returncode == 0 and os.path.basename(result.stdout.strip()) == "main":
-            return True
-        result = subprocess.run(
             ["git", "branch", "--show-current"],
+            cwd=target_dir or None,
             capture_output=True, text=True, timeout=2,
         )
         return result.returncode == 0 and result.stdout.strip() == "main"
@@ -281,6 +309,8 @@ def main():
     if data.get("tool_name") != "Bash":
         sys.exit(0)
 
+    hook_cwd = data.get("cwd", "")
+    target_dir = ""
     command = data.get("tool_input", {}).get("command", "").strip()
     if not command:
         sys.exit(0)
@@ -305,6 +335,7 @@ def main():
             # -C <path>
             m = re.match(r'^-C\s+("[^"]+"|\'[^\']+\'|\S+)\s*(.*)', rest)
             if m:
+                target_dir = m.group(1).strip("'\"")
                 rest = m.group(2).strip()
                 continue
             # -c <key=value>
@@ -363,7 +394,7 @@ def main():
                 if re.match(r"^(?:commit|tag)\.gpgsign\s*=\s*(?:false|0|off|no)\b", config_token, re.IGNORECASE):
                     deny("This command disables commit/tag signing. Fix the underlying issue instead.")
 
-        if sub_tokens and sub_tokens[0] in BLOCKED_ON_MAIN and _is_on_main_branch():
+        if sub_tokens and sub_tokens[0] in BLOCKED_ON_MAIN and _is_on_main_branch(_resolve_effective_dir(target_dir, hook_cwd)):
             deny(
                 f"'git {sub_tokens[0]}' is not allowed on the main branch. "
                 "Create a worktree using `/superpowers:using-git-worktrees`."
