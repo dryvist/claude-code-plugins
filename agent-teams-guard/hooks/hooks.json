@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'TEAMS=$HOME/.claude/teams; test -d $TEAMS || exit 0; for c in $TEAMS/*/config.json; do test -f $c || continue; p=${c%config.json}pid; test -f $p || continue; pid=$(cat $p 2>/dev/null); kill -0 $pid 2>/dev/null || printf \"\\nWARNING: Stale Agent Team session.\\nPath: %s\\nCleanup: rm -rf %s\\n\" \"${c%/config.json}\" \"${c%/config.json}\" >&2; done'",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
