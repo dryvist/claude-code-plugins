@@ -1,0 +1,9 @@
+{
+  "name": "agent-teams-guard",
+  "version": "1.0.0",
+  "description": "Safety guardrails for Agent Teams: detects orphaned sessions on startup and warns with remediation steps",
+  "author": {"name": "JacobPEvans"},
+  "homepage": "https://github.com/JacobPEvans/claude-code-plugins",
+  "keywords": ["hooks", "agent-teams", "guard", "safety", "session-cleanup"],
+  "license": "Apache-2.0"
+}
