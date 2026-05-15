@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.5.0](https://github.com/JacobPEvans/claude-code-plugins/compare/v3.4.3...v3.5.0) (2026-05-15)
+
+
+### Features
+
+* **infra-standards:** add self-hosted-runners skill for RunsOn migration ([#308](https://github.com/JacobPEvans/claude-code-plugins/issues/308)) ([050aebb](https://github.com/JacobPEvans/claude-code-plugins/commit/050aebbf0dc851e98417c40427107ab04c0330a9))
+
 ## [3.4.3](https://github.com/JacobPEvans/claude-code-plugins/compare/v3.4.2...v3.4.3) (2026-05-14)
 
 
