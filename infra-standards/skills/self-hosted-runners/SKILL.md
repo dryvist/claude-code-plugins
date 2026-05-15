@@ -1,17 +1,23 @@
 ---
 name: self-hosted-runners
-description: Use when editing GitHub Actions workflow files (.github/workflows/*.yml) in JacobPEvans repos. Documents when to target self-hosted RunsOn runners vs github-hosted runners, the v3 label catalog used across the org, the required github.run_id segment, and the prerequisite GitHub App allowlist.
+description: >-
+  Use when editing GitHub Actions workflow files (.github/workflows/*.yml)
+  in JacobPEvans repos. Documents when to target self-hosted RunsOn runners
+  vs GitHub-hosted runners, the v3 label catalog used across the org, the
+  required github.run_id segment, and the GitHub App allowlist prereq.
 ---
 
 # Self-Hosted Runners (RunsOn)
 
 JacobPEvans repos use self-hosted RunsOn runners deployed by
 [terraform-runs-on](https://github.com/JacobPEvans/terraform-runs-on) for
-Linux GitHub Actions jobs. The infrastructure is paid for whether it runs
-or not (~$3.50/month of fixed App Runner + CloudWatch). Workflows that
-stay on `ubuntu-latest` waste GitHub Actions minutes that don't need to
-be spent. Migrate any Linux job in the org that isn't covered by the
-"do not migrate" list below.
+Linux GitHub Actions jobs. The control plane has a fixed monthly cost
+whether or not jobs run (App Runner + CloudWatch — see
+[terraform-runs-on/README.md](https://github.com/JacobPEvans/terraform-runs-on/blob/main/README.md)
+for the current estimate). Workflows that stay on `ubuntu-latest` waste
+GitHub Actions minutes that don't need to be spent. Migrate any Linux job
+in the org that isn't covered by the **GitHub-hosted** rows in the decision
+table below.
 
 ## When to target RunsOn
 
@@ -95,10 +101,17 @@ RUNS_ON_INSTANCE_TYPE: m8i.large
 RUNS_ON_INSTANCE_LIFECYCLE: spot
 ```
 
-If these are missing despite the `runs-on=...` label, GitHub silently fell
-back to the default github-hosted pool because the label didn't match a
-configured runner (most often: the repo isn't in the App allowlist, or
-`${{ github.run_id }}` was missing from the label).
+If those variables are missing despite the `runs-on=...` label, the job
+didn't land on RunsOn. GitHub does **not** silently fall back to github-hosted
+when a custom label is unmatched — the job sits in `queued` state waiting
+for a runner that never picks it up. Most common causes: the repo isn't in
+the RunsOn GitHub App allowlist, the `${{ github.run_id }}` segment is
+missing from the label so the control plane can't correlate the
+`workflow_job` webhook, or AWS spot capacity for the requested family is
+briefly exhausted (RunsOn v3's spot circuit breaker handles this but a
+queue stall can still happen during the fallback). The `_ci-gate.yml`
+watchdog in `JacobPEvans/.github` cancels any job stuck in `queued` after
+`queue_timeout_minutes` so the merge gate isn't blocked indefinitely.
 
 ## Cost allocation
 
