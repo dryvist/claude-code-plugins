@@ -5,6 +5,9 @@ Infrastructure standards for Proxmox, Terraform, Ansible including deployment pi
 ## Skills
 
 - **`/infrastructure-standards`** - Deployment pipeline, VMID/IP mapping, dev shells, Doppler/SOPS, Terraform inventory
+- **`/self-hosted-runners`** - When to target RunsOn vs github-hosted runners in
+  `.github/workflows/*.yml`, the v3 label catalog used across the org, the required
+  `github.run_id` segment, and the GitHub App allowlist prereq
 
 ## Installation
 
@@ -16,6 +19,7 @@ claude plugins add jacobpevans-cc-plugins/infra-standards
 
 ```text
 /infrastructure-standards
+/self-hosted-runners
 ```
 
 ## License
