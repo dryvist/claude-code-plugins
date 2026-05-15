@@ -7,8 +7,9 @@
   },
   "license": "MIT",
   "repository": "https://github.com/JacobPEvans/claude-code-plugins",
-  "keywords": ["infrastructure", "terraform", "ansible", "proxmox", "nix", "devshell"],
+  "keywords": ["infrastructure", "terraform", "ansible", "proxmox", "nix", "devshell", "runs-on", "github-actions"],
   "skills": [
-    "./skills/infrastructure-standards"
+    "./skills/infrastructure-standards",
+    "./skills/self-hosted-runners"
   ]
 }
