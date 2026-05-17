@@ -23,7 +23,7 @@ permissions:
 
 jobs:
   ci-suite:
-    uses: JacobPEvans/ai-workflows/.github/workflows/suite-ci.yml@v0.13
+    uses: JacobPEvans/ai-workflows/.github/workflows/suite-ci.yml@v0.14
     with:
       repo_context: "Claude Code plugins: skills, hooks, and slash commands for Claude Code CLI"
       ci_structure: "validate-plugin.yml (JSON schema validation for plugin manifests)"
