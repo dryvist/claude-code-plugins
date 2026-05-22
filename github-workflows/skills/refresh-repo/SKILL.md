@@ -53,13 +53,27 @@ Replace `<OWNER>`, `<REPO>`, `<PR_NUMBER>` per the placeholder legend in that sk
 2. Fetch origin with stale remote branch pruning, but without tag updates:
    `git fetch origin --no-tags --prune --force`
 3. Determine the default branch from `origin/HEAD`, falling back to `main` or `master`.
-4. Sync the default branch from its existing worktree with a fast-forward only merge:
+4. **Restore the default-branch worktree to the default branch.** Per the workspace
+   convention in `~/git/CLAUDE.md`, `<repo>/main/` (or `<repo>/master/`) must always
+   be checked out to the default branch. After a feature PR merges, that worktree is
+   often left on the now-`[gone]` feature branch. Detect and fix:
+   - Resolve the default worktree path from `git worktree list` — the entry whose
+     path basename matches the default branch (e.g. `<repo>/main` for `main`).
+   - If that path exists and `git -C <path> symbolic-ref --short HEAD` does not equal
+     `<default>`:
+     - If the worktree has uncommitted changes
+       (`git -C <path> status --porcelain` is non-empty), stash them first with
+       `git -C <path> stash push -u -m "refresh-repo: auto-stash before <default> restore"`
+       and surface the stash reference in the summary so the user can recover.
+     - `git -C <path> checkout <default>`.
+   - Never use `--force`, never discard uncommitted work, never reset.
+5. Sync the default branch from its existing worktree with a fast-forward only merge:
    `git merge --ff-only origin/<default>`.
    If the default worktree is dirty or divergent, report it and skip instead of resetting.
-5. Delete local branches already merged into the default branch with `git branch -d`.
+6. Delete local branches already merged into the default branch with `git branch -d`.
    Never delete main/master/develop/current branches, worktree-checked-out branches, or branches
    with open PRs.
-6. Switch back to the original branch if it still exists.
+7. Switch back to the original branch if it still exists.
 
 Do not use `git fetch --tags`, `git fetch --prune-tags`, or `git pull --tags` during the
 normal refresh. Tags are audited separately in Step 4 so local-only non-release tags and
@@ -118,7 +132,8 @@ Finish with `git worktree prune`.
 ### 6. Summary
 
 Report: PRs assessed as merge-ready (if any), tags deleted or reported, branches cleaned up,
-worktrees removed, current branch, and sync status.
+worktrees removed, default-branch worktree restorations (with any stash references created),
+current branch, and sync status.
 
 ## Common Mistake to Avoid
 
