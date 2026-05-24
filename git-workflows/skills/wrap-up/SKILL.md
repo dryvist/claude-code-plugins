@@ -117,10 +117,16 @@ abandoned work) and you want the local trace gone in one operation.
 
 Sequence:
 
-1. `gh pr close <PR_NUMBER> --repo <owner>/<repo> --comment "<reason>" --delete-branch`
-2. Resolve the branch's local worktree path from `git worktree list`. If
-   present, `git worktree remove <path> --force`.
-3. `git branch -D <branch>` to delete the local branch.
+1. **Capture the branch name first** — step 2 deletes the remote ref, so
+   capture before that runs:
+   `gh pr view <PR_NUMBER> --repo <owner>/<repo> --json headRefName --jq '.headRefName'`.
+2. Close the PR and delete the remote branch in one call:
+   `gh pr close <PR_NUMBER> --repo <owner>/<repo> --comment "<reason>" --delete-branch`.
+3. If the current worktree IS the captured branch's, `git switch main`
+   first so step 4 can remove it.
+4. Find the worktree path via `git worktree list` matching the captured
+   branch, then `git worktree remove <path> --force` if present, and
+   `git branch -D <branch>`.
 
 Closes the gap where `gh pr close --delete-branch` removes only the remote
 branch and leaves the local branch + worktree behind. Reuses the
