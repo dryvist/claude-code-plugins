@@ -1,27 +1,15 @@
 ---
 name: infrastructure-standards
-description: Use when working on infrastructure repos (terraform, ansible, kubernetes, proxmox, nix devShells)
+description: Use when editing Proxmox/Terraform/Ansible inventory — VMID/IP assignment ranges and the Terraform-to-Ansible inventory contract.
 ---
 
 # Infrastructure Standards
 
-## General Principles
-
-- **Idempotency**: All IaC must produce same result on repeated runs.
-- **Modularity**: Organize into reusable modules.
-- **State management**: Remote state with locking (DynamoDB for AWS).
-- **Security**: Least privilege, encrypt at rest and in transit.
-- **Cost**: Right-size resources, tag everything, set budget alerts.
-
-## Deployment Pipeline
-
-```text
-terraform-proxmox  ->  ansible-proxmox  ->  ansible-proxmox-apps  ->  ansible-splunk
-(provision VMs)        (configure host)     (configure apps)          (configure Splunk)
-```
-
-Not every change needs the full pipeline. App config: ansible-proxmox-apps
-only. Splunk config: ansible-splunk only. New VM: full pipeline.
+For general IaC principles, the deployment pipeline diagram, dev-shell templates,
+and the SOPS-vs-Doppler decision tree, see
+[docs.jacobpevans.com/infrastructure](https://docs.jacobpevans.com/infrastructure)
+and the `config-secrets` / `secrets-policy` org rules. This skill carries the
+operational tables an agent needs at edit time without leaving the editor.
 
 ## VMID & IP Addressing
 
@@ -37,67 +25,6 @@ IPs use pattern `192.168.0.{vmid}` (for VMIDs under 256).
 | 190-199 | LB/Management | haproxy, splunk-mgmt |
 | 200-299 | VMs | splunk-vm (200) |
 | 9000-9999 | Templates | Not running, no IP |
-
-## Dev Shell Architecture
-
-Every repo owns its own dev shell. No central registry.
-
-```text
-repo/
-├── flake.nix      <- defines devShells.default
-├── flake.lock     <- pins nixpkgs independently
-├── .envrc         <- `use flake` (ALWAYS committed)
-└── .direnv/       <- ALWAYS in .gitignore
-```
-
-| Repo | Template | Key Tools |
-| --- | --- | --- |
-| ansible-proxmox | `github:JacobPEvans/nix-devenv?dir=shells/ansible` | ansible, molecule, sops, age |
-| ansible-proxmox-apps | `github:JacobPEvans/nix-devenv?dir=shells/ansible` | + SOPS_AGE_KEY_FILE |
-| terraform-proxmox | `github:JacobPEvans/nix-devenv?dir=shells/terraform` | terraform, terragrunt, tfsec, trivy |
-| terraform-aws | `github:JacobPEvans/nix-devenv?dir=shells/terraform` | same as terraform-proxmox |
-| kubernetes-monitoring | `github:JacobPEvans/nix-devenv?dir=shells/kubernetes` | kubectl, helm, helmfile, k9s, kind |
-| splunk | `github:JacobPEvans/nix-devenv?dir=shells/splunk-dev` | uv (Python 3.9 on-demand) |
-
-## Secrets Management
-
-### SOPS vs Doppler Decision
-
-| Scenario | Tool |
-| --- | --- |
-| Runtime injection (env vars) | Doppler |
-| Secrets committed to git (encrypted) | SOPS |
-| Terraform state encryption | SOPS |
-| Ansible vault replacement | SOPS |
-| CI/CD pipeline secrets | Doppler |
-
-**Rule**: If it must exist in a git-tracked file, use SOPS. If injectable
-at runtime, use Doppler.
-
-### Doppler Usage
-
-```bash
-# Terraform
-doppler run --name-transformer tf-var -- terragrunt plan
-# With AWS
-aws-vault exec terraform -- doppler run --name-transformer tf-var -- terragrunt apply
-# Ansible
-doppler run -- ansible-playbook -i inventory/hosts.yml playbooks/site.yml
-```
-
-### SOPS Configuration
-
-`.sops.yaml` at repo root:
-
-```yaml
-creation_rules:
-  - path_regex: (\.enc\.ya?ml$|secrets/.*\.ya?ml$)
-    age: >-
-      age1your-public-key-here
-```
-
-Naming: encrypted = `.enc.yml`, plaintext = `.yml` (in `.gitignore`).
-Precedence: when both provide same secret, Doppler (runtime) wins.
 
 ## Terraform Inventory Contract
 
