@@ -165,3 +165,51 @@ run_hook() {
   [ "$status" -eq 0 ]
   [ -z "$output" ]
 }
+
+# ---------------------------------------------------------------------------
+# TC6: Strict octet regex — out-of-range octets are NOT treated as IPs
+# ---------------------------------------------------------------------------
+
+@test "TC6a: 999.999.999.999 is not matched (each octet > 255)" {
+  run_hook '{"tool_name":"Write","tool_input":{"file_path":"/x.py","content":"x=\"999.999.999.999\""}}'
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "TC6b: 256.1.1.1 is not matched (first octet > 255)" {
+  run_hook '{"tool_name":"Write","tool_input":{"file_path":"/x.py","content":"x=\"256.1.1.1\""}}'
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "TC6c: 192.168.0.256 is not matched as allowed-range (last octet > 255)" {
+  # If matched, it would BLOCK (since 256 isn't in 192.168.0.0/24).
+  # With the strict regex it's not an IP at all, so the line is skipped.
+  run_hook '{"tool_name":"Write","tool_input":{"file_path":"/x.py","content":"x=\"192.168.0.256\""}}'
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+# ---------------------------------------------------------------------------
+# TC7: Path normalization — relative and absolute paths to the same file
+# share the same acknowledgment slot.
+# ---------------------------------------------------------------------------
+
+@test "TC7: relative and absolute paths to the same file share state" {
+  TMPDIR_TEST="$(mktemp -d)"
+  ABS_PATH="$TMPDIR_TEST/foo.py"
+  REL_PATH="./foo.py"
+  FIRST="{\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"$ABS_PATH\",\"content\":\"x=\\\"10.0.1.200\\\"\"}}"
+  SECOND="{\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"$REL_PATH\",\"content\":\"x=\\\"10.0.1.200\\\"\"}}"
+
+  # First attempt blocks
+  run python3 "$SCRIPT" <<< "$FIRST"
+  echo "$output" | grep -q '"permissionDecision": "deny"'
+
+  # Same IP, this time as a relative path resolved from the same cwd → allow
+  cd "$TMPDIR_TEST"
+  run python3 "$SCRIPT" <<< "$SECOND"
+  echo "$output" | grep -q '"permissionDecision": "allow"'
+
+  rm -rf "$TMPDIR_TEST"
+}

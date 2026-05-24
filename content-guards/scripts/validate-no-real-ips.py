@@ -28,13 +28,14 @@ import sys
 import time
 from pathlib import Path
 
-IP_PATTERN = re.compile(r"(?<![\w.])(?:\d{1,3}\.){3}\d{1,3}(?![\w.])")
+_OCTET = r"(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)"
+IP_PATTERN = re.compile(rf"(?<![\w.]){_OCTET}(?:\.{_OCTET}){{3}}(?![\w.])")
 
 ALLOWED_PATTERNS = [
-    re.compile(r"^192\.168\.0\.\d{1,3}$"),
+    re.compile(rf"^192\.168\.0\.{_OCTET}$"),
     re.compile(r"^127\.0\.0\.[01]$"),
     re.compile(r"^0\.0\.0\.0$"),
-    re.compile(r"^255\.255\.255\.\d{1,3}$"),
+    re.compile(rf"^255\.255\.255\.{_OCTET}$"),
     re.compile(r"^169\.254\.169\.254$"),
 ]
 
@@ -84,7 +85,9 @@ def load_state() -> dict[str, float]:
 def save_state(state: dict[str, float]) -> None:
     try:
         STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
-        STATE_FILE.write_text(json.dumps(state))
+        tmp = STATE_FILE.with_suffix(STATE_FILE.suffix + ".tmp")
+        tmp.write_text(json.dumps(state))
+        os.replace(tmp, STATE_FILE)
     except OSError:
         pass
 
@@ -122,7 +125,8 @@ def main() -> int:
         return 0
 
     tool_input = hook_input.get("tool_input") or {}
-    file_path = str(tool_input.get("file_path") or "")
+    raw_file_path = str(tool_input.get("file_path") or "")
+    file_path = os.path.realpath(raw_file_path) if raw_file_path else ""
     content = extract_content(tool_name, tool_input)
 
     if not content:
