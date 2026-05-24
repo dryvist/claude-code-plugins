@@ -146,7 +146,7 @@ DETECTORS: list[Detector] = [
              skip_line=lambda l: bool(EMAIL_PLACEHOLDER.search(l))),
     Detector("absolute_user_path", USER_PATH, _user_path_allowed,
              "use ${HOME}, ~, ${USER}, or <user> placeholders."),
-    Detector("private_key_header", PRIVATE_KEY, lambda _v: False,
+    Detector("private_key_header", PRIVATE_KEY, lambda _: False,
              "private keys belong in keychain/SOPS/Doppler, never a file."),
     Detector("aws_account_id", AWS_ACCT, _aws_allowed,
              "use 123456789012 (AWS sample) or ${AWS_ACCOUNT_ID}.",
