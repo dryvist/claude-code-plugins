@@ -177,8 +177,45 @@ any `reviewThreads.isResolved` = `false`,
 `reviewDecision` = `CHANGES_REQUESTED`/`REVIEW_REQUIRED`,
 `statusCheckRollup.state` ≠ `SUCCESS`, or CodeQL count > 0.
 
+### 3.1 Post-Finalize Wait (REQUIRED before re-verify)
+
+If the most recent commit on the PR's `headRefName` landed within the last 60 seconds:
+
+```bash
+last_commit_ts=$(gh api repos/<OWNER>/<REPO>/commits/<HEAD_SHA> --jq '.commit.committer.date' \
+  | xargs -I{} date -j -f "%Y-%m-%dT%H:%M:%SZ" {} +%s)
+now=$(date +%s)
+[ $((now - last_commit_ts)) -lt 60 ] && sleep $((60 - (now - last_commit_ts)))
+```
+
+GitHub recomputes `mergeStateStatus` and branch protection asynchronously after a push.
+A gate query within the first 60 seconds frequently returns `UNKNOWN` or stale state.
+Waiting once here is dramatically cheaper than burning a `/finalize-pr` retry on a
+transient pending check.
+
+### 3.2 Retry Cap
+
 If any abort condition hits: re-invoke `/finalize-pr <PR_NUMBER>`, wait for completion,
-then re-run both gates. Only list a PR as "Ready to merge" after both gates pass.
+then re-run both gates.
+
+**Hard cap: 3 re-invocations per PR per `/ship` invocation.** After the 3rd, do NOT
+silently report the PR as "Ready to merge." Instead, categorize the result and report
+it explicitly per Step 3.3 below.
+
+### 3.3 Result Categorization (REQUIRED)
+
+For each PR, classify the final state into exactly one category. Surface the category
+in the Step 3 summary — never silently elide a non-ready result.
+
+| Category | When to use | Action shown to user |
+|---|---|---|
+| `Ready to merge` | Both gates clean after the Step 3.1 wait | Suggest `/squash-merge-pr` or `/rebase-pr` |
+| `Ready except human gate` | Only blocker is `REVIEW_REQUIRED` or `isDraft=true` | Suggest specific reviewer ping or marking ready-for-review |
+| `Ship aborted` | Retry cap hit, or `/finalize-pr` returned non-ready category | Show the failed gate and the manual action that would unblock it |
+
+The category MUST match what `/finalize-pr` returned in its Stop Condition result —
+do not re-classify here. `/ship`'s job is to surface the per-PR category, not to
+override `/finalize-pr`'s judgment about whether retry is possible.
 
 Then emit the **Canonical PR Status Summary** as defined in /gh-cli-patterns, titled
 `Ship Summary`. Affected repos = current repo. Fetch each PR's full URL via:
@@ -187,8 +224,8 @@ Then emit the **Canonical PR Status Summary** as defined in /gh-cli-patterns, ti
 gh pr view <PR_NUMBER> --json url --jq '.url'
 ```
 
-Section 1 lists the PRs targeted by this `/ship` invocation. Section 2 lists all open
-PRs in the current repo (including unrelated ones).
+Section 1 lists the PRs targeted by this `/ship` invocation (each tagged with its
+category). Section 2 lists all open PRs in the current repo (including unrelated ones).
 
 ## Safety
 
