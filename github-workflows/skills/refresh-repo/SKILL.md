@@ -57,23 +57,30 @@ Replace `<OWNER>`, `<REPO>`, `<PR_NUMBER>` per the placeholder legend in that sk
    convention in `~/git/CLAUDE.md`, `<repo>/main/` (or `<repo>/master/`) must always
    be checked out to the default branch. After a feature PR merges, that worktree is
    often left on the now-`[gone]` feature branch. Detect and fix:
-   - Resolve the default worktree path from `git worktree list` — the entry whose
-     path basename matches the default branch (e.g. `<repo>/main` for `main`).
-   - If that path exists and `git -C <path> symbolic-ref --short HEAD` does not equal
-     `<default>`:
+   - Resolve the default worktree path using the workspace convention:
+     `~/git/<repo>/<default>/`. Do not rely on basename matching from
+     `git worktree list` — a feature branch named `feature/<default>` would also
+     produce a path basename of `<default>`.
+   - If that path exists and `git -C <path> rev-parse --abbrev-ref HEAD` does not equal
+     `<default>` (this is safer than `symbolic-ref --short HEAD`, which errors on
+     detached HEAD during a rebase or commit-checkout):
      - If the worktree has uncommitted changes
        (`git -C <path> status --porcelain` is non-empty), stash them first with
        `git -C <path> stash push -u -m "refresh-repo: auto-stash before <default> restore"`
        and surface the stash reference in the summary so the user can recover.
      - `git -C <path> checkout <default>`.
    - Never use `--force`, never discard uncommitted work, never reset.
-5. Sync the default branch from its existing worktree with a fast-forward only merge:
-   `git merge --ff-only origin/<default>`.
+5. Sync the default branch from its dedicated worktree with a fast-forward only merge,
+   using `git -C <path>` so the merge always targets the default worktree regardless
+   of the current shell directory:
+   `git -C <path> merge --ff-only origin/<default>`.
    If the default worktree is dirty or divergent, report it and skip instead of resetting.
 6. Delete local branches already merged into the default branch with `git branch -d`.
    Never delete main/master/develop/current branches, worktree-checked-out branches, or branches
    with open PRs.
-7. Switch back to the original branch if it still exists.
+7. Conclude the operation without switching branches. Because Steps 4 and 5 used
+   `git -C <path>` to operate on the default worktree directly, the current shell's
+   working directory and branch were never changed — each worktree owns its checkout.
 
 Do not use `git fetch --tags`, `git fetch --prune-tags`, or `git pull --tags` during the
 normal refresh. Tags are audited separately in Step 4 so local-only non-release tags and
