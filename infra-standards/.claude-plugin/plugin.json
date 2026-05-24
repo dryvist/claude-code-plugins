@@ -1,15 +1,14 @@
 {
   "name": "infra-standards",
-  "version": "1.7.0",
-  "description": "Infrastructure standards for Proxmox, Terraform, Ansible including deployment pipeline, IP addressing, and secrets management",
+  "version": "1.8.0",
+  "description": "Infrastructure standards for Proxmox, Terraform, Ansible: VMID/IP assignment ranges and the Terraform-to-Ansible inventory contract",
   "author": {
     "name": "JacobPEvans"
   },
   "license": "MIT",
   "repository": "https://github.com/JacobPEvans/claude-code-plugins",
-  "keywords": ["infrastructure", "terraform", "ansible", "proxmox", "nix", "devshell", "runs-on", "github-actions"],
+  "keywords": ["infrastructure", "terraform", "ansible", "proxmox"],
   "skills": [
-    "./skills/infrastructure-standards",
-    "./skills/self-hosted-runners"
+    "./skills/infrastructure-standards"
   ]
 }

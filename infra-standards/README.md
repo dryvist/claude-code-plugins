@@ -1,13 +1,10 @@
 # infra-standards
 
-Infrastructure standards for Proxmox, Terraform, Ansible including deployment pipeline, IP addressing, and secrets management.
+Infrastructure standards for Proxmox, Terraform, Ansible: VMID/IP assignment ranges and the Terraform-to-Ansible inventory contract.
 
 ## Skills
 
-- **`/infrastructure-standards`** - Deployment pipeline, VMID/IP mapping, dev shells, Doppler/SOPS, Terraform inventory
-- **`/self-hosted-runners`** - When to target RunsOn vs github-hosted runners in
-  `.github/workflows/*.yml`, the v3 label catalog used across the org, the required
-  `github.run_id` segment, and the GitHub App allowlist prereq
+- **`/infrastructure-standards`** - VMID/IP assignment ranges and the Terraform-to-Ansible inventory contract
 
 ## Installation
 
@@ -19,7 +16,6 @@ claude plugins add jacobpevans-cc-plugins/infra-standards
 
 ```text
 /infrastructure-standards
-/self-hosted-runners
 ```
 
 ## License
