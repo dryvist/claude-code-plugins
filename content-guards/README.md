@@ -44,11 +44,15 @@ No manual invocation required. All hooks activate automatically:
   - **`aws_account_id`** — bare 12-digit numbers on lines mentioning
     `account_id`, `arn:aws:`, `aws_account_id`, or `:account:`; allows
     `123456789012` (AWS's documented sample) and repeated-digit shapes.
-  - **`real_domain`** — FQDN-shaped tokens outside `*.example.*`,
-    `*.test`, `*.localhost`, `*.invalid`, `*.local`, the project's
-    short explicit allowlist (`github.com`, `api.github.com`,
-    `raw.githubusercontent.com`, `docs.jacobpevans.com`, `runs-on.com`,
-    `healthchecks.io`), and known file-extension shapes.
+  - **`real_domain`** — only flags tokens whose TLD is in a focused
+    allowlist of ~29 popular public TLDs (`com`, `net`, `org`, `io`,
+    `ai`, `dev`, `app`, `co`, `cloud`, `gov`, `edu`, etc. — see
+    `REAL_TLDS` in the script). Anything outside that set
+    (filenames like `foo.py`, version strings) is left alone.
+    Also allows `*.example.*`, `*.test`, `*.localhost`, `*.invalid`,
+    `*.local`, and the project's short explicit allowlist
+    (`github.com`, `api.github.com`, `raw.githubusercontent.com`,
+    `docs.jacobpevans.com`, `runs-on.com`, `healthchecks.io`).
 - **webfetch-guard** — blocks outdated year references in web queries (PreToolUse: WebFetch, WebSearch)
 - **issue-limiter** — rate limits `gh issue create` and `gh pr create` (PreToolUse: Bash)
 - **branch-limiter** — limits concurrent open branches (PreToolUse: Bash)

@@ -52,14 +52,16 @@ AWS_CTX = re.compile(r"account[_ ]?id|arn:aws:|aws_account_id|:account:", re.IGN
 DOMAIN = re.compile(
     r"\b(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24}\b", re.IGNORECASE
 )
-# Explicit; keeps the false-positive surface auditable.
-FILE_EXTENSION_TLDS = frozenset((
-    "md mdx rst tex bib py js ts tsx jsx json yaml yml toml lock lockb sh "
-    "bash zsh fish nix tf hcl go rs rb html css scss svg png jpg jpeg gif "
-    "pdf txt csv xml zip tar gz bz2 7z mp3 mp4 mov dockerignore gitignore "
-    "log ini cfg conf env example sample template j2 ipynb sql proto "
-    "graphql gql vue svelte c h cpp hpp cc cxx java kt swift m mm php pl "
-    "lua r jl dart elm ex exs erl bats"
+# Only flag candidates whose TLD is plausibly a real public TLD. Anything
+# outside this set (filenames like foo.py, version strings like v1.2.3) is
+# left alone. Keep this list focused on TLDs we'd actually see in this org's
+# work; add sparingly.
+REAL_TLDS = frozenset((
+    "com net org info biz "
+    "io ai dev app co cloud tech xyz online sh "
+    "gov edu mil "
+    "me tv fm ly us "
+    "uk de jp ca au fr cn eu"
 ).split())
 _DOMAIN_SUFFIX = (
     ".example.com", ".example.org", ".example.net", ".example.local",
@@ -109,7 +111,8 @@ def _domain_allowed(v: str) -> bool:
     v = v.lower()
     if v in _DOMAIN_EXACT or v.endswith(_DOMAIN_SUFFIX):
         return True
-    return v.rsplit(".", 1)[-1] in FILE_EXTENSION_TLDS
+    # TLD not in REAL_TLDS = not a domain we care about (filename, version, etc.)
+    return v.rsplit(".", 1)[-1] not in REAL_TLDS
 
 
 def _domain_skip(line: str) -> bool:
