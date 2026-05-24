@@ -1,6 +1,6 @@
 ---
 name: refresh-repo
-description: Check PR merge readiness, sync local repo, and cleanup stale worktrees
+description: Check PR merge readiness, sync local repo, cleanup stale worktrees; optional cross-repo sweep and stale-branch prune modes
 ---
 
 <!-- cspell:words refspec oneline headRefOid mergedAt -->
@@ -141,6 +141,50 @@ Finish with `git worktree prune`.
 Report: PRs assessed as merge-ready (if any), tags deleted or reported, branches cleaned up,
 worktrees removed, default-branch worktree restorations (with any stash references created),
 current branch, and sync status.
+
+## Cross-Repo Operating Modes
+
+Optional modes that change `/refresh-repo` from single-repo to workspace-wide.
+Both modes reuse the stale-worktree definition from Step 5 and the deletion
+rules from Step 5.7 — they only add new pre-filters, never weaken existing
+safety.
+
+### `--sweep [<repo-glob>]`
+
+Multi-repo cleanup of abandoned local branches. For each repo matching the
+glob (default `~/git/<owner>/*/main/`), for every local branch where
+`git log origin/main..HEAD` is non-empty:
+
+1. **Content-equivalence check**: compute merge base, diff each touched file
+   against current `origin/main`. If every touched file is content-equivalent
+   to (or older than) `origin/main`, delete the branch and its worktree.
+   Already-on-main contributions do not deserve a PR.
+2. **Workaround filter**: if the diff (a) modifies 1 of N files sharing a
+   common shape with no written rationale for the asymmetry, or (b) references
+   a "sync mechanism" / "auto-update" by name that `grep -r <name> .` returns
+   zero matches for, surface for human review. Do not open a draft.
+3. Only branches passing both checks become draft PRs.
+4. Per-repo summary: branches deleted as content-equivalent, branches surfaced
+   for review, branches PR-ified, branches unchanged.
+
+**Origin**: the 2026-05-22 sweep opened 8 dead PRs against `ansible-splunk`
+(6 already-on-main duplicates, 2 workaround anti-patterns). Both filters
+above would have caught all 8 before any CI ran.
+
+### `--prune-stale <days>` (default 60)
+
+Delete local branches with no open PR and no push activity within `<days>`.
+Expands Step 5's stale definition with a time threshold; still respects every
+safety rule (never delete branches with open PRs, uncommitted changes, or
+the current checkout).
+
+Per branch: if `gh pr list --head <branch>` is empty AND
+`git log -1 --format=%cr <branch>` is older than `<days>`, run
+`git worktree remove <path>` (per Step 5 — never `--force`) then
+`git branch -d <branch>`.
+
+Use `--prune-stale 30` for an aggressive sweep, `--prune-stale 90` for
+conservative.
 
 ## Common Mistake to Avoid
 

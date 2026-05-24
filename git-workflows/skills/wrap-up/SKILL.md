@@ -108,10 +108,37 @@ Session Issues Log:
 
 If no follow-up items are found, state that explicitly — do not fabricate work.
 
+## Focused Mode: Purge a Specific PR
+
+Invoke as `/wrap-up purge-pr <PR_NUMBER>` to close one PR and atomically
+purge all local state for its branch. Skips Steps 1–4 above. Use when you
+know a PR should be closed (obsolete duplicate, workaround anti-pattern,
+abandoned work) and you want the local trace gone in one operation.
+
+Sequence:
+
+1. **Capture the branch name first** — step 2 deletes the remote ref, so
+   capture before that runs:
+   `gh pr view <PR_NUMBER> --repo <owner>/<repo> --json headRefName --jq '.headRefName'`.
+2. Close the PR and delete the remote branch in one call:
+   `gh pr close <PR_NUMBER> --repo <owner>/<repo> --comment "<reason>" --delete-branch`.
+3. If the current worktree IS the captured branch's, `git switch main`
+   first so step 4 can remove it.
+4. Find the worktree path via `git worktree list` matching the captured
+   branch, then `git worktree remove <path> --force` if present, and
+   `git branch -D <branch>`.
+
+Closes the gap where `gh pr close --delete-branch` removes only the remote
+branch and leaves the local branch + worktree behind. Reuses the
+worktree-removal command shape from `/troubleshoot-worktree` and aligns with
+`/clean_gone`'s post-removal state.
+
 ## Related Skills
 
-- **refresh-repo** (github-workflows) — PR readiness check + repo sync + worktree cleanup (Step 1 dependency)
+- **refresh-repo** (github-workflows) — PR readiness check + repo sync + worktree cleanup (Step 1 dependency); also provides `--sweep` and `--prune-stale` modes
 - **shape-issues** (github-workflows) — Shape and create well-structured GitHub issues
+- **troubleshoot-worktree** (git-workflows) — Worktree-removal command shape reused by `purge-pr` mode
+- **pr-standards** (git-standards) — Workaround Classification rubric used to decide when `purge-pr` is the right action
 
 ## Summary
 
