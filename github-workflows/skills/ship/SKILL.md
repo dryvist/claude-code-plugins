@@ -182,10 +182,9 @@ any `reviewThreads.isResolved` = `false`,
 If the most recent commit on the PR's `headRefName` landed within the last 60 seconds:
 
 ```bash
-last_commit_ts=$(gh api repos/<OWNER>/<REPO>/commits/<HEAD_SHA> --jq '.commit.committer.date' \
-  | xargs -I{} date -j -f "%Y-%m-%dT%H:%M:%SZ" {} +%s)
+lastCommitTs=$(gh api repos/<OWNER>/<REPO>/commits/<HEAD_SHA> --jq '.commit.committer.date | fromdate')
 now=$(date +%s)
-[ $((now - last_commit_ts)) -lt 60 ] && sleep $((60 - (now - last_commit_ts)))
+[ $((now - lastCommitTs)) -lt 60 ] && sleep $((60 - (now - lastCommitTs)))
 ```
 
 GitHub recomputes `mergeStateStatus` and branch protection asynchronously after a push.

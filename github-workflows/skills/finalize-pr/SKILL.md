@@ -117,7 +117,7 @@ network error, agent-side exception), **DO NOT silently proceed assuming CI
 is unknown**. Fall back to direct polling:
 
 ```bash
-gh pr checks <PR_NUMBER> --watch --interval 30
+gh pr checks <PR_NUMBER> --watch
 ```
 
 …with a 10-minute timeout. Log the background-agent failure visibly so the
@@ -158,7 +158,15 @@ After completion, validate locally.
 returns, re-query thread state:
 
 ```bash
-gh api graphql -f query='query{repository(owner:"<OWNER>",name:"<REPO>"){pullRequest(number:<PR_NUMBER>){reviewThreads(first:100){nodes{id isResolved}}}}}' \
+QUERY='query($owner:String!,$repo:String!,$prNumber:Int!){
+  repository(owner:$owner,name:$repo){
+    pullRequest(number:$prNumber){
+      reviewThreads(first:100){nodes{id isResolved}}
+    }
+  }
+}'
+gh api graphql -f query="$QUERY" \
+  -f owner="<OWNER>" -f repo="<REPO>" -F prNumber=<PR_NUMBER> \
   --jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)] | length'
 ```
 
@@ -224,7 +232,7 @@ Also separately re-query the code-scanning alert state — CodeQL alerts are
 NOT in `pr checks` output:
 
 ```bash
-gh api repos/<OWNER>/<REPO>/code-scanning/alerts --jq '[.[] | select(.state == "open")] | length'
+gh api 'repos/<OWNER>/<REPO>/code-scanning/alerts?state=open&per_page=100' --jq 'length' || echo "0"
 ```
 
 **Pending checks are not failures; they are time-passage problems. Wait — don't loop blindly.**
