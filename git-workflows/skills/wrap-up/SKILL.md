@@ -108,10 +108,31 @@ Session Issues Log:
 
 If no follow-up items are found, state that explicitly — do not fabricate work.
 
+## Focused Mode: Purge a Specific PR
+
+Invoke as `/wrap-up purge-pr <PR_NUMBER>` to close one PR and atomically
+purge all local state for its branch. Skips Steps 1–4 above. Use when you
+know a PR should be closed (obsolete duplicate, workaround anti-pattern,
+abandoned work) and you want the local trace gone in one operation.
+
+Sequence:
+
+1. `gh pr close <PR_NUMBER> --repo <owner>/<repo> --comment "<reason>" --delete-branch`
+2. Resolve the branch's local worktree path from `git worktree list`. If
+   present, `git worktree remove <path> --force`.
+3. `git branch -D <branch>` to delete the local branch.
+
+Closes the gap where `gh pr close --delete-branch` removes only the remote
+branch and leaves the local branch + worktree behind. Reuses the
+worktree-removal command shape from `/troubleshoot-worktree` and aligns with
+`/clean_gone`'s post-removal state.
+
 ## Related Skills
 
-- **refresh-repo** (github-workflows) — PR readiness check + repo sync + worktree cleanup (Step 1 dependency)
+- **refresh-repo** (github-workflows) — PR readiness check + repo sync + worktree cleanup (Step 1 dependency); also provides `--sweep` and `--prune-stale` modes
 - **shape-issues** (github-workflows) — Shape and create well-structured GitHub issues
+- **troubleshoot-worktree** (git-workflows) — Worktree-removal command shape reused by `purge-pr` mode
+- **pr-standards** (git-standards) — Workaround Classification rubric used to decide when `purge-pr` is the right action
 
 ## Summary
 

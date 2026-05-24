@@ -43,6 +43,33 @@ git log origin/main..HEAD --oneline
 
 If empty: no new work. Clean up instead.
 
+## Workaround Classification
+
+When reviewing a PR, distinguish a real fix from a workaround. Workarounds
+become permanent tech debt if merged without acknowledgement. Four red flags:
+
+1. **No upstream issue cited**: PR body does not name a specific upstream
+   bug, version, or repository where the underlying problem lives.
+2. **Phantom remediation mechanism**: PR body claims an automated "sync
+   workflow", "auto-update", or "re-trigger" mechanism — verify with
+   `grep -r <name> .` in the repo; if zero matches, the mechanism does not
+   exist and the inline copy will drift silently.
+3. **Asymmetric application**: the change is local to 1 of N similar
+   consumers of a shared pattern (e.g. inlines 1 of 6 cross-repo imports),
+   with no written rationale for the asymmetry.
+4. **No exit criterion**: PR does not name the condition under which this
+   workaround can be removed (upstream version, infrastructure change,
+   deprecation date).
+
+**Three or more red flags → recommend close, not merge.** Workarounds get an
+upstream issue and an exit criterion before merging, or they are rejected.
+
+Origin: 2026-05-22 `ansible-splunk` PRs #216 (asymmetric inline of 1 of 6
+imports, references non-existent `gh-aw-sync-upstream` mechanism) and #218
+(cron-retrigger band-aid with no exit criterion). Both reached
+`mergeStateStatus: CLEAN` and would have merged under a mechanical-gate
+review.
+
 ## Issue-PR Bidirectional Linking
 
 Every PR body must include (bot PRs exempt):
