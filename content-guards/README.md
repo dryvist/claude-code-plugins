@@ -8,6 +8,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for integration diagrams.
 
 - **markdown-validator**: Validates markdown with markdownlint
 - **token-validator**: Enforces configurable file token limits
+- **no-real-ips**: Blocks non-allowed IPv4 literals in Write/Edit content; first-block, second-allow flow
 - **webfetch-guard**: Blocks outdated year references in web queries
 - **readme-validator**: Checks README files for required sections and badge health
 - **issue-limiter**: Prevents GitHub issue backlog overflow with 24h rate limiting
@@ -17,6 +18,12 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for integration diagrams.
 No manual invocation required. All hooks activate automatically:
 
 - **token-validator** — blocks files exceeding token limits (PreToolUse: Write, Edit)
+- **no-real-ips** — blocks IPv4 literals outside the allowlist
+  (`192.168.0.0/24`, loopback, `0.0.0.0`, broadcast, link-local metadata).
+  First attempt blocks with a clear warning; a retry within 5 minutes is
+  treated as the agent's acknowledgment and allowed through (PreToolUse:
+  Write, Edit). State persists in
+  `$XDG_CACHE_HOME/content-guards/no-real-ips-state.json`.
 - **webfetch-guard** — blocks outdated year references in web queries (PreToolUse: WebFetch, WebSearch)
 - **issue-limiter** — rate limits `gh issue create` and `gh pr create` (PreToolUse: Bash)
 - **branch-limiter** — limits concurrent open branches (PreToolUse: Bash)
