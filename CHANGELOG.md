@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.6.0](https://github.com/JacobPEvans/claude-code-plugins/compare/v3.5.2...v3.6.0) (2026-05-24)
+
+
+### Features
+
+* **refresh-repo:** auto-restore main worktree to main branch ([#318](https://github.com/JacobPEvans/claude-code-plugins/issues/318)) ([f376762](https://github.com/JacobPEvans/claude-code-plugins/commit/f3767626f93988048ed23eab3920dc8f232c8e3c))
+* **skills:** add workspace sweep + purge-pr + workaround rubric ([#320](https://github.com/JacobPEvans/claude-code-plugins/issues/320)) ([9697e33](https://github.com/JacobPEvans/claude-code-plugins/commit/9697e335a5466a4c2b7e4fbef0441fb5bdb58e05))
+
 ## [3.5.2](https://github.com/JacobPEvans/claude-code-plugins/compare/v3.5.1...v3.5.2) (2026-05-21)
 
 
