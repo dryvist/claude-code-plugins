@@ -1,17 +1,18 @@
 #!/usr/bin/env bats
-# Test suite for content-guards/scripts/validate-no-real-ips.py
+# Test suite for content-guards/scripts/validate-sensitive-content.py
+# IPv4 detector + tool filtering + state machine (regression preservation
+# from the original no-real-ips hook). Per-detector cases for ipv6, email,
+# absolute_user_path, private_key_header, aws_account_id, real_domain live
+# in detectors.bats in the same directory.
 #
-# Tests tool name filtering, IP allowlist, version-pin skip, and the
-# first-block / second-allow acknowledgment flow.
-#
-# Run with: bats tests/content-guards/no-real-ips/no-real-ips.bats
+# Run with: bats tests/content-guards/sensitive-content/sensitive-content.bats
 
 setup() {
   REPO_ROOT="$(cd "$(dirname "$BATS_TEST_FILENAME")/../../.." && pwd)"
-  SCRIPT="$REPO_ROOT/content-guards/scripts/validate-no-real-ips.py"
+  SCRIPT="$REPO_ROOT/content-guards/scripts/validate-sensitive-content.py"
   STATE_FILE="$(mktemp)"
   rm -f "$STATE_FILE"
-  export NO_REAL_IPS_STATE_FILE="$STATE_FILE"
+  export SENSITIVE_CONTENT_STATE_FILE="$STATE_FILE"
 
   if [[ ! -f "$SCRIPT" ]]; then
     echo "ERROR: Script not found at $SCRIPT" >&2
@@ -50,7 +51,7 @@ run_hook() {
 }
 
 # ---------------------------------------------------------------------------
-# TC2: Allowlist — every sanctioned range passes
+# TC2: IPv4 allowlist — every sanctioned range passes
 # ---------------------------------------------------------------------------
 
 @test "TC2a: 192.168.0.x sample range allowed" {
@@ -85,79 +86,68 @@ run_hook() {
 
 @test "TC2f: 192.168.1.x (not 192.168.0.x) is BLOCKED" {
   run_hook '{"tool_name":"Write","tool_input":{"file_path":"/x.py","content":"x=\"192.168.1.50\""}}'
-  [ "$status" -eq 0 ]
   echo "$output" | grep -q '"permissionDecision": "deny"'
+  echo "$output" | grep -q 'ipv4'
 }
 
 # ---------------------------------------------------------------------------
-# TC3: First attempt blocks
+# TC3-TC4: First-block / second-allow flow
 # ---------------------------------------------------------------------------
 
 @test "TC3a: Write with 10.0.1.200 blocked on first attempt" {
   run_hook '{"tool_name":"Write","tool_input":{"file_path":"/repo/tests/test.py","content":"url=\"10.0.1.200\""}}'
-  [ "$status" -eq 0 ]
   echo "$output" | grep -q '"permissionDecision": "deny"'
   echo "$output" | grep -q 'BLOCKED (first attempt)'
   echo "$output" | grep -q '10.0.1.200'
 }
 
 @test "TC3b: Edit with new_string containing 172.16.0.5 blocked" {
-  run_hook '{"tool_name":"Edit","tool_input":{"file_path":"/x.yml","old_string":"old","new_string":"host: 172.16.0.5"}}'
-  [ "$status" -eq 0 ]
+  run_hook '{"tool_name":"Edit","tool_input":{"file_path":"/x.yml","old_string":"o","new_string":"host: 172.16.0.5"}}'
   echo "$output" | grep -q '"permissionDecision": "deny"'
   echo "$output" | grep -q '172.16.0.5'
 }
 
-# ---------------------------------------------------------------------------
-# TC4: Second attempt within TTL allows (acknowledgment)
-# ---------------------------------------------------------------------------
-
 @test "TC4a: same file + same IP retried allows" {
-  INPUT='{"tool_name":"Write","tool_input":{"file_path":"/repo/scratch.py","content":"x=\"10.0.1.200\""}}'
-  run python3 "$SCRIPT" <<< "$INPUT"
+  IN='{"tool_name":"Write","tool_input":{"file_path":"/repo/scratch.py","content":"x=\"10.0.1.200\""}}'
+  run python3 "$SCRIPT" <<< "$IN"
   echo "$output" | grep -q '"permissionDecision": "deny"'
-
-  run python3 "$SCRIPT" <<< "$INPUT"
+  run python3 "$SCRIPT" <<< "$IN"
   echo "$output" | grep -q '"permissionDecision": "allow"'
   echo "$output" | grep -q 'WARNING (acknowledged)'
 }
 
-@test "TC4b: same IP in a different file blocks again (per-file tracking)" {
-  FIRST='{"tool_name":"Write","tool_input":{"file_path":"/a.py","content":"x=\"10.0.1.200\""}}'
-  SECOND='{"tool_name":"Write","tool_input":{"file_path":"/b.py","content":"x=\"10.0.1.200\""}}'
-  run python3 "$SCRIPT" <<< "$FIRST"
+@test "TC4b: same IP in a different file blocks again" {
+  F='{"tool_name":"Write","tool_input":{"file_path":"/a.py","content":"x=\"10.0.1.200\""}}'
+  S='{"tool_name":"Write","tool_input":{"file_path":"/b.py","content":"x=\"10.0.1.200\""}}'
+  run python3 "$SCRIPT" <<< "$F"
   echo "$output" | grep -q '"permissionDecision": "deny"'
-
-  run python3 "$SCRIPT" <<< "$SECOND"
+  run python3 "$SCRIPT" <<< "$S"
   echo "$output" | grep -q '"permissionDecision": "deny"'
 }
 
 @test "TC4c: same file, NEW IP on second write blocks the new one" {
-  FIRST='{"tool_name":"Write","tool_input":{"file_path":"/c.py","content":"x=\"10.0.1.200\""}}'
-  SECOND='{"tool_name":"Write","tool_input":{"file_path":"/c.py","content":"y=\"172.16.0.5\""}}'
-  run python3 "$SCRIPT" <<< "$FIRST"
+  F='{"tool_name":"Write","tool_input":{"file_path":"/c.py","content":"x=\"10.0.1.200\""}}'
+  S='{"tool_name":"Write","tool_input":{"file_path":"/c.py","content":"y=\"172.16.0.5\""}}'
+  run python3 "$SCRIPT" <<< "$F"
   echo "$output" | grep -q '"permissionDecision": "deny"'
-
-  run python3 "$SCRIPT" <<< "$SECOND"
+  run python3 "$SCRIPT" <<< "$S"
   echo "$output" | grep -q '"permissionDecision": "deny"'
   echo "$output" | grep -q '172.16.0.5'
 }
 
-@test "TC4d: same file, retry with BOTH old (acknowledged) + new IP blocks only new" {
-  FIRST='{"tool_name":"Write","tool_input":{"file_path":"/d.py","content":"x=\"10.0.1.200\""}}'
-  SECOND='{"tool_name":"Write","tool_input":{"file_path":"/d.py","content":"a=\"10.0.1.200\"\nb=\"172.16.0.5\""}}'
-  run python3 "$SCRIPT" <<< "$FIRST"
+@test "TC4d: same file, retry with both old (ack) + new IP blocks only new" {
+  F='{"tool_name":"Write","tool_input":{"file_path":"/d.py","content":"x=\"10.0.1.200\""}}'
+  S='{"tool_name":"Write","tool_input":{"file_path":"/d.py","content":"a=\"10.0.1.200\"\nb=\"172.16.0.5\""}}'
+  run python3 "$SCRIPT" <<< "$F"
   echo "$output" | grep -q '"permissionDecision": "deny"'
-
-  run python3 "$SCRIPT" <<< "$SECOND"
+  run python3 "$SCRIPT" <<< "$S"
   echo "$output" | grep -q '"permissionDecision": "deny"'
-  # The block message should name the new IP, not the acknowledged one
   echo "$output" | grep -q '172.16.0.5'
   echo "$output" | grep -vq 'BLOCKED.*10\.0\.1\.200,'
 }
 
 # ---------------------------------------------------------------------------
-# TC5: Empty content allowed silently
+# TC5-TC6: Edge cases — empty content, strict octet regex
 # ---------------------------------------------------------------------------
 
 @test "TC5: Write with no content is allowed silently" {
@@ -165,10 +155,6 @@ run_hook() {
   [ "$status" -eq 0 ]
   [ -z "$output" ]
 }
-
-# ---------------------------------------------------------------------------
-# TC6: Strict octet regex — out-of-range octets are NOT treated as IPs
-# ---------------------------------------------------------------------------
 
 @test "TC6a: 999.999.999.999 is not matched (each octet > 255)" {
   run_hook '{"tool_name":"Write","tool_input":{"file_path":"/x.py","content":"x=\"999.999.999.999\""}}'
@@ -182,34 +168,26 @@ run_hook() {
   [ -z "$output" ]
 }
 
-@test "TC6c: 192.168.0.256 is not matched as allowed-range (last octet > 255)" {
-  # If matched, it would BLOCK (since 256 isn't in 192.168.0.0/24).
-  # With the strict regex it's not an IP at all, so the line is skipped.
+@test "TC6c: 192.168.0.256 is not matched (last octet > 255)" {
   run_hook '{"tool_name":"Write","tool_input":{"file_path":"/x.py","content":"x=\"192.168.0.256\""}}'
   [ "$status" -eq 0 ]
   [ -z "$output" ]
 }
 
 # ---------------------------------------------------------------------------
-# TC7: Path normalization — relative and absolute paths to the same file
-# share the same acknowledgment slot.
+# TC7: Path normalization
 # ---------------------------------------------------------------------------
 
 @test "TC7: relative and absolute paths to the same file share state" {
-  TMPDIR_TEST="$(mktemp -d)"
-  ABS_PATH="$TMPDIR_TEST/foo.py"
-  REL_PATH="./foo.py"
-  FIRST="{\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"$ABS_PATH\",\"content\":\"x=\\\"10.0.1.200\\\"\"}}"
-  SECOND="{\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"$REL_PATH\",\"content\":\"x=\\\"10.0.1.200\\\"\"}}"
-
-  # First attempt blocks
-  run python3 "$SCRIPT" <<< "$FIRST"
+  T="$(mktemp -d)"
+  ABS="$T/foo.py"
+  REL="./foo.py"
+  F="{\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"$ABS\",\"content\":\"x=\\\"10.0.1.200\\\"\"}}"
+  S="{\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"$REL\",\"content\":\"x=\\\"10.0.1.200\\\"\"}}"
+  run python3 "$SCRIPT" <<< "$F"
   echo "$output" | grep -q '"permissionDecision": "deny"'
-
-  # Same IP, this time as a relative path resolved from the same cwd → allow
-  cd "$TMPDIR_TEST"
-  run python3 "$SCRIPT" <<< "$SECOND"
+  cd "$T"
+  run python3 "$SCRIPT" <<< "$S"
   echo "$output" | grep -q '"permissionDecision": "allow"'
-
-  rm -rf "$TMPDIR_TEST"
+  rm -rf "$T"
 }

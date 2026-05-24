@@ -8,7 +8,9 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for integration diagrams.
 
 - **markdown-validator**: Validates markdown with markdownlint
 - **token-validator**: Enforces configurable file token limits
-- **no-real-ips**: Blocks non-allowed IPv4 literals in Write/Edit content; first-block, second-allow flow
+- **sensitive-content-guard**: Blocks 7 categories of sensitive literals
+  (IPv4, IPv6, emails, user paths, private keys, AWS account IDs, real
+  domains) in Write/Edit content; first-block, second-allow flow per detector
 - **webfetch-guard**: Blocks outdated year references in web queries
 - **readme-validator**: Checks README files for required sections and badge health
 - **issue-limiter**: Prevents GitHub issue backlog overflow with 24h rate limiting
@@ -18,12 +20,35 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for integration diagrams.
 No manual invocation required. All hooks activate automatically:
 
 - **token-validator** — blocks files exceeding token limits (PreToolUse: Write, Edit)
-- **no-real-ips** — blocks IPv4 literals outside the allowlist
-  (`192.168.0.0/24`, loopback, `0.0.0.0`, broadcast, link-local metadata).
-  First attempt blocks with a clear warning; a retry within 5 minutes is
-  treated as the agent's acknowledgment and allowed through (PreToolUse:
-  Write, Edit). State persists in
-  `$XDG_CACHE_HOME/content-guards/no-real-ips-state.json`.
+- **sensitive-content-guard** — blocks 7 categories of sensitive literals
+  in Write/Edit content (PreToolUse: Write, Edit). First attempt blocks
+  with a per-detector hint; a retry within 5 minutes for the same
+  `(file, detector, value)` is treated as the agent's acknowledgment and
+  allowed through. State persists in
+  `$XDG_CACHE_HOME/content-guards/sensitive-content-state.json`.
+
+  Detectors and their allowlist anchors:
+  - **`ipv4`** — IPv4 outside `192.168.0.0/24`, loopback, `0.0.0.0`,
+    broadcast (`255.255.255.x`), link-local metadata (`169.254.169.254`).
+  - **`ipv6`** — IPv6 outside `::`/`::1`, `fe80::*` (link-local),
+    `fc00::/7` (ULA), `2001:db8::*` (RFC 3849 doc prefix), `ff00::*`
+    (multicast).
+  - **`email`** — real email addresses outside `noreply@github.com`,
+    `*@users.noreply.github.com`, `*@example.{com,org,net,local}`,
+    `*@test`, `*@localhost`, and `<placeholder@…>` shapes.
+  - **`absolute_user_path`** — hard-coded `/Users/<name>/` or
+    `/home/<name>/` outside `${USER}`, `$USER`, or `<user>` placeholder
+    shapes.
+  - **`private_key_header`** — PEM private key markers
+    (`-----BEGIN … PRIVATE KEY-----`); always blocked.
+  - **`aws_account_id`** — bare 12-digit numbers on lines mentioning
+    `account_id`, `arn:aws:`, `aws_account_id`, or `:account:`; allows
+    `123456789012` (AWS's documented sample) and repeated-digit shapes.
+  - **`real_domain`** — FQDN-shaped tokens outside `*.example.*`,
+    `*.test`, `*.localhost`, `*.invalid`, `*.local`, the project's
+    short explicit allowlist (`github.com`, `api.github.com`,
+    `raw.githubusercontent.com`, `docs.jacobpevans.com`, `runs-on.com`,
+    `healthchecks.io`), and known file-extension shapes.
 - **webfetch-guard** — blocks outdated year references in web queries (PreToolUse: WebFetch, WebSearch)
 - **issue-limiter** — rate limits `gh issue create` and `gh pr create` (PreToolUse: Bash)
 - **branch-limiter** — limits concurrent open branches (PreToolUse: Bash)

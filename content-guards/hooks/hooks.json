@@ -11,7 +11,7 @@
           },
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/validate-no-real-ips.py",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/validate-sensitive-content.py",
             "timeout": 30
           }
         ]
