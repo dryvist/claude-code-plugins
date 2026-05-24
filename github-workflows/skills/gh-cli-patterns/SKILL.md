@@ -191,24 +191,24 @@ skill that emits a summary — do NOT define local output formats in individual 
 ```text
 {Title}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  ✅  https://github.com/<OWNER>/<REPO>/pull/42   Ready for review
-  🟡  https://github.com/<OWNER>/<REPO>/pull/43   CI pending
-  🔴  https://github.com/<OWNER>/<REPO>/pull/44   Conflicts | 3 open comments
+  ✅  #42   Ready for review
+  🟡  #43   CI pending
+  🔴  #44   Conflicts | 3 open comments
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 All Open PRs — <OWNER>/<REPO>
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  ✅  https://github.com/<OWNER>/<REPO>/pull/42   Ready for review
-  🟡  https://github.com/<OWNER>/<REPO>/pull/43   CI pending
-  🔴  https://github.com/<OWNER>/<REPO>/pull/44   Conflicts | 3 open comments
+  ✅  #42   Ready for review
+  🟡  #43   CI pending
+  🔴  #44   Conflicts | 3 open comments
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Ready to merge (1):
   /squash-merge-pr 42   (<OWNER>/<REPO>)
 
 Blocked — needs human (2):
-  https://github.com/<OWNER>/<REPO>/pull/43 — CI pending
-  https://github.com/<OWNER>/<REPO>/pull/44 — Conflicts | 3 open comments
+  #43 — CI pending
+  #44 — Conflicts | 3 open comments
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
@@ -228,7 +228,7 @@ Blocked — needs human (2):
 
 ### Status tags
 
-Append after the URL, separated by ` | `. Omit when no issues exist ("Ready for review" suffices).
+Append after the PR number, separated by ` | `. Omit when no issues exist ("Ready for review" suffices).
 
 | Tag | Section 1 trigger | Section 2 trigger |
 |-----|-------------------|-------------------|
@@ -244,12 +244,6 @@ Append after the URL, separated by ` | `. Omit when no issues exist ("Ready for 
 
 ### Data queries
 
-**Fetch PR URL** (for Section 1 — current PRs):
-
-```bash
-gh pr view <PR_NUMBER> --json url --jq '.url'
-```
-
 **Fetch all open PRs** (for Section 2 — one GraphQL call per affected repo):
 
 `gh pr list --json` does NOT support `mergeStateStatus` — use GraphQL instead:
@@ -260,7 +254,7 @@ gh api graphql -f query='
     repository(owner:$owner,name:$repo){
       pullRequests(states:OPEN,first:50){
         nodes{
-          number url title mergeable reviewDecision mergeStateStatus isDraft
+          number title mergeable reviewDecision mergeStateStatus isDraft
           commits(last:1){nodes{commit{statusCheckRollup{state}}}}
         }
       }

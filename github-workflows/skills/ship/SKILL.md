@@ -181,11 +181,7 @@ If any abort condition hits: re-invoke `/finalize-pr <PR_NUMBER>`, wait for comp
 then re-run both gates. Only list a PR as "Ready to merge" after both gates pass.
 
 Then emit the **Canonical PR Status Summary** as defined in /gh-cli-patterns, titled
-`Ship Summary`. Affected repos = current repo. Fetch each PR's full URL via:
-
-```bash
-gh pr view <PR_NUMBER> --json url --jq '.url'
-```
+`Ship Summary`. Affected repos = current repo.
 
 Section 1 lists the PRs targeted by this `/ship` invocation. Section 2 lists all open
 PRs in the current repo (including unrelated ones).
