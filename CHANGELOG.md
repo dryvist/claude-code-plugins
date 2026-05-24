@@ -1,5 +1,16 @@
 # Changelog
 
+## [4.0.0](https://github.com/JacobPEvans/claude-code-plugins/compare/v3.6.0...v4.0.0) (2026-05-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* **infra-standards:** /self-hosted-runners skill removed.
+
+### Miscellaneous
+
+* **infra-standards:** drop self-hosted-runners skill; trim infrastructure-standards ([#321](https://github.com/JacobPEvans/claude-code-plugins/issues/321)) ([2e34754](https://github.com/JacobPEvans/claude-code-plugins/commit/2e34754b643745f907cf7aba336a97f53cc0717c))
+
 ## [3.6.0](https://github.com/JacobPEvans/claude-code-plugins/compare/v3.5.2...v3.6.0) (2026-05-24)
 
 
