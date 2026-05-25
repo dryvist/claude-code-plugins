@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """
-commit-trailer-guard.py - PreToolUse hook to rewrite Assisted-by trailer to kernel spec.
+commit-trailer-guard.py - PreToolUse hook to enforce kernel coding-assistants spec.
 
-Detects `Assisted-by: Claude <...>` in git commit commands and rewrites to
-`Assisted-by: Claude:<model>` per https://docs.kernel.org/process/coding-assistants.html.
+Per https://docs.kernel.org/process/coding-assistants.html:
+  Correct:   Assisted-by: Claude:claude-opus-4-7
+  Wrong:     Assisted-by: Claude <noreply@anthropic.com>  (email form)
+  Wrong:     Assisted-by: Claude                          (bare, no model)
+  Stripped:  🤖 Generated with [Claude Code](...)         (not part of spec)
 """
 
 import json
@@ -11,8 +14,17 @@ import re
 import sys
 from pathlib import Path
 
-TRAILER_PATTERN = re.compile(r"Assisted-by:\s*Claude\s*<[^>]*>")
+# Matches the email form and the bare form, but NOT the already-correct Agent:model form.
+# \b after Claude prevents false matches on names like "Claudette", "Claudine", etc.
+TRAILER_PATTERN = re.compile(r"Assisted-by:\s*Claude\b(?:\s*<[^>]*>|(?!\s*:\S))")
 TRAILER_REPL = "Assisted-by: Claude:{model}"
+
+_ROBOT_URL_PATTERN = r"🤖 Generated with \[Claude Code\]\([^)]*\)"
+# When the robot line is preceded by a blank line, replace the pair with a single newline
+# so the text before it still ends cleanly (e.g. heredoc EOF stays on its own line).
+_ROBOT_DOUBLE_NL = re.compile(r"\n\n" + _ROBOT_URL_PATTERN + r"\n?")
+# When the robot line has no preceding blank, remove it entirely.
+_ROBOT_SINGLE = re.compile(r"(?:\n|^)" + _ROBOT_URL_PATTERN + r"\n?")
 
 # Matches git global flags that take a value (-C/-c) to strip before subcommand detection.
 _GIT_GLOBAL_VALUE = re.compile(r'^-[Cc]\s+(?:"[^"]*"|\'[^\']*\'|\S+)\s*')
@@ -79,28 +91,43 @@ def main() -> None:
     tool_input = data.get("tool_input", {})
     command = tool_input.get("command", "")
 
-    if not TRAILER_PATTERN.search(command):
+    is_commit = command.startswith("git ") and _is_git_commit(command)
+    needs_trailer_fix = is_commit and bool(TRAILER_PATTERN.search(command))
+    needs_robot_strip = bool(_ROBOT_DOUBLE_NL.search(command) or _ROBOT_SINGLE.search(command))
+
+    if not needs_trailer_fix and not needs_robot_strip:
         sys.exit(0)
 
-    if not command.startswith("git ") or not _is_git_commit(command):
-        sys.exit(0)
+    model = ""
+    if needs_trailer_fix:
+        model = _get_model_from_transcript(data.get("transcript_path", ""))
+        if not model:
+            needs_trailer_fix = False
 
-    model = _get_model_from_transcript(data.get("transcript_path", ""))
-    if not model:
-        sys.exit(0)
+    new_command = command
+    if needs_robot_strip:
+        new_command = _ROBOT_DOUBLE_NL.sub("\n", new_command)
+        new_command = _ROBOT_SINGLE.sub("", new_command)
+    if needs_trailer_fix:
+        new_command = TRAILER_PATTERN.sub(TRAILER_REPL.format(model=model), new_command)
 
-    new_command = TRAILER_PATTERN.sub(TRAILER_REPL.format(model=model), command)
     if new_command == command:
         sys.exit(0)
+
+    reason_parts = []
+    if needs_trailer_fix:
+        reason_parts.append(f"trailer rewritten (model={model})")
+    if needs_robot_strip:
+        reason_parts.append("robot-signature line stripped")
 
     print(json.dumps({
         "hookSpecificOutput": {
             "hookEventName": "PreToolUse",
             "permissionDecision": "allow",
             "permissionDecisionReason": (
-                f"Trailer rewritten to kernel coding-assistants spec "
+                "kernel coding-assistants spec enforced "
                 f"(https://docs.kernel.org/process/coding-assistants.html): "
-                f"model={model}"
+                + ", ".join(reason_parts)
             ),
         },
         "updatedInput": {**tool_input, "command": new_command},

@@ -16,7 +16,9 @@ atexit.register(shutil.rmtree, _TMPDIR, ignore_errors=True)
 
 MODEL = "claude-opus-4-7"
 OLD_TRAILER = "Assisted-by: Claude <noreply@anthropic.com>"
+BARE_TRAILER = "Assisted-by: Claude"
 NEW_TRAILER = f"Assisted-by: Claude:{MODEL}"
+ROBOT_LINE = "🤖 Generated with [Claude Code](https://claude.com/claude-code)"
 
 
 def _make_transcript(model: str = MODEL) -> str:
@@ -129,6 +131,81 @@ cmd7 = f'git commit -m "fix\n\n{NEW_TRAILER}"'
 all_pass &= check(
     "already-correct trailer no-op",
     cmd7,
+    "silent_allow",
+    transcript_path=transcript,
+)
+
+# 8. Bare trailer (no email, no model) → rewritten to Agent:model
+cmd8 = f'git commit -m "fix: x\n\n{BARE_TRAILER}"'
+all_pass &= check(
+    "bare trailer rewrite",
+    cmd8,
+    "allow",
+    transcript_path=transcript,
+    expected_new_command=cmd8.replace(BARE_TRAILER, NEW_TRAILER),
+)
+
+# 9. Robot line preceded by blank in commit (already-correct trailer) → robot stripped.
+#    The blank-line replacement (\n\n🤖... → \n) leaves a trailing \n inside the message.
+cmd9 = f'git commit -m "fix: x\n\n{NEW_TRAILER}\n\n{ROBOT_LINE}"'
+expected9 = f'git commit -m "fix: x\n\n{NEW_TRAILER}\n"'
+all_pass &= check(
+    "robot line stripped from commit",
+    cmd9,
+    "allow",
+    transcript_path=transcript,
+    expected_new_command=expected9,
+)
+
+# 10. Robot line in gh pr create body → stripped (not a git command).
+#    \n\n🤖...\n → \n keeps the heredoc EOF on its own line.
+pr_cmd = (
+    f'gh pr create --title "feat: x" --body "$(cat <<\'EOF\'\n'
+    f'## Summary\n- did a thing\n\n'
+    f'{ROBOT_LINE}\n'
+    f'EOF\n)"'
+)
+expected10 = (
+    f'gh pr create --title "feat: x" --body "$(cat <<\'EOF\'\n'
+    f'## Summary\n- did a thing\n'
+    f'EOF\n)"'
+)
+all_pass &= check(
+    "robot line stripped from gh pr create",
+    pr_cmd,
+    "allow",
+    transcript_path=transcript,
+    expected_new_command=expected10,
+)
+
+# 11. Bare trailer + robot line together → both fixed in one pass.
+#    Robot strip runs first, leaving trailing \n; then trailer fix rewrites BARE → NEW.
+cmd11 = f'git commit -m "fix\n\n{BARE_TRAILER}\n\n{ROBOT_LINE}"'
+expected11 = f'git commit -m "fix\n\n{NEW_TRAILER}\n"'
+all_pass &= check(
+    "bare trailer + robot line fixed together",
+    cmd11,
+    "allow",
+    transcript_path=transcript,
+    expected_new_command=expected11,
+)
+
+# 12. Robot line + missing transcript → robot still stripped (robot strip is transcript-independent).
+cmd12 = f'git commit -m "fix: x\n\n{ROBOT_LINE}"'
+expected12 = 'git commit -m "fix: x\n"'
+all_pass &= check(
+    "robot line stripped even without transcript",
+    cmd12,
+    "allow",
+    transcript_path="",
+    expected_new_command=expected12,
+)
+
+# 13. Name that starts with "Claude" (Claudette) must NOT be rewritten — word-boundary guard.
+cmd13 = 'git commit -m "fix: x\n\nAssisted-by: Claudette <claudette@example.com>"'
+all_pass &= check(
+    "name starting with Claude is not rewritten",
+    cmd13,
     "silent_allow",
     transcript_path=transcript,
 )
