@@ -1,18 +1,107 @@
 ---
 name: wrap-up
-description: "End-of-session cleanup after PR merge: refresh repo, run quick retrospective, clean gone branches, and generate a follow-up session prompt. Combines /refresh-repo, /retrospecting quick, and /clean_gone into a single post-merge workflow, then triages remaining work into a next-session prompt and GitHub issues."
+description: "End-of-session handler that first checks whether the current session's plan is actually complete. If complete: refresh repo, run quick retrospective, clean gone branches, and emit a forward-looking follow-up prompt. If incomplete: skip cleanup and emit one or more `cd`-into-worktree blocks paired with ready-to-paste resume prompts so the unfinished work can be picked up cold in a new session."
 ---
 
-# Post-Merge Wrap-Up
+# Post-Session Wrap-Up
 
-> **State warning**: Branch state, remote tracking, and PR status change between
-> invocations. Re-run all git/gh commands from Step 1.
+> **State warning**: Branch state, remote tracking, TaskList contents, and plan
+> checklist state all change between invocations. Re-run every git/gh command
+> and re-call `TaskList` from Step 0; never trust prior outputs from this
+> conversation.
 
-Run Steps 1 and 2 **in parallel** (they are independent). Step 3 starts as soon as
-Step 1 completes (depends on its remote prune). Step 4 runs after all prior steps finish.
-Provide a summary of actions taken.
+`/wrap-up` has two paths. Step 0 decides which one runs.
 
-## Step 1: Refresh Repository
+| Step 0 outcome           | Path                                                              |
+| ------------------------ | ----------------------------------------------------------------- |
+| Plan complete OR no plan | **Path A** — refresh repo, retrospective, clean branches, follow-up prompt |
+| Plan incomplete          | **Path B** — emit resume blocks; skip Path A cleanup entirely     |
+
+The `purge-pr` focused mode (bottom of this file) bypasses Step 0 entirely.
+
+## Step 0: Determine session state
+
+There are two distinct things to keep straight here:
+
+1. **The plan file itself** — a real markdown file at
+   `<HOME>/.claude/plans/<slug>.md`. Plan mode writes it; the assistant reads
+   and edits it during implementation; it persists on disk after the session
+   ends. The file is the canonical store of the plan's *content* — the
+   checklist items, the context, the files to change. Step 0b reads it.
+2. **The binding from session → plan file** — i.e. *which* of the many files
+   under `~/.claude/plans/` is the one this session is working against.
+   That binding is the hard problem under parallelism, because many sessions
+   may be writing files into the same directory concurrently. Filesystem
+   heuristics (mtime, ctime, filename slug) all race. Step 0a resolves the
+   binding using the only signal that is scoped to one session: the
+   conversation transcript.
+
+### 0a. Resolve which plan file belongs to this session
+
+When a session enters plan mode, the harness injects a `<system-reminder>` into
+the conversation containing a literal `## Plan File Info:` block that names the
+plan file's absolute path (shape: `<HOME>/.claude/plans/<slug>.md`). That
+reminder is session-local — it appears only in this session's transcript — and
+it persists in conversation context after plan mode exits. So scanning the
+conversation for that reminder is the deterministic way to find the plan path
+for *this* session, no matter how many other sessions are running.
+
+To resolve:
+
+1. Scan the current conversation context for `<system-reminder>` blocks whose
+   body contains a path matching the regex
+   `[^[:space:]]+/\.claude/plans/[^[:space:]]+\.md` — any absolute path ending
+   under `.claude/plans/`, not just one specific user's home directory.
+2. If multiple matches exist (plan mode was re-entered against a different
+   file), take the **most recently quoted** one — latest in conversation order,
+   not by file mtime.
+3. If zero matches exist, this session never entered plan mode. There is no
+   plan file for this session. Treat the plan checklist as empty; the
+   completion decision then rests entirely on TaskList.
+
+Never search `~/.claude/plans/` by mtime, ctime, or filename pattern. Never
+guess which plan belongs to this session.
+
+### 0b. Read the resolved plan file
+
+If 0a returned a path, `Read` that exact file. Extract:
+
+- GitHub-style checkboxes (`- [ ]` / `- [x]`) with their line numbers
+- Numbered or bulleted step lists under headings such as "Step", "Phase",
+  "Tasks", or "Files to Change", but only when an item has an unambiguous
+  done/not-done signal in the file itself or in this session's conversation
+
+### 0c. Read the harness TaskList
+
+Call `TaskList`. It is intrinsically session-scoped by the harness — no
+disambiguation needed. Inspect `status` per task.
+
+### 0d. Conversation evidence for ambiguous items
+
+For checklist items without an explicit `[x]`, decide based on this session's
+actual evidence: file edits the assistant performed, command output, test
+results visible in this conversation. Be conservative: if in doubt, treat as
+incomplete. Never consult other sessions' transcripts.
+
+### Completion rule
+
+The plan is complete iff:
+
+- every `TaskList` task has `status == "completed"` (or the list is empty), AND
+- every plan-file checklist item is checked or has clear conversation evidence
+  of completion (or there is no plan file at all).
+
+If either set has unfinished items → **Path B**. Otherwise → **Path A**.
+
+---
+
+## Path A — Clean wrap-up (plan complete or absent)
+
+Run Steps A1 and A2 **in parallel** (they are independent). Step A3 starts as
+soon as Step A1 completes (depends on its remote prune). Step A4 runs after
+all prior steps finish. Provide a summary of actions taken.
+
+### A1. Refresh Repository
 
 Invoke `/refresh-repo` to:
 
@@ -21,7 +110,7 @@ Invoke `/refresh-repo` to:
 - Clean up stale worktrees (merged PRs, `[gone]` remote branches)
 - Report repository state
 
-## Step 2: Quick Retrospective
+### A2. Quick Retrospective
 
 Invoke `/retrospecting quick` to capture a brief session retrospective:
 
@@ -32,7 +121,7 @@ Invoke `/retrospecting quick` to capture a brief session retrospective:
 
 **Requires**: `claude-retrospective` plugin (external). If not installed, skip this step and note it was skipped.
 
-## Step 3: Clean Gone Branches
+### A3. Clean Gone Branches
 
 Invoke `/clean_gone` to remove any local branches whose remote tracking branch has been deleted:
 
@@ -42,25 +131,25 @@ Invoke `/clean_gone` to remove any local branches whose remote tracking branch h
 
 **Requires**: `commit-commands` plugin (external). If not installed, skip this step and note it was skipped.
 
-## Step 4: Follow-Up Session Prompt
+### A4. Follow-Up Session Prompt
 
 After the retrospective completes (or is skipped), generate a follow-up prompt for the next session.
 
-Scan the conversation history in **reverse chronological order**, stopping when no new items appear for ~10 consecutive messages.
+Scan the conversation history in **reverse chronological order**, stopping when
+no new items appear for ~10 consecutive messages. Most unfinished forward-looking
+work surfaces near the end of a session.
 
-Most unfinished work surfaces near the end of a session.
-
-### 4a + 4b: Gather Unfinished Work and Session Issues (parallel)
+#### A4a + A4b: Gather Unfinished Work and Session Issues (parallel)
 
 Scan simultaneously for both categories:
 
-**Unfinished work** (4a):
+**Unfinished work** (A4a):
 
 - **Incomplete tasks** — anything started but not finished, or marked as TODO/FIXME during this session
 - **Items needing production-readiness** — code that works but needs hardening, tests, error handling, or documentation before it is production-ready
 - **Future work identified** — any issues, improvements, or ideas called out during the session as "later", "follow-up", "out of scope", or similar
 
-**Session issues** (4b):
+**Session issues** (A4b):
 
 - Errors (build failures, test failures, runtime errors)
 - Warnings (linter warnings, deprecation notices, compiler warnings)
@@ -68,18 +157,27 @@ Scan simultaneously for both categories:
 - Workarounds applied that should be properly fixed
 - Tool or dependency issues encountered
 
-### 4c: Triage Into Prompt vs GitHub Issues
+#### A4c: Triage Into Prompt vs GitHub Issues
 
 Split the gathered items into two buckets:
 
-1. **Next-session prompt** — items that are small enough to complete in a single focused session (roughly 1–3 tasks). Combine related items where possible.
+1. **Next-session prompt** — items small enough to complete in a single focused session (roughly 1–3 tasks). Combine related items where possible.
 2. **GitHub issues** — everything else. Before recommending new issues:
-   - Search existing open issues with `gh issue list --state open` for duplicates
+   - Search existing open issues with `gh issue list --state open --json number,title,url`
+     for duplicates. **Capture the `url` field** — every issue or PR referenced in the
+     output below must be a full URL the user can click, never a bare `#123`.
    - If a matching issue exists, recommend updating it instead of creating a new one
    - Consolidate related items into a single issue when they share a root cause
    - Each recommended issue should include a clear title, description, and acceptance criteria
 
-### 4d: Output the Follow-Up Prompt
+**URL rule (applies to every section that mentions a PR or issue):** always
+emit the full `https://github.com/<owner>/<repo>/(issues|pull)/<n>` URL on
+first reference. Bare `#123` or `PR 123` references are forbidden because they
+force the reader to guess the repo from context. If the same number appears
+again in the same block, a bare `#123` is acceptable as a short reference
+after the URL has been shown once.
+
+#### A4d: Output the Follow-Up Prompt
 
 Present the results in this format:
 
@@ -94,8 +192,8 @@ Recommended prompt for next session:
 
 Recommended GitHub Issues:
 ──────────────────────────────
-1. <Title> — <one-line summary> [new | update #123]
-2. <Title> — <one-line summary> [new | update #456]
+1. <Title> — <one-line summary> [new | update https://github.com/<owner>/<repo>/issues/123]
+2. <Title> — <one-line summary> [new | update https://github.com/<owner>/<repo>/pull/456]
    ...
 ──────────────────────────────
 
@@ -108,12 +206,108 @@ Session Issues Log:
 
 If no follow-up items are found, state that explicitly — do not fabricate work.
 
+### Path A Summary
+
+```text
+Wrap-Up Summary
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Plan:             <path or "none">
+  Plan status:      complete
+  Refresh:          done or skipped
+  Retrospective:    done or skipped
+  Branch cleanup:   done or skipped
+  Follow-up prompt: done or skipped
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+---
+
+## Path B — Resume blocks (plan incomplete)
+
+Skip Path A entirely. Skipping is intentional: `/refresh-repo` prunes stale
+worktrees, which would delete the in-flight worktree the user needs to resume
+in.
+
+### B1. Group remaining items
+
+Collect every unfinished item from Step 0 (plan checklist items still
+unchecked + `TaskList` tasks with `status != "completed"`) and group them with
+judgement, not by repo alone:
+
+- Items touching the same repo AND sharing one coherent goal → **one block**
+- Items touching the same repo but addressing unrelated concerns → **separate
+  blocks**, so a fresh session is not polluted by an unrelated thread
+- Items touching different repos → **separate blocks**
+- If block X must finish before block Y can start, order X first and record
+  the dependency on Y's header
+
+For each block, resolve the working directory:
+
+1. If the block's tasks name file paths inside a worktree, use that worktree
+   root (`git -C <path> rev-parse --show-toplevel`).
+2. Otherwise, derive from the plan file's "Files to Change" / "File to modify"
+   section.
+3. Last resort: the cwd at wrap-up time.
+
+### B2. Emit each block
+
+Print blocks in dependency order. Each block must be copy-pasteable into a
+fresh terminal + new Claude session and runnable cold — the new session sees
+none of this conversation.
+
+```text
+Resume Block N of M — <short label>
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Working dir:
+  cd <absolute worktree path>
+
+Resume prompt:
+──────────────────────────────
+<Self-contained prompt for this block. Must include:
+ - Plan file path so the new session can re-enter plan mode against it:
+   ~/.claude/plans/<slug>.md (use the resolved absolute path emitted by the
+   plan-mode system reminder, not this literal example)
+ - Exact remaining checklist items with plan-file line numbers
+ - Any TaskList task IDs still pending and their subjects
+ - Relevant file paths from the plan
+ - Full URLs for any referenced PR or issue (e.g.
+   https://github.com/<owner>/<repo>/pull/123) — never a bare #123
+ - One-line "already done this session" so the new session does not redo work>
+──────────────────────────────
+
+Depends on: <block id, or "none">
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+The resume prompt restates the goal explicitly. It must never say "continue
+what you were doing" or reference "this session" — the new session has no
+memory of it.
+
+### Path B Summary
+
+After all resume blocks, print:
+
+```text
+Wrap-Up Summary (incomplete)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Plan:             <plan-file path or "none">
+  Plan status:      incomplete (<n> open checklist items, <m> open TaskList items)
+  Refresh:          skipped — plan incomplete
+  Retrospective:    skipped — plan incomplete
+  Branch cleanup:   skipped — plan incomplete
+  Resume blocks:    <count>
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+---
+
 ## Focused Mode: Purge a Specific PR
 
 Invoke as `/wrap-up purge-pr <PR_NUMBER>` to close one PR and atomically
-purge all local state for its branch. Skips Steps 1–4 above. Use when you
-know a PR should be closed (obsolete duplicate, workaround anti-pattern,
-abandoned work) and you want the local trace gone in one operation.
+purge all local state for its branch. **Bypasses Step 0 and both paths above.**
+Use when you know a PR should be closed (obsolete duplicate, workaround
+anti-pattern, abandoned work) and you want the local trace gone in one
+operation.
 
 Sequence:
 
@@ -135,21 +329,9 @@ worktree-removal command shape from `/troubleshoot-worktree` and aligns with
 
 ## Related Skills
 
-- **refresh-repo** (github-workflows) — PR readiness check + repo sync + worktree cleanup (Step 1 dependency); also provides `--sweep` and `--prune-stale` modes
+- **refresh-repo** (github-workflows) — PR readiness check + repo sync +
+  worktree cleanup (Path A Step A1 dependency); also provides `--sweep` and
+  `--prune-stale` modes
 - **shape-issues** (github-workflows) — Shape and create well-structured GitHub issues
 - **troubleshoot-worktree** (git-workflows) — Worktree-removal command shape reused by `purge-pr` mode
 - **pr-standards** (git-standards) — Workaround Classification rubric used to decide when `purge-pr` is the right action
-
-## Summary
-
-Report what was completed:
-
-```text
-Wrap-Up Summary
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Refresh:          done or skipped
-  Retrospective:    done or skipped
-  Branch cleanup:   done or skipped
-  Follow-up prompt: done or skipped
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-```
