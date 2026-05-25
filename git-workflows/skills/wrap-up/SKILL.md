@@ -30,14 +30,17 @@ are the conversation transcript and harness tools whose state is session-keyed.
 
 When a session enters plan mode, the harness injects a `<system-reminder>` into
 the conversation containing a literal `## Plan File Info:` block that names the
-plan path as `/Users/jevans/.claude/plans/<slug>.md`. That path is the canonical
-binding between session and plan, and it persists in conversation context after
-plan mode exits.
+plan path as an absolute path under the user's home directory, of the shape
+`<HOME>/.claude/plans/<slug>.md` (for example `~/.claude/plans/<slug>.md`
+expanded). That path is the canonical binding between session and plan, and it
+persists in conversation context after plan mode exits.
 
 To resolve:
 
 1. Scan the current conversation context for `<system-reminder>` blocks whose
-   body contains a path matching `/Users/jevans/.claude/plans/[^[:space:]]+\.md`.
+   body contains a path matching the regex
+   `[^[:space:]]+/\.claude/plans/[^[:space:]]+\.md` — any absolute path ending
+   under `.claude/plans/`, not just one specific user's home directory.
 2. If multiple matches exist (plan mode was re-entered against a different
    file), take the **most recently quoted** one — latest in conversation order,
    not by mtime.
@@ -251,7 +254,8 @@ Resume prompt:
 ──────────────────────────────
 <Self-contained prompt for this block. Must include:
  - Plan file path so the new session can re-enter plan mode against it:
-   /Users/jevans/.claude/plans/<slug>.md
+   ~/.claude/plans/<slug>.md (use the resolved absolute path emitted by the
+   plan-mode system reminder, not this literal example)
  - Exact remaining checklist items with plan-file line numbers
  - Any TaskList task IDs still pending and their subjects
  - Relevant file paths from the plan
