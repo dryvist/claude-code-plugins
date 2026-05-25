@@ -201,6 +201,15 @@ all_pass &= check(
     expected_new_command=expected12,
 )
 
+# 13. Name that starts with "Claude" (Claudette) must NOT be rewritten — word-boundary guard.
+cmd13 = 'git commit -m "fix: x\n\nAssisted-by: Claudette <claudette@example.com>"'
+all_pass &= check(
+    "name starting with Claude is not rewritten",
+    cmd13,
+    "silent_allow",
+    transcript_path=transcript,
+)
+
 print()
 print("ALL TESTS PASSED" if all_pass else "SOME TESTS FAILED")
 sys.exit(0 if all_pass else 1)

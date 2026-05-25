@@ -15,7 +15,8 @@ import sys
 from pathlib import Path
 
 # Matches the email form and the bare form, but NOT the already-correct Agent:model form.
-TRAILER_PATTERN = re.compile(r"Assisted-by:\s*Claude(?:\s*<[^>]*>|(?!\s*:\S))")
+# \b after Claude prevents false matches on names like "Claudette", "Claudine", etc.
+TRAILER_PATTERN = re.compile(r"Assisted-by:\s*Claude\b(?:\s*<[^>]*>|(?!\s*:\S))")
 TRAILER_REPL = "Assisted-by: Claude:{model}"
 
 _ROBOT_URL_PATTERN = r"🤖 Generated with \[Claude Code\]\([^)]*\)"
