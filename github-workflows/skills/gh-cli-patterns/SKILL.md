@@ -250,6 +250,26 @@ Append after the URL, separated by ` | `. Omit when no issues exist ("Ready for 
 gh pr view <PR_NUMBER> --json url --jq '.url'
 ```
 
+**Canonical Unresolved Thread Count** (post-fix verification after
+`/resolve-pr-threads`):
+
+```bash
+QUERY='query($owner:String!,$repo:String!,$prNumber:Int!){
+  repository(owner:$owner,name:$repo){
+    pullRequest(number:$prNumber){
+      reviewThreads(first:100){nodes{id isResolved}}
+    }
+  }
+}'
+gh api graphql -f query="$QUERY" \
+  -f owner="<OWNER>" -f repo="<REPO>" -F prNumber=<PR_NUMBER> \
+  --jq '[.data.repository.pullRequest.reviewThreads.nodes[]
+         | select(.isResolved == false)] | length'
+```
+
+Caller compares this against the pre-fix count: strict decrease → continue,
+unchanged → subagent did nothing.
+
 **Fetch all open PRs** (for Section 2 — one GraphQL call per affected repo):
 
 `gh pr list --json` does NOT support `mergeStateStatus` — use GraphQL instead:

@@ -201,30 +201,16 @@ then re-run both gates.
 silently report the PR as "Ready to merge." Instead, categorize the result and report
 it explicitly per Step 3.3 below.
 
-### 3.3 Result Categorization (REQUIRED)
+### 3.3 Surface Per-PR Result
 
-For each PR, classify the final state into exactly one category. Surface the category
-in the Step 3 summary — never silently elide a non-ready result.
+Surface whatever `/finalize-pr` reported. Do not re-classify. If `/finalize-pr`
+returned `Blocked on: <gate>`, the Section 1 row includes that exact string and
+states the single manual action that would unblock it.
 
-| Category | When to use | Action shown to user |
-|---|---|---|
-| `Ready to merge` | Both gates clean after the Step 3.1 wait | Suggest `/squash-merge-pr` or `/rebase-pr` |
-| `Ready except human gate` | Only blocker is `REVIEW_REQUIRED` or `isDraft=true` | Suggest specific reviewer ping or marking ready-for-review |
-| `Ship aborted` | Retry cap hit, or `/finalize-pr` returned non-ready category | Show the failed gate and the manual action that would unblock it |
-
-The category MUST match what `/finalize-pr` returned in its Stop Condition result —
-do not re-classify here. `/ship`'s job is to surface the per-PR category, not to
-override `/finalize-pr`'s judgment about whether retry is possible.
-
-Then emit the **Canonical PR Status Summary** as defined in /gh-cli-patterns, titled
-`Ship Summary`. Affected repos = current repo. Fetch each PR's full URL via:
-
-```bash
-gh pr view <PR_NUMBER> --json url --jq '.url'
-```
-
-Section 1 lists the PRs targeted by this `/ship` invocation (each tagged with its
-category). Section 2 lists all open PRs in the current repo (including unrelated ones).
+Then emit the **Canonical PR Status Summary** as defined in /gh-cli-patterns,
+titled `Ship Summary`. Affected repos = current repo. Section 1 lists the PRs
+targeted by this `/ship` invocation. Section 2 lists all open PRs in the
+current repo (including unrelated ones).
 
 ## Safety
 

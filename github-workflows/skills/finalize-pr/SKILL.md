@@ -18,6 +18,21 @@ No manual intervention required. For manual review-focused workflows, use `/revi
 > asynchronously. CI may have re-run. Merge conflicts may have appeared.
 > Re-fetch live PR state from Step 1.
 
+## Load-bearing rules
+
+These three rules govern the entire Phase 2 → Phase 3 loop. Apply them as written.
+
+1. **NO COMPLETION CLAIMS WITHOUT FRESH VERIFICATION EVIDENCE.** (See
+   `superpowers:verification-before-completion`.) Subagent self-reports are not
+   state. Re-query the live count from `/gh-cli-patterns` after every `/resolve-*`
+   call.
+2. **PENDING IS NOT FAILURE.** If any required check is still running, wait — don't
+   abort. Phase 2.6 drains pending checks before Phase 3 fires.
+3. **If a `/resolve-*` call did not strictly decrease the corresponding count, the
+   subagent did nothing.** Track no-ops independently per `/resolve-*` invocation
+   type. Two consecutive no-ops on the same fix type → exit Phase 5 with
+   `Blocked on: <gate>`.
+
 ## Critical Rules
 
 1. **Wait for user approval to merge** - Report ready status, then pause for user merge command
@@ -85,25 +100,12 @@ start of each iteration. For org-wide mode, use `repository.nameWithOwner` from 
 
 Steps 2.1 and 2.2 start concurrently (2.1 is non-blocking). Steps 2.3 and 2.4 run sequentially after 2.2.
 
-### 2.0 Initialize Iteration Counter (REQUIRED)
+### 2.0 Iteration Counter (REQUIRED)
 
-Initialize `phase_2_iteration = 0` at first entry to Phase 2 for this PR.
-On every re-entry from Phase 3 (gate failure → loop back here), increment by 1
-**before** running any 2.1–2.4 step.
-
-**Hard cap: 5 iterations.** On the 6th entry, **DO NOT silently bail**. Instead:
-
-1. Skip all Phase 2 steps for this PR
-2. Emit a state dump containing: the last `pr-readiness gate` query result, the
-   last code-scanning alert count, the list of unresolved threads (with URLs),
-   the last CI rollup state, and the most recent commit SHA on the branch
-3. Tag the PR result as `aborted_iteration_cap` with reason "Phase 2 looped 5
-   times without reaching a clean Phase 3 — manual intervention required"
-4. Exit straight to Phase 5 (report), bypassing Phase 4 metadata updates
-
-This cap exists because some failure modes (e.g., a required human reviewer,
-or a CodeQL alert the agent can't auto-fix) are not solvable inside Phase 2.
-Looping forever wastes API calls and leaves the user without a clear status.
+Initialize `phase_2_iteration = 0` at first entry to Phase 2. Increment on every
+re-entry from a failed Phase 3 gate. **Hard cap: 5.** On the 6th entry, emit a
+state dump (last gate result, CodeQL count, unresolved threads, CI rollup, HEAD
+SHA) and exit straight to Phase 5 with `Blocked on: iteration-cap`.
 
 ### 2.1 Start CI Monitoring (BACKGROUND)
 
@@ -112,17 +114,10 @@ Monitor CI checks using `--watch` so the agent blocks until all complete.
 
 Do NOT wait for the agent to finish — proceed to 2.2 immediately.
 
-**If the background Task agent fails or returns an error** (non-zero exit,
-network error, agent-side exception), **DO NOT silently proceed assuming CI
-is unknown**. Fall back to direct polling:
-
-```bash
-gh pr checks <PR_NUMBER> --watch
-```
-
-…with a 10-minute timeout. Log the background-agent failure visibly so the
-operator knows a fallback is active. Treat the direct-poll output as the
-authoritative CI state for Step 2.3.
+**Background-agent fallback**: if the Task agent exits without a final status
+(non-zero, network error, or no result), fall back to direct polling —
+`gh pr checks <PR_NUMBER> --watch` with a 10-minute timeout. Log the fallback
+visibly; treat the direct-poll output as authoritative for Step 2.3.
 
 ### 2.2 Parallel Fixes
 
@@ -134,48 +129,12 @@ Task agents when they touch different files. Invoke `superpowers:dispatching-par
 Run the **canonical code-scanning alert count** from /gh-cli-patterns.
 Replace `<OWNER>` and `<REPO>` per the placeholder convention in that skill.
 
-**If violations found**: Invoke `/resolve-codeql fix`, validate locally.
-
-**Post-fix verification (REQUIRED — do not skip)**: after `/resolve-codeql fix`
-returns, **re-run the canonical alert count** against the same `<OWNER>/<REPO>`.
-Expected: a strict decrease from the pre-fix count (typically to zero).
-
-- **If count decreased to 0**: continue to other fixes
-- **If count decreased but not to 0**: queue another `/resolve-codeql fix`
-  invocation on the next Phase 2 iteration; do not advance to Phase 3 yet
-- **If count unchanged**: log "subagent reported success but no state change"
-  with both counts. Do NOT loop again in this iteration — increment a local
-  `codeql_noop_count`. If `codeql_noop_count >= 2` across iterations, tag the
-  PR result as `needs_human` with reason "CodeQL alerts persist after 2
-  no-op subagent invocations" and short-circuit to Phase 5.
+**If violations found**: Invoke `/resolve-codeql fix`, validate locally. Verify in Step 2.2.5.
 
 #### Review Threads
 
 Invoke `/resolve-pr-threads`. It exits cleanly when no threads exist.
-After completion, validate locally.
-
-**Post-fix verification (REQUIRED — do not skip)**: after `/resolve-pr-threads`
-returns, re-query thread state:
-
-```bash
-QUERY='query($owner:String!,$repo:String!,$prNumber:Int!){
-  repository(owner:$owner,name:$repo){
-    pullRequest(number:$prNumber){
-      reviewThreads(first:100){nodes{id isResolved}}
-    }
-  }
-}'
-gh api graphql -f query="$QUERY" \
-  -f owner="<OWNER>" -f repo="<REPO>" -F prNumber=<PR_NUMBER> \
-  --jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)] | length'
-```
-
-Expected: zero unresolved threads, OR strictly fewer than the pre-fix count.
-
-- **Zero unresolved**: continue
-- **Decreased but not zero**: queue another iteration
-- **Unchanged**: log "subagent reported success but threads unresolved" with
-  thread URLs. Track `threads_noop_count` per the CodeQL pattern above.
+After completion, validate locally. Verify in Step 2.2.5.
 
 #### Merge Conflicts
 
@@ -184,6 +143,19 @@ conflicts only** — it does NOT mean the PR is fully ready to merge. **If confl
 attempt merge, report unresolvable conflicts for user. After resolution, validate locally. Full
 readiness verification (including `mergeStateStatus`, CI, CodeQL, review decision, threads) happens
 in Phase 3.
+
+### 2.2.5 Post-Fix Verification (REQUIRED — applies to every `/resolve-*` call)
+
+After any `/resolve-codeql` or `/resolve-pr-threads` invocation, re-query the
+corresponding count from `/gh-cli-patterns` (canonical code-scanning alert count,
+canonical unresolved thread count). Per the load-bearing rules:
+
+- Count strictly decreased → continue.
+- Count unchanged → the subagent did nothing. Increment that fix type's local
+  no-op counter. At 2 consecutive no-ops for the same fix type, exit Phase 5
+  with `Blocked on: <fix type>`.
+
+Track `codeql_noop_count` and `threads_noop_count` independently; do not merge.
 
 ### 2.3 CI Failure Fixes
 
@@ -206,20 +178,13 @@ and push before proceeding to 2.4.
 
 Verify final PR state, mergeability, and check status. If fixes introduced new issues, loop back to 2.2.
 
-### 2.6 Wait for In-Flight Async Checks (REQUIRED before Phase 3)
+### 2.6 Drain Pending Checks (REQUIRED before Phase 3)
 
-CodeQL, required-reviewer hooks, and some third-party checks complete **async**
-after a push. If Phase 3 fires while these are still PENDING, it will see
-`statusCheckRollup.state ≠ SUCCESS` and abort — but Phase 2 has nothing to do
-in response (the check isn't failing, it just hasn't finished). That creates
-a pointless loop that burns iterations and frustrates the user.
+PENDING IS NOT FAILURE. CodeQL, required-reviewer hooks, and some third-party checks complete async after push. Phase 3 must not see PENDING; drain first.
 
-Before advancing to Phase 3, **poll until every known check kind has a terminal
-state** (SUCCESS, FAILURE, ERROR, CANCELLED, TIMED_OUT, NEUTRAL, SKIPPED, or
-ACTION_REQUIRED), OR until 5 minutes pass.
+Poll every 30 seconds until no PENDING checks remain, OR for 5 minutes:
 
 ```bash
-# Poll loop — exits when no PENDING checks remain, or after 5 minutes
 end=$(($(date +%s) + 300))
 while [ "$(date +%s)" -lt "$end" ]; do
   pending=$(gh pr checks <PR_NUMBER> --json bucket --jq '[.[] | select(.bucket == "pending")] | length')
@@ -228,18 +193,7 @@ while [ "$(date +%s)" -lt "$end" ]; do
 done
 ```
 
-Also separately re-query the code-scanning alert state — CodeQL alerts are
-NOT in `pr checks` output:
-
-```bash
-gh api 'repos/<OWNER>/<REPO>/code-scanning/alerts?state=open&per_page=100' --jq 'length' || echo "0"
-```
-
-**Pending checks are not failures; they are time-passage problems. Wait — don't loop blindly.**
-
-After this poll completes, proceed to Phase 3. Phase 3 may still abort on
-genuine failures, and that's correct behavior — but it will never abort just
-because something hasn't finished yet.
+CodeQL is NOT in `pr checks`. Also re-run the canonical code-scanning alert count from /gh-cli-patterns before advancing.
 
 ## Phase 3: Pre-Handoff Verification
 
@@ -256,7 +210,7 @@ Run the **canonical PR-readiness gate** from /gh-cli-patterns against
 `<PR_NUMBER>`. Replace `<OWNER>`, `<REPO>`, `<PR_NUMBER>` per the placeholder convention in
 that skill.
 
-**Required values — if any fail, return to Phase 2:**
+**Required values — if any fail, loop back to Phase 2 (subject to the iteration cap from Step 2.0):**
 
 | Field | Required | Abort message |
 |-------|---------|---------------|
@@ -274,37 +228,12 @@ that skill.
 > status check), `DIRTY` (conflicts), `DRAFT`, `UNKNOWN` (GitHub computing),
 > `UNSTABLE` (checks failed or pending). Any of these = return to Phase 2.
 
-### 3.1.1 Phase 3 Failure Taxonomy (REQUIRED dispatch)
-
-Not every Phase 3 failure should return to Phase 2 — some are unfixable inside
-this skill. Dispatch each failed field to one of four handlers:
-
-| Field value | Handler | Action |
-|---|---|---|
-| `state` = `MERGED` or `CLOSED` | `hard_block_exit_phase_5` | PR has moved out of OPEN state since work began; report and exit |
-| `mergeable` = `CONFLICTING` | `fixable_loop_to_phase_2` | Merge-conflict resolution in Phase 2.2 |
-| `mergeStateStatus` = `BEHIND` | `fixable_loop_to_phase_2` | Rebase from main in Phase 2.2 |
-| `mergeStateStatus` = `DIRTY` | `fixable_loop_to_phase_2` | Same as `CONFLICTING` |
-| `mergeStateStatus` = `UNKNOWN` | `wait_and_recheck` | GitHub is recomputing; sleep 30s, re-run Phase 3.1; cap 3 retries |
-| `mergeStateStatus` = `UNSTABLE` (a check is FAILURE/ERROR) | `fixable_loop_to_phase_2` | Failure fixes in Phase 2.3 |
-| `mergeStateStatus` = `UNSTABLE` (only PENDING checks left) | `wait_and_recheck` | Re-run Phase 2.6 |
-| `BLOCKED` + `reviewDecision` = `REVIEW_REQUIRED` | `needs_human_exit_phase_5` | Required reviewer hasn't acted; exit `ready_except_human_gate` |
-| `mergeStateStatus` = `BLOCKED` and CodeQL > 0 | `fixable_loop_to_phase_2` | Re-run `/resolve-codeql fix` |
-| `mergeStateStatus` = `BLOCKED` for other reasons | `needs_human_exit_phase_5` | Branch protection requires something the AI can't provide |
-| `isDraft` = `true` | `needs_human_exit_phase_5` | Marking ready-for-review is a human signal |
-| `reviewDecision` = `CHANGES_REQUESTED` | `fixable_loop_to_phase_2` | Re-run `/resolve-pr-threads` |
-| `statusCheckRollup.state` = `FAILURE` or `ERROR` | `fixable_loop_to_phase_2` | CI failure fixes in Phase 2.3 |
-| `statusCheckRollup.state` = `PENDING` | `wait_and_recheck` | Phase 2.6 should have caught this; re-run 2.6 then 3.1 |
-| Any `reviewThreads.isResolved` = `false` | `fixable_loop_to_phase_2` | `/resolve-pr-threads` in Phase 2.2 |
-
-**Handler semantics:**
-
-- `fixable_loop_to_phase_2`: increment `phase_2_iteration`, return to Phase 2 (subject to the iteration cap from Step 2.0)
-- `wait_and_recheck`: poll the failing field for up to 5 minutes, then re-evaluate Phase 3 without incrementing the Phase 2 counter
-- `needs_human_exit_phase_5`: skip Phase 2 and Phase 4; jump to Phase 5 with
-  category `ready_except_human_gate` (if the only blocker is human review or
-  draft state) or `needs_human` (other branch protection requirement)
-- `hard_block_exit_phase_5`: skip everything; emit terminal report with reason
+If a failed field is something the AI cannot fix (e.g.,
+`reviewDecision = REVIEW_REQUIRED`, `isDraft = true`, `state ≠ OPEN`, or
+`mergeStateStatus = BLOCKED` with no resolvable cause), skip the loop and exit
+Phase 5 with `Blocked on: <field name and value>`. Loop only when the failure has
+an in-skill fix path (CI failure, CodeQL alert, unresolved thread, merge
+conflict, BEHIND).
 
 ### 3.2 CodeQL Gate (REST — separate from CI, re-run now)
 
@@ -361,23 +290,11 @@ Proceed to Phase 5.
 
 ## Phase 5: Record Result
 
-**Single/current-branch mode**: Emit the **Canonical PR Status Summary** (Section 1 =
-this PR, Section 2 = all open PRs in current repo) as defined in /gh-cli-patterns,
-titled `PR Status`. **Include the result category from the Stop Condition** at the
-top of Section 1 — never silently report "ready" when the actual category is one
-of the non-ready buckets.
+**Single/current-branch mode**: Emit the **Canonical PR Status Summary**
+(Section 1 = this PR, Section 2 = all open PRs in current repo) as defined in
+/gh-cli-patterns, titled `PR Status`.
 
-Format the category line precisely:
-
-```text
-Result: ready                       — all gates clean, safe for human merge
-Result: ready_except_human_gate     — only blocker is required human review (REVIEW_REQUIRED or isDraft)
-Result: needs_human                 — branch protection requires AI-unfixable signal: <specific field>
-Result: aborted_iteration_cap       — Phase 2 looped 5x; <state dump from Step 2.0 cap>
-Result: hard_block                  — PR moved out of OPEN state: <state value>
-```
-
-For `ready` or `ready_except_human_gate`, append:
+If every gate in Phase 3 passed, the PR row in Section 1 reads `Ready for review` (no extra annotation). Then append:
 
 ```text
 IMPORTANT: Do NOT merge this PR. Wait for the human to review and invoke
@@ -385,60 +302,27 @@ IMPORTANT: Do NOT merge this PR. Wait for the human to review and invoke
   /rebase-pr          # Rebase commits onto main (preserves history)
 ```
 
-For `needs_human`, `aborted_iteration_cap`, or `hard_block`, append the
-specific manual action that would unblock the PR — never a generic "review
-manually" suggestion.
+If any gate failed, the PR row in Section 1 includes `Blocked on: <gate>` naming
+the specific failed gate (e.g., `Blocked on: REVIEW_REQUIRED`, `Blocked on:
+CodeQL`, `Blocked on: iteration-cap`, `Blocked on: threads`). State the single
+manual action that would unblock it — never a generic "review manually."
 
-**Multi-PR mode**: Record the per-PR result (with category from the Stop Condition).
-Restore the original branch and continue to the next PR. Do NOT emit a ready
-report — that happens in Phase 6.
+**Multi-PR mode**: Record the per-PR row (`Ready for review` or
+`Blocked on: <gate>`). Restore the original branch and continue to the next PR.
+Do NOT emit a ready report — that happens in Phase 6.
 
 ## Stop Condition
 
-Use explicit loop logic, not prose interpretation. For each targeted PR, run:
+Loop Phase 2.0 → 2.6 → 3.1 → 3.2 → 3.3 until either:
 
-```text
-phase_2_iteration = 0
-codeql_noop_count = 0
-threads_noop_count = 0
+- All three Phase 3 gates pass → run Phase 4, then Phase 5 reports `Ready for review`.
+- A failed gate has no in-skill fix path (per Phase 3.1) → exit Phase 5 with `Blocked on: <gate>`.
+- `phase_2_iteration` reaches 5 → exit Phase 5 with `Blocked on: iteration-cap` and emit the state dump from Step 2.0.
+- A `codeql_noop_count` or `threads_noop_count` reaches 2 → exit Phase 5 with `Blocked on: <fix type>`.
 
-loop:
-  if phase_2_iteration >= 5:
-    return (category=aborted_iteration_cap, state=<dump>)
-
-  run Phase 2.0 - 2.6                         # fix, simplify, wait
-  run Phase 3.1 (PR state gate)
-  run Phase 3.2 (CodeQL alert count)
-  run Phase 3.3 (local validation)
-
-  if all three gates pass:
-    run Phase 4 (metadata)
-    return (category=ready)
-
-  dispatch each failed field per Phase 3.1.1 taxonomy:
-    fixable_loop_to_phase_2  -> phase_2_iteration += 1; continue loop
-    wait_and_recheck         -> sleep up to 5 min; goto Phase 3
-    needs_human_exit_phase_5 -> return (category=ready_except_human_gate | needs_human)
-    hard_block_exit_phase_5  -> return (category=<reason>)
-```
-
-**CRITICAL invariants:**
-
-- CodeQL is checked SEPARATELY from `statusCheckRollup` (Phase 3.2 — REST, not GraphQL).
-- Subagent self-reports are NOT ground truth. Always re-query live state in Phase 3.
-- Pending checks are NOT failures — Phase 2.6 must drain them before Phase 3 runs.
-- Subagent "success" claims must be VERIFIED with a follow-up state query (Phase 2.2 post-fix verification).
-- Returning `category=ready` requires ALL of: Phase 3.1 passing, Phase 3.2 = 0 alerts, Phase 3.3 validators clean, Phase 4 metadata applied.
-
-Result categories surfaced to Phase 5 / Phase 6:
-
-| Category | Meaning |
-|---|---|
-| `ready` | All gates clean, metadata updated, safe for human merge |
-| `ready_except_human_gate` | Only blocker is `REVIEW_REQUIRED` or `isDraft=true`; AI cannot resolve |
-| `needs_human` | Branch protection requires something AI cannot satisfy (e.g., required external status check) |
-| `aborted_iteration_cap` | Phase 2 looped 5 times without reaching a clean Phase 3; state dump emitted |
-| `hard_block` | PR moved out of OPEN state mid-run |
+Pending checks (`mergeStateStatus = UNKNOWN`, only PENDING checks in `UNSTABLE`,
+or `statusCheckRollup.state = PENDING`) do NOT increment the iteration counter —
+re-run Phase 2.6 and re-evaluate Phase 3.
 
 **MERGE PROHIBITION**: FORBIDDEN from merging, auto-merging, enabling auto-merge, or approving any PR.
 
@@ -465,3 +349,4 @@ For `all`/`org` modes: Phases 2-5 loop per PR, Phase 6 aggregates results.
 - pr-standards (git-standards) — PR authoring and review standards
 - code-quality-standards (code-standards) — code quality guidelines applied during fixes
 - gh-cli-patterns (github-workflows) — canonical gh CLI command shapes, placeholder convention, PR gate, code-scanning query
+- verification-before-completion (superpowers) — iron-law verification before claiming work complete
