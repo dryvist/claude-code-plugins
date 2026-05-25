@@ -1,6 +1,6 @@
 ---
 name: wrap-up
-description: "End-of-session handler that first checks whether the current session's plan is actually complete. If complete: refresh repo, run quick retrospective, clean gone branches, and emit a forward-looking follow-up prompt. If incomplete: skip cleanup and emit one or more `cd <repo>` + ready-to-paste resume prompts so the unfinished work can be picked up cold in a new session."
+description: "End-of-session handler that first checks whether the current session's plan is actually complete. If complete: refresh repo, run quick retrospective, clean gone branches, and emit a forward-looking follow-up prompt. If incomplete: skip cleanup and emit one or more `cd`-into-worktree blocks paired with ready-to-paste resume prompts so the unfinished work can be picked up cold in a new session."
 ---
 
 # Post-Session Wrap-Up
@@ -149,10 +149,19 @@ Split the gathered items into two buckets:
 
 1. **Next-session prompt** — items small enough to complete in a single focused session (roughly 1–3 tasks). Combine related items where possible.
 2. **GitHub issues** — everything else. Before recommending new issues:
-   - Search existing open issues with `gh issue list --state open` for duplicates
+   - Search existing open issues with `gh issue list --state open --json number,title,url`
+     for duplicates. **Capture the `url` field** — every issue or PR referenced in the
+     output below must be a full URL the user can click, never a bare `#123`.
    - If a matching issue exists, recommend updating it instead of creating a new one
    - Consolidate related items into a single issue when they share a root cause
    - Each recommended issue should include a clear title, description, and acceptance criteria
+
+**URL rule (applies to every section that mentions a PR or issue):** always
+emit the full `https://github.com/<owner>/<repo>/(issues|pull)/<n>` URL on
+first reference. Bare `#123` or `PR 123` references are forbidden because they
+force the reader to guess the repo from context. If the same number appears
+again in the same block, a bare `#123` is acceptable as a short reference
+after the URL has been shown once.
 
 #### A4d: Output the Follow-Up Prompt
 
@@ -169,8 +178,8 @@ Recommended prompt for next session:
 
 Recommended GitHub Issues:
 ──────────────────────────────
-1. <Title> — <one-line summary> [new | update #123]
-2. <Title> — <one-line summary> [new | update #456]
+1. <Title> — <one-line summary> [new | update https://github.com/<owner>/<repo>/issues/123]
+2. <Title> — <one-line summary> [new | update https://github.com/<owner>/<repo>/pull/456]
    ...
 ──────────────────────────────
 
@@ -246,6 +255,8 @@ Resume prompt:
  - Exact remaining checklist items with plan-file line numbers
  - Any TaskList task IDs still pending and their subjects
  - Relevant file paths from the plan
+ - Full URLs for any referenced PR or issue (e.g.
+   https://github.com/<owner>/<repo>/pull/123) — never a bare #123
  - One-line "already done this session" so the new session does not redo work>
 ──────────────────────────────
 

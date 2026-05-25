@@ -83,3 +83,20 @@ repos:
         language: system
         pass_filenames: false
         files: 'skills/.*SKILL\.md$'
+
+  # ---------------------------------------------------------------------------
+  # Anthropic plugin validator (cclint) — mirrors .github/workflows/validate-plugin.yml
+  # so frontmatter issues (e.g. angle brackets in `description`) fail at commit time
+  # instead of only on CI. Pre-commit installs cclint into an isolated Go env via
+  # `language: golang`; no Go toolchain on the host is required.
+  # ---------------------------------------------------------------------------
+  - repo: local
+    hooks:
+      - id: cclint-plugins
+        name: Validate plugin frontmatter (cclint)
+        language: golang
+        additional_dependencies:
+          - github.com/dotcommander/cclint@latest
+        entry: bash scripts/cclint-plugins.sh
+        pass_filenames: false
+        files: '^[^/]+/((skills|commands|agents)/.*\.md$|\.claude-plugin/plugin\.json$)'
