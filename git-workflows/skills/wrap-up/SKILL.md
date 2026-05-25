@@ -21,19 +21,30 @@ The `purge-pr` focused mode (bottom of this file) bypasses Step 0 entirely.
 
 ## Step 0: Determine session state
 
-Identifying "this session's plan" must be deterministic under heavy parallelism
-(many concurrent sessions writing to `~/.claude/plans/`). Filesystem heuristics
-like mtime are forbidden — they race. The only signals scoped to *this* session
-are the conversation transcript and harness tools whose state is session-keyed.
+There are two distinct things to keep straight here:
 
-### 0a. Resolve the plan file (SSOT: plan-mode system reminder)
+1. **The plan file itself** — a real markdown file at
+   `<HOME>/.claude/plans/<slug>.md`. Plan mode writes it; the assistant reads
+   and edits it during implementation; it persists on disk after the session
+   ends. The file is the canonical store of the plan's *content* — the
+   checklist items, the context, the files to change. Step 0b reads it.
+2. **The binding from session → plan file** — i.e. *which* of the many files
+   under `~/.claude/plans/` is the one this session is working against.
+   That binding is the hard problem under parallelism, because many sessions
+   may be writing files into the same directory concurrently. Filesystem
+   heuristics (mtime, ctime, filename slug) all race. Step 0a resolves the
+   binding using the only signal that is scoped to one session: the
+   conversation transcript.
+
+### 0a. Resolve which plan file belongs to this session
 
 When a session enters plan mode, the harness injects a `<system-reminder>` into
 the conversation containing a literal `## Plan File Info:` block that names the
-plan path as an absolute path under the user's home directory, of the shape
-`<HOME>/.claude/plans/<slug>.md` (for example `~/.claude/plans/<slug>.md`
-expanded). That path is the canonical binding between session and plan, and it
-persists in conversation context after plan mode exits.
+plan file's absolute path (shape: `<HOME>/.claude/plans/<slug>.md`). That
+reminder is session-local — it appears only in this session's transcript — and
+it persists in conversation context after plan mode exits. So scanning the
+conversation for that reminder is the deterministic way to find the plan path
+for *this* session, no matter how many other sessions are running.
 
 To resolve:
 
@@ -43,7 +54,7 @@ To resolve:
    under `.claude/plans/`, not just one specific user's home directory.
 2. If multiple matches exist (plan mode was re-entered against a different
    file), take the **most recently quoted** one — latest in conversation order,
-   not by mtime.
+   not by file mtime.
 3. If zero matches exist, this session never entered plan mode. There is no
    plan file for this session. Treat the plan checklist as empty; the
    completion decision then rests entirely on TaskList.

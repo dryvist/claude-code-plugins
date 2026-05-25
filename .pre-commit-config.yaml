@@ -85,18 +85,28 @@ repos:
         files: 'skills/.*SKILL\.md$'
 
   # ---------------------------------------------------------------------------
-  # Anthropic plugin validator (cclint) — mirrors .github/workflows/validate-plugin.yml
-  # so frontmatter issues (e.g. angle brackets in `description`) fail at commit time
-  # instead of only on CI. Pre-commit installs cclint into an isolated Go env via
-  # `language: golang`; no Go toolchain on the host is required.
+  # Anthropic plugin validator (cclint) — fails locally on the same checks
+  # .github/workflows/validate-plugin.yml runs on CI (e.g. angle brackets in
+  # `description`). cclint's built-in `--staged` git-integration mode
+  # (documented as the pre-commit entrypoint) reads files from the git
+  # index, detects each file's plugin context (e.g. `<plugin>/skills/<name>/
+  # SKILL.md`), and validates accordingly. This avoids both the type-
+  # detection failures that come from passing arbitrary support files
+  # directly and the per-plugin loop that would otherwise need a wrapper
+  # script. `language: golang` installs cclint into an isolated env, so no
+  # host Go toolchain is required.
+  #
+  # Caveat: --staged only inspects what is currently staged in git, so
+  # `pre-commit run --all-files` is a near no-op for this hook. Run cclint
+  # directly (`cclint <plugin-dir>`) or rely on CI for full-tree validation.
   # ---------------------------------------------------------------------------
   - repo: local
     hooks:
       - id: cclint-plugins
-        name: Validate plugin frontmatter (cclint)
+        name: Validate plugin frontmatter (cclint, staged)
         language: golang
         additional_dependencies:
           - github.com/dotcommander/cclint@latest
-        entry: bash scripts/cclint-plugins.sh
+        entry: cclint --staged
         pass_filenames: false
-        files: '^[^/]+/((skills|commands|agents)/.*\.md$|\.claude-plugin/plugin\.json$)'
+        files: '^[^/]+/(skills/.*\.md$|\.claude-plugin/plugin\.json$)'
