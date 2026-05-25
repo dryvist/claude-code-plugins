@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.1.1](https://github.com/JacobPEvans/claude-code-plugins/compare/v4.1.0...v4.1.1) (2026-05-25)
+
+
+### Bug Fixes
+
+* **git-guards:** enforce kernel coding-assistants trailer spec ([#333](https://github.com/JacobPEvans/claude-code-plugins/issues/333)) ([5eb30be](https://github.com/JacobPEvans/claude-code-plugins/commit/5eb30beff8e4cdfe58fa14856e4c63c7290a5875))
+
 ## [4.1.0](https://github.com/JacobPEvans/claude-code-plugins/compare/v4.0.0...v4.1.0) (2026-05-25)
 
 
