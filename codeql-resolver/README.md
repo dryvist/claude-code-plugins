@@ -149,8 +149,9 @@ codeql-resolver/
 
 ### Example 1: Fix ci-gate.yml Permissions
 
+In `ai-assistant-instructions`:
+
 ```bash
-cd ${GIT_HOME_PUBLIC}/ai-assistant-instructions
 /resolve-codeql file:.github/workflows/ci-gate.yml
 ```
 
@@ -233,8 +234,7 @@ All fixes follow these security principles:
 ### Local Testing
 
 ```bash
-cd ${GIT_HOME_PUBLIC}/claude-code-plugins/feature/codeql-resolver/codeql-resolver
-python3 scripts/test_codeql_plugin.py
+python3 codeql-resolver/scripts/test_codeql_plugin.py
 ```
 
 ### Adding New Alert Types

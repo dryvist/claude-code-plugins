@@ -9,14 +9,13 @@ default `.worktrees/` placement.
 
 ## Path Convention
 
-```text
-${GIT_HOME_PUBLIC}/{repo-name}/{branch-name}/
-```
+Per repo: main at `<repo>/main/`, every feature worktree as a sibling at
+`<repo>/{branch-name}/`. Siblings are reachable as `../{branch-name}/`.
 
 Examples:
 
-- `${GIT_HOME_PUBLIC}/claude-code-plugins/feat/add-readme-validation/`
-- `${GIT_HOME_PUBLIC}/terraform-proxmox/fix/firewall-rules/`
+- `claude-code-plugins/feat/add-readme-validation/`
+- `terraform-proxmox/fix/firewall-rules/`
 
 ## Branch Naming
 
@@ -26,7 +25,7 @@ Examples:
 
 ## Before Creating
 
-1. Switch to main and sync: `cd ${GIT_HOME_PUBLIC}/{repo-name}/main && git switch main && git pull`
+1. Sync main: `git pull`
 2. Clean stale worktrees — a worktree is stale when it has no open PR, no uncommitted changes, and either:
    - A merged PR whose `headRefOid` matches local `HEAD` (`gh pr list --state merged --head {branch} --json number,headRefOid,mergedAt`)
    - A deleted remote (`[gone]` in `git branch -vv`) with no commits ahead of default
