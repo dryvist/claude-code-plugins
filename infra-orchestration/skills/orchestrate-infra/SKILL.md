@@ -39,7 +39,7 @@ Full pipeline validation: validate, plan, export inventory, syntax-check, check,
 
 ## Execution Pattern
 
-1. **Resolve repo paths**: All repos at `${GIT_HOME_PUBLIC}/<repo-name>/main/`
+1. **Resolve repo paths**: locate each target repo locally
 2. **Dispatch Terraform phase**: Launch subagent for terraform-proxmox operations
 3. **Await completion**: Terraform must complete before Ansible phases
 4. **Dispatch Ansible phases**: Launch parallel subagents for independent Ansible repos (invoke `superpowers:dispatching-parallel-agents`)

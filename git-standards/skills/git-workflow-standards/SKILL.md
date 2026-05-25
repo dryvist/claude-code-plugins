@@ -7,30 +7,21 @@ description: Use when managing branches, resolving merge conflicts, syncing with
 
 ## Worktree Structure
 
-All development MUST use dedicated worktrees. Never work directly on main.
+All development uses dedicated worktrees. Never work directly on main.
 
 ```text
-${GIT_HOME_PUBLIC}/<repo>/
+<repo>/
 ├── .git/                    # Shared bare repo
-├── main/                    # Main branch (read-only for dev)
-├── feature/<branch-name>/   # Feature worktrees
-├── bugfix/<branch-name>/    # Bugfix worktrees
-├── hotfix/<branch-name>/    # Hotfix worktrees
-├── release/<branch-name>/   # Release worktrees
-└── chore/<branch-name>/     # Chore worktrees
+├── main/                    # Main branch
+├── feature/<branch-name>/
+├── bugfix/<branch-name>/
+├── hotfix/<branch-name>/
+├── release/<branch-name>/
+└── chore/<branch-name>/
 ```
 
-| Branch Type | Branch Name | Worktree Path |
-| --- | --- | --- |
-| Main | `main` | `${GIT_HOME_PUBLIC}/<repo>/main/` |
-| Feature | `feature/add-feature` | `${GIT_HOME_PUBLIC}/<repo>/feature/add-feature/` |
-| Bugfix | `bugfix/bug-name` | `${GIT_HOME_PUBLIC}/<repo>/bugfix/bug-name/` |
-| Hotfix | `hotfix/critical-issue` | `${GIT_HOME_PUBLIC}/<repo>/hotfix/critical-issue/` |
-| Release | `release/1.2.0` | `${GIT_HOME_PUBLIC}/<repo>/release/1.2.0/` |
-| Chore | `chore/dependency-updates` | `${GIT_HOME_PUBLIC}/<repo>/chore/dependency-updates/` |
-
-Create: `git worktree add -b <branch> ${GIT_HOME_PUBLIC}/<repo>/<branch> main`
-Remove: `git worktree remove ${GIT_HOME_PUBLIC}/<repo>/<branch>`
+Create: `git worktree add -b <branch> ../<branch> main`
+Remove: `git worktree remove ../<branch>`
 
 Every branch with commits MUST have an associated PR.
 Orphaned branches must get a PR or be deleted.
@@ -44,7 +35,7 @@ worktrees with uncommitted changes are NEVER stale. Use `git worktree remove` (n
 
 ## Branch Hygiene
 
-- Sync main daily: `cd ${GIT_HOME_PUBLIC}/<repo>/main && git pull`
+- Sync main daily: `git pull`
 - Long-running branches: rebase from main weekly
 - Before PRs: ensure branch is on latest main
 - Never branch from feature branches — always from main
@@ -58,8 +49,8 @@ worktrees with uncommitted changes are NEVER stale. Use `git worktree remove` (n
 Sync main workflow:
 
 ```bash
-cd ${GIT_HOME_PUBLIC}/<repo>/main && git fetch origin main && git pull origin main
-cd ${GIT_HOME_PUBLIC}/<repo>/feature/<branch> && git merge origin/main --no-edit
+git fetch origin main && git pull origin main   # in main
+git merge origin/main --no-edit                 # in the feature worktree
 ```
 
 ## Merge Conflict Resolution
