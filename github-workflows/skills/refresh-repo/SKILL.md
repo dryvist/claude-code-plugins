@@ -54,11 +54,11 @@ Replace `<OWNER>`, `<REPO>`, `<PR_NUMBER>` per the placeholder legend in that sk
    `git fetch origin --no-tags --prune --force`
 3. Determine the default branch from `origin/HEAD`, falling back to `main` or `master`.
 4. **Restore the default-branch worktree to the default branch.** Per the workspace
-   convention in `~/git/CLAUDE.md`, `<repo>/main/` (or `<repo>/master/`) must always
+   convention in `${GIT_HOME}/CLAUDE.md`, `<repo>/main/` (or `<repo>/master/`) must always
    be checked out to the default branch. After a feature PR merges, that worktree is
    often left on the now-`[gone]` feature branch. Detect and fix:
    - Resolve the default worktree path using the workspace convention:
-     `~/git/<repo>/<default>/`. Do not rely on basename matching from
+     `${GIT_HOME_PUBLIC}/<repo>/<default>/`. Do not rely on basename matching from
      `git worktree list` — a feature branch named `feature/<default>` would also
      produce a path basename of `<default>`.
    - If that path exists and `git -C <path> rev-parse --abbrev-ref HEAD` does not equal
@@ -152,7 +152,7 @@ safety.
 ### `--sweep [<repo-glob>]`
 
 Multi-repo cleanup of abandoned local branches. For each repo matching the
-glob (default `~/git/<owner>/*/main/`), for every local branch where
+glob (default `${GIT_HOME_PUBLIC}/*/main/`), for every local branch where
 `git log origin/main..HEAD` is non-empty:
 
 1. **Content-equivalence check**: compute merge base, diff each touched file

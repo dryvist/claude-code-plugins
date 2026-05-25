@@ -10,7 +10,7 @@ description: Use when managing branches, resolving merge conflicts, syncing with
 All development MUST use dedicated worktrees. Never work directly on main.
 
 ```text
-~/git/<repo>/
+${GIT_HOME_PUBLIC}/<repo>/
 ├── .git/                    # Shared bare repo
 ├── main/                    # Main branch (read-only for dev)
 ├── feature/<branch-name>/   # Feature worktrees
@@ -22,15 +22,15 @@ All development MUST use dedicated worktrees. Never work directly on main.
 
 | Branch Type | Branch Name | Worktree Path |
 | --- | --- | --- |
-| Main | `main` | `~/git/<repo>/main/` |
-| Feature | `feature/add-feature` | `~/git/<repo>/feature/add-feature/` |
-| Bugfix | `bugfix/bug-name` | `~/git/<repo>/bugfix/bug-name/` |
-| Hotfix | `hotfix/critical-issue` | `~/git/<repo>/hotfix/critical-issue/` |
-| Release | `release/1.2.0` | `~/git/<repo>/release/1.2.0/` |
-| Chore | `chore/dependency-updates` | `~/git/<repo>/chore/dependency-updates/` |
+| Main | `main` | `${GIT_HOME_PUBLIC}/<repo>/main/` |
+| Feature | `feature/add-feature` | `${GIT_HOME_PUBLIC}/<repo>/feature/add-feature/` |
+| Bugfix | `bugfix/bug-name` | `${GIT_HOME_PUBLIC}/<repo>/bugfix/bug-name/` |
+| Hotfix | `hotfix/critical-issue` | `${GIT_HOME_PUBLIC}/<repo>/hotfix/critical-issue/` |
+| Release | `release/1.2.0` | `${GIT_HOME_PUBLIC}/<repo>/release/1.2.0/` |
+| Chore | `chore/dependency-updates` | `${GIT_HOME_PUBLIC}/<repo>/chore/dependency-updates/` |
 
-Create: `git worktree add -b <branch> ~/git/<repo>/<branch> main`
-Remove: `git worktree remove ~/git/<repo>/<branch>`
+Create: `git worktree add -b <branch> ${GIT_HOME_PUBLIC}/<repo>/<branch> main`
+Remove: `git worktree remove ${GIT_HOME_PUBLIC}/<repo>/<branch>`
 
 Every branch with commits MUST have an associated PR.
 Orphaned branches must get a PR or be deleted.
@@ -44,7 +44,7 @@ worktrees with uncommitted changes are NEVER stale. Use `git worktree remove` (n
 
 ## Branch Hygiene
 
-- Sync main daily: `cd ~/git/<repo>/main && git pull`
+- Sync main daily: `cd ${GIT_HOME_PUBLIC}/<repo>/main && git pull`
 - Long-running branches: rebase from main weekly
 - Before PRs: ensure branch is on latest main
 - Never branch from feature branches — always from main
@@ -58,8 +58,8 @@ worktrees with uncommitted changes are NEVER stale. Use `git worktree remove` (n
 Sync main workflow:
 
 ```bash
-cd ~/git/<repo>/main && git fetch origin main && git pull origin main
-cd ~/git/<repo>/feature/<branch> && git merge origin/main --no-edit
+cd ${GIT_HOME_PUBLIC}/<repo>/main && git fetch origin main && git pull origin main
+cd ${GIT_HOME_PUBLIC}/<repo>/feature/<branch> && git merge origin/main --no-edit
 ```
 
 ## Merge Conflict Resolution

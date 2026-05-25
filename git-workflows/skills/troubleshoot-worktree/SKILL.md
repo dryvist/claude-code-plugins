@@ -46,14 +46,14 @@ Means TWO things named `origin/main`:
 ### Main Worktree Not Found
 
 ```bash
-git worktree add ~/git/<repo>/main main
+git worktree add ${GIT_HOME_PUBLIC}/<repo>/main main
 ```
 
 ### Branch Worktree Not Found
 
 ```bash
 git fetch origin --force <branch>
-git worktree add ~/git/<repo>/<branch> <branch>
+git worktree add ${GIT_HOME_PUBLIC}/<repo>/<branch> <branch>
 ```
 
 ### Branch Not Found
