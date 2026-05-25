@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.1.0](https://github.com/JacobPEvans/claude-code-plugins/compare/v4.0.0...v4.1.0) (2026-05-25)
+
+
+### Features
+
+* **wrap-up:** plan-aware branching — emit resume blocks when plan is incomplete ([#329](https://github.com/JacobPEvans/claude-code-plugins/issues/329)) ([28916c8](https://github.com/JacobPEvans/claude-code-plugins/commit/28916c83001d4dd7099e458771beb95b3b93c819))
+
 ## [4.0.0](https://github.com/JacobPEvans/claude-code-plugins/compare/v3.6.0...v4.0.0) (2026-05-24)
 
 
