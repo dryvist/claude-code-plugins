@@ -18,7 +18,7 @@ Export Terraform outputs as Ansible inventory and distribute the generated inven
 ### 1. Export Terraform Inventory
 
 ```bash
-cd ~/git/terraform-proxmox/main
+cd ${GIT_HOME_PUBLIC}/terraform-proxmox/main
 doppler run -- terragrunt output -json ansible_inventory
 ```
 
@@ -30,9 +30,9 @@ Convert Terraform JSON output to Ansible inventory YAML format with host groups,
 
 Copy the generated inventory to:
 
-- `~/git/ansible-proxmox/main/inventory/`
-- `~/git/ansible-proxmox-apps/main/inventory/`
-- `~/git/ansible-splunk/main/inventory/`
+- `${GIT_HOME_PUBLIC}/ansible-proxmox/main/inventory/`
+- `${GIT_HOME_PUBLIC}/ansible-proxmox-apps/main/inventory/`
+- `${GIT_HOME_PUBLIC}/ansible-splunk/main/inventory/`
 
 ### 4. Validate
 
@@ -42,7 +42,7 @@ Run `ansible-inventory --list -i inventory/hosts.yml` in each target repo to con
 
 - Terraform state must exist (run `terragrunt apply` first)
 - Doppler configured with `iac-conf-mgmt` project
-- All target Ansible repos must be checked out at `~/git/<repo>/main/`
+- All target Ansible repos must be checked out at `${GIT_HOME_PUBLIC}/<repo>/main/`
 
 ## Error Handling
 

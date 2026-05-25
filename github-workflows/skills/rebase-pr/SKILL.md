@@ -72,7 +72,7 @@ that skill.
 ## Step 2: Sync Main
 
 ```bash
-cd ~/git/{repo}/main
+cd ${GIT_HOME_PUBLIC}/{repo}/main
 git fetch origin --force main
 git pull origin main
 ```
@@ -90,8 +90,8 @@ git branch {branch} origin/{branch}
 Create worktree and rebase:
 
 ```bash
-git worktree add ~/git/{repo}/{worktree-path} {branch}
-cd ~/git/{repo}/{worktree-path}
+git worktree add ${GIT_HOME_PUBLIC}/{repo}/{worktree-path} {branch}
+cd ${GIT_HOME_PUBLIC}/{repo}/{worktree-path}
 git rebase origin/main
 git log --oneline origin/main..HEAD   # verify commits are ahead
 ```
@@ -117,7 +117,7 @@ git push --force-with-lease origin {branch}
 ## Step 5: Fast-Forward Merge to Main
 
 ```bash
-cd ~/git/{repo}/main
+cd ${GIT_HOME_PUBLIC}/{repo}/main
 git merge-base --is-ancestor origin/main {branch}  # verify FF is possible; exit 0 = yes
 git merge --ff-only {branch}
 ```
@@ -146,7 +146,7 @@ gh pr view <PR_NUMBER> --json state --jq '.state'   # expect: MERGED
 ## Step 7: Cleanup
 
 ```bash
-git worktree remove ~/git/{repo}/{worktree-path}
+git worktree remove ${GIT_HOME_PUBLIC}/{repo}/{worktree-path}
 git branch -d {branch}              # use -D only after confirming state=MERGED
 git push origin --delete {branch}
 git worktree prune

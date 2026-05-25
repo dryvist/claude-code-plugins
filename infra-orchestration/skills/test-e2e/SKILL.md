@@ -13,14 +13,14 @@ Validates syntax, plans changes, exports inventory, and dry-runs Ansible playboo
 ### Stage 1: Terraform Validate
 
 ```bash
-cd ~/git/terraform-proxmox/main
+cd ${GIT_HOME_PUBLIC}/terraform-proxmox/main
 doppler run -- terragrunt validate
 ```
 
 ### Stage 2: Terraform Plan
 
 ```bash
-cd ~/git/terraform-proxmox/main
+cd ${GIT_HOME_PUBLIC}/terraform-proxmox/main
 doppler run -- terragrunt plan
 ```
 
