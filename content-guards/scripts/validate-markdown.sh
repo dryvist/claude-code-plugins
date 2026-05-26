@@ -153,7 +153,16 @@ EOF
     fi
   } 2>&1 ); then
     errors+=("markdownlint-cli2 failed:")
-    errors+=("$markdownlint_output")
+    # Cap validator output so a noisy run can't flood Claude's context window.
+    max_lines=20
+    total_lines=$(awk 'END{print NR}' <<<"$markdownlint_output")
+    if (( total_lines > max_lines )); then
+      capped=$(awk -v max="$max_lines" 'NR<=max' <<<"$markdownlint_output")
+      capped+=$'\n…and '"$((total_lines - max_lines))"' more line(s) (capped at '"$max_lines"'; rerun markdownlint-cli2 manually for the full report)'
+      errors+=("$capped")
+    else
+      errors+=("$markdownlint_output")
+    fi
   fi
 fi
 
