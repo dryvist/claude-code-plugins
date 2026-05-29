@@ -54,7 +54,7 @@ jobs:
       id-token: write
       issues: write
       pull-requests: write
-    uses: JacobPEvans/ai-workflows/.github/workflows/suite-all.yml@v0.16
+    uses: dryvist/ai-workflows/.github/workflows/suite-all.yml@v0.16
     with:
       caller_event: ${{ github.event_name }}
       review_prompt: "Focus on Claude Code plugin structure, skill authoring patterns, and hook configuration best practices"
