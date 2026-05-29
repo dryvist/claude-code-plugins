@@ -154,14 +154,18 @@ EOF
   } 2>&1 ); then
     errors+=("markdownlint-cli2 failed:")
     # Cap validator output so a noisy run can't flood Claude's context window.
+    # Single awk pass counts, caps, and formats the overflow footer.
     max_lines=20
-    total_lines=$(awk 'END{print NR}' <<<"$markdownlint_output")
-    if (( total_lines > max_lines )); then
-      capped=$(awk -v max="$max_lines" 'NR<=max' <<<"$markdownlint_output")
-      capped+=$'\n…and '"$((total_lines - max_lines))"' more line(s) (capped at '"$max_lines"'; rerun markdownlint-cli2 manually for the full report)'
+    if [[ -n "$markdownlint_output" ]]; then
+      capped=$(awk -v max="$max_lines" '
+        NR <= max { print }
+        END {
+          if (NR > max) {
+            print "…and " (NR - max) " more line(s) (capped at " max "; rerun markdownlint-cli2 manually for the full report)"
+          }
+        }
+      ' <<<"$markdownlint_output")
       errors+=("$capped")
-    else
-      errors+=("$markdownlint_output")
     fi
   fi
 fi
