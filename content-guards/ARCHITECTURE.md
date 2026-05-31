@@ -1,6 +1,6 @@
 # content-guards — Architecture
 
-Pre-flight and post-flight content validation through 6 hooks across PreToolUse and
+Pre-flight and post-flight content validation through 7 hooks across PreToolUse and
 PostToolUse events. These run automatically on every qualifying tool call.
 
 ## Validation Pipeline
@@ -15,6 +15,7 @@ flowchart TD
         direction TB
         TV["validate-token-limits.py\nmatcher: Write | Edit"]:::pre
         WG["webfetch-guard.py\nmatcher: WebFetch | WebSearch"]:::pre
+        SG["secret-guard.py\nmatcher: Write | Edit | MultiEdit | NotebookEdit"]:::pre
         IL["enforce-issue-limits.py\nmatcher: Bash"]:::pre
         BL["enforce-branch-limits.py\nmatcher: Bash"]:::pre
     end
@@ -28,7 +29,7 @@ flowchart TD
     end
 
     PRE -->|"pass (exit 0)"| TOOL
-    PRE -->|"block (exit 2)"| BLOCKED["Operation denied"]
+    PRE -->|"block (exit 2, or deny JSON)"| BLOCKED["Operation denied"]
     TOOL --> POST
     POST -->|"warn"| WARN["Lint warnings injected\ninto assistant context"]
 
@@ -42,6 +43,7 @@ flowchart TD
 |------|-------|---------|-------------|
 | token-validator | PreToolUse | Write, Edit | Blocks files exceeding token limits |
 | webfetch-guard | PreToolUse | WebFetch, WebSearch | Blocks outdated year references in queries |
+| secret-guard | PreToolUse | Write, Edit, MultiEdit, NotebookEdit | Blocks hardcoded sensitive homelab values (keychain denylist + RFC1918 IP shapes); fail-open |
 | issue-limiter | PreToolUse | Bash | Rate limits `gh issue create` and `gh pr create` |
 | branch-limiter | PreToolUse | Bash | Limits concurrent open branches |
 | markdown-validator | PostToolUse | Write, Edit | Runs markdownlint on written files |
