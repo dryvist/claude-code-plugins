@@ -1,5 +1,13 @@
 # Changelog
 
+## [4.1.2](https://github.com/dryvist/claude-code-plugins/compare/v4.1.1...v4.1.2) (2026-06-01)
+
+
+### Bug Fixes
+
+* **ci:** repoint release-please caller to org-native reusable workflow ([#340](https://github.com/dryvist/claude-code-plugins/issues/340)) ([3cfe3e6](https://github.com/dryvist/claude-code-plugins/commit/3cfe3e6eb7501dfdc77028e5780dee0e9c76c356))
+* **ci:** retarget reusable-workflow uses: refs to current org homes ([#337](https://github.com/dryvist/claude-code-plugins/issues/337)) ([799d4af](https://github.com/dryvist/claude-code-plugins/commit/799d4af7d0ec560d3fc4f8b15ef2b921746ea4ff))
+
 ## [4.1.1](https://github.com/JacobPEvans/claude-code-plugins/compare/v4.1.0...v4.1.1) (2026-05-25)
 
 
