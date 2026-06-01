@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "Claude Code plugins and hooks by JacobPEvans",
-    "version": "4.1.1"
+    "version": "4.1.2"
   },
   "plugins": [
     {
       "name": "git-guards",
       "source": "./git-guards",
       "description": "Combined git security and workflow protection via PreToolUse hooks - merges git-permission-guard and main-branch-guard functionality",
-      "version": "4.1.1",
+      "version": "4.1.2",
       "author": {
         "name": "JacobPEvans"
       }
@@ -22,7 +22,7 @@
       "name": "content-guards",
       "source": "./content-guards",
       "description": "Combined content validation and guard plugin that merges token-validator, markdown-validator, webfetch-guard, and issue-limiter functionality",
-      "version": "4.1.1",
+      "version": "4.1.2",
       "author": {
         "name": "JacobPEvans"
       }
@@ -31,7 +31,7 @@
       "name": "git-workflows",
       "source": "./git-workflows",
       "description": "Git worktree initialization, main branch sync, repository refresh, and troubleshooting workflows",
-      "version": "4.1.1",
+      "version": "4.1.2",
       "author": {
         "name": "JacobPEvans"
       }
@@ -40,7 +40,7 @@
       "name": "github-workflows",
       "source": "./github-workflows",
       "description": "PR management, multi-repo PR finalization, and issue shaping with Shape Up methodology",
-      "version": "4.1.1",
+      "version": "4.1.2",
       "author": {
         "name": "JacobPEvans"
       }
@@ -49,7 +49,7 @@
       "name": "infra-orchestration",
       "source": "./infra-orchestration",
       "description": "Cross-repo infrastructure orchestration for Terraform and Ansible workflows",
-      "version": "4.1.1",
+      "version": "4.1.2",
       "author": {
         "name": "JacobPEvans"
       }
@@ -58,7 +58,7 @@
       "name": "ai-delegation",
       "source": "./ai-delegation",
       "description": "Delegate tasks to external AI models and run autonomous maintenance loops",
-      "version": "4.1.1",
+      "version": "4.1.2",
       "author": {
         "name": "JacobPEvans"
       }
@@ -67,7 +67,7 @@
       "name": "config-management",
       "source": "./config-management",
       "description": "Sync AI tool permissions across repos and quickly add always-allow permissions",
-      "version": "4.1.1",
+      "version": "4.1.2",
       "author": {
         "name": "JacobPEvans"
       }
@@ -76,7 +76,7 @@
       "name": "codeql-resolver",
       "source": "./codeql-resolver",
       "description": "Systematic CodeQL alert analysis and resolution for GitHub Actions workflows",
-      "version": "4.1.1",
+      "version": "4.1.2",
       "author": {
         "name": "JacobPEvans"
       }
@@ -85,7 +85,7 @@
       "name": "process-cleanup",
       "source": "./process-cleanup",
       "description": "Cleanup orphaned MCP server processes on session exit — workaround for upstream bug #1935",
-      "version": "4.1.1",
+      "version": "4.1.2",
       "author": {
         "name": "JacobPEvans"
       }
@@ -94,7 +94,7 @@
       "name": "pr-lifecycle",
       "source": "./pr-lifecycle",
       "description": "Automatically triggers PR finalization after PR creation",
-      "version": "4.1.1",
+      "version": "4.1.2",
       "author": {
         "name": "JacobPEvans"
       }
@@ -103,7 +103,7 @@
       "name": "git-standards",
       "source": "./git-standards",
       "description": "Git workflow standards, branch hygiene, PR creation guards, and issue linking",
-      "version": "4.1.1",
+      "version": "4.1.2",
       "author": {
         "name": "JacobPEvans"
       }
@@ -112,7 +112,7 @@
       "name": "code-standards",
       "source": "./code-standards",
       "description": "Code quality standards, documentation formatting, testing philosophy, and review guidelines",
-      "version": "4.1.1",
+      "version": "4.1.2",
       "author": {
         "name": "JacobPEvans"
       }
@@ -121,7 +121,7 @@
       "name": "infra-standards",
       "source": "./infra-standards",
       "description": "Infrastructure standards for Proxmox, Terraform, Ansible including deployment pipeline, IP addressing, and secrets management",
-      "version": "4.1.1",
+      "version": "4.1.2",
       "author": {
         "name": "JacobPEvans"
       }
@@ -130,7 +130,7 @@
       "name": "project-standards",
       "source": "./project-standards",
       "description": "AgentsMD authoring standards, workspace management, and skills/tools registry lookup",
-      "version": "4.1.1",
+      "version": "4.1.2",
       "author": {
         "name": "JacobPEvans"
       }
@@ -139,7 +139,7 @@
       "name": "session-analytics",
       "source": "./session-analytics",
       "description": "Claude Code session token analytics via Splunk OTEL telemetry",
-      "version": "4.1.1",
+      "version": "4.1.2",
       "author": {
         "name": "JacobPEvans"
       }
@@ -148,7 +148,7 @@
       "name": "pal-health",
       "source": "./pal-health",
       "description": "Session-start hook to warn about recent PAL MCP Doppler failures",
-      "version": "4.1.1",
+      "version": "4.1.2",
       "author": {
         "name": "JacobPEvans"
       }
@@ -157,7 +157,7 @@
       "name": "script-guards",
       "source": "./script-guards",
       "description": "Prevents unnecessary script generation - enforces research-first, native-tool-first patterns via PreToolUse and UserPromptSubmit hooks",
-      "version": "4.1.1",
+      "version": "4.1.2",
       "author": {
         "name": "JacobPEvans"
       }
