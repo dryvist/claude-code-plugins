@@ -8,20 +8,7 @@ description: Use when managing branches, resolving merge conflicts, syncing with
 ## Worktree Structure
 
 All development uses dedicated worktrees. Never work directly on main.
-
-```text
-<repo>/
-├── .git/                    # Shared bare repo
-├── main/                    # Main branch
-├── feature/<branch-name>/
-├── bugfix/<branch-name>/
-├── hotfix/<branch-name>/
-├── release/<branch-name>/
-└── chore/<branch-name>/
-```
-
-Create: `git worktree add -b <branch> ../<branch> main`
-Remove: `git worktree remove ../<branch>`
+Create a worktree for the change; remove it when the work is done.
 
 Every branch with commits MUST have an associated PR.
 Orphaned branches must get a PR or be deleted.

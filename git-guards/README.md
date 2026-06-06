@@ -14,7 +14,6 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for integration diagrams.
 
 No manual invocation required. All hooks activate automatically:
 
-- **worktree-reminder** — fires on every user prompt, reminds if not in a worktree
 - **git-permission-guard** — fires on every Bash call, blocks dangerous git/gh commands
 - **commit-trailer-guard** — fires on every Bash call, rewrites `Assisted-by` trailer in `git commit` commands to the [Linux kernel coding-assistants spec](https://docs.kernel.org/process/coding-assistants.html)
 - **main-branch-guard** — fires on every file edit, blocks edits on main branch
