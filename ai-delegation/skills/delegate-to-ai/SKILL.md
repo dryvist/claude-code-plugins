@@ -11,8 +11,8 @@ Routes tasks to specialized models based on task type using Bifrost (single-mode
 
 Delegate when Claude is not the best tool:
 
-- **Large context** (1M+ tokens) -> Gemini 3 Pro via Bifrost
-- **Math/reasoning** -> DeepSeek R1 via Bifrost
+- **Large context** (1M+ tokens) -> cloud large-context tier via Bifrost (auto-routed)
+- **Math/reasoning** -> a reasoning-capable model via Bifrost (auto-routed)
 - **Private/offline** -> Local MLX via Bifrost (port 30080 routes to local MLX server)
 - **Code review consensus** -> Multi-model via PAL `consensus`
 - **Parallel multi-model research** -> PAL `clink` (when you need multiple model perspectives simultaneously)
@@ -20,18 +20,24 @@ Delegate when Claude is not the best tool:
 
 ## Route Selection
 
-| Task Type | Cloud Model | Local Model | Route |
+Local models are named by **capability role**, not physical id. Roles resolve to the
+resident model via the ai-stack registry (`~/.config/ai-stack/registry.json`, written by
+nix-ai); never hardcode a physical model id here — when the resident model changes, only
+the registry changes. Cloud tiers are capability classes; PAL/Bifrost auto-routes each to
+a current model.
+
+| Task Type | Cloud tier | Local role | Route |
 | --- | --- | --- | --- |
-| Research (single) | Gemini 3 Pro | mlx-community/Qwen3-235B-A22B-4bit | Bifrost |
-| Research (multi) | Multiple | mlx-community/Qwen3-235B-A22B-4bit¹ | PAL clink |
-| Complex Coding | Claude Opus | mlx-community/Qwen3.5-122B-A10B-4bit | native subagent |
-| Fast Tasks | Claude Sonnet | mlx-community/Qwen3.5-27B-4bit | Bifrost |
-| Code Review | Multi-model | mlx-community/Qwen3.5-27B-4bit | PAL consensus |
-| Architecture | Claude Opus | mlx-community/Qwen3-235B-A22B-4bit | native subagent |
+| Research (single) | large-context | `large-context` | Bifrost |
+| Research (multi) | multiple | `large-context`¹ | PAL clink |
+| Complex Coding | Claude Opus | `coding` | native subagent |
+| Fast Tasks | Claude Sonnet | `quickest` | Bifrost |
+| Code Review | multi-model | `most-capable` | PAL consensus |
+| Architecture | Claude Opus | `most-capable` | native subagent |
 
 **Bifrost endpoint**: `http://localhost:30080/v1/chat/completions` (OpenAI-compatible)
 
-¹ In local-only mode, `PAL clink` (multi-model) falls back to this single best local model.
+¹ In local-only mode, `PAL clink` (multi-model) falls back to the single resident local model (every role resolves to it).
 
 ## PAL MCP Tools (multi-model only)
 
