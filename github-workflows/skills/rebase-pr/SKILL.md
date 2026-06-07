@@ -86,11 +86,9 @@ git fetch origin --force {branch}
 git branch {branch} origin/{branch}
 ```
 
-Create worktree and rebase:
+Work in the PR branch's worktree and rebase:
 
 ```bash
-git worktree add ../{worktree-path} {branch}   # from main/
-cd ../{worktree-path}
 git rebase origin/main
 git log --oneline origin/main..HEAD   # verify commits are ahead
 ```
@@ -145,7 +143,7 @@ gh pr view <PR_NUMBER> --json state --jq '.state'   # expect: MERGED
 ## Step 7: Cleanup
 
 ```bash
-git worktree remove ../{worktree-path}   # from main/
+git worktree remove {worktree-path}   # remove the merged PR's worktree if one exists
 git branch -d {branch}              # use -D only after confirming state=MERGED
 git push origin --delete {branch}
 git worktree prune

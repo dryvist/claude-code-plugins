@@ -1,6 +1,6 @@
 # git-guards — Architecture
 
-Always-on protection through three hooks that intercept operations across every workflow.
+Always-on protection through four hooks that intercept operations across every workflow.
 Unlike guidance-based plugins that load on demand, these hooks run unconditionally for
 every user prompt and every tool invocation.
 
@@ -17,9 +17,9 @@ flowchart TD
     PT_BASH -->|"matcher: Bash"| TG["commit-trailer-guard.py\n(PreToolUse)"]
     PT_EDIT -->|"matcher: Edit, Write, NotebookEdit"| MBG["main-branch-guard.py\n(PreToolUse)"]
 
-    WR --> WR_CHECK{"In a\nworktree?"}
-    WR_CHECK -->|Yes| WR_ALLOW["Allow — no reminder"]
-    WR_CHECK -->|No| WR_WARN["Inject worktree reminder"]
+    WR --> WR_CHECK{"On main\nbranch?"}
+    WR_CHECK -->|No| WR_ALLOW["{} / no reminder\n(allowed)"]
+    WR_CHECK -->|Yes| WR_WARN["systemMessage:\nrequire a worktree"]
 
     PG --> PG_CLASSIFY{"Classify\ncommand"}
     PG_CLASSIFY -->|"force-push to main\nhook bypass --no-verify\nmerge on main\nhard reset\nbranch -D on main\ngh pr comment"| PG_BLOCK["permissionDecision: deny\n(BLOCKED)"]
@@ -75,9 +75,7 @@ flowchart LR
 Every hook follows a strict fail-open contract: if the hook errors or crashes, it exits 0
 with no decision and the operation proceeds. Blocking is signalled by emitting a JSON
 `permissionDecision` (`deny` or `ask`) on stdout while still exiting 0; the worktree
-reminder writes a stderr message instead. The legacy exit-2 path (still used by
-`worktree-reminder.sh`) is preserved for shell hooks but no longer used by the Python
-guards.
+reminder never blocks — it injects a `systemMessage` on stdout to require a worktree.
 
 | Outcome | Mechanism | Effect |
 |---------|-----------|--------|
@@ -93,6 +91,6 @@ git-guards and git-standards are complementary: one enforces, one advises.
 | Dimension | git-guards | git-standards |
 |-----------|-----------|---------------|
 | Activation | Automatic — every operation | On demand — loaded when relevant |
-| Mechanism | Hook exit codes (0/2) | Skill text injected into context |
-| Effect | Hard block or reminder | Soft guidance and conventions |
+| Mechanism | `permissionDecision` JSON on stdout | Skill text injected into context |
+| Effect | Hard block, confirmation prompt, or worktree reminder | Soft guidance and conventions |
 | Scope | Runtime tool calls | Planning and workflow decisions |

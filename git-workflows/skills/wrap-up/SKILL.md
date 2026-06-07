@@ -319,7 +319,7 @@ Sequence:
 3. If the current worktree IS the captured branch's, `git switch main`
    first so step 4 can remove it.
 4. Find the worktree path via `git worktree list` matching the captured
-   branch, then `git worktree remove <path> --force` if present, and
+   branch, then `git worktree remove <path>` if present, and
    `git branch -D <branch>`.
 
 Closes the gap where `gh pr close --delete-branch` removes only the remote

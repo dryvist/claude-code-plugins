@@ -53,10 +53,10 @@ Replace `<OWNER>`, `<REPO>`, `<PR_NUMBER>` per the placeholder legend in that sk
 2. Fetch origin with stale remote branch pruning, but without tag updates:
    `git fetch origin --no-tags --prune --force`
 3. Determine the default branch from `origin/HEAD`, falling back to `main` or `master`.
-4. **Restore the default-branch worktree to the default branch.** Per the
-   workspace convention, `<repo>/main/` (or `<repo>/master/`) must always
-   be checked out to the default branch. After a feature PR merges, that
-   worktree is often left on the now-`[gone]` feature branch. Detect and fix:
+4. **Restore the default-branch worktree to the default branch.** If a
+   worktree is checked out to the default branch, keep it on the default
+   branch. After a feature PR merges, that worktree is sometimes left on the
+   now-`[gone]` feature branch. Detect and fix:
    - Resolve the default worktree path from `git worktree list --porcelain`,
      matching on the `branch refs/heads/<default>` entry — do not rely on
      basename matching of paths, since a feature branch named

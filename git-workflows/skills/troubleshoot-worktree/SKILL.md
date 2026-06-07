@@ -20,13 +20,8 @@ pwd
 
 ## Worktree Discovery
 
-**Never assume paths** - always discover:
-
-```bash
-git worktree list
-# Main: line with [main] - first column is path
-# Branch: line with [<branch>] - first column is path
-```
+**Never assume paths** - always discover with `git worktree list`. The first
+column is the path; the bracketed name is the branch checked out there.
 
 ## Critical: Ambiguous Refname
 
@@ -42,19 +37,6 @@ Means TWO things named `origin/main`:
 **Fix**: `git branch -D origin/main` then verify only 1 line remains with `git show-ref origin/main`.
 
 ## Common Errors
-
-### Main Worktree Not Found
-
-```bash
-git worktree add main main
-```
-
-### Branch Worktree Not Found
-
-```bash
-git fetch origin --force <branch>
-git worktree add ../<branch> <branch>
-```
 
 ### Branch Not Found
 
@@ -76,24 +58,6 @@ git checkout -- .                         # Discard (DESTRUCTIVE)
 ```bash
 git rm --cached <folder>
 echo "<folder>/" >> .gitignore
-```
-
-## Recovery: Reset to Clean State
-
-```bash
-MAIN_PATH=$(git worktree list | grep '\[main\]' | awk '{print $1}')
-BRANCH_PATH=$(git worktree list | grep '\[<branch>\]' | awk '{print $1}')
-
-cd "$BRANCH_PATH" && git fetch origin --force && git reset --hard origin/<branch>
-cd "$MAIN_PATH" && git fetch origin --force && git reset --hard origin/main
-```
-
-## Recovery: Fresh Worktree
-
-```bash
-git worktree remove "<path>" --force
-git fetch origin --force
-git worktree add "<new-path>" "<branch>"
 ```
 
 ## Related Skills

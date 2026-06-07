@@ -1,22 +1,20 @@
 #!/bin/bash
-# UserPromptSubmit hook - inject worktree reminder when on main branch
-# Runs on every prompt submission, checks if cwd is on main branch,
-# and if so, injects a systemMessage reminding Claude to create a worktree first.
+# UserPromptSubmit hook - force worktree usage by warning when on the default branch.
+# Fires on every prompt submission; if the current branch is main/master, injects a
+# systemMessage requiring a worktree before any edits. WHERE the worktree is created is
+# the AI's choice (native --worktree, git worktree add, anywhere it likes); THAT one must
+# exist before editing is not optional.
 #
 # Note: UserPromptSubmit provides user_prompt on stdin but we don't need it.
 
-# Single git call: returns worktree root (line 1) and branch name (line 2).
-# Fails with exit 128 outside a git repo, producing no output.
-# Uses read instead of mapfile for bash 3.x (macOS /bin/bash) compatibility.
-_git_output=$(git rev-parse --show-toplevel --abbrev-ref HEAD 2>/dev/null) || { echo '{}'; exit 0; }
+# `git branch --show-current` prints the branch name, empty on detached HEAD (e.g. a
+# tool-managed worktree), and exits non-zero outside a repo — all of which mean "don't warn".
+current_branch=$(git branch --show-current 2>/dev/null)
 
-worktree_root=$(echo "$_git_output" | head -1)
-current_branch=$(echo "$_git_output" | tail -1)
-
-if [[ "$(basename "$worktree_root")" == "main" ]] || [[ "$current_branch" == "main" ]]; then
+if [[ "$current_branch" == "main" ]] || [[ "$current_branch" == "master" ]]; then
     cat <<'ENDJSON'
 {
-  "systemMessage": "WARNING: You are on the main branch. You MUST first run /refresh-repo on this repo to sync main from remote origin (skip over any worktree/branch removal errors but ensure main is fully pulled), then create a feature branch worktree using /superpowers:using-git-worktrees BEFORE making any changes. Do not read files for editing purposes or attempt any edits until you are in a worktree. This applies to ALL work — code changes, documentation, config files."
+  "systemMessage": "WARNING: You are on the main branch. You MUST create or switch to a separate worktree on its own branch BEFORE making any changes — how and where you create it is up to you. Do not read-for-editing, edit, write, or create files for the task until you are in a non-main worktree. This applies to ALL work — code, docs, and config."
 }
 ENDJSON
 else
