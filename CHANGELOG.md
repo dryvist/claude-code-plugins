@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.1.3](https://github.com/dryvist/claude-code-plugins/compare/v4.1.2...v4.1.3) (2026-06-07)
+
+
+### Bug Fixes
+
+* **delegate-to-ai:** reference registry roles, drop hardcoded model ids ([#346](https://github.com/dryvist/claude-code-plugins/issues/346)) ([70789b9](https://github.com/dryvist/claude-code-plugins/commit/70789b9a303ee0b4b42e0b2f80113d8febb09513))
+
 ## [4.1.2](https://github.com/dryvist/claude-code-plugins/compare/v4.1.1...v4.1.2) (2026-06-01)
 
 
