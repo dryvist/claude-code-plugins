@@ -49,7 +49,7 @@ Combined git security and workflow protection via PreToolUse hooks.
 Git main branch sync, repository refresh, and PR merge workflows.
 
 - **Type**: Command/Skill-based plugin
-- **Skills**: `/sync-main`, `/refresh-repo`, `/rebase-pr`, `/wrap-up`, `/troubleshoot-rebase`, `/troubleshoot-precommit`, `/troubleshoot-worktree`
+- **Skills**: `/sync-main`, `/refresh-repo`, `/rebase-pr`, `/wrap-up`, `/troubleshoot-rebase`, `/troubleshoot-precommit`, `/troubleshoot-worktree`, `/pre-commit-architecture`
 - **Purpose**: Maintain linear git history and keep branches in sync
 
 ### github-workflows
@@ -57,7 +57,7 @@ Git main branch sync, repository refresh, and PR merge workflows.
 PR finalization, squash-merge, review thread resolution, and issue shaping.
 
 - **Type**: Command/Skill-based plugin
-- **Skills**: `/finalize-pr`, `/squash-merge-pr`, `/resolve-pr-threads`, `/shape-issues`, `/trigger-ai-reviews`
+- **Skills**: `/finalize-pr`, `/squash-merge-pr`, `/resolve-pr-threads`, `/shape-issues`, `/trigger-ai-reviews`, `/shared-workflow-org-refs`
 - **Purpose**: GitHub PR/issue management workflows
 
 ### infra-orchestration
@@ -77,7 +77,7 @@ On-demand skill-based plugins that load specific standards as context.
 | **code-standards** | `/code-quality-standards`, `/review-standards` | Code quality, documentation, testing, review guidelines |
 | **git-standards** | `/git-workflow-standards`, `/pr-standards` | Branching, PR creation, issue linking |
 | **infra-standards** | `/infrastructure-standards` | Proxmox, Terraform, Ansible deployment |
-| **project-standards** | `/agentsmd-authoring`, `/workspace-standards`, `/skills-registry` | AgentsMD authoring, workspace, skills registry |
+| **project-standards** | `/agentsmd-authoring`, `/workspace-standards`, `/skills-registry`, `/nix-tool-policy` | AgentsMD authoring, workspace, skills registry, Nix tool policy |
 
 ### pal-health
 

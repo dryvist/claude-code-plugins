@@ -15,6 +15,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for integration diagrams and the master s
 - **`/gh-cli-patterns`** - Canonical reference for gh CLI command shapes used by other skills in this plugin
 - **`/shape-issues`** - Shape raw ideas into actionable GitHub Issues using Shape Up methodology
 - **`/trigger-ai-reviews`** - Trigger Claude, Gemini, and Copilot reviews on a PR
+- **`/shared-workflow-org-refs`** - Literal current-owner `uses:` references for reusable workflows; shared-CI homes under dryvist
 
 ## Installation
 

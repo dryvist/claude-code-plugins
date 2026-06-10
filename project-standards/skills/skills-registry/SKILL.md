@@ -16,6 +16,9 @@ description: Use when looking up available tools, skills, commands, agents, or p
 | Troubleshoot rebase | `/troubleshoot-rebase` | `git-workflows` | Recover failures |
 | Troubleshoot worktrees | `/troubleshoot-worktree` | `git-workflows` | Fix refname |
 | Troubleshoot pre-commit | `/troubleshoot-precommit` | `git-workflows` | Fix hooks |
+| Pre-commit architecture | `/pre-commit-architecture` | `git-workflows` | Hook/config homes |
+| Shared workflow org refs | `/shared-workflow-org-refs` | `github-workflows` | Literal `uses:` owners |
+| Nix tool policy | `/nix-tool-policy` | `project-standards` | No ad-hoc installs |
 | Manage your PR | `/finalize-pr` | `github-workflows` | PR author flow (`all`/`org` for multi-repo) |
 | Create GitHub issues | `/shape-issues` | `github-workflows` | Shape Up method |
 | Resolve PR threads | `/resolve-pr-threads` | `github-workflows` | Thread resolution |

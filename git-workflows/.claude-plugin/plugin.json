@@ -13,6 +13,7 @@
     "./skills/troubleshoot-rebase",
     "./skills/troubleshoot-precommit",
     "./skills/troubleshoot-worktree",
-    "./skills/wrap-up"
+    "./skills/wrap-up",
+    "./skills/pre-commit-architecture"
   ]
 }
