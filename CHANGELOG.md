@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.2.0](https://github.com/dryvist/claude-code-plugins/compare/v4.1.3...v4.2.0) (2026-06-10)
+
+
+### Features
+
+* migrate situational rules to on-demand skills, de-drift standards ([#349](https://github.com/dryvist/claude-code-plugins/issues/349)) ([7d84ecc](https://github.com/dryvist/claude-code-plugins/commit/7d84ecccdf24ff0f40779907d54d2fee01c5a65e))
+
 ## [4.1.3](https://github.com/dryvist/claude-code-plugins/compare/v4.1.2...v4.1.3) (2026-06-07)
 
 
