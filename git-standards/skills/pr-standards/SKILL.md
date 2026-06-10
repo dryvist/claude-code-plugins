@@ -93,12 +93,12 @@ Exception: explicit requests like
 
 ## Commit, PR Title & PR Description Style
 
-No emoji or gitmoji in commit messages, PR titles, PR descriptions, or
-release notes. Conventional-commit prefixes (`feat:`, `fix:`, `chore:`,
-`docs:`, etc.) are required at the start of commit subjects and PR titles
-only — descriptions and release notes are plain prose.
-Applies to all PRs — human, AI-assisted, and bot-authored automated fixes.
-No `🤖`, no `✨`, no `🐛`. The `type(scope):` prefix carries the signal.
+Canonical conventions (no emoji, Conventional Commits, `feat:` vs `fix:`):
+[docs.jacobpevans.com/conventions/commit-conventions](https://docs.jacobpevans.com/conventions/commit-conventions).
+
+PR-specific additions: prefixes apply to commit subjects and PR titles
+only — PR descriptions and release notes are plain prose. Applies to all
+PRs — human, AI-assisted, and bot-authored automated fixes.
 
 ## GitHub Issue Standards
 

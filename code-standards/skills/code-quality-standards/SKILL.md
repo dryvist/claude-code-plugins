@@ -27,11 +27,12 @@ description: Use when writing or reviewing code and documentation
 
 ### Bash / Shell
 
-- **NEVER use Bash for file operations** — use Read/Edit/Write/Grep/Glob tools.
+Baseline tool-selection rules are auto-loaded from ai-assistant-instructions
+`agentsmd/rules/tool-use.md`; this skill adds review-time strictness.
+
 - **NEVER use `for` loops** — breaks permission matching, requires interactive
   prompts. Use parallel tool calls or tool-native batch operations instead.
 - **NEVER generate scripts** — execute commands directly via tool calls.
-- Prefer parallel tool calls for independent commands.
 
 ### JavaScript / TypeScript
 

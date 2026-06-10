@@ -76,5 +76,6 @@ git diff HEAD~1   # See what the hook is trying to fix
 
 ## Related Skills
 
+- **pre-commit-architecture** (git-workflows) — Where hook definitions and shared lint configs live
 - **troubleshoot-rebase** (git-workflows) — Diagnose and recover from git rebase failures
 - **troubleshoot-worktree** (git-workflows) — Troubleshoot git worktree, branch, and refname issues

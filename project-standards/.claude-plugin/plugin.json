@@ -11,6 +11,7 @@
   "skills": [
     "./skills/agentsmd-authoring",
     "./skills/workspace-standards",
-    "./skills/skills-registry"
+    "./skills/skills-registry",
+    "./skills/nix-tool-policy"
   ]
 }

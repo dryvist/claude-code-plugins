@@ -15,6 +15,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for integration diagrams.
 - **`/troubleshoot-rebase`** - Diagnose and recover from git rebase failures
 - **`/troubleshoot-precommit`** - Troubleshoot pre-commit hook failures and auto-fixes
 - **`/troubleshoot-worktree`** - Troubleshoot git worktree, branch, and refname issues
+- **`/pre-commit-architecture`** - Canonical pre-commit hook architecture: where hook definitions and shared lint configs live
 
 ## Installation
 

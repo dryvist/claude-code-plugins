@@ -17,6 +17,7 @@
     "./skills/gh-cli-patterns",
     "./skills/shape-issues",
     "./skills/resolve-pr-threads",
-    "./skills/trigger-ai-reviews"
+    "./skills/trigger-ai-reviews",
+    "./skills/shared-workflow-org-refs"
   ]
 }
