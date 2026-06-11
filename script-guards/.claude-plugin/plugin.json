@@ -1,6 +1,6 @@
 {
   "name": "script-guards",
-  "version": "2.3.1",
+  "version": "4.2.0",
   "description": "Prevents unnecessary script generation - enforces research-first, native-tool-first patterns via PreToolUse and UserPromptSubmit hooks",
   "author": {"name": "JacobPEvans"},
   "homepage": "https://github.com/JacobPEvans/claude-code-plugins",
