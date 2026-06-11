@@ -1,6 +1,6 @@
 {
   "name": "infra-orchestration",
-  "version": "1.7.0",
+  "version": "4.2.0",
   "description": "Cross-repo infrastructure orchestration for Terraform and Ansible workflows",
   "author": {"name": "JacobPEvans"},
   "license": "Apache-2.0",

@@ -1,6 +1,6 @@
 {
   "name": "project-standards",
-  "version": "1.7.0",
+  "version": "4.2.0",
   "description": "AgentsMD authoring standards, workspace management, and skills/tools registry lookup",
   "author": {
     "name": "JacobPEvans"
