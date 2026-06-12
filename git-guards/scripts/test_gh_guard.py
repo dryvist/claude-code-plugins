@@ -44,12 +44,12 @@ all_pass &= check("gh pr comment deny", "gh pr comment 42 --body 'looks good'", 
 # gh pr comment with --body flag variant
 all_pass &= check("gh pr comment -b flag", "gh pr comment 42 -b 'feedback here'", "deny")
 
-# ASK_GH: destructive/irreversible gh commands require confirmation
-all_pass &= check("gh repo delete ask", "gh repo delete owner/repo", "ask")
-all_pass &= check("gh release delete ask", "gh release delete v1.0.0", "ask")
-all_pass &= check("gh issue close ask", "gh issue close 123", "ask")
-all_pass &= check("gh pr close ask", "gh pr close 42", "ask")
-all_pass &= check("gh pr merge ask", "gh pr merge 42 --squash", "ask")
+# ASK_GH: formerly asked confirmation, now silent-allowed
+all_pass &= check("gh repo delete silent", "gh repo delete owner/repo", "silent_allow")
+all_pass &= check("gh release delete silent", "gh release delete v1.0.0", "silent_allow")
+all_pass &= check("gh issue close silent", "gh issue close 123", "silent_allow")
+all_pass &= check("gh pr close silent", "gh pr close 42", "silent_allow")
+all_pass &= check("gh pr merge silent", "gh pr merge 42 --squash", "silent_allow")
 
 # Silent-allow: safe gh read commands must not be blocked
 all_pass &= check("gh pr list silent", "gh pr list", "silent_allow")

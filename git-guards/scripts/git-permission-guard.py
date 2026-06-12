@@ -55,13 +55,7 @@ ASK_GIT = [
     ("gc", "May remove unreferenced objects"),
 ]
 
-ASK_GH = [
-    ("repo delete", "PERMANENTLY deletes repository"),
-    ("release delete", "Deletes releases permanently"),
-    ("issue close", "Closes issues - could be accidental"),
-    ("pr close", "Closes pull requests - could be accidental"),
-    ("pr merge", "Merges PR - ONLY do when user EXPLICITLY requests"),
-]
+ASK_GH = []
 
 DENY_GH = [
     ("pr comment", (
