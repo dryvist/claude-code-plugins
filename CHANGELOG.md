@@ -1,5 +1,13 @@
 # Changelog
 
+## [4.2.1](https://github.com/dryvist/claude-code-plugins/compare/v4.2.0...v4.2.1) (2026-06-12)
+
+
+### Bug Fixes
+
+* **infra-orchestration:** sync-inventory skill teaches the S3 pipeline, not manual export ([#353](https://github.com/dryvist/claude-code-plugins/issues/353)) ([6d71f6c](https://github.com/dryvist/claude-code-plugins/commit/6d71f6ca2979b873cb8b6cc6e0dfd790a60da14e))
+* **release:** stamp plugin.json versions — extra-files glob never worked ([#351](https://github.com/dryvist/claude-code-plugins/issues/351)) ([6f83dbf](https://github.com/dryvist/claude-code-plugins/commit/6f83dbf6e12315983d298ba99b8b71bfc277eee0))
+
 ## [4.2.0](https://github.com/dryvist/claude-code-plugins/compare/v4.1.3...v4.2.0) (2026-06-10)
 
 

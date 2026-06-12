@@ -1,9 +1,19 @@
 {
   "name": "git-guards",
-  "version": "4.2.0",
+  "version": "4.2.1",
   "description": "Git security and workflow protection via PreToolUse and UserPromptSubmit hooks - worktree reminder plus dangerous-command, commit-trailer, and main-branch edit guards",
-  "author": {"name": "JacobPEvans"},
+  "author": {
+    "name": "JacobPEvans"
+  },
   "homepage": "https://github.com/JacobPEvans/claude-code-plugins",
-  "keywords": ["git", "github", "permissions", "main-branch", "worktree", "security", "hooks"],
+  "keywords": [
+    "git",
+    "github",
+    "permissions",
+    "main-branch",
+    "worktree",
+    "security",
+    "hooks"
+  ],
   "license": "Apache-2.0"
 }

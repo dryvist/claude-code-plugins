@@ -1,13 +1,19 @@
 {
   "name": "git-workflows",
-  "version": "4.2.0",
+  "version": "4.2.1",
   "description": "Git main branch synchronization, troubleshooting, and post-merge cleanup workflows",
   "author": {
     "name": "JacobPEvans"
   },
   "license": "Apache-2.0",
   "repository": "https://github.com/JacobPEvans/claude-code-plugins",
-  "keywords": ["git", "worktree", "sync", "branch", "workflow"],
+  "keywords": [
+    "git",
+    "worktree",
+    "sync",
+    "branch",
+    "workflow"
+  ],
   "skills": [
     "./skills/sync-main",
     "./skills/troubleshoot-rebase",
