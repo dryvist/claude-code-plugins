@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.2.2](https://github.com/dryvist/claude-code-plugins/compare/v4.2.1...v4.2.2) (2026-06-12)
+
+
+### Bug Fixes
+
+* **ci:** adopt hub dispatch-flake-consumers reusable workflow ([#354](https://github.com/dryvist/claude-code-plugins/issues/354)) ([7eeee21](https://github.com/dryvist/claude-code-plugins/commit/7eeee216227325384b6afbad48d90f8eb2c1e1f6))
+
 ## [4.2.1](https://github.com/dryvist/claude-code-plugins/compare/v4.2.0...v4.2.1) (2026-06-12)
 
 
