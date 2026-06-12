@@ -1,0 +1,23 @@
+# Dispatch: notify consumers after changes land on main
+#
+# Target repos are read from the DISPATCH_CONSUMERS repository variable
+# (JSON array, e.g. '["nix-darwin"]'). Add a new consumer there without
+# touching this file.
+name: Dispatch lock update to consumers
+
+on:
+  push:
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  dispatch:
+    uses: dryvist/.github/.github/workflows/_dispatch-flake-consumers.yml@main
+    with:
+      # Consumers name this repo's flake input "jacobpevans-cc-plugins";
+      # their input literally named "claude-code-plugins" points at
+      # anthropics/claude-code, so the repo-name default would bump the
+      # wrong input.
+      source_input: jacobpevans-cc-plugins
+    secrets: inherit
