@@ -1,55 +1,79 @@
 ---
 name: sync-inventory
-description: Export Terraform inventory and distribute to Ansible repositories
+description: Verify or refresh the Terraform-to-Ansible inventory distribution (S3-published; apply is the publish boundary)
 ---
 
 # Infrastructure Sync Inventory
 
-Export Terraform outputs as Ansible inventory and distribute the generated inventory files to all Ansible repositories.
+The inventory pipeline is **automatic**: every terraform-proxmox
+`terragrunt apply` natively publishes the `ansible_inventory` output to the
+versioned S3 state bucket (`inventory_publish.tf`, `aws_s3_object`), and the
+apply's after-hook (`scripts/sync-inventory.sh`) validates it against the
+schema, PRs a versioned mirror into the private data repo (gated on
+`INVENTORY_DATA_REPO`), and warms the local gitignored
+`inventory/tofu_inventory.json` cache in each consumer repo.
 
-## What It Does
+Consumers (`ansible-proxmox`, `ansible-proxmox-apps`, `ansible-splunk`) resolve
+identically via their `load_tofu.yml`:
 
-1. Runs `terragrunt output -json ansible_inventory` in terraform-proxmox
-2. Transforms the JSON output into Ansible-compatible inventory format
-3. Copies the inventory to each Ansible repository that needs it
+1. `TOFU_INVENTORY_PATH` — explicit pin (tests/overrides)
+2. **S3 artifact** — native `amazon.aws` fetch; AWS read creds only, no
+   checkout, no toolchain (`TOFU_INVENTORY_S3_URI` / `TOFU_INVENTORY_S3_REGION`
+   override location/region)
+3. Local cache — the after-hook copy
 
-## Steps
+**There is no manual export/transform/copy flow.** Never run
+`terragrunt output -json ansible_inventory > <consumer>/inventory/...` by hand —
+hand-injected inventories bypass the schema gate and create unmanaged drift.
 
-### 1. Export Terraform Inventory
+## When invoked, do this
 
-In `terraform-proxmox`:
+### 1. Verify the published artifact is current
 
 ```bash
-doppler run -- terragrunt output -json ansible_inventory
+aws s3api head-object \
+  --bucket "terraform-proxmox-state-useast2-<account-id>" \
+  --key terraform-proxmox/inventory/ansible_inventory.json \
+  --query LastModified
 ```
 
-### 2. Transform Output
+If it predates the last intended infrastructure change, the publish boundary
+was not crossed — run a real apply (next step). Reference docs:
+`terraform-proxmox/docs/INVENTORY_PUBLISHING.md`.
 
-Convert Terraform JSON output to Ansible inventory YAML format with host groups, variables, and connection details.
+### 2. Refresh = apply
 
-### 3. Distribute to Ansible Repos
+The only way to republish is the publish boundary itself:
 
-Copy the generated `inventory/` into each:
+```bash
+cd ${GIT_HOME_PUBLIC}/terraform-proxmox/main
+aws-vault exec tf-proxmox -- doppler run -- terragrunt apply
+```
 
-- `ansible-proxmox`
-- `ansible-proxmox-apps`
-- `ansible-splunk`
+The apply updates the S3 object (only when content changed) and the after-hook
+re-warms every local cache and refreshes the int_homelab mirror PR.
 
-### 4. Validate
+### 3. Validate consumers resolve
 
-Run `ansible-inventory --list -i inventory/hosts.yml` in each target repo to confirm the inventory is valid.
+In any consumer repo (no creds needed if the cache exists):
 
-## Prerequisites
+```bash
+ansible-playbook <load_tofu path> -i inventory/hosts.yml -c local
+```
 
-- Terraform state must exist (run `terragrunt apply` first)
-- Doppler configured with `iac-conf-mgmt` project
-- Each target Ansible repo is checked out locally
+- ansible-proxmox: `playbooks/load_tofu.yml`
+- ansible-proxmox-apps / ansible-splunk: `inventory/load_tofu.yml`
+
+Watch which resolution step wins ("Resolve inventory from …" task output).
 
 ## Error Handling
 
-- If terraform output fails, report the error and stop
-- If any Ansible repo is missing, skip it and warn
-- If inventory validation fails, report which repo failed
+- Schema-gate failure in the after-hook → the source output is partial
+  (e.g. a `-target` apply); fix the apply, never hand-edit the artifact.
+- S3 fetch fails for a consumer → it degrades to the local cache by design;
+  give the runner scoped `s3:GetObject` creds to restore the cloud path.
+- Missing local cache + no creds → set `TOFU_INVENTORY_PATH` to a known-good
+  copy, or run the apply.
 
 ## Related Skills
 
