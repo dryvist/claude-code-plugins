@@ -1,13 +1,18 @@
 {
   "name": "infra-standards",
-  "version": "4.2.0",
+  "version": "4.2.1",
   "description": "Infrastructure standards for Proxmox, Terraform, Ansible: VMID/IP assignment ranges and the Terraform-to-Ansible inventory contract",
   "author": {
     "name": "JacobPEvans"
   },
   "license": "MIT",
   "repository": "https://github.com/JacobPEvans/claude-code-plugins",
-  "keywords": ["infrastructure", "terraform", "ansible", "proxmox"],
+  "keywords": [
+    "infrastructure",
+    "terraform",
+    "ansible",
+    "proxmox"
+  ],
   "skills": [
     "./skills/infrastructure-standards"
   ]

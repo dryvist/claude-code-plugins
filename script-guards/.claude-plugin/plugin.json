@@ -1,9 +1,18 @@
 {
   "name": "script-guards",
-  "version": "4.2.0",
+  "version": "4.2.1",
   "description": "Prevents unnecessary script generation - enforces research-first, native-tool-first patterns via PreToolUse and UserPromptSubmit hooks",
-  "author": {"name": "JacobPEvans"},
+  "author": {
+    "name": "JacobPEvans"
+  },
   "homepage": "https://github.com/JacobPEvans/claude-code-plugins",
-  "keywords": ["scripts", "guards", "direct-execution", "hooks", "nix", "inline-scripts"],
+  "keywords": [
+    "scripts",
+    "guards",
+    "direct-execution",
+    "hooks",
+    "nix",
+    "inline-scripts"
+  ],
   "license": "Apache-2.0"
 }

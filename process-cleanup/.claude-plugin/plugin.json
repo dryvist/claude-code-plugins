@@ -1,9 +1,18 @@
 {
   "name": "process-cleanup",
-  "version": "4.2.0",
+  "version": "4.2.1",
   "description": "Cleanup orphaned MCP server processes on session exit — workaround for upstream bug #1935",
-  "author": { "name": "JacobPEvans" },
+  "author": {
+    "name": "JacobPEvans"
+  },
   "license": "Apache-2.0",
   "repository": "https://github.com/JacobPEvans/claude-code-plugins",
-  "keywords": ["hooks", "cleanup", "mcp", "orphan", "process", "stop"]
+  "keywords": [
+    "hooks",
+    "cleanup",
+    "mcp",
+    "orphan",
+    "process",
+    "stop"
+  ]
 }

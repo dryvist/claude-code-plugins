@@ -1,13 +1,22 @@
 {
   "name": "github-workflows",
-  "version": "4.2.0",
+  "version": "4.2.1",
   "description": "PR finalization (single, repo-wide, or org-wide including bots), repo refresh, rebase-merge, squash-merge, review thread resolution, and issue shaping",
   "author": {
     "name": "JacobPEvans"
   },
   "license": "Apache-2.0",
   "repository": "https://github.com/JacobPEvans/claude-code-plugins",
-  "keywords": ["github", "pull-request", "issues", "pr-management", "rebase", "refresh", "shape-up", "workflow"],
+  "keywords": [
+    "github",
+    "pull-request",
+    "issues",
+    "pr-management",
+    "rebase",
+    "refresh",
+    "shape-up",
+    "workflow"
+  ],
   "skills": [
     "./skills/finalize-pr",
     "./skills/ship",

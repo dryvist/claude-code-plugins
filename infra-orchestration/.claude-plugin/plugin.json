@@ -1,10 +1,23 @@
 {
   "name": "infra-orchestration",
-  "version": "4.2.0",
+  "version": "4.2.1",
   "description": "Cross-repo infrastructure orchestration for Terraform and Ansible workflows",
-  "author": {"name": "JacobPEvans"},
+  "author": {
+    "name": "JacobPEvans"
+  },
   "license": "Apache-2.0",
   "repository": "https://github.com/JacobPEvans/claude-code-plugins",
-  "keywords": ["infrastructure", "terraform", "ansible", "orchestration", "inventory", "e2e-testing"],
-  "skills": ["./skills/orchestrate-infra", "./skills/sync-inventory", "./skills/test-e2e"]
+  "keywords": [
+    "infrastructure",
+    "terraform",
+    "ansible",
+    "orchestration",
+    "inventory",
+    "e2e-testing"
+  ],
+  "skills": [
+    "./skills/orchestrate-infra",
+    "./skills/sync-inventory",
+    "./skills/test-e2e"
+  ]
 }
