@@ -1,53 +1,25 @@
 ---
 name: sync-permissions
-description: Merge local AI permission settings into repository-wide permissions
+description: "DEPRECATED — permission sync is retired; permissions now live in nix-claude-code and are governed by the auto-mode classifier"
 ---
 
-# Sync Permissions
+# Sync Permissions (deprecated)
 
-Scan local AI settings across all repos/worktrees, analyze permissions, and merge approved changes into repository permissions.
+> **Deprecated.** This skill swept local `settings.local.json` files and merged
+> approved permissions back into `ai-assistant-instructions/agentsmd/permissions/`.
+> That JSON tree has been **deleted** and the local-sweep workflow (the
+> `permission-sync` routine that did the same job) has been retired.
 
-## Supported Tools
+## What to do instead
 
-| AI Tool | Config Location | Sync Status |
-| --- | --- | --- |
-| Claude | `agentsmd/permissions/` | Fully supported |
-| Gemini | `.gemini/permissions/` | Fully supported |
-| Copilot | `.github/copilot-instructions.md` | Not yet supported |
+- **Source of truth:** tool permissions now live in
+  [`dryvist/nix-claude-code` → `data/permissions/`](https://github.com/dryvist/nix-claude-code/tree/main/data/permissions)
+  (`allow.nix` / `ask.nix` / `deny.nix` / `domains.nix`). `nix-ai` renders them
+  into each tool's settings. To change a permission, edit the `.nix` data and
+  open a PR there.
+- **Going forward:** the project is moving to an **auto-mode classifier** —
+  novel commands are governed by intent at runtime rather than by an
+  ever-growing static allow-list, so a periodic merge-local-overrides step is
+  no longer needed.
 
-## Workflow
-
-### Phase 1: Discovery and Analysis
-
-Scan home directory for AI permission settings, classify permissions, and deduplicate against existing patterns.
-
-**Currently scans:**
-
-- Claude settings from `~/.claude/settings.local.json` in all repos/worktrees
-- Gemini settings from `~/.gemini/settings.json` in all repos/worktrees
-
-### Phase 2: User Approval
-
-Review analysis report. Ask user to approve, modify, or cancel.
-
-### Phase 3: Execution
-
-**Only after approval**, apply changes, sync across tools, and cleanup local files.
-
-**Sync strategy:**
-
-- Merge permissions using a union approach
-- When same permission exists in both tools with different classifications, prioritize Claude classification
-- When permission exists only in Gemini, preserve and propagate to Claude
-- Result: identical permission sets across all supported tools
-
-## Architecture
-
-Command -> Agent -> Skill pattern:
-
-- Agents: `permissions-analyzer`, `permissions-syncer`
-- Skill: `permission-patterns` (safety classification, deduplication, token-efficient extraction)
-
-## Related Skills
-
-- quick-add-permission (config-management)
+See `dryvist/ai-assistant-instructions#680` for the migration.

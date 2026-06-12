@@ -1,10 +1,16 @@
 ---
 description: Permission format rules for AI tool settings — enforces Bash(command *) space-wildcard format
 globs:
-  - "agentsmd/permissions/**"
+  - "data/permissions/**"
 ---
 
 # Permission Format
+
+> Permissions now live in
+> [`dryvist/nix-claude-code` → `data/permissions/`](https://github.com/dryvist/nix-claude-code/tree/main/data/permissions)
+> (the `agentsmd/permissions/` JSON tree was retired — see
+> `dryvist/ai-assistant-instructions#680`). The format rules below still apply to
+> the `.nix` data.
 
 ## Generated Format
 
@@ -20,15 +26,16 @@ The `:*` suffix format is deprecated per Claude Code documentation.
 
 ## Source Format
 
-Source JSON files in `agentsmd/permissions/` store bare commands with no suffix:
+Source `.nix` files in `nix-claude-code/data/permissions/` store bare commands
+with no suffix:
 
-```json
+```nix
 {
-  "commands": [
-    "git",
-    "docker exec",
+  commands = [
+    "git"
+    "docker exec"
     "pytest"
-  ]
+  ];
 }
 ```
 
