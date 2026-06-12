@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.3.0](https://github.com/dryvist/claude-code-plugins/compare/v4.2.2...v4.3.0) (2026-06-12)
+
+
+### Features
+
+* **git-guards:** remove gh commands from ask permissions ([#355](https://github.com/dryvist/claude-code-plugins/issues/355)) ([8bd402c](https://github.com/dryvist/claude-code-plugins/commit/8bd402c57db622b792970f9dd068f07b6e1ba26a))
+
 ## [4.2.2](https://github.com/dryvist/claude-code-plugins/compare/v4.2.1...v4.2.2) (2026-06-12)
 
 

@@ -1,6 +1,6 @@
 {
   "name": "ai-delegation",
-  "version": "4.2.2",
+  "version": "4.3.0",
   "description": "Delegate tasks to external AI models and run autonomous maintenance loops",
   "author": {
     "name": "JacobPEvans"
