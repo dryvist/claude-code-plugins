@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.3.1](https://github.com/dryvist/claude-code-plugins/compare/v4.3.0...v4.3.1) (2026-06-22)
+
+
+### Bug Fixes
+
+* **deps:** refresh gh-aw action SHA pins [aw:gh-aw-pin-refresh] ([#360](https://github.com/dryvist/claude-code-plugins/issues/360)) ([b8d1518](https://github.com/dryvist/claude-code-plugins/commit/b8d1518595219237ad6c0a71ce9a719a3a760823))
+
 ## [4.3.0](https://github.com/dryvist/claude-code-plugins/compare/v4.2.2...v4.3.0) (2026-06-12)
 
 
