@@ -1,6 +1,6 @@
 {
   "name": "script-guards",
-  "version": "4.3.1",
+  "version": "4.3.2",
   "description": "Prevents unnecessary script generation - enforces research-first, native-tool-first patterns via PreToolUse and UserPromptSubmit hooks",
   "author": {
     "name": "JacobPEvans"

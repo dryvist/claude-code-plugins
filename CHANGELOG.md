@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.3.2](https://github.com/dryvist/claude-code-plugins/compare/v4.3.1...v4.3.2) (2026-07-02)
+
+
+### Bug Fixes
+
+* point callers at renamed cc- reusable workflows ([56f073e](https://github.com/dryvist/claude-code-plugins/commit/56f073e3e3f71403be77f52df8bc8bb3defa6685))
+
 ## [4.3.1](https://github.com/dryvist/claude-code-plugins/compare/v4.3.0...v4.3.1) (2026-06-22)
 
 
