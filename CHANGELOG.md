@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.5.0](https://github.com/dryvist/claude-code-plugins/compare/v4.4.0...v4.5.0) (2026-07-03)
+
+
+### Features
+
+* add review-thread-resolver caller for instant bot-thread resolution ([#367](https://github.com/dryvist/claude-code-plugins/issues/367)) ([9228de8](https://github.com/dryvist/claude-code-plugins/commit/9228de8b18c29f33679ac6f27d317c68ab9902b4))
+
 ## [4.4.0](https://github.com/dryvist/claude-code-plugins/compare/v4.3.2...v4.4.0) (2026-07-03)
 
 
