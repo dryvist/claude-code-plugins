@@ -8,7 +8,6 @@ description: Check PR merge readiness, sync local repo, cleanup stale worktrees;
 # Git Refresh
 
 Check open PR merge-readiness status, sync the local repository, and cleanup stale worktrees.
-**Note**: Does not automatically merge PRs - only reports readiness status for each PR.
 
 > **State warning**: Branch state, remote tracking, and PR status change between
 > invocations. Re-run all git/gh commands from Step 1.
@@ -29,7 +28,7 @@ gh pr list --author @me --state open --json number,title,headRefName
 
 ### 2. Report Merge-Readiness Status
 
-For each open PR, **DO NOT MERGE** - only check and report.
+For each open PR, check and report.
 
 Run the **canonical PR-readiness gate** from /gh-cli-patterns.
 Replace `<OWNER>`, `<REPO>`, `<PR_NUMBER>` per the placeholder legend in that skill.

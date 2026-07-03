@@ -34,11 +34,6 @@ flowchart LR
 When `/ship` is the orchestrator, it suppresses this hook's systemMessage and invokes
 `/finalize-pr` itself with the context brief from Step 1.5.
 
-## Safety
-
-The hook explicitly forbids merging, auto-merging, or approving. It only drives the PR
-toward a mergeable state for human review.
-
 ## Cross-References
 
 - [github-workflows/ARCHITECTURE.md](../github-workflows/ARCHITECTURE.md) — master

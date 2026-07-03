@@ -6,7 +6,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for integration diagrams and the master s
 
 ## Skills
 
-- **`/ship`** - Full automation: commit, push, create PR(s), and auto-finalize in one command. Never merges.
+- **`/ship`** - Full automation: commit, push, create PR(s), and auto-finalize in one command.
 - **`/finalize-pr`** - Finalize PRs for merge: single PR, all repo PRs (`all`), or all org PRs (`org`). Includes bot-authored PRs in all modes.
 - **`/refresh-repo`** - Check PR merge-readiness, sync local repo, and cleanup stale worktrees
 - **`/rebase-pr`** - Merge a PR using local git rebase + signed commits + push to main

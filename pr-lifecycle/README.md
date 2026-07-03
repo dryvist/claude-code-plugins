@@ -20,11 +20,6 @@ The hook monitors Bash tool calls for `gh pr create` commands. When a PR is succ
 created (detected by a GitHub PR URL in the output), it emits a `systemMessage` instructing
 Claude to invoke `/finalize-pr` with the new PR number.
 
-## Safety
-
-The hook explicitly forbids merging, auto-merging, or approving merge of any PR. The
-`/finalize-pr` skill drives the PR to a mergeable state for human review only.
-
 ## Hook Details
 
 | Field | Value |
