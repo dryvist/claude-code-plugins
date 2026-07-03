@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.4.0](https://github.com/dryvist/claude-code-plugins/compare/v4.3.2...v4.4.0) (2026-07-03)
+
+
+### Features
+
+* add AI PR care caller (dep review + release highlights) ([#364](https://github.com/dryvist/claude-code-plugins/issues/364)) ([afea03d](https://github.com/dryvist/claude-code-plugins/commit/afea03d3acecd5a496e12420e7aff122f2012123))
+
 ## [4.3.2](https://github.com/dryvist/claude-code-plugins/compare/v4.3.1...v4.3.2) (2026-07-02)
 
 
