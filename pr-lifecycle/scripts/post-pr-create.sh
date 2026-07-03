@@ -37,6 +37,6 @@ pr_number="${BASH_REMATCH[1]}"
 # not prevent a higher-level orchestrator (e.g., /ship) from continuing its workflow.
 cat <<EOF
 {
-  "systemMessage": "POST-PR AUTOMATION: PR #${pr_number} was just created. If no higher-level workflow (such as /ship) is already handling finalization, you MUST invoke /finalize-pr ${pr_number} before returning to the user. SAFETY: You are FORBIDDEN from merging, auto-merging, or approving merge of any PR. Only get it to a mergeable state for human review."
+  "systemMessage": "POST-PR AUTOMATION: PR #${pr_number} was just created. If no higher-level workflow (such as /ship) is already handling finalization, you MUST invoke /finalize-pr ${pr_number} before returning to the user."
 }
 EOF

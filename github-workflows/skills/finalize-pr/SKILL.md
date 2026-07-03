@@ -20,18 +20,17 @@ No manual intervention required. For manual review-focused workflows, use `/revi
 
 ## Critical Rules
 
-1. **Wait for user approval to merge** - Report ready status, then pause for user merge command
-2. **Verify all checks pass via Phase 3 gate** - Re-run Phase 3 against live API on every
+1. **Verify all checks pass via Phase 3 gate** - Re-run Phase 3 against live API on every
    invocation; "mergeable" means git-conflict-free only, not fully unblocked.
-3. **Resolve all conversations** - Automatically invoke `/resolve-pr-threads` for review threads
-4. **Fix all CodeQL violations** - Check repository and automatically fix using `/resolve-codeql`
-5. **Simplify all code changes** - Invoke /simplify at Step 2.3.5 (after all fixes). Pre-push simplification is handled by `/ship`.
-6. **Validate locally before pushing** - Run project linters and tests
-7. **Monitor CI early, block last** - Start CI monitoring in background immediately, but fix other issues while it runs
-8. **Update PR metadata automatically** - Before reporting ready, update title, description, and linked issues via haiku subagent
-9. **Take direct action** - Identify issues and fix them automatically (except merge decisions)
-10. **Include bot PRs** - Never filter by author. All modes include dependabot, release-please, claude, github-actions, etc.
-11. **Never cross org boundaries** - Org mode derives owner from current repo only
+2. **Resolve all conversations** - Automatically invoke `/resolve-pr-threads` for review threads
+3. **Fix all CodeQL violations** - Check repository and automatically fix using `/resolve-codeql`
+4. **Simplify all code changes** - Invoke /simplify at Step 2.3.5 (after all fixes). Pre-push simplification is handled by `/ship`.
+5. **Validate locally before pushing** - Run project linters and tests
+6. **Monitor CI early, block last** - Start CI monitoring in background immediately, but fix other issues while it runs
+7. **Update PR metadata automatically** - Before reporting ready, update title, description, and linked issues via haiku subagent
+8. **Take direct action** - Identify issues and fix them automatically
+9. **Include bot PRs** - Never filter by author. All modes include dependabot, release-please, claude, github-actions, etc.
+10. **Never cross org boundaries** - Org mode derives owner from current repo only
 
 ## Phase 1: PR Discovery and Targeting
 
@@ -228,13 +227,7 @@ Proceed to Phase 5.
 
 **Single/current-branch mode**: Emit the **Canonical PR Status Summary** (Section 1 =
 this PR, Section 2 = all open PRs in current repo) as defined in /gh-cli-patterns,
-titled `PR Status`. Then append:
-
-```text
-IMPORTANT: Do NOT merge this PR. Wait for the human to review and invoke
-  /squash-merge-pr    # Squash all commits into one
-  /rebase-pr          # Rebase commits onto main (preserves history)
-```
+titled `PR Status`.
 
 **Multi-PR mode**: Record the per-PR result (ready / blocked / needs-human). Restore the original
 branch and continue to the next PR. Do NOT emit a ready report — that happens in Phase 6.
@@ -245,8 +238,6 @@ MUST NOT return until ALL conditions pass for EVERY targeted PR:
 CI green, CodeQL clean, threads resolved, no conflicts, code simplified, local linters and tests pass, metadata updated.
 If ANY fails, loop back to Phase 2. CRITICAL: CodeQL is SEPARATE from CI — check both independently.
 
-**MERGE PROHIBITION**: FORBIDDEN from merging, auto-merging, enabling auto-merge, or approving any PR.
-
 ## Phase 6: Aggregate Report (Multi-PR Only)
 
 Emit the **Canonical PR Status Summary** as defined in /gh-cli-patterns, titled
@@ -254,7 +245,6 @@ Emit the **Canonical PR Status Summary** as defined in /gh-cli-patterns, titled
 PRs in affected repos (current repo for `all` mode; all repos from Phase 1 discovery
 for `org` mode). Show the target repo as a label next to each merge command (no `--repo` flag; user
 runs from the correct worktree).
-Wait for explicit user merge commands.
 
 ## Workflow
 

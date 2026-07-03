@@ -31,7 +31,7 @@ gh pr list --author @me --state open --json number | jq length
    1. PRs behind main (/sync-main)
    2. Failing CI (/finalize-pr)
    3. Review comments (/resolve-pr-threads)
-   4. PRs ready to merge (/refresh-repo) - Report readiness, do NOT merge
+   4. PRs ready to merge (/refresh-repo)
    --- BLOCKED IN PR-FOCUS MODE ---
    5-10. Bugs, issues, code analysis, docs, tests, deps
 3. DISPATCH - Use subagents (parallel in PR-focus, sequential otherwise; invoke `superpowers:dispatching-parallel-agents`)
@@ -43,7 +43,7 @@ gh pr list --author @me --state open --json number | jq length
 ## Sub-Agent Instructions
 
 Include: ONE task per PR (<200 lines), may spawn helpers, report files/PR/blockers, NEVER ask questions,
-always add `ai:created` label to new issues. **NEVER merge PRs automatically** - report readiness instead.
+always add `ai:created` label to new issues.
 
 ## Forbidden
 
@@ -57,7 +57,7 @@ always add `ai:created` label to new issues. **NEVER merge PRs automatically** -
 
 ## PR Lifecycle
 
-Create PR within 60s of first commit -> fix CI -> resolve threads -> 60s quiet period -> report readiness -> wait for user merge -> remove worktree.
+Create PR within 60s of first commit -> fix CI -> resolve threads -> 60s quiet period -> report readiness -> remove worktree.
 
 ## Resilience
 

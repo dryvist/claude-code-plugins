@@ -2,14 +2,14 @@
 name: ship
 description: >-
   Commit, push, create PR(s), and auto-finalize — full automation pipeline.
-  Handles uncommitted changes and recently created PRs. Never merges.
+  Handles uncommitted changes and recently created PRs.
 allowed-tools: Bash(git *), Bash(gh *), Bash(pre-commit *), Bash(npm run lint*), Bash(make lint*), Agent, Read, Grep, Glob, Skill
 ---
 
 # Ship
 
 **Single command to commit, push, create PR(s), and auto-finalize everything.**
-Handles commit, push, PR creation, and `/finalize-pr` in one pipeline. Never merges.
+Handles commit, push, PR creation, and `/finalize-pr` in one pipeline.
 
 > ⛔ **NOT RESUMABLE — run from Step 0 on every `/ship` invocation.**
 > Do not refer to "the PR I just finalized" or "already verified" from
@@ -189,13 +189,6 @@ gh pr view <PR_NUMBER> --json url --jq '.url'
 
 Section 1 lists the PRs targeted by this `/ship` invocation. Section 2 lists all open
 PRs in the current repo (including unrelated ones).
-
-## Safety
-
-- **NEVER merge** — only prepare PRs for human review
-- **NEVER approve** — no auto-approval of PRs
-- Each `/finalize-pr` agent enforces its own merge prohibition
-- This command inherits all safety constraints from `/finalize-pr`
 
 ## Examples
 
