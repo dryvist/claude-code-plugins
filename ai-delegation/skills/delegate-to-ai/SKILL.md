@@ -1,63 +1,74 @@
 ---
 name: delegate-to-ai
-description: Route tasks to external AI models via Bifrost and PAL MCP multi-model tools
+description: Route a task to the right model — a native Claude subagent, Codex, or local MLX — based on task type
 ---
 
 # Delegate to External AI
 
-Routes tasks to specialized models based on task type using Bifrost (single-model) or PAL MCP (multi-model).
+Picks the right executor when Claude-in-this-session is not the best tool:
+native Claude subagents for implementation and planning, Codex for an
+external/adversarial second opinion, and local MLX for private or offline work.
 
 ## When to Delegate
 
-Delegate when Claude is not the best tool:
+- **Implementation / architecture / planning** -> native Claude subagent
+  (`Plan` mode or the `Plan` / `general-purpose` subagent type). Claude is the
+  best tool here — keep it in-house.
+- **Adversarial review / external second opinion** -> Codex (the `codex` MCP
+  tool or CLI). A genuinely different model catches what a Claude subagent won't.
+- **Multiple independent perspectives / consensus** -> dispatch several native
+  subagents in parallel (see the `superpowers:dispatching-parallel-agents`
+  skill), optionally adding Codex as one of the voices. Synthesize the results
+  yourself.
+- **Private / offline / cheap local task** -> local MLX via llama-swap (below).
+  No prompt leaves the machine.
 
-- **Large context** (1M+ tokens) -> cloud large-context tier via Bifrost (auto-routed)
-- **Math/reasoning** -> a reasoning-capable model via Bifrost (auto-routed)
-- **Private/offline** -> Local MLX via Bifrost (port 30080 routes to local MLX server)
-- **Code review consensus** -> Multi-model via PAL `consensus`
-- **Parallel multi-model research** -> PAL `clink` (when you need multiple model perspectives simultaneously)
-- **Architecture planning** -> Claude Opus native subagent (Plan mode or `Plan` subagent type)
+## Local MLX — direct call
+
+Local models are named by **capability role**, not physical id. Roles resolve to
+the resident model via the ai-stack registry
+(`~/.config/ai-stack/registry.json`, written by nix-ai); never hardcode a
+physical model id — when the resident model changes, only the registry changes.
+
+Call llama-swap directly (OpenAI-compatible, no gateway hop):
+
+```bash
+curl -s http://127.0.0.1:11434/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"default","messages":[{"role":"user","content":"..."}]}'
+```
+
+Roles: `default`, `quickest`, `coding`, `tool-calling`, `large-context`,
+`most-capable`, `oss`. Pick the role that fits the task; the registry maps it to
+the physical model.
 
 ## Route Selection
 
-Local models are named by **capability role**, not physical id. Roles resolve to the
-resident model via the ai-stack registry (`~/.config/ai-stack/registry.json`, written by
-nix-ai); never hardcode a physical model id here — when the resident model changes, only
-the registry changes. Cloud tiers are capability classes; PAL/Bifrost auto-routes each to
-a current model.
-
-| Task Type | Cloud tier | Local role | Route |
-| --- | --- | --- | --- |
-| Research (single) | large-context | `large-context` | Bifrost |
-| Research (multi) | multiple | `large-context`¹ | PAL clink |
-| Complex Coding | Claude Opus | `coding` | native subagent |
-| Fast Tasks | Claude Sonnet | `quickest` | Bifrost |
-| Code Review | multi-model | `most-capable` | PAL consensus |
-| Architecture | Claude Opus | `most-capable` | native subagent |
-
-**Bifrost endpoint**: `http://localhost:30080/v1/chat/completions` (OpenAI-compatible)
-
-¹ In local-only mode, `PAL clink` (multi-model) falls back to the single resident local model (every role resolves to it).
-
-## PAL MCP Tools (multi-model only)
-
-- **`clink`** - Parallel queries across multiple models
-- **`consensus`** - Multi-model agreement for critical decisions
-
-All other PAL tools have native Claude Code equivalents — use Bifrost or native subagents instead.
+| Task type | Route | Executor |
+| --- | --- | --- |
+| Implementation | native subagent | `general-purpose` subagent |
+| Architecture / planning | native subagent | `Plan` mode / `Plan` subagent |
+| Adversarial review | external model | Codex (`codex` MCP) |
+| Multi-perspective / consensus | parallel subagents | N native subagents (+ Codex) |
+| Private / offline / quick local | local MLX | llama-swap `:11434`, capability role |
 
 ## Workflow
 
-1. **Identify task type** (research, coding, review, architecture)
-2. **Select route**: Bifrost for single-model, PAL for multi-model, native subagent for implementation work
-3. **Execute**: Bifrost via `curl`/Bash; PAL via MCP tool call; native subagent via Agent tool
-4. **Synthesize results** if using multi-model tools
+1. **Identify task type** (implementation, review, research, architecture).
+2. **Select route** from the table above.
+3. **Execute**: native subagent via the Agent tool; Codex via its MCP tool;
+   local MLX via `curl`/Bash to `:11434`.
+4. **Synthesize** if you fanned out to multiple executors — you remain
+   accountable for the final answer.
 
-## Local-Only Mode
+## Notes
 
-When `localOnlyMode` is enabled or `--local` flag is passed, route all tasks through
-Bifrost to the local MLX inference server (overrides native subagent rows). No cloud API calls are made.
+- There is no local multi-provider gateway. The Bifrost gateway now runs on the
+  Proxmox homelab; this skill does not route through it.
+- Cloud fan-out across many providers is not part of this skill — reach for
+  Codex (OpenAI) or a dedicated tool when you need a specific external model.
 
 ## Related Skills
 
 - auto-maintain (ai-delegation)
+- superpowers:dispatching-parallel-agents

@@ -4,7 +4,7 @@ Claude Code plugin for delegating tasks to external AI models and running autono
 
 ## Skills
 
-- **`/delegate-to-ai`** - Route tasks to specialized AI models via PAL MCP tools based on task type
+- **`/delegate-to-ai`** - Route a task to the right model (native subagent, Codex, or local MLX) based on task type
 - **`/auto-maintain`** - Autonomous maintenance orchestrator that continuously finds and dispatches work
 
 ## Installation
