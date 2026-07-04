@@ -1,5 +1,5 @@
 ---
-name: agentsmd-authoring
+name: claude-skill-authoring
 description: Use when authoring or editing skills, agents, rules, or CLAUDE.md/AGENTS.md — token budgets, progressive disclosure, the self-contained-skill rule, the safety-reminder carve-out, and where each component belongs
 ---
 
