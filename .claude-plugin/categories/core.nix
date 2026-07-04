@@ -39,7 +39,7 @@
 
   skills = [
     # jacobpevans project-standards
-    "agentsmd-authoring"
+    "claude-skill-authoring"
     "skills-registry"
     "workspace-standards"
     # jacobpevans code-standards

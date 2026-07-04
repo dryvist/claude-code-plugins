@@ -35,7 +35,7 @@ description: Use when looking up available tools, skills, commands, agents, or p
 | Code quality | `/code-quality-standards` | `code-standards` | Code rules |
 | Code review | `/review-standards` | `code-standards` | Review focus |
 | Infrastructure | `/infrastructure-standards` | `infra-standards` | IaC standards |
-| AgentsMD authoring | `/agentsmd-authoring` | `project-standards` | File structure |
+| Claude skill authoring | `/claude-skill-authoring` | `project-standards` | Token budgets & placement |
 | Workspace management | `/workspace-standards` | `project-standards` | Multi-repo |
 | This registry | `/skills-registry` | `project-standards` | Tool lookup |
 
@@ -81,5 +81,5 @@ All plugins sourced from `jacobpevans-cc-plugins`.
 
 ## Related Skills
 
-- **agentsmd-authoring** (project-standards) — Use when editing agentsmd files, creating skills/agents/rules, or working in ai-assistant-instructions
+- **claude-skill-authoring** (project-standards) — Use when authoring Claude skills/agents/rules — token budgets, progressive disclosure, placement
 - **workspace-standards** (project-standards) — Use when setting up or managing multi-repo workspaces

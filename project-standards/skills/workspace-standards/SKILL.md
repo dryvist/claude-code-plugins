@@ -44,5 +44,5 @@ Define and monitor monthly budgets per environment.
 
 ## Related Skills
 
-- **agentsmd-authoring** (project-standards) — Use when editing agentsmd files, creating skills/agents/rules, or working in ai-assistant-instructions
+- **claude-skill-authoring** (project-standards) — Use when authoring Claude skills/agents/rules — token budgets, progressive disclosure, placement
 - **skills-registry** (project-standards) — Use when looking up available tools, skills, commands, agents, or plugins

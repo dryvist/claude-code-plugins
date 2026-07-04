@@ -24,7 +24,7 @@ This is a **Claude Code plugins repository** containing production-ready hooks f
 | **pal-health** | SessionStart | — | Warns on session start if PAL MCP had a recent Doppler auth failure |
 | **pr-lifecycle** | PostToolUse | Bash | Automatically triggers `/finalize-pr` after `gh pr create` succeeds |
 | **process-cleanup** | PostToolUse | — | Cleanup orphaned MCP server processes on session exit |
-| **project-standards** | Skill | `/agentsmd-authoring`, `/workspace-standards`, `/skills-registry` | AgentsMD authoring standards, workspace management, and skills/tools registry lookup |
+| **project-standards** | Skill | `/claude-skill-authoring`, `/workspace-standards`, `/skills-registry` | Claude skill authoring standards, workspace management, and skills/tools registry lookup |
 | **session-analytics** | Skill | `/token-breakdown` | Session token analytics via Splunk OTEL telemetry |
 
 ## Multi-Model Delegation

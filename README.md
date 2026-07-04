@@ -77,7 +77,7 @@ On-demand skill-based plugins that load specific standards as context.
 | **code-standards** | `/code-quality-standards`, `/review-standards` | Code quality, documentation, testing, review guidelines |
 | **git-standards** | `/git-workflow-standards`, `/pr-standards` | Branching, PR creation, issue linking |
 | **infra-standards** | `/infrastructure-standards` | Proxmox, Terraform, Ansible deployment |
-| **project-standards** | `/agentsmd-authoring`, `/workspace-standards`, `/skills-registry`, `/nix-tool-policy` | AgentsMD authoring, workspace, skills registry, Nix tool policy |
+| **project-standards** | `/claude-skill-authoring`, `/workspace-standards`, `/skills-registry`, `/nix-tool-policy` | Claude skill authoring, workspace, skills registry, Nix tool policy |
 
 ### pal-health
 
