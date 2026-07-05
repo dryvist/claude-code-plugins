@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.6.0](https://github.com/dryvist/claude-code-plugins/compare/v4.5.0...v4.6.0) (2026-07-05)
+
+
+### Features
+
+* **content-guards:** make the 24h issue/PR rate limit configurable without a code change ([#371](https://github.com/dryvist/claude-code-plugins/issues/371)) ([55207fb](https://github.com/dryvist/claude-code-plugins/commit/55207fbca2f74309c161cc30e948f7201ab393a9))
+
 ## [4.5.0](https://github.com/dryvist/claude-code-plugins/compare/v4.4.0...v4.5.0) (2026-07-03)
 
 

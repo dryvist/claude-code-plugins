@@ -1,6 +1,6 @@
 {
   "name": "infra-standards",
-  "version": "4.5.0",
+  "version": "4.6.0",
   "description": "Infrastructure standards for Proxmox, Terraform, Ansible: VMID/IP assignment ranges and the Terraform-to-Ansible inventory contract",
   "author": {
     "name": "JacobPEvans"
