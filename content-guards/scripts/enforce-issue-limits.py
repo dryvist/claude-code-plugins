@@ -120,8 +120,15 @@ def _rate_limit_24h(resource: str, cwd: str | None = None) -> int:
     name = f"GH_ACTION_LIMIT_{resource.upper()}"
     value = os.environ.get(name)
     if value is None:
+        # Org variables only exist for organization-owned repos; skip the API
+        # round-trip entirely for user-owned ones.
         owner = _gh_text(
-            ["repo", "view", "--json", "owner", "--jq", ".owner.login"], cwd=cwd
+            [
+                "repo", "view",
+                "--json", "owner,isInOrganization",
+                "--jq", 'select(.isInOrganization) | .owner.login',
+            ],
+            cwd=cwd,
         )
         if owner:
             value = _gh_text(
