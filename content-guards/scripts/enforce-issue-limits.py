@@ -10,9 +10,10 @@ Hard limits (per-repo):
   - 15 total open PRs
   - 25 AI-created open issues/PRs (labeled "ai-created")
 
-Rate limits (24h rolling window):
-  - 25 issues created by @me
-  - 25 PRs created by @me
+Rate limits (24h rolling window), configurable WITHOUT a code change:
+  - GH_ACTION_LIMIT_ISSUE / GH_ACTION_LIMIT_PR — read from the environment
+    first, then from the target repo owner's GitHub Actions org variable of
+    the same name (settable via Doppler -> GH org variable sync), else 25.
 
 Exit codes:
   0 = allow the command
@@ -32,8 +33,9 @@ from datetime import datetime, timedelta, timezone
 # Hard limits: (total_open, ai_created_open) per resource type
 HARD_LIMITS = {"issue": (100, 25), "pr": (15, 15)}
 
-# 24h rolling rate limit per resource type
-RATE_LIMIT_24H = 25
+# 24h rolling rate limit default; overridable per resource type via
+# GH_ACTION_LIMIT_{ISSUE|PR} (env, then the repo owner's Actions org variable).
+RATE_LIMIT_24H_DEFAULT = 25
 
 _CMD_RE = re.compile(r"(?:^|\s)gh\s+(issue|pr)\s+(create|edit)(?:\s|$)")
 
@@ -90,6 +92,56 @@ def _get_counts(resource: str, cwd: str | None = None) -> tuple[int, int]:
         if any(label["name"] == "ai-created" for label in item.get("labels", []))
     )
     return total, ai_created
+
+
+def _gh_text(args: list[str], cwd: str | None = None) -> str | None:
+    """Run a gh command that returns plain text, None on any error."""
+    try:
+        result = subprocess.run(
+            ["gh", *args],
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=30,
+            cwd=cwd,
+        )
+        return result.stdout.strip()
+    except _GH_ERRORS:
+        return None
+
+
+def _rate_limit_24h(resource: str, cwd: str | None = None) -> int:
+    """Resolve the 24h rate limit for a resource type.
+
+    Precedence: GH_ACTION_LIMIT_{ISSUE|PR} in the environment, then the same
+    name as a GitHub Actions org variable on the target repo's owner, then the
+    built-in default. Any lookup failure falls back to the default.
+    """
+    name = f"GH_ACTION_LIMIT_{resource.upper()}"
+    value = os.environ.get(name)
+    if value is None:
+        # Org variables only exist for organization-owned repos; skip the API
+        # round-trip entirely for user-owned ones.
+        owner = _gh_text(
+            [
+                "repo", "view",
+                "--json", "owner,isInOrganization",
+                "--jq", 'select(.isInOrganization) | .owner.login',
+            ],
+            cwd=cwd,
+        )
+        if owner:
+            value = _gh_text(
+                ["api", f"orgs/{owner}/actions/variables/{name}", "--jq", ".value"],
+                cwd=cwd,
+            )
+    if value is None:
+        return RATE_LIMIT_24H_DEFAULT
+    try:
+        limit = int(value)
+    except ValueError:
+        return RATE_LIMIT_24H_DEFAULT
+    return limit if limit > 0 else RATE_LIMIT_24H_DEFAULT
 
 
 def _count_recent(resource: str, cwd: str | None = None) -> int:
@@ -212,13 +264,15 @@ def main() -> None:
 
     # 24h rate limit (create only — edits are always allowed)
     if action == "create":
+        rate_limit = _rate_limit_24h(resource, cwd=repo_dir)
         recent = _count_recent(resource, cwd=repo_dir)
-        if recent >= RATE_LIMIT_24H:
+        if recent >= rate_limit:
             _block(
                 "Rate limit exceeded",
-                f"{recent} {label}s created in the past 24 hours (limit: {RATE_LIMIT_24H}).\n\n"
-                "The user can re-run the blocked command directly in their\n"
-                "terminal to bypass this rate limit.",
+                f"{recent} {label}s created in the past 24 hours (limit: {rate_limit}).\n\n"
+                f"Raise it without a code change via the GH_ACTION_LIMIT_{resource.upper()}\n"
+                "env var or the same-named GitHub Actions org variable, or the user\n"
+                "can re-run the blocked command directly in their terminal.",
             )
 
 
