@@ -13,7 +13,7 @@ Hard limits (per-repo):
 Rate limits (24h rolling window), configurable WITHOUT a code change:
   - GH_ACTION_LIMIT_ISSUE / GH_ACTION_LIMIT_PR — read from the environment
     first, then from the target repo owner's GitHub Actions org variable of
-    the same name (settable via Doppler -> GH org variable sync), else 25.
+    the same name (settable via Doppler -> GH org variable sync), else 50.
 
 Exit codes:
   0 = allow the command
@@ -35,7 +35,7 @@ HARD_LIMITS = {"issue": (100, 25), "pr": (15, 15)}
 
 # 24h rolling rate limit default; overridable per resource type via
 # GH_ACTION_LIMIT_{ISSUE|PR} (env, then the repo owner's Actions org variable).
-RATE_LIMIT_24H_DEFAULT = 25
+RATE_LIMIT_24H_DEFAULT = 50
 
 _CMD_RE = re.compile(r"(?:^|\s)gh\s+(issue|pr)\s+(create|edit)(?:\s|$)")
 
