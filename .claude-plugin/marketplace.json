@@ -57,7 +57,7 @@
     {
       "name": "ai-delegation",
       "source": "./ai-delegation",
-      "description": "Delegate tasks to external AI models and run autonomous maintenance loops",
+      "description": "Delegate tasks to AI models, orchestrate premium-model work, and run autonomous maintenance loops",
       "version": "4.6.0",
       "author": {
         "name": "JacobPEvans"
