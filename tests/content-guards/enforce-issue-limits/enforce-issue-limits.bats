@@ -121,10 +121,10 @@ run_hook() {
 # TC5: gh issue create - 24h rate limit (exit 2)
 # ---------------------------------------------------------------------------
 
-@test "TC5: gh issue create blocked when 25 issues created in last 24h" {
+@test "TC5: gh issue create blocked when 50 issues created in last 24h" {
   local now
   now="$(utc_now)"
-  export GH_RESPONSE="$(build_json_array '{"number":__N__,"labels":[],"createdAt":"'"$now"'"}' 25)"
+  export GH_RESPONSE="$(build_json_array '{"number":__N__,"labels":[],"createdAt":"'"$now"'"}' 50)"
 
   run_hook '{"tool_input":{"command":"gh issue create --title test"}}'
   [ "$status" -eq 2 ]
@@ -136,12 +136,12 @@ run_hook() {
 # TC6: gh pr create - 24h rate limit (exit 2)
 # ---------------------------------------------------------------------------
 
-@test "TC6: gh pr create blocked when 25 PRs created in last 24h" {
+@test "TC6: gh pr create blocked when 50 PRs created in last 24h" {
   local now
   now="$(utc_now)"
-  # Open PRs under hard limit (14 < 15), but 25 total created in 24h (rate limit)
+  # Open PRs under hard limit (14 < 15), but 50 total created in 24h (rate limit)
   export GH_RESPONSE="$(build_json_array '{"number":__N__,"labels":[],"createdAt":"'"$now"'"}' 14)"
-  export GH_RESPONSE_ALL="$(build_json_array '{"createdAt":"'"$now"'"}' 25)"
+  export GH_RESPONSE_ALL="$(build_json_array '{"createdAt":"'"$now"'"}' 50)"
 
   run_hook '{"tool_input":{"command":"gh pr create --title test"}}'
   [ "$status" -eq 2 ]
@@ -157,7 +157,7 @@ run_hook() {
   local now
   now="$(utc_now)"
   # Even at the rate limit ceiling, edit should pass
-  export GH_RESPONSE="$(build_json_array '{"createdAt":"'"$now"'"}' 25)"
+  export GH_RESPONSE="$(build_json_array '{"createdAt":"'"$now"'"}' 50)"
 
   run_hook '{"tool_input":{"command":"gh pr edit 42 --title new-title"}}'
   [ "$status" -eq 0 ]
@@ -166,7 +166,7 @@ run_hook() {
 @test "TC7b: gh pr edit with --body is always allowed" {
   local now
   now="$(utc_now)"
-  export GH_RESPONSE="$(build_json_array '{"createdAt":"'"$now"'"}' 25)"
+  export GH_RESPONSE="$(build_json_array '{"createdAt":"'"$now"'"}' 50)"
 
   run_hook '{"tool_input":{"command":"gh pr edit 126 --body \"updated description\""}}'
   [ "$status" -eq 0 ]
