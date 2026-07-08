@@ -68,7 +68,7 @@ jobs:
 
   run-triage:
     if: github.event_name == 'workflow_dispatch'
-    uses: dryvist/ai-workflows/.github/workflows/issue-triage.yml@v0.16
+    uses: dryvist/ai-workflows/.github/workflows/issue-triage.yml@v0.30
     secrets: inherit
     with:
       issue_number: ${{ inputs.issue_number }}
@@ -79,7 +79,7 @@ jobs:
       always() &&
       github.event_name == 'workflow_dispatch' &&
       (needs.run-triage.result == 'success' || needs.run-triage.result == 'skipped')
-    uses: dryvist/ai-workflows/.github/workflows/cc-issue-resolver.yml@v0.16
+    uses: dryvist/ai-workflows/.github/workflows/cc-issue-resolver.yml@v0.30
     secrets: inherit
     with:
       repo_context: "Claude Code plugins: skills, hooks, and slash commands for Claude Code CLI"
