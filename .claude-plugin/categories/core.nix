@@ -79,6 +79,7 @@
     # jacobpevans ai-delegation
     "delegate-to-ai"
     "auto-maintain"
+    "premium-agent-orchestration"
   ];
 
   claudeCommands = [

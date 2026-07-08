@@ -6,11 +6,11 @@ A collection of Claude Code plugins for enhanced development workflows with AI a
 
 ### ai-delegation
 
-Delegate tasks to external AI models and run autonomous maintenance loops.
+Delegate tasks to AI models, orchestrate premium-model work, and run autonomous maintenance loops.
 
 - **Type**: Skill-based plugin
-- **Skills**: `/delegate-to-ai`, `/auto-maintain`
-- **Purpose**: Route tasks to Gemini, local Ollama, or other models via PAL MCP
+- **Skills**: `/delegate-to-ai`, `/auto-maintain`, `/premium-agent-orchestration`
+- **Purpose**: Route tasks to available models and preserve premium reasoning for judgment while cheaper agents or local/free LLMs handle checkable work
 
 ### codeql-resolver
 
@@ -163,7 +163,8 @@ invocation. Skill-based plugins provide slash commands:
 /refresh-repo             # Sync main, check PRs, cleanup worktrees
 /wrap-up                  # Post-merge cleanup + retrospective
 /resolve-codeql           # Fix CodeQL security alerts
-/delegate-to-ai           # Route tasks to external AI models
+/delegate-to-ai           # Route tasks to available AI models
+/premium-agent-orchestration # Preserve premium reasoning and delegate checkable work
 ```
 
 ## Architecture

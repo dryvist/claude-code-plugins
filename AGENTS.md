@@ -10,7 +10,7 @@ This is a **Claude Code plugins repository** containing production-ready hooks f
 
 | Plugin | Type | Tools/Commands | Purpose |
 |--------|------|--------|------|
-| **ai-delegation** | Skill | `/delegate-to-ai`, `/auto-maintain` | Route tasks to external AI models (Gemini, Ollama, etc.) via PAL MCP |
+| **ai-delegation** | Skill | `/delegate-to-ai`, `/auto-maintain`, `/premium-agent-orchestration` | Route tasks to AI models and preserve premium reasoning while cheaper agents or local/free LLMs handle checkable work |
 | **codeql-resolver** | Command/Skill/Agent | `/resolve-codeql` | Resolve CodeQL security alerts in GitHub Actions workflows |
 | **config-management** | Skill | `/sync-permissions`, `/quick-add-permission` | Manage Claude and Gemini permission configs across repositories |
 | **content-guards** | Pre/PostToolUse | Bash, Write, Edit | Token limits, markdown/README validation, webfetch guard, issue/PR rate limiting, branch limits |
@@ -29,5 +29,6 @@ This is a **Claude Code plugins repository** containing production-ready hooks f
 
 ## Multi-Model Delegation
 
-Use `/delegate-to-ai` to route tasks to external AI models (Gemini, local Ollama, etc.) via PAL MCP.
-Useful for research, code review consensus, and multi-model validation. See the `ai-delegation` plugin.
+Use `/delegate-to-ai` to route tasks to external AI models, local LLMs, or native subagents.
+Use `/premium-agent-orchestration` when a Fable, Opus, or other top-tier model should keep senior judgment while cheaper agents or local/free LLMs handle checkable work.
+Useful for research, code review consensus, multi-model validation, and premium-model cost control. See the `ai-delegation` plugin.

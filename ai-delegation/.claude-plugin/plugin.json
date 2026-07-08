@@ -1,7 +1,7 @@
 {
   "name": "ai-delegation",
   "version": "4.6.0",
-  "description": "Delegate tasks to external AI models and run autonomous maintenance loops",
+  "description": "Delegate tasks to AI models, orchestrate premium-model work, and run autonomous maintenance loops",
   "author": {
     "name": "JacobPEvans"
   },
@@ -17,6 +17,7 @@
   ],
   "skills": [
     "./skills/delegate-to-ai",
-    "./skills/auto-maintain"
+    "./skills/auto-maintain",
+    "./skills/premium-agent-orchestration"
   ]
 }
