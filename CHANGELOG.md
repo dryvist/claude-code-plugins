@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.7.0](https://github.com/dryvist/claude-code-plugins/compare/v4.6.0...v4.7.0) (2026-07-09)
+
+
+### Features
+
+* **ai-delegation:** add premium agent orchestration ([#374](https://github.com/dryvist/claude-code-plugins/issues/374)) ([81db8d0](https://github.com/dryvist/claude-code-plugins/commit/81db8d035415ad0928177658973b551903790a36))
+
 ## [4.6.0](https://github.com/dryvist/claude-code-plugins/compare/v4.5.0...v4.6.0) (2026-07-05)
 
 
