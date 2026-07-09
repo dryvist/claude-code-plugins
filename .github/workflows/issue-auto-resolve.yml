@@ -12,12 +12,10 @@ on:
   #   types: [opened, labeled]
   # --- END DISABLED ---
 
-permissions:
-  actions: write
-  contents: write
-  id-token: write
-  issues: write
-  pull-requests: write
+# Workflow-level permissions are `{}` — each job below grants only what it
+# needs at job level, so zizmor's excessive-permissions audit (workflow-level
+# grants apply to every job, including ones that don't need them) clears.
+permissions: {}
 
 jobs:
   # --- DISABLED AUTOMATIC TRIGGERS (restore by uncommenting) ---
@@ -68,6 +66,12 @@ jobs:
 
   run-triage:
     if: github.event_name == 'workflow_dispatch'
+    permissions:
+      actions: write
+      contents: write
+      id-token: write
+      issues: write
+      pull-requests: write
     uses: dryvist/ai-workflows/.github/workflows/issue-triage.yml@v0.30
     secrets: inherit
     with:
@@ -79,6 +83,12 @@ jobs:
       always() &&
       github.event_name == 'workflow_dispatch' &&
       (needs.run-triage.result == 'success' || needs.run-triage.result == 'skipped')
+    permissions:
+      actions: write
+      contents: write
+      id-token: write
+      issues: write
+      pull-requests: write
     uses: dryvist/ai-workflows/.github/workflows/cc-issue-resolver.yml@v0.30
     secrets: inherit
     with:
