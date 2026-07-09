@@ -22,6 +22,7 @@
     "./skills/ship",
     "./skills/squash-merge-pr",
     "./skills/rebase-pr",
+    "./skills/promote-release",
     "./skills/refresh-repo",
     "./skills/gh-cli-patterns",
     "./skills/shape-issues",
