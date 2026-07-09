@@ -25,9 +25,12 @@ graph LR
 ## 1. Skill Dependency Map
 
 All skills and their cross-plugin dependencies. `/refresh-repo`, `/rebase-pr`,
-`/squash-merge-pr`, and `/gh-cli-patterns` are local to this plugin (no cross-plugin
-hop) — `/squash-merge-pr` and `/rebase-pr` both consume the canonical PR-readiness
-gate from `/gh-cli-patterns` directly.
+`/squash-merge-pr`, `/promote-release`, and `/gh-cli-patterns` are local to this
+plugin (no cross-plugin hop) — `/squash-merge-pr`, `/rebase-pr`, and
+`/promote-release` all consume the canonical PR-readiness gate and the
+default-branch detection from `/gh-cli-patterns` directly. On a git-flow repo,
+`/squash-merge-pr` and `/rebase-pr` both refuse a `main`-targeting PR and point
+to `/promote-release` instead.
 
 ```mermaid
 flowchart TD
@@ -36,6 +39,7 @@ flowchart TD
     RPT["/resolve-pr-threads"]:::ai
     SMP["/squash-merge-pr"]:::ai
     RBP["/rebase-pr"]:::ai
+    PRR["/promote-release"]:::ai
     RFR["/refresh-repo"]:::ai
     GCP["/gh-cli-patterns"]:::ai
     TAR["/trigger-ai-reviews"]:::ai
@@ -59,10 +63,15 @@ flowchart TD
 
     RPT -->|"Step 3"| RCR
 
+    SMP -->|"refuses, points to (git-flow + base=main)"| PRR
+    RBP -->|"refuses, points to (git-flow + base=main)"| PRR
+    PRR -->|"drives PR to mergeable"| FPR
+
     FPR -.->|"reference"| GCP
     SHIP -.->|"reference"| GCP
     SMP -.->|"reference"| GCP
     RBP -.->|"reference"| GCP
+    PRR -.->|"reference"| GCP
     RFR -.->|"reference"| GCP
     RPT -.->|"reference"| GCP
 
@@ -130,12 +139,13 @@ flowchart TD
 
     subgraph MERGE ["AI — On Human Command (/squash-merge-pr)"]
         direction TB
+        M0["Step 0: refuse if base=main\non a git-flow repo\n(see /promote-release)"]:::ai
         M1["Validate readiness\n(/gh-cli-patterns PR-readiness gate)"]:::ai
         M2["Generate squash commit"]:::ai
         M3["gh pr merge --squash\n--delete-branch"]:::ai
-        M4["git switch main && git pull"]:::ai
+        M4["git switch base branch && git pull"]:::ai
 
-        M1 --> M2 --> M3 --> M4
+        M0 --> M1 --> M2 --> M3 --> M4
     end
 
     subgraph CLEANUP ["AI — On Human Command (/wrap-up from git-workflows)"]

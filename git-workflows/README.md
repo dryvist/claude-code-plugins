@@ -10,7 +10,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for integration diagrams.
 
 ## Skills
 
-- **`/sync-main`** - Update main from remote and merge into current branch (or all open PR branches with `all`)
+- **`/sync-main`** - Update the repo's default branch from remote (main, or develop on git-flow repos) and merge into current or all open PR branches (`all`)
 - **`/wrap-up`** - Post-merge cleanup: refresh repo, quick retrospective, clean gone branches
 - **`/troubleshoot-rebase`** - Diagnose and recover from git rebase failures
 - **`/troubleshoot-precommit`** - Troubleshoot pre-commit hook failures and auto-fixes

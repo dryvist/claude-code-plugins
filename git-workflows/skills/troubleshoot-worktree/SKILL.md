@@ -36,6 +36,10 @@ Means TWO things named `origin/main`:
 
 **Fix**: `git branch -D origin/main` then verify only 1 line remains with `git show-ref origin/main`.
 
+The same ambiguity can occur for any branch name, not just `main` — on a
+git-flow repo (default branch `develop`) watch for `origin/develop` too.
+Substitute the branch name in the diagnose/fix commands above.
+
 ## Common Errors
 
 ### Branch Not Found

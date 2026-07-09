@@ -2,10 +2,11 @@
 name: gh-cli-patterns
 description: >-
   Canonical reference for all gh CLI command shapes used by skills in this
-  plugin. Defines the placeholder convention, allowed --json fields, GraphQL
-  fallback rules, -f/-F/--raw-field flag semantics, the PR-readiness gate,
-  code-scanning alert query, review-thread fetch/count/resolve mutations, and
-  heredoc bodies. Prevents Unknown JSON field errors and divergent query shapes.
+  plugin. Defines the placeholder convention, default-branch (trunk vs
+  git-flow) detection, allowed --json fields, GraphQL fallback rules,
+  -f/-F/--raw-field flag semantics, the PR-readiness gate, code-scanning
+  alert query, review-thread fetch/count/resolve mutations, and heredoc
+  bodies. Prevents Unknown JSON field errors and divergent query shapes.
 ---
 
 # gh CLI Canonical Patterns — github-workflows
@@ -22,12 +23,37 @@ Two visually distinct notations — never mix them up:
 Standard replacements:
 
 ```text
-<OWNER>       → $(gh repo view --json owner --jq '.owner.login')
-<REPO>        → $(gh repo view --json name  --jq '.name')
-<PR_NUMBER>   → $(gh pr view  --json number --jq '.number')  (integer)
-<THREAD_ID>   → PRRT_* node ID from the fetch-threads query (string)
-<DATABASE_ID> → numeric comment ID from the fetch-threads query
+<OWNER>          → $(gh repo view --json owner --jq '.owner.login')
+<REPO>           → $(gh repo view --json name  --jq '.name')
+<PR_NUMBER>      → $(gh pr view  --json number --jq '.number')  (integer)
+<THREAD_ID>      → PRRT_* node ID from the fetch-threads query (string)
+<DATABASE_ID>    → numeric comment ID from the fetch-threads query
+<DEFAULT_BRANCH> → see Canonical Default-Branch Detection below
 ```
+
+## Canonical Default-Branch Detection
+
+Repos in this org run one of two branch models. Detect which one before
+using any literal `main` in a PR base, sync target, or merge command:
+
+```bash
+gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name'
+# or, without gh: git remote show origin | grep 'HEAD branch'
+```
+
+| `<DEFAULT_BRANCH>` | Model | What it means for skills in this plugin |
+|---|---|---|
+| `main` | Trunk | `main` is both the default branch and production. Existing squash-to-main behavior applies unchanged. |
+| `develop` | git-flow (see [git-flow rule](https://github.com/dryvist/ai-assistant-instructions/blob/main/agentsmd/rules/git-flow.md)) | `develop` is the default integration branch — feature PRs target it, squash-merge is the default. `main` is production only: **merge commits only**, no direct pushes, every merge triggers release-please. |
+
+**Never infer the model from the current local branch name** — always read
+`defaultBranchRef` (or `origin/HEAD`) fresh, since it can differ per repo and
+per invocation.
+
+A PR's own base branch (`gh pr view --json baseRefName --jq '.baseRefName'`)
+can still be `main` on a git-flow repo — that is a promotion PR (`develop` →
+`main`), not a feature PR, and it is merge-commit-only regardless of what
+this section's detection returns. See `/promote-release`.
 
 ## `gh pr view --json` — REST-Only
 
@@ -240,7 +266,7 @@ Append after the URL, separated by ` | `. Omit when no issues exist ("Ready for 
 | `CI pending` | `statusCheckRollup.state != SUCCESS` | `mergeStateStatus == UNKNOWN`/`UNSTABLE` |
 | `CI failed` | CI checks terminal failure | `mergeStateStatus == BLOCKED` (when other fields clean) |
 | `Draft` | `isDraft == true` | `isDraft == true` |
-| `Behind main` | `mergeStateStatus == BEHIND` | `mergeStateStatus == BEHIND` |
+| `Behind {default}` | `mergeStateStatus == BEHIND` | `mergeStateStatus == BEHIND` |
 
 ### Data queries
 

@@ -9,10 +9,11 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for integration diagrams and the master s
 - **`/ship`** - Full automation: commit, push, create PR(s), and auto-finalize in one command.
 - **`/finalize-pr`** - Finalize PRs for merge: single PR, all repo PRs (`all`), or all org PRs (`org`). Includes bot-authored PRs in all modes.
 - **`/refresh-repo`** - Check PR merge-readiness, sync local repo, and cleanup stale worktrees
-- **`/rebase-pr`** - Merge a PR using local git rebase + signed commits + push to main
-- **`/squash-merge-pr`** - Validate PR readiness and squash merge into main (errors if not ready)
+- **`/rebase-pr`** - Merge a PR using local git rebase + signed commits + a direct push to its base branch (main on trunk repos, develop on git-flow repos)
+- **`/squash-merge-pr`** - Validate PR readiness and squash merge into its base branch (errors if not ready); refuses on git-flow repos when the base is main
+- **`/promote-release`** - Merge-commit a develop → main promotion PR on a git-flow repo; release-please takes over from there
 - **`/resolve-pr-threads`** - Orchestrate resolution of PR review threads (requires superpowers plugin)
-- **`/gh-cli-patterns`** - Canonical reference for gh CLI command shapes used by other skills in this plugin
+- **`/gh-cli-patterns`** - Canonical reference for gh CLI command shapes used by other skills in this plugin, including trunk-vs-git-flow default-branch detection
 - **`/shape-issues`** - Shape raw ideas into actionable GitHub Issues using Shape Up methodology
 - **`/trigger-ai-reviews`** - Trigger Claude, Gemini, and Copilot reviews on a PR
 - **`/shared-workflow-org-refs`** - Literal current-owner `uses:` references for reusable workflows; shared-CI homes under dryvist
@@ -35,6 +36,7 @@ claude plugins add jacobpevans-cc-plugins/github-workflows
 /rebase-pr                # Rebase-merge current branch
 /rebase-pr 42             # Rebase-merge specific PR by number
 /squash-merge-pr          # Validate and squash merge
+/promote-release          # Merge-commit develop into main (git-flow repos)
 /resolve-pr-threads       # Batch resolve review threads
 /shape-issues             # Shape ideas into GitHub issues
 /trigger-ai-reviews       # Trigger Claude, Gemini, Copilot reviews

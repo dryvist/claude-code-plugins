@@ -1,13 +1,18 @@
 ---
 name: git-workflow-standards
-description: Use when managing branches, resolving merge conflicts, syncing with main, or working with worktrees
+description: >-
+  Use when managing branches, resolving merge conflicts, syncing with the
+  default branch, or working with worktrees. Covers both trunk repos (main)
+  and git-flow repos (develop) — see gh-cli-patterns (github-workflows) for
+  default-branch detection.
 ---
 
 # Git Workflow Standards
 
 ## Worktree Structure
 
-All development uses dedicated worktrees. Never work directly on main.
+All development uses dedicated worktrees. Never work directly on the default
+branch — `main` on a trunk repo, `develop` on a git-flow repo.
 Create a worktree for the change; remove it when the work is done.
 
 Every branch with commits MUST have an associated PR.
@@ -22,22 +27,24 @@ worktrees with uncommitted changes are NEVER stale. Use `git worktree remove` (n
 
 ## Branch Hygiene
 
-- Sync main daily: `git pull`
-- Long-running branches: rebase from main weekly
-- Before PRs: ensure branch is on latest main
-- Never branch from feature branches — always from main
+- Sync the default branch daily: `git pull`
+- Long-running branches: rebase from the default branch weekly
+- Before PRs: ensure branch is on the latest default branch
+- Never branch from feature branches — always from the default branch fresh
+  (git-flow repos: `git flow feature start` branches from `develop`)
 - Commit messages: conventional-commit prefixes only, no emoji (see `pr-standards`)
 
 | Method | When |
 | --- | --- |
-| `git merge origin/main` | Default — preserves history, safer |
-| `git rebase origin/main` | Only if branch has NOT been pushed yet |
+| `git merge origin/<default>` | Default — preserves history, safer |
+| `git rebase origin/<default>` | Only if branch has NOT been pushed yet |
 
-Sync main workflow:
+Sync workflow (replace `<default>` with the repo's actual default branch — see
+`gh-cli-patterns`, github-workflows):
 
 ```bash
-git fetch origin main && git pull origin main   # in main
-git merge origin/main --no-edit                 # in the feature worktree
+git fetch origin <default> && git pull origin <default>   # in the <default> worktree
+git merge origin/<default> --no-edit                       # in the feature worktree
 ```
 
 ## Merge Conflict Resolution
@@ -71,6 +78,7 @@ contradictions, or security-sensitive code.
 
 ## Related Skills
 
-- **sync-main** (git-workflows) — Syncs main and merges into current or all PR branches
-- **refresh-repo** (git-workflows) — Full repo sync including PR status and worktree cleanup
+- **sync-main** (git-workflows) — Syncs the repo's default branch and merges into current or all PR branches
+- **refresh-repo** (github-workflows) — Full repo sync including PR status and worktree cleanup
+- **gh-cli-patterns** (github-workflows) — Canonical default-branch detection (trunk vs git-flow)
 - **pr-standards** (git-standards) — PR creation guards, issue linking, and review standards

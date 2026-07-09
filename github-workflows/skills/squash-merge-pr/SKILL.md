@@ -1,8 +1,9 @@
 ---
 name: squash-merge-pr
 description: >-
-  Squash-merge a PR into main. Invoke only when the user explicitly requests a
-  squash merge. Single PR by number or current branch.
+  Squash-merge a PR into its base branch. Invoke only when the user explicitly
+  requests a squash merge. Single PR by number or current branch. Refuses on
+  git-flow repos when the base is main — use /promote-release there instead.
 metadata:
   argument-hint: "[PR_NUMBER]"
 ---
@@ -21,6 +22,27 @@ draft, unresolvable conflicts, unrecoverable CI, or more than 100 review threads
 - Run the GraphQL readiness gate on every invocation before merging
 - PR metadata updates are `/finalize-pr`'s responsibility
 - Invoke `/finalize-pr` for soft blocks; abort on hard stops with reason
+- Squash is never used to merge into `main` on a git-flow repo — Step 0 guards this
+
+## Step 0: Refuse Squash Into Main On Git-Flow Repos
+
+Resolve the PR's base branch and the repo's default branch:
+
+```bash
+BASE_BRANCH=$(gh pr view <PR_NUMBER> --json baseRefName --jq '.baseRefName')
+DEFAULT_BRANCH=$(gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name')
+```
+
+If `BASE_BRANCH == main` AND `DEFAULT_BRANCH == develop` (repo is on git-flow —
+see /gh-cli-patterns Canonical Default-Branch Detection), **abort immediately,
+no finalize**:
+
+> "This is a `develop` → `main` promotion PR on a git-flow repo. `main` accepts
+> merge commits only — squash and rebase are banned by ruleset, no exceptions.
+> Run `/promote-release` instead, or merge manually with `gh pr merge --merge`."
+
+Otherwise (trunk repo, or a git-flow repo's ordinary feature PR into `develop`),
+continue to Step 1 — squash-merge remains the default there.
 
 ## Step 1: Validate PR Ready
 
@@ -59,12 +81,12 @@ abort with the specific failing field.
 ## Step 2: Generate Squash Commit Message
 
 Analyze the full changeset to generate a release-note-friendly commit message.
-Replace `<PR_NUMBER>` before running:
+Replace `<PR_NUMBER>` and `<BASE_BRANCH>` (from Step 0) before running:
 
 ```bash
-git fetch origin main
-git diff origin/main...HEAD
-git log --oneline origin/main..HEAD
+git fetch origin <BASE_BRANCH>
+git diff origin/<BASE_BRANCH>...HEAD
+git log --oneline origin/<BASE_BRANCH>..HEAD
 ```
 
 Generate:
@@ -119,11 +141,11 @@ Delete the local branch ref (safe no-op if absent):
 git branch -d "$BRANCH" || true
 ```
 
-## Step 4: Sync Main
+## Step 4: Sync Base Branch
 
 ```bash
-git switch main
-git pull origin main
+git switch <BASE_BRANCH>
+git pull origin <BASE_BRANCH>
 git worktree prune
 ```
 
@@ -140,5 +162,6 @@ Invoke at any time — auto-finalizes if needed:
 
 - finalize-pr (github-workflows) — invoked automatically by squash-merge-pr when blockers are found
 - rebase-pr (github-workflows) — alternative merge strategy that preserves commit history
+- promote-release (github-workflows) — the develop → main merge-commit path this skill refuses to substitute for
 - pr-standards (git-standards) — PR authoring and review standards
-- gh-cli-patterns (github-workflows) — canonical gh CLI command shapes, placeholder convention, PR-readiness gate
+- gh-cli-patterns (github-workflows) — canonical gh CLI command shapes, placeholder convention, PR-readiness gate, default-branch detection
