@@ -1,7 +1,7 @@
 ---
 name: promote-release
 description: >-
-  Open and merge a develop -> main promotion PR on a git-flow repo. Merge
+  Open and merge a develop-to-main promotion PR on a git-flow repo. Merge
   commit only, never squash or rebase — main accepts merge commits only.
   Every merge to main triggers release-please, which takes over tagging and
   release notes from there. Refuses on trunk repos (default branch main) —
