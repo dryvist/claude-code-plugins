@@ -1,0 +1,40 @@
+# CI Gate — thin wrapper over the dryvist org reusable workflow
+#
+# Delegates markdown lint and file size checks to the org orchestrator
+# `dryvist/.github/.github/workflows/_ci-gate.yml@main`. `file_size` is
+# gated on `nix` OR `markdown` filter outputs; this repo has no `nix` filter,
+# so the `markdown` filter alone is sufficient to drive both checks.
+
+name: CI Gate
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  standard-ci:
+    name: Standard CI
+    permissions:
+      contents: read
+      pull-requests: read
+      # The org gate's queue watchdog cancels stuck sibling jobs via the
+      # Actions API; a called workflow can never exceed the caller's grant, so
+      # `actions: write` must be granted here or the run fails at graph
+      # validation (startup_failure).
+      actions: write
+    uses: dryvist/.github/.github/workflows/_ci-gate.yml@main
+    with:
+      markdown_lint: true
+      file_size: true
+      filters: |
+        markdown:
+          - '**.md'
+          - '.markdownlint*'
