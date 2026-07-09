@@ -20,8 +20,9 @@ permissions:
   pull-requests: read
 
 jobs:
-  standard-ci:
-    name: Standard CI
+  # Job id `gate` is the org-canonical caller shape: the required status
+  # check context is `gate / Merge Gate` on every consumer.
+  gate:
     permissions:
       contents: read
       pull-requests: read
