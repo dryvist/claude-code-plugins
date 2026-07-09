@@ -106,7 +106,7 @@ all prior steps finish. Provide a summary of actions taken.
 Invoke `/refresh-repo` to:
 
 - Check merge-readiness of any remaining open PRs
-- Sync local main with remote
+- Sync the local default branch with remote (main on trunk repos, develop on git-flow repos)
 - Clean up stale worktrees (merged PRs, `[gone]` remote branches)
 - Report repository state
 
@@ -316,8 +316,10 @@ Sequence:
    `gh pr view <PR_NUMBER> --repo <owner>/<repo> --json headRefName --jq '.headRefName'`.
 2. Close the PR and delete the remote branch in one call:
    `gh pr close <PR_NUMBER> --repo <owner>/<repo> --comment "<reason>" --delete-branch`.
-3. If the current worktree IS the captured branch's, `git switch main`
-   first so step 4 can remove it.
+3. If the current worktree IS the captured branch's, switch to the repo's
+   default branch first (`gh repo view --json defaultBranchRef --jq
+   '.defaultBranchRef.name'`, then `git switch <that branch>`) so step 4 can
+   remove it.
 4. Find the worktree path via `git worktree list` matching the captured
    branch, then `git worktree remove <path>` if present, and
    `git branch -D <branch>`.
