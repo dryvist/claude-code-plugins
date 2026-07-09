@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.8.1](https://github.com/dryvist/claude-code-plugins/compare/v4.8.0...v4.8.1) (2026-07-09)
+
+
+### Bug Fixes
+
+* **promote-release:** drop angle bracket from skill description ([#384](https://github.com/dryvist/claude-code-plugins/issues/384)) ([a3f51d9](https://github.com/dryvist/claude-code-plugins/commit/a3f51d9013a5b9cf95a0748b17877a2a5c09c28a))
+
 ## [4.8.0](https://github.com/dryvist/claude-code-plugins/compare/v4.7.0...v4.8.0) (2026-07-09)
 
 
