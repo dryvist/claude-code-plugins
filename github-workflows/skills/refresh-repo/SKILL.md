@@ -150,14 +150,16 @@ safety.
 
 ### `--sweep [<repo-glob>]`
 
-Multi-repo cleanup of abandoned local branches. For every main worktree
-in your workspace (caller can pass a custom glob if their layout differs),
-for every local branch where `git log origin/main..HEAD` is non-empty:
+Multi-repo cleanup of abandoned local branches. For every default-branch
+worktree in your workspace (caller can pass a custom glob if their layout
+differs), resolve that repo's own default branch first (per Step 3 above —
+`main` on trunk repos, `develop` on git-flow repos), then for every local
+branch where `git log origin/<default>..HEAD` is non-empty:
 
 1. **Content-equivalence check**: compute merge base, diff each touched file
-   against current `origin/main`. If every touched file is content-equivalent
-   to (or older than) `origin/main`, delete the branch and its worktree.
-   Already-on-main contributions do not deserve a PR.
+   against current `origin/<default>`. If every touched file is content-equivalent
+   to (or older than) `origin/<default>`, delete the branch and its worktree.
+   Already-on-the-default-branch contributions do not deserve a PR.
 2. **Workaround filter**: if the diff (a) modifies 1 of N files sharing a
    common shape with no written rationale for the asymmetry, or (b) references
    a "sync mechanism" / "auto-update" by name that `grep -r <name> .` returns
@@ -196,7 +198,7 @@ explicit refspec prune and can delete local-only tags that are not release artif
 
 ## Related Skills
 
-- **sync-main** (git-workflows) — Syncs main and merges into current or all PR branches
+- **sync-main** (git-workflows) — Syncs the default branch and merges into current or all PR branches
 - **rebase-pr** (github-workflows) — Rebase-merge workflow for merging individual PRs
 - **git-workflow-standards** (git-standards) — Worktree structure and branch hygiene conventions
-- **gh-cli-patterns** (github-workflows) — Canonical gh CLI command shapes, placeholder convention, PR-readiness gate
+- **gh-cli-patterns** (github-workflows) — Canonical gh CLI command shapes, placeholder convention, PR-readiness gate, default-branch detection
