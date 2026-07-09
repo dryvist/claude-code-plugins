@@ -111,8 +111,10 @@ After completion, validate locally.
 #### Merge Conflicts
 
 Check if the PR has git conflicts (`mergeable` field). **`mergeable: MERGEABLE` means no git
-conflicts only** — it does NOT mean the PR is fully ready to merge. **If conflicts**: Fetch main,
-attempt merge, report unresolvable conflicts for user. After resolution, validate locally. Full
+conflicts only** — it does NOT mean the PR is fully ready to merge. **If conflicts**: Fetch the
+PR's base branch (`gh pr view <PR_NUMBER> --json baseRefName --jq '.baseRefName'` — `develop` on
+git-flow repos, `main` on trunk repos or promotion PRs), attempt merge, report unresolvable
+conflicts for user. After resolution, validate locally. Full
 readiness verification (including `mergeStateStatus`, CI, CodeQL, review decision, threads) happens
 in Phase 3.
 
@@ -197,7 +199,7 @@ Steps 4.1 and 4.2 run sequentially within the agent. Step 4.3 runs after both.
 
 ### 4.1 Update PR Title and Description
 
-1. Summarize branch history and diff stats against main; read current PR title and body.
+1. Summarize branch history and diff stats against the PR's base branch; read current PR title and body.
 2. Generate updated title (conventional commit format, <70 chars) and description with sections:
    **Summary**, **Changes**, **Test Plan**.
 
