@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.8.0](https://github.com/dryvist/claude-code-plugins/compare/v4.7.0...v4.8.0) (2026-07-09)
+
+
+### Features
+
+* **github-workflows,git-workflows:** git-flow-aware PR base and sync targets ([#380](https://github.com/dryvist/claude-code-plugins/issues/380)) ([f9aa977](https://github.com/dryvist/claude-code-plugins/commit/f9aa97719fb56e5823324799b892621b39748e2f))
+
 ## [4.7.0](https://github.com/dryvist/claude-code-plugins/compare/v4.6.0...v4.7.0) (2026-07-09)
 
 
