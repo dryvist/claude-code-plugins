@@ -3,5 +3,6 @@ on: pull_request
 permissions: read-all
 jobs:
   gate:
+    # No `secrets:` forwarding — _ai-merge-gate.yml declares and consumes no
+    # secrets; unconditional inheritance trips zizmor's secrets-inherit audit.
     uses: dryvist/ai-workflows/.github/workflows/_ai-merge-gate.yml@main
-    secrets: inherit

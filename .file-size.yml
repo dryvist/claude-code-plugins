@@ -1,0 +1,10 @@
+# Per-repo overrides for the org file-size gate (_file-size.yml).
+#
+# SKILL.md reference documents get a raised byte ceiling: two canonical
+# skills (gh-cli-patterns, wrap-up) sit at 13-14KB and matching is by
+# basename, so the extension applies to every SKILL.md. Keep skills lean —
+# trim below the 12KB default rather than growing toward this ceiling.
+extended:
+  limit: 16384
+  files:
+    - SKILL
