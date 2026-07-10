@@ -124,3 +124,21 @@ jobs:
               python3 "$test"
             fi
           done
+
+  # Hooks run on user machines via `#!/usr/bin/env python3`, which on macOS is the
+  # system Python 3.9. The py_compile step above only checks SYNTAX — PEP 604
+  # unions (`X | None`) are valid syntax but crash at runtime on <3.10. Import each
+  # hook module under 3.9 to catch that runtime breakage before release.
+  hook-runtime-py39:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+      - name: Setup Python 3.9
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.9'
+
+      - name: Import hook scripts under Python 3.9
+        run: ./scripts/check-hooks-py39.sh
