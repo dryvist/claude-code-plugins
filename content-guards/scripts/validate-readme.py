@@ -13,6 +13,8 @@ Exit codes:
 Input: JSON from stdin with tool_input.file_path containing the edited file
 """
 
+from __future__ import annotations
+
 import json
 import re
 import sys

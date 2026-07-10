@@ -5,6 +5,8 @@ Blocks file modifications (Write/Edit tools) that would exceed token limits.
 
 Configuration: .token-limits.yaml (searches upward from cwd)
 """
+from __future__ import annotations
+
 import fnmatch
 import json
 import re

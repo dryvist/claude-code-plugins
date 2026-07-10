@@ -22,6 +22,8 @@ Exit codes:
 Input: JSON from stdin with tool_input.command containing the Bash command
 """
 
+from __future__ import annotations
+
 import json
 import os
 import re
