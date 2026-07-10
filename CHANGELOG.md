@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.9.0](https://github.com/dryvist/claude-code-plugins/compare/v4.8.2...v4.9.0) (2026-07-10)
+
+
+### Features
+
+* extract standalone session-status skill from wrap-up ([#389](https://github.com/dryvist/claude-code-plugins/issues/389)) ([1b7d0ef](https://github.com/dryvist/claude-code-plugins/commit/1b7d0ef04719352f85b8cb0a01b9ee651647c1e7))
+
 ## [4.8.2](https://github.com/dryvist/claude-code-plugins/compare/v4.8.1...v4.8.2) (2026-07-10)
 
 
