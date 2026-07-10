@@ -1,6 +1,6 @@
 {
   "name": "process-cleanup",
-  "version": "4.9.0",
+  "version": "4.9.1",
   "description": "Cleanup orphaned MCP server processes on session exit — workaround for upstream bug #1935",
   "author": {
     "name": "JacobPEvans"
