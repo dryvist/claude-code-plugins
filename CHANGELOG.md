@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.8.2](https://github.com/dryvist/claude-code-plugins/compare/v4.8.1...v4.8.2) (2026-07-10)
+
+
+### Bug Fixes
+
+* **content-guards:** restore Python 3.9 compatibility in hook scripts ([#386](https://github.com/dryvist/claude-code-plugins/issues/386)) ([d85e8a9](https://github.com/dryvist/claude-code-plugins/commit/d85e8a96bb11e1b93741cf53b3c0228817287f14))
+
 ## [4.8.1](https://github.com/dryvist/claude-code-plugins/compare/v4.8.0...v4.8.1) (2026-07-09)
 
 
