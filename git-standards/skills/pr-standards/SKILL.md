@@ -7,7 +7,9 @@ description: Use when creating PRs, linking issues, managing PR comments, or cre
 
 ## PR Creation Guards
 
-Run these checks in order before `gh pr create`:
+Run these checks in order before `gh pr create`. Replace `<default>` with the
+repo's actual default branch — `main` on a trunk repo, `develop` on a git-flow
+repo (see `gh-cli-patterns`, github-workflows, for detection).
 
 **Guard 1 — Check for merged twin** (prevents zombie PRs):
 
@@ -15,7 +17,7 @@ Run these checks in order before `gh pr create`:
 gh pr list --repo JacobPEvans/<repo> --state merged --head <branch>
 ```
 
-If merged PR exists AND `git log origin/main..HEAD --oneline` is empty:
+If merged PR exists AND `git log origin/<default>..HEAD --oneline` is empty:
 STOP. Remove stale worktree.
 
 **Guard 2 — Check for existing open PR** (prevents duplicates):
@@ -38,7 +40,7 @@ Include `Closes #X` or `Related to #X` in PR body. After creation:
 **Guard 4 — Validate branch has commits**:
 
 ```bash
-git log origin/main..HEAD --oneline
+git log origin/<default>..HEAD --oneline
 ```
 
 If empty: no new work. Clean up instead.
@@ -173,3 +175,4 @@ Every issue MUST have explicit, checkbox-format acceptance criteria.
 - **rebase-pr** (git-workflows) — Rebase-merge workflow for merging approved PRs
 - **finalize-pr** (github-workflows) — Finalize PR state before merging
 - **git-workflow-standards** (git-standards) — Branch and worktree conventions that feed into PRs
+- **gh-cli-patterns** (github-workflows) — Canonical default-branch detection (trunk vs git-flow)
