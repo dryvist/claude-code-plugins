@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.9.1](https://github.com/dryvist/claude-code-plugins/compare/v4.9.0...v4.9.1) (2026-07-10)
+
+
+### Bug Fixes
+
+* **git-standards:** resolve default branch in pr-standards guards ([#391](https://github.com/dryvist/claude-code-plugins/issues/391)) ([2f83364](https://github.com/dryvist/claude-code-plugins/commit/2f83364d826a1025afad72ca888ed9ed55b5d78d)), closes [#381](https://github.com/dryvist/claude-code-plugins/issues/381)
+
 ## [4.9.0](https://github.com/dryvist/claude-code-plugins/compare/v4.8.2...v4.9.0) (2026-07-10)
 
 
