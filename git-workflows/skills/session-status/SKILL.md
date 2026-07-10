@@ -105,6 +105,10 @@ Perform git and GitHub checks to locate active changes and remote state:
    branch name `headRefName` to find the PR for the current branch.
 4. Capture full URLs for any PR or issue referenced (e.g.,
    `https://github.com/<owner>/<repo>/pull/<n>`), never bare numbers.
+   Always emit the full URL on first reference. Bare #123 or PR 123
+   references are forbidden. If the same number appears again in the
+   same block, a bare #123 is acceptable as a short reference after the
+   URL has been shown once.
 
 ---
 
@@ -132,6 +136,7 @@ Active Plan:
   Plan File:        <plan-file path or "none">
   Status:           <complete | incomplete | "no plan file found">
   Progress:         <n> of <m> checklist items completed
+  Open Items:       <list open checklist items with line numbers, or "none">
 
 Harness TaskList:
   Status:           <complete | incomplete | "empty">
@@ -155,7 +160,8 @@ Recommended Prompt for Next Session:
 <A ready-to-paste prompt covering the 1–3 quick-win tasks identified above.
 Be specific: reference file paths, function names, error messages, etc.
 Include the plan file path so a new session can re-enter plan mode against
-it: ~/.claude/plans/<slug>.md>
+it: ~/.claude/plans/<slug>.md (use the resolved absolute path, not this
+literal placeholder)>
 ─────────────────────────────────────
 
 Recommended GitHub Issues:
