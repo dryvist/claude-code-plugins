@@ -101,19 +101,39 @@ For high-risk work, keep the decision with the premium lead, use an Opus-class
 agent for the hardest technical execution or review, and use cheaper agents or
 local/free models to verify concrete evidence.
 
+## Substrate Resilience (solo fallback is mandatory)
+
+The spawn substrate (agent supervisor, tmux panes, `fork()`) is
+infrastructure and fails in practice (observed: mid-run ENXIO fork failures
+and a phantom spawn that returned an id but no output). Every delegation plan
+must survive losing it:
+
+- Probe before a fan-out: spawn one trivial agent and confirm real output.
+- Bound concurrency; never fire an unbounded batch.
+- Treat "id returned but no output by a sane deadline" as a failed spawn.
+- Declare the solo path: which steps the lead executes single-threaded when
+  spawning is unavailable. Degrade to serial — never abort the mission or
+  restart shared infrastructure that would kill the lead session mid-run.
+- On spawn failure, re-probe with backoff; do not retry-loop spawns.
+
+See the `subagent-resilience` rule (ai-assistant-instructions) for the full
+contract.
+
 ## Operating Loop
 
 1. Decide whether the task needs premium judgment.
 2. Define observable success criteria.
 3. Split checkable labor from judgment-heavy decisions.
-4. Route checkable labor to the cheapest capable local, free, or small-model
+4. Probe the spawn substrate before the first fan-out; if it fails, take the
+   solo path — the lead executes steps 5-7's work serially itself.
+5. Route checkable labor to the cheapest capable local, free, or small-model
    executor.
-5. Use Sonnet-class agents for normal scoped engineering execution.
-6. Use Opus-class agents for difficult delegated technical work or risky review.
-7. Review each agent's evidence.
-8. Make the important decision with the premium lead.
-9. Verify non-trivial work before answering.
-10. Answer the user briefly.
+6. Use Sonnet-class agents for normal scoped engineering execution.
+7. Use Opus-class agents for difficult delegated technical work or risky review.
+8. Review each agent's evidence.
+9. Make the important decision with the premium lead.
+10. Verify non-trivial work before answering.
+11. Answer the user briefly.
 
 ## Final Gate
 
