@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.10.0](https://github.com/dryvist/claude-code-plugins/compare/v4.9.1...v4.10.0) (2026-07-11)
+
+
+### Features
+
+* **ai-delegation:** require substrate probe + solo fallback in premium orchestration ([#393](https://github.com/dryvist/claude-code-plugins/issues/393)) ([6b7ef72](https://github.com/dryvist/claude-code-plugins/commit/6b7ef72b3f6bb91f6e81022ccfb4deb1236b98bf))
+
 ## [4.9.1](https://github.com/dryvist/claude-code-plugins/compare/v4.9.0...v4.9.1) (2026-07-10)
 
 

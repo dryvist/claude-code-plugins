@@ -1,6 +1,6 @@
 {
   "name": "infra-orchestration",
-  "version": "4.9.1",
+  "version": "4.10.0",
   "description": "Cross-repo infrastructure orchestration for Terraform and Ansible workflows",
   "author": {
     "name": "JacobPEvans"
