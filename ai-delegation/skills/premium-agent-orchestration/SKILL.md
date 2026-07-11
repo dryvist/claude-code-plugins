@@ -124,8 +124,8 @@ contract.
 1. Decide whether the task needs premium judgment.
 2. Define observable success criteria.
 3. Split checkable labor from judgment-heavy decisions.
-4. Probe the spawn substrate before the first fan-out; pick the solo path if
-   it fails.
+4. Probe the spawn substrate before the first fan-out; if it fails, take the
+   solo path — the lead executes steps 5-7's work serially itself.
 5. Route checkable labor to the cheapest capable local, free, or small-model
    executor.
 6. Use Sonnet-class agents for normal scoped engineering execution.
