@@ -11,23 +11,25 @@ between Terraform and Ansible repositories and dispatches Task subagents for eac
 ## Dependency Graph
 
 ```text
-terraform-proxmox
+tofu-proxmox
   -> ansible-proxmox (host configuration)
   -> ansible-proxmox-apps (application configuration)
      -> ansible-splunk (Splunk Enterprise)
 ```
 
-Terraform provisions infrastructure first. Ansible configures it in dependency order.
+OpenTofu provisions infrastructure first through Terrakube. Ansible configures it in dependency order.
 
 ## Supported Operations
 
 ### plan-all
 
-Run `terragrunt plan` in terraform-proxmox, then `ansible-playbook --check` across all Ansible repos in dependency order.
+Run `tofu plan` in the `tofu-proxmox` Terrakube workspace, then
+`ansible-playbook --check` across all Ansible repos in dependency order.
 
 ### validate-all
 
-Run `terragrunt validate` in terraform-proxmox, then `ansible-playbook --syntax-check` across all Ansible repos.
+Run `tofu validate` in tofu-proxmox, then `ansible-playbook --syntax-check`
+across all Ansible repos.
 
 ### sync-inventory
 
@@ -40,15 +42,17 @@ Full pipeline validation: validate, plan, export inventory, syntax-check, check,
 ## Execution Pattern
 
 1. **Resolve repo paths**: locate each target repo locally
-2. **Dispatch Terraform phase**: Launch subagent for terraform-proxmox operations
-3. **Await completion**: Terraform must complete before Ansible phases
+2. **Dispatch OpenTofu phase**: Launch a subagent for tofu-proxmox operations
+3. **Await completion**: OpenTofu must complete before Ansible phases
 4. **Dispatch Ansible phases**: Launch parallel subagents for independent Ansible repos (invoke `superpowers:dispatching-parallel-agents`)
 5. **Collect results**: Aggregate success/failure from all subagents
 6. **Report**: Summary with per-repo status
 
 ## Secret Injection
 
-All repos use Doppler for runtime secrets: `doppler run -- <command>`. Never hardcode credentials.
+Terrakube obtains short-lived OpenBao credentials through its native dynamic
+provider credential flow. Ansible uses native OpenBao lookups under its own
+policy. Never export, copy, or hardcode runtime credentials.
 
 ## Error Handling
 

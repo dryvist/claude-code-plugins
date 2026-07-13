@@ -125,8 +125,8 @@ pre-commit install
   external modules. `nix flake check` runs hooks in a sandboxed
   environment without network. Repos with external module references
   override `terraform-validate.enable = lib.mkForce false` for the
-  flake-check path and rely on CI's OIDC-authenticated
-  `terragrunt validate` to cover the check.
+  flake-check path and rely on CI's offline `tofu validate` gate to cover the
+  check. Credentialed plans run in the homelab Terrakube workspace.
 - `gitleaks` is not in `cachix/git-hooks.nix`'s built-in hook set yet.
   Consumers that want it wire it as a custom hook locally; a follow-up
   adds it to the base profile.
