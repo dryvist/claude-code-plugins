@@ -10,32 +10,33 @@ Validates syntax, plans changes, exports inventory, and dry-runs Ansible playboo
 
 ## Pipeline Stages
 
-### Stage 1: Terraform Validate
+### Stage 1: OpenTofu Validate
 
-In `terraform-proxmox`:
+In `tofu-proxmox`:
 
 ```bash
-doppler run -- terragrunt validate
+tofu validate
 ```
 
-### Stage 2: Terraform Plan
+### Stage 2: Terrakube Plan
 
-In `terraform-proxmox`:
+In `tofu-proxmox`:
 
 ```bash
-doppler run -- terragrunt plan
+tofu plan
 ```
 
 ### Stage 3: Export Inventory
 
-Run `/infra-sync-inventory` to export Terraform outputs and distribute to Ansible repos.
+Run `/infra-sync-inventory` to verify the RustFS artifact produced by the last
+successful Terrakube apply.
 
 ### Stage 4: Ansible Syntax Check
 
 Run in parallel across all Ansible repos:
 
 ```bash
-doppler run -- ansible-playbook --syntax-check -i inventory/hosts.yml playbooks/site.yml
+ansible-playbook --syntax-check -i inventory/hosts.yml playbooks/site.yml
 ```
 
 Target repos: ansible-proxmox, ansible-proxmox-apps, ansible-splunk
@@ -45,7 +46,7 @@ Target repos: ansible-proxmox, ansible-proxmox-apps, ansible-splunk
 Run in parallel across all Ansible repos:
 
 ```bash
-doppler run -- ansible-playbook --check -i inventory/hosts.yml playbooks/site.yml
+ansible-playbook --check -i inventory/hosts.yml playbooks/site.yml
 ```
 
 ### Stage 6: Ansible Diff
@@ -53,14 +54,14 @@ doppler run -- ansible-playbook --check -i inventory/hosts.yml playbooks/site.ym
 Run in parallel across all Ansible repos:
 
 ```bash
-doppler run -- ansible-playbook --check --diff -i inventory/hosts.yml playbooks/site.yml
+ansible-playbook --check --diff -i inventory/hosts.yml playbooks/site.yml
 ```
 
 ## Results
 
 Report per-stage, per-repo pass/fail status:
 
-| Stage | terraform-proxmox | ansible-proxmox | ansible-proxmox-apps | ansible-splunk |
+| Stage | tofu-proxmox | ansible-proxmox | ansible-proxmox-apps | ansible-splunk |
 | --- | --- | --- | --- | --- |
 | Validate | PASS/FAIL | - | - | - |
 | Plan | PASS/FAIL | - | - | - |
@@ -70,7 +71,7 @@ Report per-stage, per-repo pass/fail status:
 
 ## Error Handling
 
-Stage failures in Terraform block all subsequent stages. Ansible stage failures are independent per-repo.
+Stage failures in OpenTofu block all subsequent stages. Ansible stage failures are independent per-repo.
 
 ## Related Skills
 

@@ -1,29 +1,25 @@
 ---
 name: sync-inventory
-description: Verify or refresh the Terraform-to-Ansible inventory distribution (S3-published; apply is the publish boundary)
+description: Verify or refresh the OpenTofu-to-Ansible inventory distribution (RustFS-published; apply is the publish boundary)
 ---
 
 # Infrastructure Sync Inventory
 
-The inventory pipeline is **automatic**: every terraform-proxmox
-`terragrunt apply` natively publishes the `ansible_inventory` output to the
-versioned S3 state bucket (`inventory_publish.tf`, `aws_s3_object`), and the
-apply's after-hook (`scripts/sync-inventory.sh`) validates it against the
-schema, PRs a versioned mirror into the private data repo (gated on
-`INVENTORY_DATA_REPO`), and warms the local gitignored
-`inventory/tofu_inventory.json` cache in each consumer repo.
+The inventory pipeline is **automatic**: every successful `tofu-proxmox`
+Terrakube apply validates `ansible_inventory` in the OpenTofu graph and
+publishes it to the homelab RustFS object store with `aws_s3_object`. There is
+no post-apply hook or manual mirror step.
 
 Consumers (`ansible-proxmox`, `ansible-proxmox-apps`, `ansible-splunk`) resolve
 identically via their `load_tofu.yml`:
 
 1. `TOFU_INVENTORY_PATH` — explicit pin (tests/overrides)
-2. **S3 artifact** — native `amazon.aws` fetch; AWS read creds only, no
-   checkout, no toolchain (`TOFU_INVENTORY_S3_URI` / `TOFU_INVENTORY_S3_REGION`
-   override location/region)
-3. Local cache — the after-hook copy
+2. **RustFS artifact** — native `amazon.aws` fetch over the homelab network;
+   scoped credentials come from OpenBao, with no IaC checkout or toolchain
+3. Local cache — offline fallback only
 
 **There is no manual export/transform/copy flow.** Never run
-`terragrunt output -json ansible_inventory > <consumer>/inventory/...` by hand —
+`tofu output -json ansible_inventory > <consumer>/inventory/...` by hand —
 hand-injected inventories bypass the schema gate and create unmanaged drift.
 
 ## When invoked, do this
@@ -32,26 +28,28 @@ hand-injected inventories bypass the schema gate and create unmanaged drift.
 
 ```bash
 aws s3api head-object \
-  --bucket "terraform-proxmox-state-useast2-<account-id>" \
-  --key terraform-proxmox/inventory/ansible_inventory.json \
+  --endpoint-url "$RUSTFS_ENDPOINT" \
+  --bucket "$TOFU_INVENTORY_BUCKET" \
+  --key "$TOFU_INVENTORY_KEY" \
   --query LastModified
 ```
 
 If it predates the last intended infrastructure change, the publish boundary
 was not crossed — run a real apply (next step). Reference docs:
-`terraform-proxmox/docs/INVENTORY_PUBLISHING.md`.
+`tofu-proxmox/docs/INVENTORY_PUBLISHING.md`.
 
 ### 2. Refresh = apply
 
 The only way to republish is the publish boundary itself:
 
 ```bash
-cd ${GIT_HOME_PUBLIC}/terraform-proxmox/main
-aws-vault exec tf-proxmox -- doppler run -- terragrunt apply
+cd ${GIT_HOME_PUBLIC}/homelab/tofu-proxmox/main
+tofu apply
 ```
 
-The apply updates the S3 object (only when content changed) and the after-hook
-re-warms every local cache and refreshes the int_homelab mirror PR.
+The command submits a remote Terrakube run. The workspace lock serializes
+changes, Terrakube obtains its OpenBao credentials natively, and the apply
+updates the RustFS object only when content changed.
 
 ### 3. Validate consumers resolve
 
@@ -68,10 +66,10 @@ Watch which resolution step wins ("Resolve inventory from …" task output).
 
 ## Error Handling
 
-- Schema-gate failure in the after-hook → the source output is partial
-  (e.g. a `-target` apply); fix the apply, never hand-edit the artifact.
-- S3 fetch fails for a consumer → it degrades to the local cache by design;
-  give the runner scoped `s3:GetObject` creds to restore the cloud path.
+- Schema-gate failure in the OpenTofu graph → the source output is invalid;
+  fix the configuration, never hand-edit the artifact.
+- RustFS fetch fails for a consumer → it degrades to the local cache by design;
+  restore homelab reachability or the consumer's scoped OpenBao policy.
 - Missing local cache + no creds → set `TOFU_INVENTORY_PATH` to a known-good
   copy, or run the apply.
 
