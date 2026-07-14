@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.11.0](https://github.com/dryvist/claude-code-plugins/compare/v4.10.0...v4.11.0) (2026-07-14)
+
+
+### Features
+
+* **homelab-ops:** add homelab operations runbook plugin ([#398](https://github.com/dryvist/claude-code-plugins/issues/398)) ([305e649](https://github.com/dryvist/claude-code-plugins/commit/305e649164ff99d648b2948c56a8be16d3ca7b75))
+
 ## [4.10.0](https://github.com/dryvist/claude-code-plugins/compare/v4.9.1...v4.10.0) (2026-07-11)
 
 
