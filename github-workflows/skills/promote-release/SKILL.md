@@ -113,3 +113,4 @@ or tag manually.
 - finalize-pr (github-workflows) — drives the promotion PR to mergeable state, same as any other PR
 - rebase-pr (github-workflows) — refuses and points here when its target is main on a git-flow repo
 - gh-cli-patterns (github-workflows) — canonical gh CLI command shapes, placeholder convention, PR-readiness gate, default-branch detection
+- git-flow-next (git-workflows) — Dedicated git-flow-next guide, worktree setup, and promotion steps

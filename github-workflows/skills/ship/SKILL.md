@@ -134,6 +134,12 @@ Invoke `/finalize-pr <PR_NUMBER>` directly via the Skill tool — no subagent ne
 The context brief from Step 1.5 is already in session context and will be available
 when `/finalize-pr` invokes `/resolve-pr-threads`.
 
+> [!IMPORTANT]
+> If the repo uses Git Flow (default branch is `develop`), once the feature PR is
+> merged into `develop` and validated, you must promote `develop` to `main` using
+> `/promote-release`. Add a reminder to the active session checklist to perform
+> this merge before completing the session.
+
 ### Multiple PRs (2+ PRs in list)
 
 Process PRs **sequentially** — invoke `/finalize-pr` for each PR one at a time
@@ -210,3 +216,4 @@ PRs in the current repo (including unrelated ones).
 - squash-merge-pr (github-workflows) — merge a PR after ship reports it ready
 - resolve-pr-threads (github-workflows) — invoked internally via finalize-pr to resolve review threads
 - gh-cli-patterns (github-workflows) — canonical gh CLI command shapes, placeholder convention, PR gate, code-scanning query
+- git-flow-next (git-workflows) — Dedicated git-flow-next guide, worktree setup, and promotion steps

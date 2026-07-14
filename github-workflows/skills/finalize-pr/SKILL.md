@@ -31,6 +31,8 @@ No manual intervention required. For manual review-focused workflows, use `/revi
 8. **Take direct action** - Identify issues and fix them automatically
 9. **Include bot PRs** - Never filter by author. All modes include dependabot, release-please, claude, github-actions, etc.
 10. **Never cross org boundaries** - Org mode derives owner from current repo only
+11. **Git Flow Promotion** - For Git Flow repositories, after merging the PR into `develop` and validating it, you must ensure a release promotion to `main` is
+    triggered via `/promote-release` as a mandatory, non-optional step. You must add this task to the active session checklist.
 
 ## Phase 1: PR Discovery and Targeting
 
@@ -262,3 +264,4 @@ For `all`/`org` modes: Phases 2-5 loop per PR, Phase 6 aggregates results.
 - pr-standards (git-standards) — PR authoring and review standards
 - code-quality-standards (code-standards) — code quality guidelines applied during fixes
 - gh-cli-patterns (github-workflows) — canonical gh CLI command shapes, placeholder convention, PR gate, code-scanning query
+- git-flow-next (git-workflows) — Dedicated git-flow-next guide, worktree setup, and promotion steps
