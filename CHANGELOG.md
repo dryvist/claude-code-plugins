@@ -1,5 +1,13 @@
 # Changelog
 
+## [4.12.0](https://github.com/dryvist/claude-code-plugins/compare/v4.11.0...v4.12.0) (2026-07-14)
+
+
+### Features
+
+* **git-workflows:** integrate git-flow-next rules and enforce develop-to-main promotion ([65c67f5](https://github.com/dryvist/claude-code-plugins/commit/65c67f593145cfd965cf76bcb525367a5d4a701f))
+* **git-workflows:** integrate git-flow-next rules and enforce develop-to-main promotion ([2905c05](https://github.com/dryvist/claude-code-plugins/commit/2905c055c0f0ec01fe65a2e60cfc735bf5798420))
+
 ## [4.11.0](https://github.com/dryvist/claude-code-plugins/compare/v4.10.0...v4.11.0) (2026-07-14)
 
 
