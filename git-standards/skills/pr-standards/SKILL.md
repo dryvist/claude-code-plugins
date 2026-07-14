@@ -11,6 +11,11 @@ Run these checks in order before `gh pr create`. Replace `<default>` with the
 repo's actual default branch — `main` on a trunk repo, `develop` on a git-flow
 repo (see `gh-cli-patterns`, github-workflows, for detection).
 
+> [!IMPORTANT]
+> For Git Flow repositories, feature and bugfix PRs must always target `develop`.
+> You must also add a checklist item to the session plan to merge `develop` into
+> `main` (using `/promote-release`) before wrapping up the session.
+
 **Guard 1 — Check for merged twin** (prevents zombie PRs):
 
 ```bash
@@ -176,3 +181,4 @@ Every issue MUST have explicit, checkbox-format acceptance criteria.
 - **finalize-pr** (github-workflows) — Finalize PR state before merging
 - **git-workflow-standards** (git-standards) — Branch and worktree conventions that feed into PRs
 - **gh-cli-patterns** (github-workflows) — Canonical default-branch detection (trunk vs git-flow)
+- **git-flow-next** (git-workflows) — Dedicated git-flow-next guide, worktree setup, and promotion steps

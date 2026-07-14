@@ -27,6 +27,13 @@ Determine the completion outcome based on `/session-status`'s report:
 
 - **Path A** (complete): Every TaskList task is complete (or empty), AND
   every plan-file checklist item is checked or complete (or no plan file exists).
+
+  *Additional Git Flow Requirement*: On Git Flow repositories (default branch is
+  `develop`), verify if there are any unpromoted changes on `develop`. Run
+  `git log origin/main..origin/develop` to check. If there are commits, they
+  MUST be promoted to `main` via `/promote-release`. If they have not been
+  promoted, the plan is **incomplete** and the session must not follow Path A
+  until `/promote-release` has successfully run.
 - **Path B** (incomplete): Any TaskList task or plan checklist item
   remains incomplete.
 
@@ -89,6 +96,7 @@ Wrap-Up Summary
   Retrospective:    done or skipped
   Branch cleanup:   done or skipped
   Follow-up prompt: done or skipped
+  Git Flow promote: done or N/A
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
@@ -209,3 +217,4 @@ worktree-removal command shape from `/troubleshoot-worktree` and aligns with
 - **shape-issues** (github-workflows) — Shape and create well-structured GitHub issues
 - **troubleshoot-worktree** (git-workflows) — Worktree-removal command shape reused by `purge-pr` mode
 - **pr-standards** (git-standards) — Workaround Classification rubric used to decide when `purge-pr` is the right action
+- **git-flow-next** (git-workflows) — Dedicated git-flow-next guide, worktree setup, and promotion steps

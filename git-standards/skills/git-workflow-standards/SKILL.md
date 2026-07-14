@@ -34,6 +34,16 @@ worktrees with uncommitted changes are NEVER stale. Use `git worktree remove` (n
   (git-flow repos: `git flow feature start` branches from `develop`)
 - Commit messages: conventional-commit prefixes only, no emoji (see `pr-standards`)
 
+### Git Flow Repositories
+
+For repositories using the Git Flow model (where the default branch is `develop`):
+
+1. **Target Branch**: All feature and bugfix branches must target and merge into `develop`.
+2. **Validation**: Once changes are merged into `develop`, they must be thoroughly validated against production/tested on `develop`.
+3. **End-of-Session Promotion**: At the end of every session, all changes on `develop` MUST be merged into `main` via `/promote-release`.
+   This promotion is a **mandatory, non-optional step**.
+4. **Planning Checklist**: You must explicitly add "Merge develop into main (promote release)" to your session to-do / plan checklist at the start of work.
+
 | Method | When |
 | --- | --- |
 | `git merge origin/<default>` | Default — preserves history, safer |
@@ -82,3 +92,4 @@ contradictions, or security-sensitive code.
 - **refresh-repo** (github-workflows) — Full repo sync including PR status and worktree cleanup
 - **gh-cli-patterns** (github-workflows) — Canonical default-branch detection (trunk vs git-flow)
 - **pr-standards** (git-standards) — PR creation guards, issue linking, and review standards
+- **git-flow-next** (git-workflows) — Dedicated git-flow-next guide, worktree setup, and promotion steps
