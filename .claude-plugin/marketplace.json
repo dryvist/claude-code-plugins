@@ -154,6 +154,15 @@
       }
     },
     {
+      "name": "homelab-ops",
+      "source": "./homelab-ops",
+      "description": "High-level operational runbooks for homelab management: DR-node power management, DNS ingress convergence, and secrets-engine identity bring-up",
+      "version": "4.10.0",
+      "author": {
+        "name": "JacobPEvans"
+      }
+    },
+    {
       "name": "script-guards",
       "source": "./script-guards",
       "description": "Prevents unnecessary script generation - enforces research-first, native-tool-first patterns via PreToolUse and UserPromptSubmit hooks",

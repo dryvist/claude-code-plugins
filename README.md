@@ -79,6 +79,14 @@ On-demand skill-based plugins that load specific standards as context.
 | **infra-standards** | `/infrastructure-standards` | Proxmox, Terraform, Ansible deployment |
 | **project-standards** | `/claude-skill-authoring`, `/workspace-standards`, `/skills-registry`, `/nix-tool-policy` | Claude skill authoring, workspace, skills registry, Nix tool policy |
 
+### homelab-ops
+
+High-level operational runbooks for homelab management.
+
+- **Type**: Skill-based plugin
+- **Skills**: `/homelab-runbooks`
+- **Purpose**: DR-node power management, DNS ingress convergence, secrets-engine identity bring-up
+
 ### pal-health
 
 Warns on session start if PAL MCP had a recent Doppler auth failure.
@@ -119,6 +127,7 @@ claude plugins add jacobpevans-cc-plugins/<plugin-name>
 - `jacobpevans-cc-plugins/git-standards`
 - `jacobpevans-cc-plugins/git-workflows`
 - `jacobpevans-cc-plugins/github-workflows`
+- `jacobpevans-cc-plugins/homelab-ops`
 - `jacobpevans-cc-plugins/infra-orchestration`
 - `jacobpevans-cc-plugins/infra-standards`
 - `jacobpevans-cc-plugins/pal-health`
@@ -142,6 +151,7 @@ claude plugins link ./git-guards
 claude plugins link ./git-standards
 claude plugins link ./git-workflows
 claude plugins link ./github-workflows
+claude plugins link ./homelab-ops
 claude plugins link ./infra-orchestration
 claude plugins link ./infra-standards
 claude plugins link ./pal-health
