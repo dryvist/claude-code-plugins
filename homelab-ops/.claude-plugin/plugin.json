@@ -1,0 +1,20 @@
+{
+  "name": "homelab-ops",
+  "version": "1.0.0",
+  "description": "High-level operational runbooks for homelab management: DR-node power management, DNS ingress convergence, and secrets-engine identity bring-up",
+  "author": {
+    "name": "JacobPEvans"
+  },
+  "license": "MIT",
+  "repository": "https://github.com/JacobPEvans/claude-code-plugins",
+  "keywords": [
+    "homelab",
+    "runbook",
+    "operations",
+    "dns",
+    "secrets"
+  ],
+  "skills": [
+    "./skills/homelab-runbooks"
+  ]
+}
