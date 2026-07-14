@@ -34,23 +34,23 @@ gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name'
 
 All feature development happens in dedicated worktrees. To prevent wrong nesting:
 
-1. Resolve the destination path using an absolute anchor:
+1. Resolve the destination path using an absolute anchor and create the branch directly in the worktree:
 
    ```bash
-   git worktree add "$(dirname "$(git rev-parse --git-common-dir)")/.worktrees/feature-<name>" origin/develop
+   git worktree add -b "feature/<name>" "$(dirname "$(git rev-parse --git-common-dir)")/.worktrees/feature-<name>" origin/develop
    ```
 
 2. The primary/root checkout remains on `develop`. Never check out feature branches at the root.
 
 ## 4. Working a Change
 
-1. Start the feature branch using `git-flow-next`:
+1. Navigate to the newly created worktree directory:
 
    ```bash
-   git flow feature start <name>
+   cd "$(dirname "$(git rev-parse --git-common-dir)")/.worktrees/feature-<name>"
    ```
 
-   *Note*: The CLI automatically prepends `feature/`. Pass only the descriptive slug (including issue number if it exists), e.g., `123-fix-inventory-loader`.
+   *Note*: The branch `feature/<name>` (e.g., `feature/123-fix-inventory-loader`) is already created and checked out by the worktree setup step.
 2. Commit atomically following Conventional Commits, referencing the issue (`#123`).
 3. Open the PR targeting `develop`. Squash-merge feature PRs.
 4. **Validation**: Thoroughly test and validate the merged code on `develop` before production promotion.
@@ -61,10 +61,10 @@ All feature development happens in dedicated worktrees. To prevent wrong nesting
 
 Feature PRs squash into `develop` and stop there. To release them:
 
-1. Before finishing a session, verify if `develop` has unpromoted commits:
+1. Before finishing a session, fetch the latest remote state and verify if `develop` has unpromoted commits:
 
    ```bash
-   git log origin/main..origin/develop
+   git fetch origin --force develop main && git log origin/main..origin/develop
    ```
 
 2. If commits exist, run `/promote-release` to open/reuse a `develop` -> `main` PR and merge it using a **merge commit** (`--merge` flag on `gh pr merge`).

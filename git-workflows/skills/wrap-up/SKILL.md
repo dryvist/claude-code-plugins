@@ -30,9 +30,9 @@ Determine the completion outcome based on `/session-status`'s report:
 
   *Additional Git Flow Requirement*: On Git Flow repositories (default branch is
   `develop`), verify if there are any unpromoted changes on `develop`. Run
-  `git log origin/main..origin/develop` to check. If there are commits, they
-  MUST be promoted to `main` via `/promote-release`. If they have not been
-  promoted, the plan is **incomplete** and the session must not follow Path A
+  `git fetch origin --force develop main && git log origin/main..origin/develop` to check.
+  If there are commits, they MUST be promoted to `main` via `/promote-release`. If they
+  have not been promoted, the plan is **incomplete** and the session must not follow Path A
   until `/promote-release` has successfully run.
 - **Path B** (incomplete): Any TaskList task or plan checklist item
   remains incomplete.
