@@ -11,7 +11,6 @@ import json
 import subprocess
 import sys
 from pathlib import Path
-from pathlib import Path
 
 SCRIPT = Path(__file__).parent / "enforce-issue-limits.py"
 
@@ -106,14 +105,22 @@ if not ok:
     print(f"  Expected exit: 0 or 2, Got: {result.returncode}")
 all_pass &= ok
 
-# Regression: the 24h rate limiter must stay gone. It counted items *created*
-# in a rolling window even after they were merged and closed, so it blocked a
-# productive day exactly as hard as a spam run, and its own block message told
-# you to unset it via GH_ACTION_LIMIT_PR. The hard limits on OPEN items already
-# carry the only signal it had. Asserted at source level because reintroducing
-# it would otherwise only surface as a surprise block on a busy day.
+# Regression: two removed checks must stay removed.
+#
+# The 24h rate limiter counted items *created* in a rolling window even after
+# they were merged and closed, so it blocked a productive day exactly as hard as
+# a spam run, and its own block message told you to unset it via
+# GH_ACTION_LIMIT_PR. The hard limits on OPEN items already carry its only
+# signal.
+#
+# The "ai-created" label limit compared 0 against 25 forever — nothing ever
+# applied the label, in any state.
+#
+# Asserted at source level because a reintroduction would otherwise surface only
+# as a surprise block on a busy day, with the rationale long gone.
 source = (Path(__file__).parent / "enforce-issue-limits.py").read_text()
-banned = ("GH_ACTION_LIMIT", "RATE_LIMIT_24H", "_count_recent", "_rate_limit_24h", "timedelta")
+banned = ("GH_ACTION_LIMIT", "RATE_LIMIT_24H", "_count_recent", "_rate_limit_24h", "timedelta",
+          "ai-created", "ai_created", "ai_limit")
 found = [t for t in banned if t in source]
 # The docstring explains why it was removed, so it names the symbols once each.
 reintroduced = [t for t in found if source.count(t) > 1 or f"def {t}" in source]

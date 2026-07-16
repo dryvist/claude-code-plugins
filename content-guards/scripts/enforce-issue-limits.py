@@ -6,9 +6,13 @@ Blocks `gh issue create` and `gh pr create` when limits are exceeded, and
 detects duplicate titles against currently-open items.
 
 Hard limits (per-repo, OPEN items only):
-  - 100 total open issues
-  - 15 total open PRs
-  - 25 AI-created open issues/PRs (labeled "ai-created")
+  - 100 open issues
+  - 15 open PRs
+
+NO "ai-created" LABEL LIMIT — removed deliberately. Nothing ever applied the
+label: zero issues and zero PRs carried it in any state, so the check scanned
+labels on every create only to compare 0 against 25. A limit on a label nobody
+applies is not a safety net, it is a per-call cost that always passes.
 
 NO 24h RATE LIMIT — removed deliberately, do not reintroduce.
 
@@ -39,8 +43,9 @@ import shlex
 import subprocess
 import sys
 
-# Hard limits: (total_open, ai_created_open) per resource type
-HARD_LIMITS = {"issue": (100, 25), "pr": (15, 15)}
+# Max OPEN items per resource type. This is the only backlog signal worth
+# blocking on: it counts what is still outstanding right now.
+HARD_LIMITS = {"issue": 100, "pr": 15}
 
 _CMD_RE = re.compile(r"(?:^|\s)gh\s+(issue|pr)\s+(create|edit)(?:\s|$)")
 
@@ -85,18 +90,13 @@ def _gh_json(args: list[str], cwd: str | None = None) -> list[dict]:
         return []
 
 
-def _get_counts(resource: str, cwd: str | None = None) -> tuple[int, int]:
-    """Count total and AI-created open items for a resource type."""
+def _count_open(resource: str, cwd: str | None = None) -> int:
+    """Count open items for a resource type."""
     items = _gh_json([
         resource, "list", "--state", "open",
-        "--json", "number,labels", "--limit", "100",
+        "--json", "number", "--limit", "100",
     ], cwd=cwd)
-    total = len(items)
-    ai_created = sum(
-        1 for item in items
-        if any(label["name"] == "ai-created" for label in item.get("labels", []))
-    )
-    return total, ai_created
+    return len(items)
 
 
 def _normalize_title(title: str) -> list[str]:
@@ -184,19 +184,13 @@ def main() -> None:
     # `edit` returned above — modifying an existing item never trips a limit.
     _check_duplicate(resource, label, command, cwd=repo_dir)
 
-    total_limit, ai_limit = HARD_LIMITS[resource]
-    total, ai_created = _get_counts(resource, cwd=repo_dir)
+    total_limit = HARD_LIMITS[resource]
+    total = _count_open(resource, cwd=repo_dir)
 
-    reasons = []
     if total >= total_limit:
-        reasons.append(f"Total open {label}s: {total}/{total_limit} (limit reached)")
-    if ai_created >= ai_limit:
-        reasons.append(f"AI-created open {label}s: {ai_created}/{ai_limit} (limit reached)")
-    if reasons:
-        reasons_str = "\n  ".join(reasons)
         _block(
             f"{label} creation limit exceeded",
-            f"{reasons_str}\n\n"
+            f"Open {label}s: {total}/{total_limit} (limit reached)\n\n"
             f"Required actions:\n"
             f"  1. Close or resolve duplicate and completed {label}s\n"
             f"  2. Ask the user for explicit permission to create more {label}s",
