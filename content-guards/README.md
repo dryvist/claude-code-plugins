@@ -21,7 +21,6 @@ No manual invocation required. All hooks activate automatically:
 - **webfetch-guard** — blocks outdated year references in web queries (PreToolUse: WebFetch, WebSearch)
 - **issue-limiter** — caps OPEN issues/PRs and blocks duplicate titles on
   `gh issue create` / `gh pr create` (PreToolUse: Bash)
-- **branch-limiter** — limits concurrent open branches (PreToolUse: Bash)
 - **markdown-validator** — runs markdownlint after writes (PostToolUse: Write, Edit)
 - **readme-validator** — checks README required sections after writes (PostToolUse: Write, Edit)
 

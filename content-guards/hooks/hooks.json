@@ -28,11 +28,6 @@
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/scripts/enforce-issue-limits.py",
             "timeout": 30
-          },
-          {
-            "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/enforce-branch-limits.py",
-            "timeout": 30
           }
         ]
       }
