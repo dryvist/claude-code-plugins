@@ -1,6 +1,6 @@
 ---
 name: premium-agent-orchestration
-description: This skill should be used when the active session is running a premium top-tier/SOTA model — from any vendor, current or future — and the work should preserve premium reasoning for intent, architecture, decomposition, tradeoffs, final review, and synthesis while delegating checkable discovery, implementation, verification, logs, tests, and repetitive work to cheaper agents or local/free LLMs. Assume the model running this session IS the premium lead.
+description: Use when the session runs a premium top-tier/SOTA model (any vendor, current or future — the session's model IS the premium lead). Keeps premium reasoning on judgment (intent, architecture, tradeoffs, final review) and delegates checkable labor to cheaper agents or local/free LLMs.
 ---
 
 # Premium Agent Orchestration
