@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.13.0](https://github.com/dryvist/claude-code-plugins/compare/v4.12.0...v4.13.0) (2026-07-16)
+
+
+### Features
+
+* **ai-delegation:** make premium-agent-orchestration model-universal ([#403](https://github.com/dryvist/claude-code-plugins/issues/403)) ([8602238](https://github.com/dryvist/claude-code-plugins/commit/8602238805d512da3ce2054b5f5e6dadd04edd1c))
+
 ## [4.12.0](https://github.com/dryvist/claude-code-plugins/compare/v4.11.0...v4.12.0) (2026-07-14)
 
 
