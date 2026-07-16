@@ -16,7 +16,6 @@ flowchart TD
         TV["validate-token-limits.py\nmatcher: Write | Edit"]:::pre
         WG["webfetch-guard.py\nmatcher: WebFetch | WebSearch"]:::pre
         IL["enforce-issue-limits.py\nmatcher: Bash"]:::pre
-        BL["enforce-branch-limits.py\nmatcher: Bash"]:::pre
     end
 
     TOOL["Tool executes\n(Write, Edit, Bash, WebFetch)"]:::tool
@@ -42,8 +41,7 @@ flowchart TD
 |------|-------|---------|-------------|
 | token-validator | PreToolUse | Write, Edit | Blocks files exceeding token limits |
 | webfetch-guard | PreToolUse | WebFetch, WebSearch | Blocks outdated year references in queries |
-| issue-limiter | PreToolUse | Bash | Rate limits `gh issue create` and `gh pr create` |
-| branch-limiter | PreToolUse | Bash | Limits concurrent open branches |
+| issue-limiter | PreToolUse | Bash | Caps OPEN issues/PRs, blocks duplicate titles |
 | markdown-validator | PostToolUse | Write, Edit | Runs markdownlint on written files |
 | readme-validator | PostToolUse | Write, Edit | Checks README required sections and badges |
 

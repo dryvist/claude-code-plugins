@@ -34,7 +34,7 @@ Combined content validation and guard plugin.
 
 - **Type**: Pre/PostToolUse hook
 - **Tools**: Bash, Write, Edit
-- **Purpose**: Token limits, markdown/README validation, webfetch guard, issue/PR rate limiting
+- **Purpose**: Token limits, markdown/README validation, webfetch guard, issue/PR backlog limits
 
 ### git-guards
 
