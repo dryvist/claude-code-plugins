@@ -1,5 +1,15 @@
 # Changelog
 
+## [4.13.1](https://github.com/dryvist/claude-code-plugins/compare/v4.13.0...v4.13.1) (2026-07-16)
+
+
+### Bug Fixes
+
+* **content-guards:** remove the 24h issue/PR rate limiter ([2f6dda3](https://github.com/dryvist/claude-code-plugins/commit/2f6dda3794614a44654b4f58ea96c2d34172d731))
+* **content-guards:** remove the branch limiter, which never worked ([3b17dfa](https://github.com/dryvist/claude-code-plugins/commit/3b17dfa5fa623d006519846ab892ec12baa6aa68))
+* **content-guards:** remove the dead ai-created label limit ([a963efd](https://github.com/dryvist/claude-code-plugins/commit/a963efdacc43c42cfa918aebb01b5f936fe17d55))
+* **content-guards:** remove three limiters that measure nothing ([92cea07](https://github.com/dryvist/claude-code-plugins/commit/92cea0788898d0d242aa3c0cf93a5c25e822ddaa))
+
 ## [4.13.0](https://github.com/dryvist/claude-code-plugins/compare/v4.12.0...v4.13.0) (2026-07-16)
 
 
