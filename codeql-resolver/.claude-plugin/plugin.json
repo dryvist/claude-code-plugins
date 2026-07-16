@@ -1,6 +1,6 @@
 {
   "name": "codeql-resolver",
-  "version": "4.13.0",
+  "version": "4.13.1",
   "description": "Systematic CodeQL alert analysis and resolution for GitHub Actions workflows",
   "author": {
     "name": "JacobPEvans"

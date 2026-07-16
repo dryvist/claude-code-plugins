@@ -1,6 +1,6 @@
 {
   "name": "git-standards",
-  "version": "4.13.0",
+  "version": "4.13.1",
   "description": "Git workflow standards, branch hygiene, PR creation guards, and issue linking",
   "author": {
     "name": "JacobPEvans"
