@@ -1,13 +1,15 @@
 ---
 name: premium-agent-orchestration
-description: This skill should be used when the active agent is Fable 5, Opus, or another expensive top-tier/SOTA model and the work should preserve premium reasoning for intent, architecture, decomposition, tradeoffs, final review, and synthesis while delegating checkable discovery, implementation, verification, logs, tests, and repetitive work to cheaper agents or local/free LLMs.
+description: Use when the session runs a premium top-tier/SOTA model (any vendor, current or future — the session's model IS the premium lead). Keeps premium reasoning on judgment (intent, architecture, tradeoffs, final review) and delegates checkable labor to cheaper agents or local/free LLMs.
 ---
 
 # Premium Agent Orchestration
 
-Treat the active premium model as the senior decision-maker. Spend premium
-reasoning only where stronger judgment changes the outcome, and route
-checkable labor to the cheapest capable executor.
+Treat the model running the current session as the senior decision-maker,
+whatever it is — the skill is model- and vendor-agnostic and applies equally
+to any present or future top-tier model. Spend premium reasoning only where
+stronger judgment changes the outcome, and route checkable labor to the
+cheapest capable executor.
 
 ## Purpose
 
@@ -21,7 +23,7 @@ lowest-cost executor that can reliably produce that evidence.
 
 ## Senior Model Owns
 
-Keep these decisions with the premium model:
+Keep these decisions with the premium lead (the current session's model):
 
 - Understand the real user intent.
 - Decide what matters and what is out of scope.
@@ -37,15 +39,24 @@ Keep these decisions with the premium model:
 
 ## Delegation Tiers
 
+Tiers are **capability roles, not model names**. Resolve each role against
+whatever models the current environment actually offers (native subagent
+model options, configured CLIs, local serving); never assume a specific
+vendor's lineup.
+
 Delegate work whose output can be verified from evidence.
 
 | Tier | Use for | Boundary |
 | --- | --- | --- |
-| Local/free LLM | File discovery, log summaries, simple scans, checklist verification, cheap summaries | Report facts and evidence; avoid product or architecture calls |
-| Haiku-class | Repo discovery, large-file summaries, log inspection, simple checks, edge-case scanning | Report facts, not direction |
-| Sonnet-class | Scoped implementation, tests, medium debugging, local refactors, following existing patterns | Execute the plan; avoid changing architecture or product intent |
-| Opus-class | Complex implementation, deep debugging, cross-module reasoning, risky review, security-sensitive reasoning | Reason deeply, but leave final authority with the premium lead |
+| Local/free | File discovery, log summaries, simple scans, checklist verification, cheap summaries | Report facts and evidence; avoid product or architecture calls |
+| Small/cheap cloud | Repo discovery, large-file summaries, log inspection, simple checks, edge-case scanning | Report facts, not direction |
+| Mid execution | Scoped implementation, tests, medium debugging, local refactors, following existing patterns | Execute the plan; avoid changing architecture or product intent |
+| Strong reasoning | Complex implementation, deep debugging, cross-module reasoning, risky review, security-sensitive reasoning | Reason deeply, but leave final authority with the premium lead |
 | Premium lead | Intent, architecture, decomposition, tradeoffs, risk, disagreement, final review, synthesis | Own final decisions and user communication |
+
+The strong-reasoning tier may be the same model as the premium lead when no
+cheaper strong model is available — the split is about role and context
+isolation, not necessarily price.
 
 ## Local And Free-Tier First
 
@@ -66,8 +77,9 @@ Prefer these routes in order for simple checkable work:
    access, reliability, or reasoning quality.
 
 Discover current model availability live. Do not hard-code physical model IDs,
-provider names, or static task-to-model tables. Use capability roles, local
-registry data, or live model listing when available.
+provider names, or static task-to-model tables — including for the premium
+lead itself. Use capability roles, local registry data, or live model listing
+when available.
 
 ## Boundary
 
@@ -97,9 +109,9 @@ Treat these areas as high-risk:
 - Public APIs.
 - User-visible workflows.
 
-For high-risk work, keep the decision with the premium lead, use an Opus-class
-agent for the hardest technical execution or review, and use cheaper agents or
-local/free models to verify concrete evidence.
+For high-risk work, keep the decision with the premium lead, use a
+strong-reasoning agent for the hardest technical execution or review, and use
+cheaper agents or local/free models to verify concrete evidence.
 
 ## Substrate Resilience (solo fallback is mandatory)
 
@@ -128,8 +140,9 @@ contract.
    solo path — the lead executes steps 5-7's work serially itself.
 5. Route checkable labor to the cheapest capable local, free, or small-model
    executor.
-6. Use Sonnet-class agents for normal scoped engineering execution.
-7. Use Opus-class agents for difficult delegated technical work or risky review.
+6. Use mid-execution-tier agents for normal scoped engineering execution.
+7. Use strong-reasoning agents for difficult delegated technical work or risky
+   review.
 8. Review each agent's evidence.
 9. Make the important decision with the premium lead.
 10. Verify non-trivial work before answering.
