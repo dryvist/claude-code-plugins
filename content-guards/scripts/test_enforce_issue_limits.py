@@ -11,6 +11,7 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+from pathlib import Path
 
 SCRIPT = Path(__file__).parent / "enforce-issue-limits.py"
 
@@ -103,6 +104,25 @@ status = "PASS" if ok else "FAIL"
 print(f"{status} [gh pr create]: exit={result.returncode} (0=fail-open, 2=blocked)")
 if not ok:
     print(f"  Expected exit: 0 or 2, Got: {result.returncode}")
+all_pass &= ok
+
+# Regression: the 24h rate limiter must stay gone. It counted items *created*
+# in a rolling window even after they were merged and closed, so it blocked a
+# productive day exactly as hard as a spam run, and its own block message told
+# you to unset it via GH_ACTION_LIMIT_PR. The hard limits on OPEN items already
+# carry the only signal it had. Asserted at source level because reintroducing
+# it would otherwise only surface as a surprise block on a busy day.
+source = (Path(__file__).parent / "enforce-issue-limits.py").read_text()
+banned = ("GH_ACTION_LIMIT", "RATE_LIMIT_24H", "_count_recent", "_rate_limit_24h", "timedelta")
+found = [t for t in banned if t in source]
+# The docstring explains why it was removed, so it names the symbols once each.
+reintroduced = [t for t in found if source.count(t) > 1 or f"def {t}" in source]
+ok = not reintroduced
+status = "PASS" if ok else "FAIL"
+print(f"{status} [24h rate limiter stays removed]: {reintroduced or 'absent'}")
+if not ok:
+    print(f"  Rate-limit machinery is back: {reintroduced}")
+    print("  Constrain backlog with a hard limit on OPEN items instead.")
 all_pass &= ok
 
 print()
