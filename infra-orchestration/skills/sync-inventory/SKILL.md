@@ -43,7 +43,7 @@ was not crossed — run a real apply (next step). Reference docs:
 The only way to republish is the publish boundary itself:
 
 ```bash
-cd ${GIT_HOME_PUBLIC}/homelab/tofu-proxmox/main
+cd $GIT_HOME_PUBLIC/homelab/tofu-proxmox/main
 tofu apply
 ```
 
