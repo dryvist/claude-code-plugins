@@ -21,6 +21,8 @@
     "./skills/troubleshoot-worktree",
     "./skills/wrap-up",
     "./skills/pre-commit-architecture",
-    "./skills/handoff"
+    "./skills/handoff",
+    "./skills/resume",
+    "./skills/replan"
   ]
 }
