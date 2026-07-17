@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.16.0](https://github.com/dryvist/claude-code-plugins/compare/v4.15.0...v4.16.0) (2026-07-17)
+
+
+### Features
+
+* **git-workflows:** wire /handoff into both wrap-up paths ([#413](https://github.com/dryvist/claude-code-plugins/issues/413)) ([b276e79](https://github.com/dryvist/claude-code-plugins/commit/b276e7979d2f5a856195fbc2b3c356844e669390))
+
 ## [4.15.0](https://github.com/dryvist/claude-code-plugins/compare/v4.14.0...v4.15.0) (2026-07-17)
 
 
