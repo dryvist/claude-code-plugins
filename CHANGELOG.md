@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.20.0](https://github.com/dryvist/claude-code-plugins/compare/v4.19.0...v4.20.0) (2026-07-17)
+
+
+### Features
+
+* **content-guards:** add public-repo leakage pre-flight hook ([#421](https://github.com/dryvist/claude-code-plugins/issues/421)) ([0bb50ce](https://github.com/dryvist/claude-code-plugins/commit/0bb50ce31511165003f57719a2779fcc15876490))
+
 ## [4.19.0](https://github.com/dryvist/claude-code-plugins/compare/v4.18.0...v4.19.0) (2026-07-17)
 
 
