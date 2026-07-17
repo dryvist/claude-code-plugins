@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.18.0](https://github.com/dryvist/claude-code-plugins/compare/v4.17.0...v4.18.0) (2026-07-17)
+
+
+### Features
+
+* **git-workflows:** add /resume and /replan skills ([#417](https://github.com/dryvist/claude-code-plugins/issues/417)) ([d02b50c](https://github.com/dryvist/claude-code-plugins/commit/d02b50c2e4ab675ad605ec71f6d921befa0b862a))
+
 ## [4.17.0](https://github.com/dryvist/claude-code-plugins/compare/v4.16.0...v4.17.0) (2026-07-17)
 
 
