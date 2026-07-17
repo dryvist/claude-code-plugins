@@ -1,6 +1,6 @@
 {
   "name": "git-guards",
-  "version": "4.13.1",
+  "version": "4.14.0",
   "description": "Git security and workflow protection via PreToolUse and UserPromptSubmit hooks - worktree reminder plus dangerous-command, commit-trailer, and main-branch edit guards",
   "author": {
     "name": "JacobPEvans"

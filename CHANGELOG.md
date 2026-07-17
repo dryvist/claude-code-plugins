@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.14.0](https://github.com/dryvist/claude-code-plugins/compare/v4.13.1...v4.14.0) (2026-07-17)
+
+
+### Features
+
+* **git-workflows:** add /handoff skill for fresh-session prompts ([#409](https://github.com/dryvist/claude-code-plugins/issues/409)) ([1b41370](https://github.com/dryvist/claude-code-plugins/commit/1b413700585357a0dd3cb3e00e9b8e1f5dcc73ed))
+
 ## [4.13.1](https://github.com/dryvist/claude-code-plugins/compare/v4.13.0...v4.13.1) (2026-07-16)
 
 
