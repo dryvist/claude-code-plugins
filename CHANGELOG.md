@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.17.0](https://github.com/dryvist/claude-code-plugins/compare/v4.16.0...v4.17.0) (2026-07-17)
+
+
+### Features
+
+* **git-workflows:** add session-status mid-session mode; emit goal via /handoff ([#415](https://github.com/dryvist/claude-code-plugins/issues/415)) ([bede0b1](https://github.com/dryvist/claude-code-plugins/commit/bede0b1c1f75435a568ed329ce0bf385bc2d9605))
+
 ## [4.16.0](https://github.com/dryvist/claude-code-plugins/compare/v4.15.0...v4.16.0) (2026-07-17)
 
 
