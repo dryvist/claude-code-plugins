@@ -55,8 +55,20 @@ git status --porcelain
 
 **If changes exist** (staged or unstaged), execute inline:
 
+0. **Claim check** (session-coordination rule): before creating a new PR,
+   search for a competing claim — an open PR (draft or ready) from another
+   session covering the same issue or files:
+
+   ```bash
+   gh pr list --state open --json number,title,isDraft,headRefName,body
+   ```
+
+   If one exists, do NOT create a duplicate: stop, report the competing PR,
+   and offer consolidation (comment with your session id; earliest claim
+   wins). Otherwise continue.
 1. Create branch if on the default branch (see /gh-cli-patterns Canonical
-   Default-Branch Detection): `git checkout -b {type}/{description}` (derive from changes)
+   Default-Branch Detection): `git checkout -b {type}/{sid8}-{description}`
+   (derive from changes; `{sid8}` = session id per session-coordination)
 2. Stage changes: `git add <relevant files>` (no `-A` — be selective)
 3. Commit with conventional commit message: `git commit -m "type: description"`
 4. **Simplify**: Invoke /simplify on all changes in the commit. If /simplify produces
@@ -66,7 +78,8 @@ git status --porcelain
    `npm run lint`, `make lint`, etc.). If failures are found, fix them and amend the commit.
    Skip this step if no lint command is discoverable.
 6. Push: `git push -u origin HEAD`
-7. Create PR: `gh pr create --fill` (or with title/body derived from commit)
+7. Create PR: `gh pr create --fill` (or with title/body derived from commit).
+   Include the session id (`<runtime>-<host>-<8hex>`) in the PR body.
 8. **Pacing**: Run `sleep 2` after `gh pr create` to allow GitHub to index the PR
 9. Capture PR number from output (look for `pull/NUMBER` pattern)
 10. Add it to the PR list
@@ -207,6 +220,31 @@ any `reviewThreads.isResolved` = `false`,
 
 If any abort condition hits: re-invoke `/finalize-pr <PR_NUMBER>`, wait for completion,
 then re-run both gates. Only list a PR as "Ready to merge" after both gates pass.
+
+### Post validation evidence (agent-validated)
+
+After both gates pass for a PR, record the evidence so a later session can
+trust the change without re-verifying (refs
+dryvist/ai-assistant-instructions#749):
+
+```bash
+head_sha=$(gh pr view <PR_NUMBER> --json headRefOid --jq '.headRefOid')
+gh api "repos/{owner}/{repo}/statuses/$head_sha" \
+  -f state=success -f context=agent-validated \
+  -f description="<one line: what was verified (gates, CI, tests run)>" \
+  -f target_url="$(gh pr view <PR_NUMBER> --json url --jq '.url')"
+gh label create "validated:pass" --color 0e8a16 \
+  --description "agent-validated status is success on head SHA" 2>/dev/null || true
+gh pr edit <PR_NUMBER> --remove-label "validated:pending" \
+  --remove-label "validated:fail" --add-label "validated:pass" 2>/dev/null || true
+```
+
+If a PR ends blocked or failing instead, post `state=failure` with a
+description of what failed and set `validated:fail` the same way.
+
+The **commit status is the machine truth** — it is bound to the exact head
+SHA. The `validated:*` label is only a human-visible mirror and goes stale
+the moment new commits land; never trust the label over the status.
 
 Then emit the **Canonical PR Status Summary** as defined in /gh-cli-patterns, titled
 `Ship Summary`. Affected repos = current repo. Fetch each PR's full URL via:

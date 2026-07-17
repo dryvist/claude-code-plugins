@@ -146,6 +146,22 @@ Perform git and GitHub checks to locate active changes and remote state:
    references are forbidden. If the same number appears again in the
    same block, a bare #123 is acceptable as a short reference after the
    URL has been shown once.
+5. **Validation follow-up** (refs dryvist/ai-assistant-instructions#749): for
+   every open PR this session authored (branch name or PR body carries this
+   session's id, plus any PR created in this conversation), check the
+   `agent-validated` commit status on the current head SHA:
+
+   ```bash
+   head_sha=$(gh pr view <n> --json headRefOid --jq '.headRefOid')
+   gh api "repos/{owner}/{repo}/commits/$head_sha/statuses" \
+     --jq '[.[] | select(.context == "agent-validated")][0].state'
+   ```
+
+   Flag as **needs follow-up**: no `agent-validated` status on the head SHA
+   (unvalidated, or validated evidence went stale when new commits landed),
+   state `failure`, or the PR is validated but sitting unmerged. These are
+   enforced follow-ups — they go in the report and, when unfinished, into
+   the next-session prompt or a GitHub issue (Step 4).
 
 ---
 
@@ -184,6 +200,7 @@ Git & Repository Status:
   Sync Status:      <ahead/behind/up-to-date with remote>
   Modified Files:   <list of modified/untracked files, or "clean">
   Associated PR:    <PR URL or "none found">
+  Validation:       <per session PR: agent-validated success | FAILURE | MISSING on head SHA; or "no session PRs">
 
 Unfinished Work & Future Tasks:
   - <item 1>
