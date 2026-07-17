@@ -15,7 +15,7 @@ This is a **Claude Code plugins repository** containing production-ready hooks f
 | **config-management** | Skill | `/sync-permissions`, `/quick-add-permission` | Manage Claude and Gemini permission configs across repositories |
 | **content-guards** | Pre/PostToolUse | Bash, Write, Edit | Token limits, markdown/README validation, webfetch guard, issue/PR backlog limits |
 | **git-guards** | PreToolUse | Bash, Edit, Write, NotebookEdit | Blocks dangerous git/gh commands and file edits on main branch |
-| **git-workflows** | Command/Skill | `/sync-main`, `/wrap-up` (incl. `purge-pr` mode), `/troubleshoot-rebase`, `/troubleshoot-precommit`, `/troubleshoot-worktree` | Local git sync, troubleshooting, post-merge cleanup, and atomic PR-close + branch purge |
+| **git-workflows** | Command/Skill | `/sync-main`, `/wrap-up` (incl. `purge-pr` mode), `/handoff`, `/troubleshoot-rebase`, `/troubleshoot-precommit`, `/troubleshoot-worktree` | Local git sync, troubleshooting, post-merge cleanup, atomic PR-close + branch purge, and paste-ready fresh-session handoffs |
 | **github-workflows** | Command/Skill | `/ship`, `/finalize-pr`, `/refresh-repo` (incl. `--sweep` and `--prune-stale` modes), `/rebase-pr`, `/squash-merge-pr`, `/resolve-pr-threads`, `/gh-cli-patterns`, `/shape-issues`, `/trigger-ai-reviews` | GitHub PR/issue management workflows plus cross-repo workspace sweep and stale-branch pruning |
 | **infra-orchestration** | Skill | `/orchestrate-infra`, `/sync-inventory`, `/test-e2e` | Cross-repo infrastructure orchestration for Terraform and Ansible |
 | **code-standards** | Skill | `/code-quality-standards`, `/review-standards` | Code quality standards, documentation formatting, testing philosophy, and review guidelines |
