@@ -40,6 +40,7 @@ flowchart TD
 | Hook | Event | Matcher | What It Does |
 |------|-------|---------|-------------|
 | token-validator | PreToolUse | Write, Edit | Blocks files exceeding token limits |
+| leakage-guard | PreToolUse | Write, Edit | Blocks private host IPs / VMIDs in public-repo writes |
 | webfetch-guard | PreToolUse | WebFetch, WebSearch | Blocks outdated year references in queries |
 | issue-limiter | PreToolUse | Bash | Caps OPEN issues/PRs, blocks duplicate titles |
 | markdown-validator | PostToolUse | Write, Edit | Runs markdownlint on written files |

@@ -12,6 +12,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for integration diagrams.
 - **readme-validator**: Checks README files for required sections and badge health
 - **issue-limiter**: Prevents GitHub issue/PR backlog overflow by capping OPEN
   items, and blocks duplicate titles
+- **leakage-guard**: Blocks real private-infra identifiers (host IPs, VMIDs) from being written into a public repo
 
 ## Usage
 
@@ -21,6 +22,7 @@ No manual invocation required. All hooks activate automatically:
 - **webfetch-guard** — blocks outdated year references in web queries (PreToolUse: WebFetch, WebSearch)
 - **issue-limiter** — caps OPEN issues/PRs and blocks duplicate titles on
   `gh issue create` / `gh pr create` (PreToolUse: Bash)
+- **leakage-guard** — blocks a private host IP or infra VMID in a public-repo write (PreToolUse: Write, Edit)
 - **markdown-validator** — runs markdownlint after writes (PostToolUse: Write, Edit)
 - **readme-validator** — checks README required sections after writes (PostToolUse: Write, Edit)
 
