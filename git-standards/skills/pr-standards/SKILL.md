@@ -56,9 +56,13 @@ If empty: no new work. Clean up instead.
 `labels.yml`) is how an AI flow asks for a human before a PR merges. It is the
 human counterpart to the `ai:*` review-state labels.
 
-**Scope — `main` merges only.** The gate protects merges into `main`. Merges into
-`develop` on a git-flow repo are always AI-initiated and are NEVER gated by this
-label — never apply it to a `develop`-targeted PR.
+**Scope — requesting is `main`-only; the prohibition is unconditional.** Only a PR
+targeting `main` can have review *requested*: merges into `develop` on a git-flow
+repo are always AI-initiated, so never apply the label to a `develop`-targeted PR.
+That scope governs where you may *apply* the label — not whether to honor one
+already present. If any PR carries `human:review`, whatever its base, a human put
+it there deliberately: the merge prohibition below applies and the gate fails
+closed.
 
 **Requesting review (how AI asks for a human).** When a change targets `main` (a
 trunk-repo PR, or a git-flow `develop`→`main` promotion) and you are not confident

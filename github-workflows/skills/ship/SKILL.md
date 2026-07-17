@@ -166,17 +166,24 @@ internally. Running both causes race conditions on GraphQL mutations and git pus
 
 ### Human-review gate
 
-`/ship` never merges a PR carrying the `human:review` label (see pr-standards,
-git-standards → Human-Review Gate). When a `main`-targeted PR needs a human before
-merge — you are not confident enough, or merging would cut a release you are not
-authorized to trigger — apply the label and report it instead of merging. This is
-the sanctioned way to ask for a human:
+**Requesting a human — `main`-targeted PRs only.** When a PR targeting `main` needs
+a human before merge — you are not confident enough, or merging would cut a release
+you are not authorized to trigger — apply the label and report it instead of
+merging. This is the sanctioned way to ask for a human:
 
 ```bash
 gh pr edit <PR_NUMBER> --add-label "human:review"
 ```
 
-Merges into `develop` are always AI-initiated and are never gated by the label.
+Never apply it to a `develop`-targeted PR: merges into `develop` are always
+AI-initiated, so there is nothing to request there.
+
+**Never merging a labelled PR — unconditional.** `/ship` never merges a PR carrying
+`human:review`, whatever its base branch, without an explicit same-session user
+instruction to merge THAT PR. The scoping above governs where you may *apply* the
+label, not whether to honor one already present: a label on a `develop` PR means a
+human put it there deliberately, and this gate fails closed. See pr-standards
+(git-standards) → Human-Review Gate.
 
 ## Step 3: Aggregate Results
 
