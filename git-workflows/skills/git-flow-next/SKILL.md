@@ -25,7 +25,7 @@ gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name'
 | Branch | Role | Gets changes by |
 | --- | --- | --- |
 | `main` | Production. Protected; no direct pushes. | **Merge commits only** — squash and rebase are banned. |
-| `develop` | Default integration branch. | Squash-merged feature PRs (default); merge commits for back-merges. |
+| `develop` | Default integration branch. Protected; no direct pushes. | Squash-merged feature PRs (default); merge commits for back-merges. |
 | `feature/<issue>-<sid8>-<slug>` | Topic work | Branched from fresh `develop`. |
 | `release/<version>` | Release stabilization | Branched from `develop`; merge-committed to `main`; back-merged to `develop`. |
 | `hotfix/<slug>` | Production fix | Branched from `main`; PR to `main` (merge commit); back-merged to `develop`. |
@@ -65,7 +65,11 @@ To prevent wrong nesting:
 
    *Note*: The branch `feature/123-03a3a401-fix-inventory-loader` is already created and checked out by the worktree setup step.
 2. Commit atomically following Conventional Commits, referencing the issue (`#123`).
-3. Open the PR targeting `develop`. Squash-merge feature PRs.
+3. Open the PR targeting `develop` — every change to `develop` goes through a
+   PR; the ruleset rejects direct pushes (`GH013`). Squash-merge feature PRs
+   with `gh pr merge <PR_NUMBER> --squash --auto`: a bare `--squash` is rejected with
+   "the base branch policy prohibits the merge" while checks settle, and
+   `--auto` merges as soon as the policy is satisfied.
 4. **Validation**: Thoroughly test and validate the merged code on `develop` before production promotion.
 
 ## 5. Mandatory Promotion to Production
