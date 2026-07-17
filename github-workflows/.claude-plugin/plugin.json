@@ -28,6 +28,7 @@
     "./skills/shape-issues",
     "./skills/resolve-pr-threads",
     "./skills/trigger-ai-reviews",
-    "./skills/shared-workflow-org-refs"
+    "./skills/shared-workflow-org-refs",
+    "./skills/pr-sweep"
   ]
 }
