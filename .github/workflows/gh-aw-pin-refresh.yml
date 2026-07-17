@@ -25,7 +25,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-    uses: JacobPEvans-personal/.github/.github/workflows/_gh-aw-pin-refresh.yml@54386caa3169c9fc5601a8a51e29731ca5727a70 # main
+    uses: JacobPEvans-personal/.github/.github/workflows/_gh-aw-pin-refresh.yml@96e4123ab7180d40f68f83616ee7cf364a809c19 # main
     with:
       operation: ${{ inputs.operation || 'compile' }}
     secrets:
