@@ -25,7 +25,7 @@ import subprocess
 import sys
 import time
 
-_IP_RE = re.compile(r"(?<![\w.])(\d{1,3}(?:\.\d{1,3}){3})(/\d{1,2})?(?![\w.])")
+_IP_RE = re.compile(r"(?<![\w.])(\d{1,3}(?:\.\d{1,3}){3})(/\d{1,3})?(?![\w.])")
 
 _VMID_RE = re.compile(
     r"\b(?:vm(?:id)?|ct(?:id)?|guest[_-]?id)\s*[:=]\s*(\d{3,})\b"
@@ -42,17 +42,24 @@ _DOC_NETS = [
 ]
 
 
-def _is_leak_ip(addr: str, has_cidr: bool) -> bool:
-    """A leak is a bare PRIVATE host address (RFC1918/ULA) — real homelab topology.
+def _is_leak_ip(addr: str, cidr: str | None) -> bool:
+    """A leak is a bare PRIVATE IPv4 host address - real homelab topology.
 
     Public IPs are deliberately NOT flagged: they are already public, and bare
-    dotted quads (version strings like 1.2.3.4, CDN IPs) would false-positive
-    constantly and train people to ignore the guard. Examples use CIDR ranges or
-    RFC 5737 doc ranges, which stay private=False and pass. A CIDR range is a
-    range, not a host, so it never flags.
+    dotted quads (version strings, CDN IPs) would false-positive constantly and
+    train people to ignore the guard. Examples use CIDR ranges or RFC 5737 doc
+    ranges, which pass. Scope is IPv4 only; IPv6 ULA is out of scope.
+
+    Only a prefix < 32 is a real range. A single-host suffix like /32 (or a
+    malformed prefix) is evaluated as a host, so appending /32 cannot bypass it.
     """
-    if has_cidr:
-        return False
+    if cidr:
+        try:
+            prefix = int(cidr.lstrip("/"))
+        except ValueError:
+            prefix = 32
+        if 0 <= prefix < 32:
+            return False
     try:
         ip = ipaddress.ip_address(addr)
     except ValueError:
@@ -73,8 +80,8 @@ def detect_leaks(text: str) -> list[tuple[str, str]]:
             ipaddress.ip_address(addr)
         except ValueError:
             continue
-        if _is_leak_ip(addr, bool(cidr)):
-            found.append(("private host IP", addr))
+        if _is_leak_ip(addr, cidr):
+            found.append(("private host IP", addr + (cidr or "")))
     for m in _VMID_RE.finditer(text):
         vmid = next(g for g in m.groups() if g)
         found.append(("infra VMID", vmid))
@@ -126,10 +133,12 @@ def _is_public_repo(path: str) -> bool:
 
 
 def _new_content(tool_name: str, tool_input: dict) -> str:
+    """New content a tool would write. Edit uses new_string; fall back to content
+    so no Edit-payload variant slips a leak through unscanned."""
     if tool_name == "Write":
         return str(tool_input.get("content", ""))
     if tool_name == "Edit":
-        return str(tool_input.get("new_string", ""))
+        return str(tool_input.get("new_string") or tool_input.get("content", ""))
     return ""
 
 

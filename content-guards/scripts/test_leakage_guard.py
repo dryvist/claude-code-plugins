@@ -25,8 +25,12 @@ CASES = [
     ("VMID assignment", "vmid: 303000", True),
     ("proxmox CT id", "pct exec 605020 -- true", True),
     ("ctid form", "ctid=250", True),
+    # BLOCKS — /32 and malformed prefixes are single hosts, not ranges.
+    ("private host /32 bypass", "host 192.168.1.47/32", True),
+    ("private host malformed /99", "host 10.4.2.9/99", True),
     # PASSES — examples, ranges, and public/non-host forms.
     ("example CIDR 192.168", "network: 192.168.0.0/16", False),
+    ("private /24 is a range", "subnet 192.168.1.0/24", False),
     ("CIDR range 10.x", "vpc 10.0.0.0/8", False),
     ("RFC5737 doc IP", "example server 192.0.2.10", False),
     ("loopback", "bind 127.0.0.1", False),
@@ -51,6 +55,13 @@ for label, text, expect in CASES:
 # Core contract from the plan, asserted explicitly.
 assert lg.detect_leaks("192.168.1.47"), "real host IP must flag"
 assert not lg.detect_leaks("192.168.0.0/16"), "example CIDR must pass"
+assert lg.detect_leaks("192.168.1.47/32"), "/32 must not bypass — it is a host"
+
+# Edit payloads must be scanned: new_string is primary, content is the fallback,
+# so no Edit variant slips a leak through unscanned (a security bypass).
+assert lg._new_content("Edit", {"new_string": "10.4.2.9"}) == "10.4.2.9"
+assert lg._new_content("Edit", {"content": "10.4.2.9"}) == "10.4.2.9"
+assert lg._new_content("Write", {"content": "10.4.2.9"}) == "10.4.2.9"
 
 print()
 print("ALL TESTS PASSED" if all_pass else "SOME TESTS FAILED")
