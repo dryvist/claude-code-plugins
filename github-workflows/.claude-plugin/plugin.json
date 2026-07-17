@@ -1,6 +1,6 @@
 {
   "name": "github-workflows",
-  "version": "4.21.0",
+  "version": "4.22.0",
   "description": "PR finalization (single, repo-wide, or org-wide including bots), repo refresh, rebase-merge, squash-merge, review thread resolution, and issue shaping",
   "author": {
     "name": "JacobPEvans"
