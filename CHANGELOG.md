@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.22.0](https://github.com/dryvist/claude-code-plugins/compare/v4.21.0...v4.22.0) (2026-07-17)
+
+
+### Features
+
+* **openbao:** add openbao plugin with the secrets access-model skill ([#425](https://github.com/dryvist/claude-code-plugins/issues/425)) ([6fcaa88](https://github.com/dryvist/claude-code-plugins/commit/6fcaa886bd065ed270be4aece1cd7f6f6bc263ed))
+
 ## [4.21.0](https://github.com/dryvist/claude-code-plugins/compare/v4.20.0...v4.21.0) (2026-07-17)
 
 
