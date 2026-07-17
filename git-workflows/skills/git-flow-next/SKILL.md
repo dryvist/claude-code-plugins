@@ -67,7 +67,7 @@ To prevent wrong nesting:
 2. Commit atomically following Conventional Commits, referencing the issue (`#123`).
 3. Open the PR targeting `develop` — every change to `develop` goes through a
    PR; the ruleset rejects direct pushes (`GH013`). Squash-merge feature PRs
-   with `gh pr merge <n> --squash --auto`: a bare `--squash` is rejected with
+   with `gh pr merge <PR_NUMBER> --squash --auto`: a bare `--squash` is rejected with
    "the base branch policy prohibits the merge" while checks settle, and
    `--auto` merges as soon as the policy is satisfied.
 4. **Validation**: Thoroughly test and validate the merged code on `develop` before production promotion.
