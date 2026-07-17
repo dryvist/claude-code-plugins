@@ -14,5 +14,8 @@
     "nix",
     "inline-scripts"
   ],
-  "license": "Apache-2.0"
+  "license": "Apache-2.0",
+  "skills": [
+    "./skills/native-first"
+  ]
 }
