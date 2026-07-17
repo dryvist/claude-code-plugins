@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.21.0](https://github.com/dryvist/claude-code-plugins/compare/v4.20.0...v4.21.0) (2026-07-17)
+
+
+### Features
+
+* **skills:** add human:review gate to ship and its merge-point children ([8920724](https://github.com/dryvist/claude-code-plugins/commit/8920724fc36057eb18c072f3b634a7d7104f268a))
+
 ## [4.20.0](https://github.com/dryvist/claude-code-plugins/compare/v4.19.0...v4.20.0) (2026-07-17)
 
 
