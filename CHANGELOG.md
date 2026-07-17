@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.23.1](https://github.com/dryvist/claude-code-plugins/compare/v4.23.0...v4.23.1) (2026-07-17)
+
+
+### Bug Fixes
+
+* **git-flow-next:** develop rejects direct pushes; use --auto to merge ([#430](https://github.com/dryvist/claude-code-plugins/issues/430)) ([9bc1df0](https://github.com/dryvist/claude-code-plugins/commit/9bc1df05198a93e9787b78691f6276629c252eaf))
+
 ## [4.23.0](https://github.com/dryvist/claude-code-plugins/compare/v4.22.0...v4.23.0) (2026-07-17)
 
 
