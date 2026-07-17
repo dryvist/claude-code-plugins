@@ -1,6 +1,6 @@
 {
   "name": "openbao",
-  "version": "4.19.0",
+  "version": "4.21.0",
   "description": "OpenBao-backed secrets access model: mint ephemeral credentials from secrets engines instead of storing static ones, read with the pre-authorized tier, and route write/apply through a human-gated wrapped single-use secret_id",
   "author": {
     "name": "JacobPEvans"

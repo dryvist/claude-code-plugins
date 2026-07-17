@@ -69,7 +69,7 @@ Before converging anything that *writes* a secret, confirm you actually hold the
 capability on the exact path — do not discover it from a half-applied converge:
 
 ```bash
-bao write sys/capabilities-self paths=<the/exact/path>
+bao write sys/capabilities-self paths="the/exact/path"
 ```
 
 Check the path you will really write, not its parent. A converge that fails
