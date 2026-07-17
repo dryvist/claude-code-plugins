@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.19.0](https://github.com/dryvist/claude-code-plugins/compare/v4.18.0...v4.19.0) (2026-07-17)
+
+
+### Features
+
+* **github-workflows:** add /pr-sweep to drive open PRs to zero ([#419](https://github.com/dryvist/claude-code-plugins/issues/419)) ([d4a3515](https://github.com/dryvist/claude-code-plugins/commit/d4a3515ce8a6ba9383b431e9c191610b68777d2d))
+
 ## [4.18.0](https://github.com/dryvist/claude-code-plugins/compare/v4.17.0...v4.18.0) (2026-07-17)
 
 
