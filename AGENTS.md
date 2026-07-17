@@ -21,6 +21,7 @@ This is a **Claude Code plugins repository** containing production-ready hooks f
 | **code-standards** | Skill | `/code-quality-standards`, `/review-standards` | Code quality standards, documentation formatting, testing philosophy, and review guidelines |
 | **git-standards** | Skill | `/git-workflow-standards`, `/pr-standards` | Git workflow standards, branch hygiene, PR creation guards, workaround vs fix classification, and issue linking |
 | **infra-standards** | Skill | `/infrastructure-standards` | Infrastructure standards for Proxmox, Terraform, Ansible including deployment pipeline and secrets management |
+| **openbao** | Skill | `/openbao-secrets` | OpenBao secrets access model: mint ephemeral credentials from engines instead of storing static ones; reads pre-authorized, writes human-gated |
 | **pal-health** | SessionStart | — | Warns on session start if PAL MCP had a recent Doppler auth failure |
 | **pr-lifecycle** | PostToolUse | Bash | Automatically triggers `/finalize-pr` after `gh pr create` succeeds |
 | **process-cleanup** | PostToolUse | — | Cleanup orphaned MCP server processes on session exit |
