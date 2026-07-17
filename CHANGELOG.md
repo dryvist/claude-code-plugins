@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.23.0](https://github.com/dryvist/claude-code-plugins/compare/v4.22.0...v4.23.0) (2026-07-17)
+
+
+### Features
+
+* **skills:** agent-validated evidence in ship + session-status follow-up ([#427](https://github.com/dryvist/claude-code-plugins/issues/427)) ([fb62527](https://github.com/dryvist/claude-code-plugins/commit/fb625271ba0355cd2c724d86aca0c8da9db4f631))
+
 ## [4.22.0](https://github.com/dryvist/claude-code-plugins/compare/v4.21.0...v4.22.0) (2026-07-17)
 
 
