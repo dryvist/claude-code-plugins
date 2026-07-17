@@ -56,6 +56,7 @@ placeholder convention. CodeQL is separate from CI — check both.
 |-----------|---------|
 | `state != OPEN` | "PR is closed or merged — nothing to do" |
 | `isDraft == true` | "PR is a draft — mark it ready for review first" |
+| `human:review` label present | "PR is gated on human review before merge (see pr-standards Human-Review Gate). Merge only on an explicit same-session user instruction to merge THIS PR; when so instructed, `gh pr edit <PR_NUMBER> --remove-label human:review` first, then proceed. Otherwise abort." |
 | `reviewThreads.pageInfo.hasNextPage == true` | ">100 review threads — paginate manually and re-verify before merging" |
 
 ### 1.2 Soft blocks (invoke /finalize-pr, then re-verify)

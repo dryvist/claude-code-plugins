@@ -99,6 +99,7 @@ gh api graphql -f query='
     repository(owner:$owner,name:$repo){
       pullRequest(number:$prNumber){
         state mergeable mergeStateStatus isDraft reviewDecision
+        labels(first:20){nodes{name}}
         commits(last:1){nodes{commit{statusCheckRollup{state}}}}
         reviewThreads(first:100){nodes{isResolved} pageInfo{hasNextPage}}
       }
@@ -118,6 +119,7 @@ Required values — abort if any fail:
 | `mergeable` | `MERGEABLE` | "PR has git conflicts" |
 | `mergeStateStatus` | `CLEAN` or `HAS_HOOKS` | "PR blocked: {value}" |
 | `isDraft` | `false` | "PR is a draft" |
+| `labels[].name` has `human:review` | absent, for an autonomous merge | "Human-review gate — merge only on explicit same-session user instruction for THIS PR, then remove the label; see pr-standards" |
 | `reviewDecision` | `APPROVED` or `null` | "Review decision: {value}" |
 | `statusCheckRollup.state` | `SUCCESS` | "CI: {state}" |
 | All `reviewThreads.isResolved` | `true` | "Unresolved threads" |
