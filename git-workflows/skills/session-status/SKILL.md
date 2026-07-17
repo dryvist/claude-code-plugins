@@ -1,6 +1,6 @@
 ---
 name: session-status
-description: "Analyzes the current session state and repository status. Resolves the active plan file, reads plan checklist items and TaskList tasks, gathers unfinished work/session issues from conversation history, and checks git status — without performing any repository cleanup or session wrap-up."
+description: "Analyzes current session state and repository status without any cleanup. Full mode (default): resolves the active plan file, reads plan checklist + TaskList, gathers unfinished work/issues from conversation history, checks git status, and emits a /handoff-built next-session prompt. Mid-session mode (`/session-status mid`): a fast plain-language 'done vs remaining' snapshot for mid-flight orientation, skipping the history scan, triage, and handoff."
 ---
 
 # Session and Repository Status Analysis
@@ -15,7 +15,44 @@ or wrap up the session.
 > and re-call `TaskList` from Step 1; never trust prior outputs from this
 > conversation.
 
+## Two modes
+
+| Invocation | Mode | Use |
+| --- | --- | --- |
+| `/session-status` (default) | **Full** — Steps 1–5, the dashboard + next-session prompt | end of session, wrap-up, deciding what to hand off |
+| `/session-status mid` | **Mid-session** — the quick check below | mid-flight "where am I: what's done, what's left" |
+
+Both modes re-derive live state; neither performs cleanup. Mid-session mode is a
+fast orientation snapshot — it skips the conversation-history scan (Step 2), the
+triage (Step 4), and the next-session prompt (Step 5). Reach for it when you just
+want to see progress, not plan a handoff.
+
+## Mid-session mode
+
+Do only this, then stop:
+
+1. Resolve the plan file (Step 1a) and read its open checklist items with line
+   numbers. Call `TaskList`.
+2. `git status -sb` in the cwd; note branch and ahead/behind.
+3. Count done vs remaining across both the plan checklist and `TaskList`.
+4. Print the compact snapshot — **plain language, no dashboard**:
+
+```text
+Mid-session: <n> done / <m> left
+  Just finished:  <most recent completed item, in human terms>
+  Now / next:     <the in_progress item, or the next open one>
+  Still open:     <short list of remaining items, plan line #s or task IDs>
+  Branch:         <name> (<ahead/behind/clean>)
+```
+
+State remaining work in the user's terms ("the org-admin token still needs
+scoping"), not internal labels ("task #7 pending"). If the plan is complete, say
+so in one line and suggest `/wrap-up`. Do not emit a next-session prompt in this
+mode — that is what full mode and `/handoff` are for.
+
 ---
+
+## Full mode
 
 ## Step 1: Determine Plan and TaskList State
 
@@ -157,11 +194,12 @@ Session Issues Log:
 
 Recommended Prompt for Next Session:
 ─────────────────────────────────────
-<A ready-to-paste prompt covering the 1–3 quick-win tasks identified above.
-Be specific: reference file paths, function names, error messages, etc.
-Include the plan file path so a new session can re-enter plan mode against
-it: ~/.claude/plans/<slug>.md (use the resolved absolute path, not this
-literal placeholder)>
+<Build this by invoking the `/handoff` skill with the triaged 1–3 quick-win tasks
+as source. `/handoff` returns a `## Goal statement` (capped under 4000 chars,
+measured with `wc -c`) plus a `## Full prompt` — paste both here. This guarantees
+the next-session prompt carries a real goal that drops into `/goal`, not a bare
+task list. Include the resolved plan file path (~/.claude/plans/<slug>.md) so the
+new session can re-enter plan mode against it.>
 ─────────────────────────────────────
 
 Recommended GitHub Issues:
@@ -175,6 +213,8 @@ Recommended GitHub Issues:
 
 ## Related Skills
 
+- **handoff** (git-workflows) — builds the goal-bearing next-session prompt that
+  full mode's "Recommended Prompt for Next Session" section emits.
 - **wrap-up** (system) — Wraps up the session, performs repository cleanup, and
   handles PR purging.
 - **refresh-repo** (github-workflows) — Checks PR merge-readiness, syncs local
