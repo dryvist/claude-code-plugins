@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.15.0](https://github.com/dryvist/claude-code-plugins/compare/v4.14.0...v4.15.0) (2026-07-17)
+
+
+### Features
+
+* **script-guards:** add native-first discovery skill + table row ([#411](https://github.com/dryvist/claude-code-plugins/issues/411)) ([bc0316b](https://github.com/dryvist/claude-code-plugins/commit/bc0316bd985ef1119450ff6562db030902bfa8d7))
+
 ## [4.14.0](https://github.com/dryvist/claude-code-plugins/compare/v4.13.1...v4.14.0) (2026-07-17)
 
 
