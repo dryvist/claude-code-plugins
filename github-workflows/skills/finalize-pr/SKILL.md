@@ -188,7 +188,27 @@ invoke `/resolve-codeql fix`.
 - ✅ Code simplified: `/simplify` ran at Phase 2.3.5 on all changes
 - ✅ Local linters pass: validators ran in Phase 2
 
-**Only if all three gates (3.1, 3.2, 3.3) pass**: Proceed to Phase 4 to update PR metadata.
+**Only if all three gates (3.1, 3.2, 3.3) pass**: Proceed to Phase 3.4.
+
+### 3.4 Human-Review Decision (main-targeted PRs only)
+
+Applies **only when the PR's `baseRefName` is `main`** — a trunk-repo PR or a
+`develop`→`main` promotion. A PR into `develop` on a git-flow repo is always
+AI-initiated; skip this step for it.
+
+This is the sanctioned moment to ask for a human (see pr-standards, git-standards
+→ Human-Review Gate). With CI, CodeQL, and threads clean, judge whether the change
+should still have human eyes before it merges to `main` — you are not confident
+enough, or merging would take an externally-visible action (e.g. cut a release) you
+are not authorized to trigger. If so, request review instead of proceeding:
+
+```bash
+gh pr edit <PR_NUMBER> --add-label "human:review"
+```
+
+Then record the PR as `needs-human` in Phase 5 (reason: `human:review`), not
+`ready`. High confidence plus thorough validation still lets you proceed to Phase 4
+and hand off a mergeable PR — the label is opt-in, never required.
 
 **Multi-PR handling**: If a PR needs human intervention (unresolvable conflict,
 unrecoverable CI failure, etc.), log it with reason and continue to the next PR.

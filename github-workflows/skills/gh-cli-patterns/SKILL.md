@@ -260,6 +260,7 @@ Append after the URL, separated by ` | `. Omit when no issues exist ("Ready for 
 
 | Tag | Section 1 trigger | Section 2 trigger |
 |-----|-------------------|-------------------|
+| `Needs human review` | `labels` contains `human:review` | `labels` contains `human:review` |
 | `Conflicts` | `mergeable == CONFLICTING` | `mergeable == CONFLICTING` |
 | `Computing` | `mergeable == UNKNOWN` | `mergeable == UNKNOWN` |
 | `N open comments` | Unresolved thread count from Phase 3 gate | _(not available — omit count)_ |
@@ -289,6 +290,7 @@ gh api graphql -f query='
       pullRequests(states:OPEN,first:50){
         nodes{
           number url title mergeable reviewDecision mergeStateStatus isDraft
+          labels(first:20){nodes{name}}
           commits(last:1){nodes{commit{statusCheckRollup{state}}}}
         }
       }
