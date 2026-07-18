@@ -110,7 +110,7 @@ become permanent tech debt if merged without acknowledgement. Four red flags:
 upstream issue and an exit criterion before merging, or they are rejected.
 
 Origin: 2026-05-22 `ansible-splunk` PRs #216 (asymmetric inline of 1 of 6
-imports, references non-existent `gh-aw-sync-upstream` mechanism) and #218
+imports, references a non-existent sync mechanism) and #218
 (cron-retrigger band-aid with no exit criterion). Both reached
 `mergeStateStatus: CLEAN` and would have merged under a mechanical-gate
 review.

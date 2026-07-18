@@ -46,12 +46,10 @@ moves; do not move any back to the personal account.
 - In `uses:`, always reference the literal current owner above.
 - Do NOT replace a reusable-workflow call with a `gh workflow run` / checkout `vars.*` dispatcher
   just to gain a variable: that loses required-check status, inputs/outputs, and `secrets: inherit`.
-- gh-aw `{{#import ...}}` references and compiled `*.lock.yml` files resolve at compile time
-  via the redirect — leave them to the don't-rewrite rule and gh-aw recompilation.
 
 ## If a shared-CI repo must move anyway (sweep)
 
 1. `gh search code 'OLD_OWNER/REPO' --owner dryvist` (and `--owner JacobPEvans-personal`), filtered to `.github/workflows/*.yml`.
 2. Per consumer repo: swap only the `uses:` owner segment, preserving path and `@ref`; one PR per repo.
-3. Skip `*.lock.yml`, `{{#import}}`, and docs.
+3. Skip docs and files that are not reusable-workflow callers.
 4. Token tiers: dryvist repos → DRYVIST; JacobPEvans-personal repos → PRIVATE.
