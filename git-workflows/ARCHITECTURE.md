@@ -63,7 +63,7 @@ flowchart LR
         clean_gone["/clean_gone"]:::external
     end
 
-    subgraph builtin["AI analysis + gh issue list"]
+    subgraph builtin["AI analysis + gh issue list + Zammad tickets"]
         follow_up["Follow-up prompt\ngeneration"]:::ai
     end
 

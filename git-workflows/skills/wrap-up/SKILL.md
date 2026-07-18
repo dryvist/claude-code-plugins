@@ -79,8 +79,11 @@ Invoke `/clean_gone` to remove any local branches whose remote tracking branch h
 
 If `/session-status` in Step 0 surfaced follow-up work, invoke the `/handoff`
 skill to emit the next-session artifact. Pass it the "Recommended Prompt for Next
-Session", "Recommended GitHub Issues", and "Session Issues Log" sections from the
-Step 0 report as the source material.
+Session", "Recommended GitHub Issues", "Recommended Zammad Tickets", and
+"Session Issues Log" sections from the Step 0 report as the source material.
+Keep the two tracked-follow-up kinds distinct in the handoff — a GitHub issue is
+a code/repo fix, a Zammad ticket is operational/incident work — never relabel
+one as the other.
 
 `/handoff` produces the two-part artifact — a `## Goal statement` capped under
 4000 characters (measured with `wc -c`) plus an unbounded `## Full prompt` — so
@@ -228,7 +231,9 @@ worktree-removal command shape from `/troubleshoot-worktree` and aligns with
 - **refresh-repo** (github-workflows) — PR readiness check + repo sync +
   worktree cleanup (Path A Step A1 dependency); also provides `--sweep` and
   `--prune-stale` modes
-- **shape-issues** (github-workflows) — Shape and create well-structured GitHub issues
+- **shape-issues** (github-workflows) — Shape and create well-structured GitHub
+  issues for code/repo defects and features; not for incidents (Zammad, see
+  session-status Step 4 and pr-standards)
 - **troubleshoot-worktree** (git-workflows) — Worktree-removal command shape reused by `purge-pr` mode
 - **pr-standards** (git-standards) — Workaround Classification rubric used to decide when `purge-pr` is the right action
 - **git-flow-next** (git-workflows) — Dedicated git-flow-next guide, worktree setup, and promotion steps

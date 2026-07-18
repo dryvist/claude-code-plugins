@@ -59,6 +59,11 @@ Unlike issues, PR labels are applied manually by the author or reviewers.
 
 **Note**: Type labels align with [Conventional Commits](https://www.conventionalcommits.org/) and semantic versioning to automate release management.
 
+**Scope note**: `type:bug` covers code/repo defects — something in a
+repository's code or config is broken. Operational incidents (production or
+infrastructure anomalies, RCAs, postmortem-worthy events) are tracked as
+Zammad tickets, not GitHub issues, and carry no `type:*` label.
+
 ### Priority Labels (`priority:*`)
 
 **Purpose**: Indicates urgency and helps with work prioritization and sprint planning.

@@ -35,6 +35,11 @@ Do not trust memory. Collect, at minimum:
 - `git status`, current branch, and any worktree paths the work lives in.
 - Open PRs/issues for the work: `gh pr list` / `gh issue list`. Capture **full
   URLs**, never bare `#123`.
+- Open Zammad tickets for the work, if any: if `mcp__zammad__*` tools are
+  available this session, check with `zammad_search_tickets`; otherwise rely on
+  ticket numbers already known from context. Capture **full ticket URLs**
+  (`$ZAMMAD_URL/#ticket/zoom/<id>`), never a bare `#17053` — same rule as
+  GitHub, extended to Zammad.
 - The one or two files a fresh session must read first to be dangerous.
 
 ## Step 2: Write the goal statement (HARD CAP < 4000 chars)
@@ -96,7 +101,7 @@ Rules:
   values when re-seeding; no secret values in any transcript or PR" is a rule.
 - **Restate the goal; never say "continue."** The new session has no memory. Never
   write "continue what you were doing" or "as discussed above."
-- Full URLs for every PR/issue. Absolute paths for every file and cwd.
+- Full URLs for every PR/issue/Zammad ticket. Absolute paths for every file and cwd.
 
 ## Step 4: Emit
 

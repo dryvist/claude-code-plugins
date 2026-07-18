@@ -41,6 +41,9 @@ gh issue list --repo JacobPEvans/<repo> --state open --search "<keywords>"
 
 Include `Closes #X` or `Related to #X` in PR body. After creation:
 `gh issue comment <num> --body "Implementation: #<pr>"`.
+This guard only searches GitHub issues — code/repo defects. If the PR resolves
+an operational incident, reference the Zammad ticket in prose instead (see
+Issue-PR Bidirectional Linking below).
 
 **Guard 4 — Validate branch has commits**:
 
@@ -127,6 +130,11 @@ Closes #X
 Use `Closes #X` for full resolution (auto-closes on merge).
 Use `Related to #X` for partial.
 
+If the PR also resolves an operational incident, add a `Zammad: <full ticket
+URL>` line alongside `Closes #X`. GitHub's auto-close syntax does not reach
+Zammad — update the ticket separately (`zammad_update_ticket` when that MCP
+tool is available, otherwise a manual note).
+
 ## AI Mention Policy
 
 **NEVER tag AI assistants in PR comments** unless explicitly requesting
@@ -146,6 +154,13 @@ only — PR descriptions and release notes are plain prose. Applies to all
 PRs — human, AI-assisted, and bot-authored automated fixes.
 
 ## GitHub Issue Standards
+
+GitHub Issues track code, config, and repo defects/features — the fix lives in
+a repository. Operational incidents (production/infrastructure anomalies,
+RCAs, postmortems, runbook-worthy events) are not GitHub issues — they are
+Zammad tickets (`#NNNNN`, the org's incident system of record). If what you're
+filing describes something that broke or degraded in production rather than a
+defect in this repo, it belongs in Zammad instead.
 
 ### Title Prefixes
 
