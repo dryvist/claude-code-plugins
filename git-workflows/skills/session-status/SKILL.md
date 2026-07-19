@@ -167,13 +167,26 @@ Perform git and GitHub checks to locate active changes and remote state:
 
 ## Step 4: Triage and Recommendations
 
-Split the gathered items into two buckets:
+Split the gathered items into three buckets:
 
 1. **Next-session prompt** — items small enough to complete in a single focused
    session (roughly 1–3 tasks). Combine related items where possible.
-2. **GitHub issues** — everything else. Before recommending new issues, search
-   existing open issues with `gh issue list --state open --json number,title,url`
-   for duplicates. Use full URLs for references.
+2. **GitHub issues** — code, config, or repo defects and features: something in
+   a repository has to change. Before recommending new issues, search existing
+   open issues with `gh issue list --state open --json number,title,url` for
+   duplicates. Use full URLs for references.
+3. **Zammad tickets** — operational/incident-shaped items: a production or
+   infrastructure anomaly, an RCA- or postmortem-worthy event, or something a
+   runbook should have caught. Zammad is the org's incident system of record;
+   these do not become GitHub issues. If the `mcp__zammad__*` tools are
+   available this session, search for duplicates first with
+   `zammad_search_tickets` — same shape as the `gh issue list` dedup check
+   above. If those tools are not configured this session, skip the dedup check
+   and say so explicitly; never guess a ticket number or state.
+
+An item that is both (e.g. a bug that caused an outage) gets split: a Zammad
+ticket for the incident, a GitHub issue for the underlying code fix, each
+referencing the other.
 
 ---
 
@@ -223,8 +236,29 @@ Recommended GitHub Issues:
 ─────────────────────────────────────
 1. <Title> — <one-line summary> [new | update <issue-url>]
 ─────────────────────────────────────
+
+Recommended Zammad Tickets:
+─────────────────────────────────────
+1. <Title> — <one-line summary> [new | update <Zammad ticket URL> | dedup not
+   checked — Zammad MCP unavailable this session]
+─────────────────────────────────────
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
+
+If every item in the "Unfinished Work & Future Tasks" section above is already
+a tracked Zammad ticket, write the heading as
+`Unfinished Work & Future Tasks (tracked in Zammad, not GitHub):` and prefix
+each item with its bare ticket number, matching this shape:
+
+```text
+Unfinished Work & Future Tasks (tracked in Zammad, not GitHub):
+  - #17053  <one-line description>
+  - #17058  <one-line description>
+```
+
+This is a live, human-facing report, not a cold-start artifact — a bare
+`#NNNNN` here is fine. The "always full URL, never bare `#123`" rule applies
+to `handoff` and `wrap-up`'s resume blocks, not this dashboard.
 
 ---
 
