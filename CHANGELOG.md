@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.24.0](https://github.com/dryvist/claude-code-plugins/compare/v4.23.1...v4.24.0) (2026-07-19)
+
+
+### Features
+
+* **git-workflows:** recognize Zammad as the incident-tracking system ([c016f6a](https://github.com/dryvist/claude-code-plugins/commit/c016f6a14482ff530fb4b6e1b15d71381daa5c02))
+
 ## [4.23.1](https://github.com/dryvist/claude-code-plugins/compare/v4.23.0...v4.23.1) (2026-07-17)
 
 
