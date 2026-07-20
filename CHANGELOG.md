@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.25.0](https://github.com/dryvist/claude-code-plugins/compare/v4.24.0...v4.25.0) (2026-07-20)
+
+
+### Features
+
+* **ai-cli-harness-better-practices:** extract session continuity from git-workflows, add /goal ([#437](https://github.com/dryvist/claude-code-plugins/issues/437)) ([70836bd](https://github.com/dryvist/claude-code-plugins/commit/70836bd946a56f31ef120955fe4275069cc288ad))
+
 ## [4.24.0](https://github.com/dryvist/claude-code-plugins/compare/v4.23.1...v4.24.0) (2026-07-19)
 
 
