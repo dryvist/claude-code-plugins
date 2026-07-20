@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.25.1](https://github.com/dryvist/claude-code-plugins/compare/v4.25.0...v4.25.1) (2026-07-20)
+
+
+### Bug Fixes
+
+* **github-workflows:** stop reporting an unauthorized alert query as zero alerts ([#440](https://github.com/dryvist/claude-code-plugins/issues/440)) ([f1e4e70](https://github.com/dryvist/claude-code-plugins/commit/f1e4e70ff72eaca95219fb96ccf824982d740e95))
+
 ## [4.25.0](https://github.com/dryvist/claude-code-plugins/compare/v4.24.0...v4.25.0) (2026-07-20)
 
 
