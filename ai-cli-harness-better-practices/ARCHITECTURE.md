@@ -73,8 +73,7 @@ exists to prevent.
 ## Resolving the default branch
 
 Commands that name a default branch use the repository's actual default, never a
-hardcoded `main`. Resolve it with this exact sequence — every skill in this
-plugin refers here rather than inlining its own:
+hardcoded `main`. Resolve it with this exact sequence:
 
 ```bash
 default_branch=$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null)
@@ -82,6 +81,14 @@ default_branch=${default_branch#origin/}
 [ -n "$default_branch" ] || default_branch=$(
   gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name' 2>/dev/null)
 ```
+
+**Inline this at every use site — never reference it across blocks.** A harness
+runs each command block in its own shell; only the working directory carries
+over, not variables. Resolving in one block and reading `$default_branch` in
+another yields an empty value *every time*, which silently pins every check to
+its unknown branch. Each skill therefore repeats these three lines immediately
+above the command that needs them. The duplication is deliberate: a correct
+copy beats a shared definition that never reaches its use.
 
 **Never interpolate this unguarded.** `refs/remotes/origin/HEAD` is unset in any
 repository that was not cloned — `git init` plus a fetch, and `actions/checkout`
@@ -116,7 +123,7 @@ flowchart LR
     convo["conversation\n(recent pivots)"] --> goal
     plan["plan file\n(if any)"] --> goal
     tasks["TaskList\n(if any)"] --> goal
-    goal["/goal"]:::ai --> out["## Goal statement\n< 4000 chars, measured"]
+    goal["/goal"]:::ai --> out["statement body + count\n< 4000 chars, measured\n(no heading — caller supplies)"]
 ```
 
 Any missing input is skipped. All three state sources missing still yields a

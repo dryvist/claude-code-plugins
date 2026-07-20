@@ -125,15 +125,25 @@ Invoked directly, wrap the body in this header so the user sees the count:
 <the statement body>
 ```
 
-Invoked by another skill, return **only the body**. `/handoff` supplies its own
+Invoked by another skill, return **only the body**, preceded by one line
+carrying the measurement:
+
+```text
+chars: <N>
+<the statement body>
+```
+
+`/handoff` supplies its own
 `## Goal statement (paste as the session goal — <N> chars, under 4k)` header and
-would otherwise emit two headings.
+would otherwise emit two headings; it takes `<N>` from that line rather than
+re-measuring, since this skill owns the count.
 
 Print nothing else — no summary of what you did, no offer to write it somewhere.
 Exactly two things may follow, each one line, only when true:
 
 - A source was missing and changed the result.
-- The statement is over the cap: state the count and name the criterion at risk.
+- The statement is over the cap: name the criterion at risk. (The count is
+  already reported, in the header or the `chars:` line.)
 
 ## Related Skills
 

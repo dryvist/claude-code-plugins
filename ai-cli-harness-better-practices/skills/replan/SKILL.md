@@ -34,17 +34,27 @@ Use every source available; skip the ones this environment does not have.
 - **Version control** *(only when `git rev-parse --is-inside-work-tree` succeeds)*:
   shipped work via `gh pr list --state merged` plus the default-branch log;
   in-flight work via open PRs, their real mergeable/CI state, pushed branches, and
-  worktrees. Resolve the default branch with the sequence in
-  [ARCHITECTURE.md](../../ARCHITECTURE.md#resolving-the-default-branch) and
-  branch on an empty result — never interpolate it unguarded:
+  worktrees. Run the resolution and its use as **one block** — they must share a
+  shell (see
+  [ARCHITECTURE.md](../../ARCHITECTURE.md#resolving-the-default-branch)):
 
   ```bash
+  default_branch=$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null)
+  default_branch=${default_branch#origin/}
+  [ -n "$default_branch" ] || default_branch=$(
+    gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name' 2>/dev/null)
+
   if [ -z "$default_branch" ]; then
     echo "default branch unknown — shipped work not derivable from git"
+  elif ! git rev-parse --verify "origin/$default_branch" >/dev/null 2>&1; then
+    echo "origin/$default_branch not fetched — run: git fetch origin $default_branch"
   else
-    git log "origin/$default_branch"
+    git log --oneline -30 "origin/$default_branch"
   fi
   ```
+
+  Bound the log: the goal is what shipped recently, not the branch's entire
+  history. Widen the count or add a date range only if the plan predates it.
 
 Note any source you could not reach. An unreachable source is an unknown, never
 an implicit "nothing there".

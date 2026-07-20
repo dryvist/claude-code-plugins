@@ -37,16 +37,22 @@ Determine the completion outcome based on `/session-status`'s report:
   the TaskList and plan checklist alone.
 
   Inside one, determine whether this is a git-flow repo (default branch
-  `develop`). Resolve `default_branch` using the sequence in
-  [ARCHITECTURE.md](../../ARCHITECTURE.md#resolving-the-default-branch), then
-  take exactly one of three branches — this gate must never fail open:
+  `develop`). Run this as **one block** — the resolution and its use must share a
+  shell (see
+  [ARCHITECTURE.md](../../ARCHITECTURE.md#resolving-the-default-branch)) — and
+  take exactly one of three branches; this gate must never fail open:
 
   ```bash
+  default_branch=$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null)
+  default_branch=${default_branch#origin/}
+  [ -n "$default_branch" ] || default_branch=$(
+    gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name' 2>/dev/null)
+
   if [ -z "$default_branch" ]; then
     echo "BLOCKED: default branch unresolved; cannot confirm promotion state"
   elif [ "$default_branch" = develop ]; then
     git fetch origin --force develop main &&
-      git log origin/main..origin/develop
+      git log --oneline origin/main..origin/develop
   else
     echo "trunk repo — promotion requirement does not apply"
   fi

@@ -64,10 +64,11 @@ document, not redesign." Do not paste the raw Step 1 findings; `/goal` treats th
 argument as a steer whose exclusions bind literally, so a dump of PR URLs and
 file paths produces criteria about the wrong things.
 
-`/goal` returns the statement **body**, already measured against the
-4000-character cap, with no heading of its own. Place it verbatim under this
-skill's Step 4 header — do not rewrite it, re-cap it, or append criteria. One
-definition of a goal statement lives in `/goal`, and this skill consumes it.
+`/goal` returns a `chars: <N>` line followed by the statement **body**, with no
+heading of its own. Take `<N>` for this skill's Step 4 header from that line —
+do not re-measure. Place the body verbatim beneath the header; do not rewrite
+it, re-cap it, or append criteria. One definition of a goal statement lives in
+`/goal`, and this skill consumes it.
 
 ## Step 3: Write the full prompt (no cap)
 

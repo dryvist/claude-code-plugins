@@ -48,15 +48,22 @@ When it succeeds, add `gh pr view <N> --json state,mergedAt` (a PR called open
 may be merged), `git status -sb`, and `gh pr list --state merged` to catch work
 already shipped.
 
-To find commits not yet on the default branch, resolve `default_branch` using
-the sequence in
-[ARCHITECTURE.md](../../ARCHITECTURE.md#resolving-the-default-branch), then:
+To find commits not yet on the default branch, run this as **one block** — the
+resolution and its use must share a shell (see
+[ARCHITECTURE.md](../../ARCHITECTURE.md#resolving-the-default-branch)):
 
 ```bash
+default_branch=$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null)
+default_branch=${default_branch#origin/}
+[ -n "$default_branch" ] || default_branch=$(
+  gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name' 2>/dev/null)
+
 if [ -z "$default_branch" ]; then
   echo "default branch unknown — cannot tell shipped from unshipped"
+elif ! git rev-parse --verify "origin/$default_branch" >/dev/null 2>&1; then
+  echo "origin/$default_branch not fetched — run: git fetch origin $default_branch"
 else
-  git log "origin/$default_branch..HEAD"
+  git log --oneline "origin/$default_branch..HEAD"
 fi
 ```
 
