@@ -1,20 +1,19 @@
 ---
 name: wrap-up
-description: "End-of-session handler that first checks whether the current session's plan is actually complete. If complete: refresh repo, run quick retrospective, clean gone branches, and emit a forward-looking follow-up prompt. If incomplete: skip cleanup and emit one or more `cd`-into-worktree blocks paired with ready-to-paste resume prompts so the unfinished work can be picked up cold in a new session."
+description: "End-of-session handler that first checks whether the current session's plan is actually complete. If complete: run a quick retrospective, emit a forward-looking follow-up prompt, and — in a git repository — refresh the repo and clean gone branches. If incomplete: skip cleanup and emit ready-to-paste resume prompts so the unfinished work can be picked up cold in a new session. The completion verdict and forward artifact work outside a repository; only the cleanup steps need one."
 ---
 
 # Post-Session Wrap-Up
 
-> **State warning**: Branch state, remote tracking, TaskList contents, and plan
-> checklist state all change between invocations. Re-run every git/gh command
-> and re-call `TaskList` from Step 0; never trust prior outputs from this
-> conversation.
+> **State warning**: TaskList contents, plan checklist state, and any branch or
+> remote-tracking state all change between invocations. Re-gather them from Step
+> 0; never trust prior outputs from this conversation.
 
 `/wrap-up` has two paths. Step 0 decides which one runs.
 
 | Step 0 outcome           | Path                                                              |
 | ------------------------ | ----------------------------------------------------------------- |
-| Plan complete OR no plan | **Path A** — refresh repo, retrospective, clean branches, follow-up prompt |
+| Plan complete OR no plan | **Path A** — retrospective + follow-up prompt; plus repo refresh and branch cleanup when in a repository |
 | Plan incomplete          | **Path B** — emit resume blocks; skip Path A cleanup entirely     |
 
 The `purge-pr` focused mode (bottom of this file) bypasses Step 0 entirely.
@@ -41,11 +40,22 @@ Determine the completion outcome based on `/session-status`'s report:
 
 ## Path A — Clean wrap-up (plan complete or absent)
 
-Run Steps A1 and A2 **in parallel** (they are independent). Step A3 starts as
-soon as Step A1 completes (depends on its remote prune). Step A4 runs after
-all prior steps finish. Provide a summary of actions taken.
+Steps A1 and A3 are **repository cleanup** and only run when the cwd is a
+repository. Gate them:
 
-### A1. Refresh Repository
+```bash
+git rev-parse --is-inside-work-tree >/dev/null 2>&1
+```
+
+When that fails, skip A1 and A3, note "no repository at this cwd; cleanup
+skipped" in the summary, and run A2 and A4 as normal. Steps A2 and A4 are the
+part of a wrap-up that always applies.
+
+In a repository, run Steps A1 and A2 **in parallel** (they are independent).
+Step A3 starts as soon as Step A1 completes (depends on its remote prune). Step
+A4 runs after all prior steps finish. Provide a summary of actions taken.
+
+### A1. Refresh Repository (repository only)
 
 Invoke `/refresh-repo` to:
 
@@ -65,7 +75,7 @@ Invoke `/retrospecting quick` to capture a brief session retrospective:
 
 **Requires**: `claude-retrospective` plugin (external). If not installed, skip this step and note it was skipped.
 
-### A3. Clean Gone Branches
+### A3. Clean Gone Branches (repository only)
 
 Invoke `/clean_gone` to remove any local branches whose remote tracking branch has been deleted:
 
@@ -226,7 +236,7 @@ worktree-removal command shape from `/troubleshoot-worktree` and aligns with
 
 ## Related Skills
 
-- **handoff** (git-workflows) — builds the two-part next-session artifact (goal
+- **handoff** (this plugin) — builds the two-part next-session artifact (goal
   statement under 4000 chars + full prompt) used by Path A Step A4 and Path B Step B2
 - **refresh-repo** (github-workflows) — PR readiness check + repo sync +
   worktree cleanup (Path A Step A1 dependency); also provides `--sweep` and

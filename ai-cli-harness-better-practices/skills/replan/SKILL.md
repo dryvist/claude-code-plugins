@@ -16,20 +16,29 @@ outlive the decision that banned it), or `/resume` surfaced contradictions betwe
 the plan and live state.
 
 > **State warning**: the plan is the least trustworthy source in the room. Derive
-> from git, gh, the filesystem, and Doppler/CI as applicable — then correct the plan.
+> from whichever ground-truth sources this environment actually has — then correct
+> the plan.
 
 ## Step 1: Re-derive ground truth (ignore the plan's claims)
 
-Establish what is actually true right now, independent of what the plan says:
+Establish what is actually true right now, independent of what the plan says.
+Use every source available; skip the ones this environment does not have.
 
-- **Shipped**: `gh pr list --state merged`, `git log origin/main`, released versions.
-- **In flight**: open PRs and their real mergeable/CI state; pushed branches; worktrees.
+- **The artifact itself**: read the file, run the test, hit the endpoint. This
+  source always exists and outranks every claim about it.
 - **Config vs running**: a config default is not the running system. If the plan
   claims a capability is "live", check the thing itself (the mount, the secret, the
   endpoint), not the flag that would enable it. (This is the exact trap that makes
   plans go stale — a default read as a fact.)
-- **Decisions**: scan for anything that invalidates a plan step — a merged rule, a
-  closed issue, a design the user changed mid-flight.
+- **Decisions**: scan for anything that invalidates a plan step — a new rule, a
+  closed ticket, a design the user changed mid-flight.
+- **Version control** *(only when `git rev-parse --is-inside-work-tree` succeeds)*:
+  shipped work via `gh pr list --state merged` and `git log origin/<default>`;
+  in-flight work via open PRs, their real mergeable/CI state, pushed branches, and
+  worktrees.
+
+Note any source you could not reach. An unreachable source is an unknown, never
+an implicit "nothing there".
 
 ## Step 2: Reconcile against the plan
 
@@ -72,6 +81,10 @@ directly.
 
 ## Related Skills
 
-- **resume** (git-workflows) — continue work cold; calls replan when the plan is broadly stale.
-- **session-status** (git-workflows) — live-state derivation reused here.
-- **handoff** (git-workflows) — emits a fresh prompt from the replanned state.
+- **resume** (this plugin) — continue work cold; calls replan when the plan is broadly stale.
+- **session-status** (this plugin) — live-state derivation reused here.
+- **handoff** (this plugin) — emits a fresh prompt from the replanned state.
+- **writing-plans** (superpowers) — when there is no plan to correct and one must
+  be written from scratch.
+- **autoresearch:plan** — when the replanned goal needs a measurable metric and an
+  automated verify command rather than prose criteria.

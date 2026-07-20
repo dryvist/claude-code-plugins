@@ -19,6 +19,7 @@
 
   claudePlugins = [
     # jacobpevans-cc-plugins
+    "ai-cli-harness-better-practices@jacobpevans-cc-plugins"
     "git-guards@jacobpevans-cc-plugins"
     "git-workflows@jacobpevans-cc-plugins"
     "git-standards@jacobpevans-cc-plugins"
@@ -60,10 +61,18 @@
     "trigger-ai-reviews"
     # jacobpevans git-workflows
     "sync-main"
-    "wrap-up"
     "troubleshoot-precommit"
     "troubleshoot-rebase"
     "troubleshoot-worktree"
+    "git-flow-next"
+    "pre-commit-architecture"
+    # jacobpevans ai-cli-harness-better-practices
+    "goal"
+    "session-status"
+    "handoff"
+    "resume"
+    "replan"
+    "wrap-up"
     # jacobpevans codeql-resolver
     "codeql-permission-classification"
     "github-workflow-security-patterns"

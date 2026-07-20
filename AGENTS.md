@@ -10,12 +10,13 @@ This is a **Claude Code plugins repository** containing production-ready hooks f
 
 | Plugin | Type | Tools/Commands | Purpose |
 |--------|------|--------|------|
+| **ai-cli-harness-better-practices** | Skill | `/goal`, `/session-status`, `/handoff`, `/resume`, `/replan`, `/wrap-up` (incl. `purge-pr` mode) | Harness-agnostic session continuity: capped goal statements, done-vs-remaining snapshots, cold-start handoffs, verify-before-trust resume, stale-plan repair, and end-of-session wrap-up. Runs without a git repository |
 | **ai-delegation** | Skill | `/delegate-to-ai`, `/auto-maintain`, `/premium-agent-orchestration` | Route tasks to AI models and preserve premium reasoning while cheaper agents or local/free LLMs handle checkable work |
 | **codeql-resolver** | Command/Skill/Agent | `/resolve-codeql` | Resolve CodeQL security alerts in GitHub Actions workflows |
 | **config-management** | Skill | `/sync-permissions`, `/quick-add-permission` | Manage Claude and Gemini permission configs across repositories |
 | **content-guards** | Pre/PostToolUse | Bash, Write, Edit | Token limits, markdown/README validation, webfetch guard, issue/PR backlog limits, public-repo leakage guard |
 | **git-guards** | PreToolUse | Bash, Edit, Write, NotebookEdit | Blocks dangerous git/gh commands and file edits on main branch |
-| **git-workflows** | Command/Skill | `/sync-main`, `/wrap-up` (incl. `purge-pr` mode), `/handoff`, `/resume`, `/replan`, `/troubleshoot-rebase`, `/troubleshoot-precommit`, `/troubleshoot-worktree` | Local git sync, troubleshooting, post-merge cleanup, atomic PR-close + branch purge, paste-ready handoffs, and cold-resume/replan from live state |
+| **git-workflows** | Command/Skill | `/sync-main`, `/git-flow-next`, `/troubleshoot-rebase`, `/troubleshoot-precommit`, `/troubleshoot-worktree`, `/pre-commit-architecture` | Local git sync, branching model, and rebase/pre-commit/worktree troubleshooting |
 | **github-workflows** | Command/Skill | `/ship`, `/finalize-pr`, `/refresh-repo` (incl. `--sweep` and `--prune-stale` modes), `/rebase-pr`, `/squash-merge-pr`, `/pr-sweep`, `/resolve-pr-threads`, `/gh-cli-patterns`, `/shape-issues`, `/trigger-ai-reviews` | GitHub PR/issue management workflows, cross-repo workspace sweep, stale-branch pruning, and risk-ranked open-PR sweep-to-zero |
 | **infra-orchestration** | Skill | `/orchestrate-infra`, `/sync-inventory`, `/test-e2e` | Cross-repo infrastructure orchestration for Terraform and Ansible |
 | **code-standards** | Skill | `/code-quality-standards`, `/review-standards` | Code quality standards, documentation formatting, testing philosophy, and review guidelines |

@@ -73,9 +73,18 @@
       }
     },
     {
+      "name": "ai-cli-harness-better-practices",
+      "source": "./ai-cli-harness-better-practices",
+      "description": "Harness-agnostic session continuity: goal statements, status snapshots, handoffs, cold resume, replanning, and wrap-up. No git or GitHub required.",
+      "version": "4.24.0",
+      "author": {
+        "name": "JacobPEvans"
+      }
+    },
+    {
       "name": "git-workflows",
       "source": "./git-workflows",
-      "description": "Git worktree initialization, main branch sync, repository refresh, and troubleshooting workflows",
+      "description": "Git worktree initialization, main branch sync, and troubleshooting workflows",
       "version": "4.24.0",
       "author": {
         "name": "JacobPEvans"
