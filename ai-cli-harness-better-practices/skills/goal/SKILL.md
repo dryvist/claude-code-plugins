@@ -87,14 +87,20 @@ statement's most common consumer. Measure it. Never estimate.
 Pipe the draft straight into `wc -m` — no file, no temp directory:
 
 ```bash
-wc -m <<'GOAL_EOF'
+LC_ALL=en_US.UTF-8 wc -m <<'GOAL_EOF'
 <the drafted goal statement, verbatim>
 GOAL_EOF
 ```
 
-`-m` counts characters; `-c` counts bytes and over-reports any line with an
-em-dash or other multi-byte character, which would trigger a cut the statement
-did not need.
+`-m` counts characters, `-c` counts bytes. The cap is in characters, and these
+statements routinely contain em-dashes and other multi-byte characters, so `-c`
+over-reports and would trigger a cut the statement did not need.
+
+**The locale prefix is load-bearing.** `wc -m` only counts characters inside a
+UTF-8 locale; under `LC_ALL=C` it silently falls back to counting bytes and
+becomes identical to `-c`. If `en_US.UTF-8` is unavailable, substitute any UTF-8
+locale the system has — `C.UTF-8` is the usual one on Linux. Never drop the
+prefix and rely on the ambient locale.
 
 Read the number. Over the cap, cut in this order and re-measure after each cut:
 
@@ -108,22 +114,26 @@ honest over-cap statement beats a silently truncated one.
 
 ## Step 5: Print
 
+**The statement is the body only — it never contains a heading.** That is what
+makes it embeddable: a caller supplies whatever header its own format needs.
+
+Invoked directly, wrap the body in this header so the user sees the count:
+
 ```text
 ## Goal statement (<N> chars)
 
-<the statement>
+<the statement body>
 ```
 
-Report the measured count on the header line. Print nothing else — no summary of
-what you did, no offer to write it somewhere.
+Invoked by another skill, return **only the body**. `/handoff` supplies its own
+`## Goal statement (paste as the session goal — <N> chars, under 4k)` header and
+would otherwise emit two headings.
 
-Exactly two things may follow the block, each one line, only when true:
+Print nothing else — no summary of what you did, no offer to write it somewhere.
+Exactly two things may follow, each one line, only when true:
 
 - A source was missing and changed the result.
 - The statement is over the cap: state the count and name the criterion at risk.
-
-A caller embedding this output — `/handoff` does — takes the block verbatim and
-supplies its own surrounding header. Do not add one.
 
 ## Related Skills
 

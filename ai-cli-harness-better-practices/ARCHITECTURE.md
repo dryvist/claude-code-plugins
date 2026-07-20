@@ -70,12 +70,37 @@ non-zero `gh` exit as "unknown", never as "none found", and say which check did
 not run. Reporting an unchecked list as clean is the failure this whole design
 exists to prevent.
 
-Commands that name a default branch use the repository's actual default, not a
-hardcoded `main`:
+## Resolving the default branch
+
+Commands that name a default branch use the repository's actual default, never a
+hardcoded `main`. Resolve it with this exact sequence — every skill in this
+plugin refers here rather than inlining its own:
 
 ```bash
-git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null   # e.g. origin/develop
+default_branch=$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null)
+default_branch=${default_branch#origin/}
+[ -n "$default_branch" ] || default_branch=$(
+  gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name' 2>/dev/null)
 ```
+
+**Never interpolate this unguarded.** `refs/remotes/origin/HEAD` is unset in any
+repository that was not cloned — `git init` plus a fetch, and `actions/checkout`
+in CI, both leave it missing. Substituting the empty result produces
+`git log ""..HEAD`, which **exits 0 and prints nothing**: indistinguishable from
+a genuinely clean branch. That is the silent-false-clean this whole design exists
+to prevent, so branch on it explicitly:
+
+```bash
+if [ -z "$default_branch" ]; then
+  echo "default branch unknown — report as unknown, never as 'no changes'"
+else
+  git log "origin/$default_branch..HEAD"
+fi
+```
+
+The same rule governs any check keyed on the default branch's *name* (for
+example "is this a git-flow repo?"): an unresolved default must report unknown,
+not silently take the "no" path and skip a check that would otherwise have run.
 
 ## /goal composition
 

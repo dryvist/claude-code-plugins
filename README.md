@@ -182,7 +182,7 @@ invocation. Skill-based plugins provide slash commands:
 /finalize-pr              # Drive PR to merge-ready state
 /squash-merge-pr          # Validate and squash merge
 /refresh-repo             # Sync main, check PRs, cleanup worktrees
-/wrap-up                  # Post-merge cleanup + retrospective
+/wrap-up                  # Session-completion verdict + forward artifact
 /resolve-codeql           # Fix CodeQL security alerts
 /delegate-to-ai           # Route tasks to available AI models
 /premium-agent-orchestration # Preserve premium reasoning and delegate checkable work

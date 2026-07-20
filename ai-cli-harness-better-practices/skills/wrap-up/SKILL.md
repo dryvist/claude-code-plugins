@@ -34,18 +34,31 @@ Determine the completion outcome based on `/session-status`'s report:
   ```
 
   Outside a repository, skip this requirement entirely; completion is decided by
-  the TaskList and plan checklist alone. Inside one, check whether it is a
-  git-flow repo (default branch `develop`) before running anything against
-  `origin` — a trunk repo and a repo with no `origin` remote both skip this too:
+  the TaskList and plan checklist alone.
+
+  Inside one, determine whether this is a git-flow repo (default branch
+  `develop`). Resolve `default_branch` using the sequence in
+  [ARCHITECTURE.md](../../ARCHITECTURE.md#resolving-the-default-branch), then
+  take exactly one of three branches — this gate must never fail open:
 
   ```bash
-  git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | grep -q develop
+  if [ -z "$default_branch" ]; then
+    echo "BLOCKED: default branch unresolved; cannot confirm promotion state"
+  elif [ "$default_branch" = develop ]; then
+    git fetch origin --force develop main &&
+      git log origin/main..origin/develop
+  else
+    echo "trunk repo — promotion requirement does not apply"
+  fi
   ```
 
-  Only when that succeeds, verify there are no unpromoted changes on `develop`:
-  `git fetch origin --force develop main && git log origin/main..origin/develop`.
-  If there are commits, they MUST be promoted to `main` via `/promote-release`.
-  Until then the plan is **incomplete** and the session must not follow Path A.
+  `refs/remotes/origin/HEAD` is unset in fetch-based and CI checkouts, so the
+  first branch is reachable in practice; treat it as **unknown, not clean**. The
+  plan is incomplete until promotion state is positively confirmed.
+
+  When the log shows commits, they MUST be promoted to `main` via
+  `/promote-release`. Until then the plan is **incomplete** and the session must
+  not follow Path A.
 - **Path B** (incomplete): Any TaskList task or plan checklist item
   remains incomplete.
 

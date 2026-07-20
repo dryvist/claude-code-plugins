@@ -39,10 +39,13 @@ claude plugins add jacobpevans-cc-plugins/git-workflows
 
 ## Dependencies
 
-None. Every skill in this plugin uses `git` directly.
+No plugin is invoked programmatically; every skill here uses `git` directly.
+Two cross-references are advisory only: `/troubleshoot-worktree` defers to
+`superpowers:using-git-worktrees`, and `/git-flow-next` points at
+`github-workflows:promote-release`.
 
-Skills that orchestrate across plugins — including the `/wrap-up` that used to
-live here — moved to `ai-cli-harness-better-practices`, and their external
+Skills that *did* orchestrate across plugins — including the `/wrap-up` that
+used to live here — moved to `ai-cli-harness-better-practices`, and their
 dependencies moved with them.
 
 ## License

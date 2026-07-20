@@ -64,10 +64,10 @@ document, not redesign." Do not paste the raw Step 1 findings; `/goal` treats th
 argument as a steer whose exclusions bind literally, so a dump of PR URLs and
 file paths produces criteria about the wrong things.
 
-`/goal` returns a `## Goal statement` already measured against the
-4000-character cap. Use its block verbatim under this skill's own header from
-Step 4 — do not rewrite it, re-cap it, or append criteria. One definition of a
-goal statement lives in `/goal`, and this skill consumes it.
+`/goal` returns the statement **body**, already measured against the
+4000-character cap, with no heading of its own. Place it verbatim under this
+skill's Step 4 header — do not rewrite it, re-cap it, or append criteria. One
+definition of a goal statement lives in `/goal`, and this skill consumes it.
 
 ## Step 3: Write the full prompt (no cap)
 

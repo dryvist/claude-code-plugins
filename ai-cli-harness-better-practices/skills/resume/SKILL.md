@@ -44,11 +44,27 @@ The version-control row is gated:
 git rev-parse --is-inside-work-tree >/dev/null 2>&1
 ```
 
-When it succeeds, add: `gh pr view <N> --json state,mergedAt` (a PR called open
-may be merged), `git status -sb`, and `git log "$(git symbolic-ref --short
-refs/remotes/origin/HEAD)"..HEAD` plus
-`gh pr list --state merged` to catch work already shipped. When it fails, skip
-the row — the other sources still reconcile the plan.
+When it succeeds, add `gh pr view <N> --json state,mergedAt` (a PR called open
+may be merged), `git status -sb`, and `gh pr list --state merged` to catch work
+already shipped.
+
+To find commits not yet on the default branch, resolve `default_branch` using
+the sequence in
+[ARCHITECTURE.md](../../ARCHITECTURE.md#resolving-the-default-branch), then:
+
+```bash
+if [ -z "$default_branch" ]; then
+  echo "default branch unknown — cannot tell shipped from unshipped"
+else
+  git log "origin/$default_branch..HEAD"
+fi
+```
+
+Never interpolate an unresolved default: `git log ""..HEAD` exits 0 with no
+output, which reads as "nothing unshipped" and would make this skill redo work
+that already merged — the precise error it exists to prevent.
+
+When the guard fails, skip the row — the other sources still reconcile the plan.
 
 Reconcile: build the *actual* remaining set = plan/TaskList items minus anything
 live evidence shows already done. Shrinking the list is the point — never redo

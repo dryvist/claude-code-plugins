@@ -32,10 +32,19 @@ Use every source available; skip the ones this environment does not have.
 - **Decisions**: scan for anything that invalidates a plan step — a new rule, a
   closed ticket, a design the user changed mid-flight.
 - **Version control** *(only when `git rev-parse --is-inside-work-tree` succeeds)*:
-  shipped work via `gh pr list --state merged` and `git log "$(git symbolic-ref
-  --short refs/remotes/origin/HEAD)"`;
+  shipped work via `gh pr list --state merged` plus the default-branch log;
   in-flight work via open PRs, their real mergeable/CI state, pushed branches, and
-  worktrees.
+  worktrees. Resolve the default branch with the sequence in
+  [ARCHITECTURE.md](../../ARCHITECTURE.md#resolving-the-default-branch) and
+  branch on an empty result — never interpolate it unguarded:
+
+  ```bash
+  if [ -z "$default_branch" ]; then
+    echo "default branch unknown — shipped work not derivable from git"
+  else
+    git log "origin/$default_branch"
+  fi
+  ```
 
 Note any source you could not reach. An unreachable source is an unknown, never
 an implicit "nothing there".
