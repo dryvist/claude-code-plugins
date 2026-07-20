@@ -1,11 +1,11 @@
 #!/usr/bin/env bats
 # Test suite for git-guards/scripts/worktree-reminder.sh
 #
-# Tests the UserPromptSubmit hook's systemMessage injection:
+# Tests the UserPromptSubmit hook's systemMessage injection. The hook keys off
+# the branch alone and ignores the directory name (location-agnostic, #345):
 #   - Not in a git repo → empty JSON, exit 0
-#   - In git repo, worktree dir named "main" → systemMessage present
-#   - In git repo, branch is "main" → systemMessage present
-#   - In git repo, feature branch, dir not "main" → empty JSON, exit 0
+#   - In git repo, branch is "main"/"master" → systemMessage present
+#   - In git repo, any other branch → empty JSON, exit 0, whatever the dir name
 #
 # Each test that needs a git repo creates a temporary one in BATS_TMPDIR
 # and tears it down in teardown().
@@ -51,20 +51,21 @@ run_hook_in() {
 }
 
 # ---------------------------------------------------------------------------
-# TC2: In git repo, worktree dir named "main" → systemMessage present
+# TC2: Feature branch in a dir named "main" → empty JSON
+#
+# The hook is location-agnostic (#345): only the branch matters, never the
+# directory name. A worktree that happens to sit in a dir called "main" is
+# still a legitimate feature worktree.
 # ---------------------------------------------------------------------------
 
-@test "TC2: worktree dir named 'main' injects systemMessage" {
+@test "TC2: feature branch in dir named 'main' outputs empty JSON" {
   local repo_dir
   repo_dir="$TMPDIR_BASE/main"
   make_repo "$repo_dir" "feat/some-feature" >/dev/null
 
   run_hook_in "$repo_dir"
   [ "$status" -eq 0 ]
-  [[ "$output" =~ "systemMessage" ]]
-  [[ "$output" =~ "WARNING" ]]
-  [[ "$output" =~ "refresh-repo" ]]
-  [[ "$output" =~ "using-git-worktrees" ]]
+  [[ "$output" == "{}" ]]
 }
 
 # ---------------------------------------------------------------------------
@@ -80,8 +81,7 @@ run_hook_in() {
   [ "$status" -eq 0 ]
   [[ "$output" =~ "systemMessage" ]]
   [[ "$output" =~ "WARNING" ]]
-  [[ "$output" =~ "refresh-repo" ]]
-  [[ "$output" =~ "using-git-worktrees" ]]
+  [[ "$output" =~ "worktree" ]]
 }
 
 # ---------------------------------------------------------------------------
