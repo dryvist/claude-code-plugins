@@ -1,8 +1,15 @@
 # git-workflows — Architecture
 
-Local git operations: branch sync, troubleshooting, and post-merge cleanup.
+Local git operations: branch sync and troubleshooting.
+
 For PR-related operations (refresh, rebase-merge, finalize, squash-merge), see
 [github-workflows/ARCHITECTURE.md](../github-workflows/ARCHITECTURE.md).
+
+Session-continuity skills (`/goal`, `/session-status`, `/handoff`, `/resume`,
+`/replan`, `/wrap-up`) are **not** here. They moved to
+[ai-cli-harness-better-practices](../ai-cli-harness-better-practices/ARCHITECTURE.md)
+because they are harness concerns, not git concerns — they run with or without a
+repository and treat git as one evidence source among several.
 
 ## Skill Map
 
@@ -13,6 +20,8 @@ flowchart TD
 
     subgraph maintenance["Maintenance"]
         sync_main["/sync-main"]
+        git_flow["/git-flow-next"]
+        precommit_arch["/pre-commit-architecture"]
     end
 
     subgraph troubleshooting["Troubleshooting"]
@@ -21,70 +30,35 @@ flowchart TD
         ts_worktree["/troubleshoot-worktree"]
     end
 
-    subgraph cleanup["Cleanup"]
-        wrap_up["/wrap-up"]
-    end
-
     subgraph external_deps["External"]
         superpowers["superpowers:\nusing-git-worktrees"]:::external
-        clean_gone["/clean_gone\n(commit-commands)"]:::external
-        retrospecting["/retrospecting quick\n(claude-retrospective)"]:::external
-        refresh_repo["/refresh-repo\n(github-workflows)"]:::external
+        harness["ai-cli-harness-better-practices\n/wrap-up, /handoff"]:::external
     end
-
-    wrap_up -->|"Step 1"| refresh_repo
-    wrap_up -->|"Step 2"| retrospecting
-    wrap_up -->|"Step 3"| clean_gone
-    wrap_up -->|"Step 4"| follow_up["Follow-up prompt\n(built-in)"]:::ai
 
     ts_worktree -.->|"worktree guidance"| superpowers
+    harness -.->|"branching model facts"| git_flow
+    harness -.->|"optional, in a repo"| sync_main
 
-    class sync_main,ts_rebase,ts_precommit,ts_worktree,wrap_up ai
+    class sync_main,git_flow,precommit_arch,ts_rebase,ts_precommit,ts_worktree ai
 ```
 
-## /wrap-up Composition
+## Plugin Boundary: Session vs Local vs GitHub
 
 ```mermaid
 flowchart LR
     classDef ai fill:#e3f2fd,stroke:#1565c0,color:#0d47a1
     classDef external fill:#f3e5f5,stroke:#6a1b9a,color:#4a148c
 
-    wrap_up["/wrap-up\ngit-workflows"]:::ai
-
-    subgraph github_wf["github-workflows plugin"]
-        refresh_repo["/refresh-repo"]:::external
+    subgraph harness["ai-cli-harness-better-practices — SESSION state"]
+        direction TB
+        cont["/goal, /session-status, /handoff\n/resume, /replan, /wrap-up"]:::external
     end
-
-    subgraph retro["claude-retrospective plugin"]
-        retrospecting["/retrospecting quick"]:::external
-    end
-
-    subgraph commits["commit-commands plugin"]
-        clean_gone["/clean_gone"]:::external
-    end
-
-    subgraph builtin["AI analysis + gh issue list + Zammad tickets"]
-        follow_up["Follow-up prompt\ngeneration"]:::ai
-    end
-
-    wrap_up -->|"1. sync + readiness check"| refresh_repo
-    wrap_up -->|"2. session retrospective"| retrospecting
-    wrap_up -->|"3. prune gone branches"| clean_gone
-    wrap_up -->|"4. follow-up prompt"| follow_up
-```
-
-## Plugin Boundary: Local vs GitHub
-
-```mermaid
-flowchart LR
-    classDef ai fill:#e3f2fd,stroke:#1565c0,color:#0d47a1
-    classDef external fill:#f3e5f5,stroke:#6a1b9a,color:#4a148c
 
     subgraph local["git-workflows — LOCAL git operations"]
         direction TB
         sync_main["/sync-main\ngit pull, branch sync"]:::ai
         ts["/troubleshoot-*\nrebase, precommit, worktree"]:::ai
-        wrap_up["/wrap-up\nend-of-session cleanup"]:::ai
+        git_flow["/git-flow-next\nbranching model"]:::ai
     end
 
     subgraph remote["github-workflows — GITHUB API operations"]
@@ -98,5 +72,10 @@ flowchart LR
         trigger_reviews["/trigger-ai-reviews"]:::external
     end
 
+    harness -- "calls down when\nthe cwd is a repo" --> local
+    harness -- "calls down when\nthe cwd is a repo" --> remote
     local -- "hands off after\npush to remote" --> remote
 ```
+
+The arrows point one way on purpose. Harness skills may call into git and GitHub
+skills; git and GitHub skills never depend on session state.

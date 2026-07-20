@@ -41,14 +41,14 @@ claude plugins add jacobpevans-cc-plugins/content-guards
 
 ## Testing
 
-Run tests using the shared test runner:
+Run tests with bats:
 
 ```bash
-# From repository root
-./scripts/run-tests.sh content-guards
+# From repository root — -r discovers every .bats file recursively
+bats -r tests/content-guards
 
-# Alternative: run bats directly
-bats tests/content-guards/**/*.bats
+# A single test file
+bats tests/content-guards/token-limits/validate-token-limits.bats
 ```
 
 Test coverage includes:

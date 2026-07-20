@@ -94,4 +94,4 @@ Feature PRs squash into `develop` and stop there. To release them:
 - **git-workflow-standards** (git-standards) — Branch hygiene and worktree layout
 - **pr-standards** (git-standards) — PR templates and guards
 - **promote-release** (github-workflows) — Promotion PR commands
-- **wrap-up** (git-workflows) — End-of-session handler checking promotion state
+- **wrap-up** (ai-cli-harness-better-practices) — End-of-session handler checking promotion state

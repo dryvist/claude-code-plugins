@@ -105,49 +105,11 @@ run_hook() {
 }
 
 # ---------------------------------------------------------------------------
-# TC4: gh issue create - AI-created issue hard limit (exit 2)
+# TC4-TC6 removed: they asserted an "ai-created" label limit and a 24h rate
+# limit. Both were deliberately deleted from the hook (see the module docstring
+# in content-guards/scripts/enforce-issue-limits.py — "do not reintroduce").
+# Only hard limits on OPEN items remain, covered by TC3 and TC8.
 # ---------------------------------------------------------------------------
-
-@test "TC4: gh issue create blocked when ai-created issues >= 25" {
-  export GH_RESPONSE="$(build_json_array '{"number":__N__,"labels":[{"name":"ai-created"}]}' 25)"
-
-  run_hook '{"tool_input":{"command":"gh issue create --title test"}}'
-  [ "$status" -eq 2 ]
-  [[ "$output" =~ "BLOCKED: Issue creation limit exceeded" ]]
-  [[ "$output" =~ "25/25" ]]
-}
-
-# ---------------------------------------------------------------------------
-# TC5: gh issue create - 24h rate limit (exit 2)
-# ---------------------------------------------------------------------------
-
-@test "TC5: gh issue create blocked when 50 issues created in last 24h" {
-  local now
-  now="$(utc_now)"
-  export GH_RESPONSE="$(build_json_array '{"number":__N__,"labels":[],"createdAt":"'"$now"'"}' 50)"
-
-  run_hook '{"tool_input":{"command":"gh issue create --title test"}}'
-  [ "$status" -eq 2 ]
-  [[ "$output" =~ "BLOCKED: Rate limit exceeded" ]]
-  [[ "$output" =~ "Issues" ]]
-}
-
-# ---------------------------------------------------------------------------
-# TC6: gh pr create - 24h rate limit (exit 2)
-# ---------------------------------------------------------------------------
-
-@test "TC6: gh pr create blocked when 50 PRs created in last 24h" {
-  local now
-  now="$(utc_now)"
-  # Open PRs under hard limit (14 < 15), but 50 total created in 24h (rate limit)
-  export GH_RESPONSE="$(build_json_array '{"number":__N__,"labels":[],"createdAt":"'"$now"'"}' 14)"
-  export GH_RESPONSE_ALL="$(build_json_array '{"createdAt":"'"$now"'"}' 50)"
-
-  run_hook '{"tool_input":{"command":"gh pr create --title test"}}'
-  [ "$status" -eq 2 ]
-  [[ "$output" =~ "BLOCKED: Rate limit exceeded" ]]
-  [[ "$output" =~ "PRs" ]]
-}
 
 # ---------------------------------------------------------------------------
 # TC7: gh pr edit - always allowed (edits don't create new PRs)
@@ -176,7 +138,7 @@ run_hook() {
 # TC8: gh pr create - under limit is allowed
 # ---------------------------------------------------------------------------
 
-@test "TC8: gh pr create allowed when under rate limit" {
+@test "TC8: gh pr create allowed when open PRs are under the hard limit" {
   local now
   now="$(utc_now)"
   export GH_RESPONSE='[{"createdAt":"'"$now"'"}]'

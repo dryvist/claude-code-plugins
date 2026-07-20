@@ -114,8 +114,8 @@ jobs:
 
       - name: Run tests
         run: |
-          echo "Running bats tests via shared script..."
-          ./scripts/run-tests.sh
+          echo "Running bats tests..."
+          bats -r .
 
           echo "Running Python tests..."
           find . -name "test_*.py" -o -name "*_test.py" | while read -r test; do

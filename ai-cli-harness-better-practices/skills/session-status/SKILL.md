@@ -1,6 +1,6 @@
 ---
 name: session-status
-description: "Analyzes current session state and repository status without any cleanup. Full mode (default): resolves the active plan file, reads plan checklist + TaskList, gathers unfinished work/issues from conversation history, checks git status, and emits a /handoff-built next-session prompt. Mid-session mode (`/session-status mid`): a fast plain-language 'done vs remaining' snapshot for mid-flight orientation, skipping the history scan, triage, and handoff."
+description: "Analyzes current session state without any cleanup. Full mode (default): resolves the active plan file, reads plan checklist + TaskList, gathers unfinished work/issues from conversation history, and emits a /handoff-built next-session prompt. Mid-session mode (`/session-status mid`): a fast plain-language 'done vs remaining' snapshot for mid-flight orientation, skipping the history scan, triage, and handoff. Repository and PR state is optional enrichment — both modes run outside a git repository."
 ---
 
 # Session and Repository Status Analysis
@@ -33,7 +33,15 @@ Do only this, then stop:
 
 1. Resolve the plan file (Step 1a) and read its open checklist items with line
    numbers. Call `TaskList`.
-2. `git status -sb` in the cwd; note branch and ahead/behind.
+2. If — and only if — the cwd is a repository, run `git status -sb` and note
+   branch and ahead/behind:
+
+   ```bash
+   git rev-parse --is-inside-work-tree >/dev/null 2>&1
+   ```
+
+   When that fails, omit the `Branch:` line entirely. Do not print an error and
+   do not print a placeholder.
 3. Count done vs remaining across both the plan checklist and `TaskList`.
 4. Print the compact snapshot — **plain language, no dashboard**:
 
@@ -42,7 +50,7 @@ Mid-session: <n> done / <m> left
   Just finished:  <most recent completed item, in human terms>
   Now / next:     <the in_progress item, or the next open one>
   Still open:     <short list of remaining items, plan line #s or task IDs>
-  Branch:         <name> (<ahead/behind/clean>)
+  Branch:         <name> (<ahead/behind/clean>)     ← omit if not a repository
 ```
 
 State remaining work in the user's terms ("the org-admin token still needs
@@ -129,9 +137,20 @@ no new items appear for ~10 consecutive messages.
 
 ---
 
-## Step 3: Analyze Repository & Git Status
+## Step 3: Analyze Repository & Git Status (only in a repository)
 
-Perform git and GitHub checks to locate active changes and remote state:
+Gate the whole step:
+
+```bash
+git rev-parse --is-inside-work-tree >/dev/null 2>&1
+```
+
+If it fails, skip Step 3 entirely, render the `Git & Repository Status:` block as
+`not a repository — skipped`, and continue to Step 4. Plan and task state are
+what this skill is really reporting; version control is enrichment.
+
+When it succeeds, perform git and GitHub checks to locate active changes and
+remote state:
 
 1. Run `git status` to identify modified/untracked files and the current branch
    name.
@@ -174,7 +193,12 @@ Split the gathered items into three buckets:
 2. **GitHub issues** — code, config, or repo defects and features: something in
    a repository has to change. Before recommending new issues, search existing
    open issues with `gh issue list --state open --json number,title,url` for
-   duplicates. Use full URLs for references.
+   duplicates. Use full URLs for references. This dedup check needs a repository
+   with a reachable GitHub remote — the same condition Step 3 tested. When Step 3
+   was skipped, or `gh` is unavailable or unauthenticated, still recommend the
+   issues but mark each `[dedup not checked — no GitHub access this session]`,
+   matching how the Zammad bucket below handles its own unavailable case. Never
+   silently present an unchecked list as deduplicated.
 3. **Zammad tickets** — operational/incident-shaped items: a production or
    infrastructure anomaly, an RCA- or postmortem-worthy event, or something a
    runbook should have caught. Zammad is the org's incident system of record;
@@ -208,7 +232,7 @@ Harness TaskList:
   Status:           <complete | incomplete | "empty">
   Open Tasks:       <list open tasks, or "none">
 
-Git & Repository Status:
+Git & Repository Status:      <or "not a repository — skipped">
   Current Branch:   <branch-name>
   Sync Status:      <ahead/behind/up-to-date with remote>
   Modified Files:   <list of modified/untracked files, or "clean">
@@ -226,7 +250,7 @@ Recommended Prompt for Next Session:
 ─────────────────────────────────────
 <Build this by invoking the `/handoff` skill with the triaged 1–3 quick-win tasks
 as source. `/handoff` returns a `## Goal statement` (capped under 4000 chars,
-measured with `wc -c`) plus a `## Full prompt` — paste both here. This guarantees
+measured with `wc -m`) plus a `## Full prompt` — paste both here. This guarantees
 the next-session prompt carries a real goal that drops into `/goal`, not a bare
 task list. Include the resolved plan file path (~/.claude/plans/<slug>.md) so the
 new session can re-enter plan mode against it.>
@@ -264,11 +288,15 @@ to `handoff` and `wrap-up`'s resume blocks, not this dashboard.
 
 ## Related Skills
 
-- **handoff** (git-workflows) — builds the goal-bearing next-session prompt that
+- **handoff** (this plugin) — builds the goal-bearing next-session prompt that
   full mode's "Recommended Prompt for Next Session" section emits.
-- **wrap-up** (system) — Wraps up the session, performs repository cleanup, and
-  handles PR purging.
+- **goal** (this plugin) — the objective alone, when you want direction rather
+  than progress.
+- **wrap-up** (this plugin) — session-completion verdict; calls this skill for
+  Step 0 and handles conditional repository cleanup.
+- **resume** (this plugin) — cold pickup; reuses this skill's derivation.
+- **replan** (this plugin) — rebuilds a plan this skill shows has drifted.
 - **refresh-repo** (github-workflows) — Checks PR merge-readiness, syncs local
   main, and cleans worktrees.
-- **retrospecting** (system) — Generates detailed retrospectives based on
-  session logs and git diffs.
+- **retrospecting** (claude-retrospective) — Generates detailed retrospectives
+  based on session logs and git diffs.

@@ -1,20 +1,19 @@
 ---
 name: wrap-up
-description: "End-of-session handler that first checks whether the current session's plan is actually complete. If complete: refresh repo, run quick retrospective, clean gone branches, and emit a forward-looking follow-up prompt. If incomplete: skip cleanup and emit one or more `cd`-into-worktree blocks paired with ready-to-paste resume prompts so the unfinished work can be picked up cold in a new session."
+description: "End-of-session handler that first checks whether the current session's plan is actually complete. If complete: run a quick retrospective, emit a forward-looking follow-up prompt, and — in a git repository — refresh the repo and clean gone branches. If incomplete: skip cleanup and emit ready-to-paste resume prompts so the unfinished work can be picked up cold in a new session. The completion verdict and forward artifact work outside a repository; only the cleanup steps need one."
 ---
 
 # Post-Session Wrap-Up
 
-> **State warning**: Branch state, remote tracking, TaskList contents, and plan
-> checklist state all change between invocations. Re-run every git/gh command
-> and re-call `TaskList` from Step 0; never trust prior outputs from this
-> conversation.
+> **State warning**: TaskList contents, plan checklist state, and any branch or
+> remote-tracking state all change between invocations. Re-gather them from Step
+> 0; never trust prior outputs from this conversation.
 
 `/wrap-up` has two paths. Step 0 decides which one runs.
 
 | Step 0 outcome           | Path                                                              |
 | ------------------------ | ----------------------------------------------------------------- |
-| Plan complete OR no plan | **Path A** — refresh repo, retrospective, clean branches, follow-up prompt |
+| Plan complete OR no plan | **Path A** — retrospective + follow-up prompt; plus repo refresh and branch cleanup when in a repository |
 | Plan incomplete          | **Path B** — emit resume blocks; skip Path A cleanup entirely     |
 
 The `purge-pr` focused mode (bottom of this file) bypasses Step 0 entirely.
@@ -28,12 +27,44 @@ Determine the completion outcome based on `/session-status`'s report:
 - **Path A** (complete): Every TaskList task is complete (or empty), AND
   every plan-file checklist item is checked or complete (or no plan file exists).
 
-  *Additional Git Flow Requirement*: On Git Flow repositories (default branch is
-  `develop`), verify if there are any unpromoted changes on `develop`. Run
-  `git fetch origin --force develop main && git log origin/main..origin/develop` to check.
-  If there are commits, they MUST be promoted to `main` via `/promote-release`. If they
-  have not been promoted, the plan is **incomplete** and the session must not follow Path A
-  until `/promote-release` has successfully run.
+  *Additional Git Flow Requirement* — **repository only**. Establish that first:
+
+  ```bash
+  git rev-parse --is-inside-work-tree >/dev/null 2>&1 || echo "not a repository"
+  ```
+
+  Outside a repository, skip this requirement entirely; completion is decided by
+  the TaskList and plan checklist alone.
+
+  Inside one, determine whether this is a git-flow repo (default branch
+  `develop`). Run this as **one block** — the resolution and its use must share a
+  shell (see
+  [ARCHITECTURE.md](../../ARCHITECTURE.md#resolving-the-default-branch)) — and
+  take exactly one of three branches; this gate must never fail open:
+
+  ```bash
+  default_branch=$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null)
+  default_branch=${default_branch#origin/}
+  [ -n "$default_branch" ] || default_branch=$(
+    gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name' 2>/dev/null)
+
+  if [ -z "$default_branch" ]; then
+    echo "BLOCKED: default branch unresolved; cannot confirm promotion state"
+  elif [ "$default_branch" = develop ]; then
+    git fetch origin --force develop main &&
+      git log --oneline origin/main..origin/develop
+  else
+    echo "trunk repo — promotion requirement does not apply"
+  fi
+  ```
+
+  `refs/remotes/origin/HEAD` is unset in fetch-based and CI checkouts, so the
+  first branch is reachable in practice; treat it as **unknown, not clean**. The
+  plan is incomplete until promotion state is positively confirmed.
+
+  When the log shows commits, they MUST be promoted to `main` via
+  `/promote-release`. Until then the plan is **incomplete** and the session must
+  not follow Path A.
 - **Path B** (incomplete): Any TaskList task or plan checklist item
   remains incomplete.
 
@@ -41,11 +72,22 @@ Determine the completion outcome based on `/session-status`'s report:
 
 ## Path A — Clean wrap-up (plan complete or absent)
 
-Run Steps A1 and A2 **in parallel** (they are independent). Step A3 starts as
-soon as Step A1 completes (depends on its remote prune). Step A4 runs after
-all prior steps finish. Provide a summary of actions taken.
+Steps A1 and A3 are **repository cleanup** and only run when the cwd is a
+repository. Gate them:
 
-### A1. Refresh Repository
+```bash
+git rev-parse --is-inside-work-tree >/dev/null 2>&1
+```
+
+When that fails, skip A1 and A3, note "no repository at this cwd; cleanup
+skipped" in the summary, and run A2 and A4 as normal. Steps A2 and A4 are the
+part of a wrap-up that always applies.
+
+In a repository, run Steps A1 and A2 **in parallel** (they are independent).
+Step A3 starts as soon as Step A1 completes (depends on its remote prune). Step
+A4 runs after all prior steps finish. Provide a summary of actions taken.
+
+### A1. Refresh Repository (repository only)
 
 Invoke `/refresh-repo` to:
 
@@ -56,7 +98,11 @@ Invoke `/refresh-repo` to:
 
 ### A2. Quick Retrospective
 
-Invoke `/retrospecting quick` to capture a brief session retrospective:
+Invoke `/retrospecting quick` to capture a brief session retrospective. Its git
+history analysis is empty outside a repository — the session-log half still
+works, so run it either way, but when the repository guard failed, record it in
+the summary as "retrospective: session log only, no git history" rather than
+reporting a full retrospective.
 
 - Git history analysis (commits, files changed)
 - Session efficiency metrics
@@ -65,7 +111,7 @@ Invoke `/retrospecting quick` to capture a brief session retrospective:
 
 **Requires**: `claude-retrospective` plugin (external). If not installed, skip this step and note it was skipped.
 
-### A3. Clean Gone Branches
+### A3. Clean Gone Branches (repository only)
 
 Invoke `/clean_gone` to remove any local branches whose remote tracking branch has been deleted:
 
@@ -86,7 +132,7 @@ a code/repo fix, a Zammad ticket is operational/incident work — never relabel
 one as the other.
 
 `/handoff` produces the two-part artifact — a `## Goal statement` capped under
-4000 characters (measured with `wc -c`) plus an unbounded `## Full prompt` — so
+4000 characters (measured with `wc -m`) plus an unbounded `## Full prompt` — so
 the follow-up carries a real goal that pastes into `/goal`, not just a task list.
 This closes the long-standing gap where wrap-up emitted a prompt with no goal and
 no character budget.
@@ -132,8 +178,9 @@ judgement, not by repo alone:
 
 For each block, resolve the working directory:
 
-1. If the block's tasks name file paths inside a worktree, use that worktree
-   root (`git -C <path> rev-parse --show-toplevel`).
+1. If the block's tasks name file paths inside a repository, use its root —
+   `git -C <path> rev-parse --show-toplevel 2>/dev/null`. When that prints
+   nothing, `<path>` is not in a repository; fall through to 2.
 2. Otherwise, derive from the plan file's "Files to Change" / "File to modify"
    section.
 3. Last resort: the cwd at wrap-up time.
@@ -146,7 +193,7 @@ none of this conversation.
 
 For each block, invoke the `/handoff` skill to build the resume prompt, scoped to
 that block's remaining items and worktree. `/handoff` guarantees the block carries
-a `## Goal statement` (capped under 4000 chars, measured with `wc -c`) alongside
+a `## Goal statement` (capped under 4000 chars, measured with `wc -m`) alongside
 the full prompt — so each resumed block re-enters with a real goal, not a bare
 task list. The per-block fields below are what you feed `/handoff` as source.
 
@@ -226,7 +273,7 @@ worktree-removal command shape from `/troubleshoot-worktree` and aligns with
 
 ## Related Skills
 
-- **handoff** (git-workflows) — builds the two-part next-session artifact (goal
+- **handoff** (this plugin) — builds the two-part next-session artifact (goal
   statement under 4000 chars + full prompt) used by Path A Step A4 and Path B Step B2
 - **refresh-repo** (github-workflows) — PR readiness check + repo sync +
   worktree cleanup (Path A Step A1 dependency); also provides `--sweep` and

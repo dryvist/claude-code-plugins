@@ -1,0 +1,26 @@
+{
+  "name": "ai-cli-harness-better-practices",
+  "version": "4.24.0",
+  "description": "Harness-agnostic session continuity: goal statements, status snapshots, handoffs, cold resume, replanning, and wrap-up. No git or GitHub required.",
+  "author": {
+    "name": "JacobPEvans"
+  },
+  "license": "Apache-2.0",
+  "repository": "https://github.com/JacobPEvans/claude-code-plugins",
+  "keywords": [
+    "goal",
+    "handoff",
+    "resume",
+    "session",
+    "continuity",
+    "harness"
+  ],
+  "skills": [
+    "./skills/goal",
+    "./skills/session-status",
+    "./skills/handoff",
+    "./skills/resume",
+    "./skills/replan",
+    "./skills/wrap-up"
+  ]
+}
