@@ -23,6 +23,22 @@ but none of them require it, and none of them fail without it.
 - **`/wrap-up`** — Decide whether the plan is actually complete, then emit the
   right forward artifact for either answer.
 
+## Usage
+
+```bash
+/goal                                  # objective for the work in flight
+/goal focus on auth, ignore the docs   # optional focus hint, like /compact
+/session-status mid                    # quick done-vs-remaining snapshot
+/handoff                               # paste-ready artifact for a fresh session
+/resume                                # pick up cold; verifies before trusting
+/replan                                # rebuild a plan that drifted from reality
+/wrap-up                               # end-of-session verdict + forward artifact
+```
+
+`/goal` is the atom — it runs anywhere, needs no repository, and writes nothing.
+The others build on it. In a git repository they add branch and PR facts; outside
+one they say what they skipped and carry on.
+
 ## Why these are not in a git plugin
 
 These skills read git the way they read the filesystem or CI: as one evidence
@@ -42,7 +58,6 @@ This plugin deliberately does not reimplement work that already exists:
 | Verifiable success criteria, surfacing assumptions | `karpathy-skills:karpathy-guidelines` |
 | Session retrospectives | `claude-retrospective:retrospecting` |
 | Prose quality | `elements-of-style:writing-clearly-and-concisely` |
-| Prompt engineering patterns | `llm-application-dev:prompt-engineering-patterns` |
 
 The git-side actions the continuity skills delegate to live in their own
 plugins: `github-workflows:refresh-repo`, `github-workflows:gh-cli-patterns`,
