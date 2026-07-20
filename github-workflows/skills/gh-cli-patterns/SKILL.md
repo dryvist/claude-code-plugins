@@ -133,12 +133,53 @@ Required values — abort if any fail:
 Replace `<OWNER>`, `<REPO>` before running.
 
 ```bash
-gh api 'repos/<OWNER>/<REPO>/code-scanning/alerts?state=open&per_page=100' \
-  --jq 'length' || echo "0"
+cscount() {  # $1 = <OWNER>/<REPO>
+  local out
+  if out=$(gh api "repos/$1/code-scanning/alerts?state=open&per_page=100" \
+             --jq 'length' 2>&1); then
+    printf '%s\n' "$out"; return 0
+  fi
+  case "$out" in
+    *"must be enabled"*|*"no analysis found"*|*"HTTP 404"*) echo 0; return 0 ;;
+    *) printf 'ALERT COUNT UNKNOWN: %s\n' "$out" >&2; return 1 ;;
+  esac
+}
 ```
 
-`per_page=100` covers realistic alert counts. `|| echo "0"` handles disabled code-scanning (404).
-Must return `0`; otherwise invoke `/resolve-codeql fix`.
+`per_page=100` covers realistic alert counts. Must return `0`; otherwise invoke
+`/resolve-codeql fix`.
+
+**Never collapse every error to `0`.** Two very different conditions both return
+**HTTP 403**, so branch on the message, not the status code:
+
+| Message | Meaning | Correct result |
+| --- | --- | --- |
+| `Code Security must be enabled...` | Scanning is off — there are genuinely no alerts | `0` |
+| `Resource not accessible by integration` | The token lacks the scope — the query answered nothing | **fail loudly** |
+
+Treating the second as `0` turns a missing permission into a clean bill of
+health, which is how an unreviewed PR passes an alert gate.
+
+A 403 here is a credential problem, not a repository problem:
+
+- GitHub App installation tokens need **`security_events: read`**. `checks` and
+  `statuses` only expose an analysis's pass/fail rollup, never the alerts.
+- Classic PATs need the `security_events` scope (`repo` alone is not enough on
+  private repos).
+
+If you cannot get that scope, read the check run instead of guessing — this
+reports whether the analysis passed, though not the individual alerts:
+
+```bash
+gh pr view <PR_NUMBER> --repo <OWNER>/<REPO> --json statusCheckRollup \
+  --jq '[.statusCheckRollup[]? | select(.name|test("CodeQL|Analyze"))
+         | "\(.name)=\(.conclusion // .status)"] | join(" ")'
+```
+
+Absence of a CodeQL check does not prove code scanning is disabled: it is often
+enabled through org-level **default setup**, which adds check runs to the PR
+without any workflow file in the repo. Grepping `.github/workflows` for
+`codeql.yml` will miss it.
 
 ## Canonical Review-Thread Queries
 
