@@ -32,7 +32,14 @@ Fix CodeQL alerts in **current repository only** by analyzing, classifying, and 
 
 ### Phase 1: Alert Discovery & Classification
 
-Replace `<OWNER>` and `<REPO>` before running:
+Replace `<OWNER>` and `<REPO>` before running.
+
+This endpoint needs a token carrying **`security_events: read`** (App
+installation) or the `security_events` scope (classic PAT). Without it the call
+returns `403 Resource not accessible by integration`. That is a credential gap,
+not an empty alert list — never read it as "no alerts". See the
+`gh-cli-patterns` skill for how to tell that 403 apart from the one meaning
+code scanning is simply disabled.
 
 ```bash
 gh api 'repos/<OWNER>/<REPO>/code-scanning/alerts?state=open&per_page=100' --paginate \
