@@ -132,7 +132,7 @@ a code/repo fix, a Zammad ticket is operational/incident work — never relabel
 one as the other.
 
 `/handoff` produces the two-part artifact — a `## Goal statement` capped under
-4000 characters (measured with `wc -c`) plus an unbounded `## Full prompt` — so
+4000 characters (measured with `wc -m`) plus an unbounded `## Full prompt` — so
 the follow-up carries a real goal that pastes into `/goal`, not just a task list.
 This closes the long-standing gap where wrap-up emitted a prompt with no goal and
 no character budget.
@@ -193,7 +193,7 @@ none of this conversation.
 
 For each block, invoke the `/handoff` skill to build the resume prompt, scoped to
 that block's remaining items and worktree. `/handoff` guarantees the block carries
-a `## Goal statement` (capped under 4000 chars, measured with `wc -c`) alongside
+a `## Goal statement` (capped under 4000 chars, measured with `wc -m`) alongside
 the full prompt — so each resumed block re-enters with a real goal, not a bare
 task list. The per-block fields below are what you feed `/handoff` as source.
 

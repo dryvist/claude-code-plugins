@@ -98,12 +98,20 @@ a genuinely clean branch. That is the silent-false-clean this whole design exist
 to prevent, so branch on it explicitly:
 
 ```bash
+default_branch=$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null)
+default_branch=${default_branch#origin/}
+[ -n "$default_branch" ] || default_branch=$(
+  gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name' 2>/dev/null)
+
 if [ -z "$default_branch" ]; then
   echo "default branch unknown — report as unknown, never as 'no changes'"
 else
   git log "origin/$default_branch..HEAD"
 fi
 ```
+
+That block is complete on purpose: resolution and use in one shell. Copy it
+whole, never just the `if`.
 
 The same rule governs any check keyed on the default branch's *name* (for
 example "is this a git-flow repo?"): an unresolved default must report unknown,

@@ -13,7 +13,9 @@ directory with no repository. It never blocks on state it cannot find.
 
 ## Scope
 
-**In:** one `## Goal statement`, under 4000 characters, printed to the user.
+**In:** one goal statement body, under 4000 characters, printed to the user.
+Direct invocation wraps it in a `## Goal statement` header (Step 5); the body
+itself never contains a heading.
 
 **Out:** file writes, commits, git or `gh` calls, network access, plan edits,
 task updates. The single command this skill runs is the `wc -m` measurement in
