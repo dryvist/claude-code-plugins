@@ -57,11 +57,17 @@ extended to Zammad.
 
 ## Step 2: Get the goal statement
 
-Invoke the `/goal` skill, passing the Step 1 findings as its focus argument.
-It returns a `## Goal statement` already measured against the 4000-character cap.
+Invoke the `/goal` skill. Its argument is a **focus hint**, not a state dump —
+pass one or two sentences naming the objective and its boundary, distilled from
+Step 1. For example: "finish the token-minting cutover in PR 437; deploy and
+document, not redesign." Do not paste the raw Step 1 findings; `/goal` treats the
+argument as a steer whose exclusions bind literally, so a dump of PR URLs and
+file paths produces criteria about the wrong things.
 
-Use its output verbatim. Do not rewrite it, re-cap it, or append criteria — one
-definition of a goal statement lives in `/goal`, and this skill consumes it.
+`/goal` returns a `## Goal statement` already measured against the
+4000-character cap. Use its block verbatim under this skill's own header from
+Step 4 — do not rewrite it, re-cap it, or append criteria. One definition of a
+goal statement lives in `/goal`, and this skill consumes it.
 
 ## Step 3: Write the full prompt (no cap)
 

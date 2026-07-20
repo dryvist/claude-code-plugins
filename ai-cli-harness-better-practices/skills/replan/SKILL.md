@@ -1,6 +1,6 @@
 ---
 name: replan
-description: "Rebuild a plan from live git, gh, and repo state when the existing plan file no longer matches reality — items silently done, approach superseded, or facts drifted. Use when a plan has gone stale mid-effort or when resuming reveals contradictions. Re-derives ground truth first, never trusting the plan's own prose, then rewrites the plan to match what is actually true and what actually remains."
+description: "Rebuild a plan from live ground truth — the artifacts themselves, tests, and (in a repository) git and gh — when the existing plan file no longer matches reality — items silently done, approach superseded, or facts drifted. Use when a plan has gone stale mid-effort or when resuming reveals contradictions. Re-derives ground truth first, never trusting the plan's own prose, then rewrites the plan to match what is actually true and what actually remains."
 ---
 
 # Replan
@@ -11,9 +11,8 @@ approach, a claimed-live system turns out to have never shipped. Replanning
 **re-derives ground truth, then rewrites the plan to match** — it never edits the
 plan by trusting the plan.
 
-Trigger: a plan drifted from reality (this happens — a "seed the KV path" step can
-outlive the decision that banned it), or `/resume` surfaced contradictions between
-the plan and live state.
+Trigger: a plan drifted from reality — a step can outlive the decision that
+banned it — or `/resume` surfaced contradictions between the plan and live state.
 
 > **State warning**: the plan is the least trustworthy source in the room. Derive
 > from whichever ground-truth sources this environment actually has — then correct
@@ -33,7 +32,8 @@ Use every source available; skip the ones this environment does not have.
 - **Decisions**: scan for anything that invalidates a plan step — a new rule, a
   closed ticket, a design the user changed mid-flight.
 - **Version control** *(only when `git rev-parse --is-inside-work-tree` succeeds)*:
-  shipped work via `gh pr list --state merged` and `git log origin/<default>`;
+  shipped work via `gh pr list --state merged` and `git log "$(git symbolic-ref
+  --short refs/remotes/origin/HEAD)"`;
   in-flight work via open PRs, their real mergeable/CI state, pushed branches, and
   worktrees.
 

@@ -1,6 +1,6 @@
 ---
 name: goal
-description: "Emit one goal statement for the current work, hard-capped under 4000 characters and measured with wc -c. Takes an optional focus hint like /compact ('focus on the auth path, ignore docs'); with no argument it derives the objective from the session's recent pivots plus any unfinished plan or task items. Reads only conversation, plan file, and task list — no git, no network, no writes — so it runs in any directory at any moment. Use when asked for a goal, objective, mission, or 'what am I trying to do', when seeding a fresh session or subagent, or when /handoff needs its goal half."
+description: "Emit one goal statement for the current work, hard-capped under 4000 characters and measured with wc -m, never estimated. Takes an optional focus hint like /compact ('focus on the auth path, ignore docs'); with no argument it derives the objective from the session's recent pivots plus any unfinished plan or task items. Reads only conversation, plan file, and task list — no git, no network, no file writes — so it runs in any directory at any moment. Use when asked for a goal, objective, mission, or 'what am I trying to do', when seeding a fresh session or subagent, or when /handoff needs its goal half."
 ---
 
 # Goal
@@ -16,8 +16,9 @@ directory with no repository. It never blocks on state it cannot find.
 **In:** one `## Goal statement`, under 4000 characters, printed to the user.
 
 **Out:** file writes, commits, git or `gh` calls, network access, plan edits,
-task updates. If you find yourself running a command other than `wc -c`, stop —
-that belongs to `/handoff`, not here.
+task updates. The single command this skill runs is the `wc -m` measurement in
+Step 4, which reads from a heredoc and writes nothing. If you find yourself
+running anything else, stop — that belongs to `/handoff`, not here.
 
 ## Step 1: Determine focus
 
@@ -83,12 +84,19 @@ Check the draft against every rule before printing.
 The 4000-character cap comes from Claude Code's goal feature, which is the
 statement's most common consumer. Measure it. Never estimate.
 
+Pipe the draft straight into `wc -m` — no file, no temp directory:
+
 ```bash
-wc -c < "$SCRATCHPAD/goal.txt"    # must print < 4000
+wc -m <<'GOAL_EOF'
+<the drafted goal statement, verbatim>
+GOAL_EOF
 ```
 
-Write the draft to the session scratchpad directory, measure, and read the
-number. Over the cap, cut in this order and re-measure after each cut:
+`-m` counts characters; `-c` counts bytes and over-reports any line with an
+em-dash or other multi-byte character, which would trigger a cut the statement
+did not need.
+
+Read the number. Over the cap, cut in this order and re-measure after each cut:
 
 1. Prose inside criteria — keep the condition, drop the explanation.
 2. The objective's second sentence.
@@ -106,9 +114,16 @@ honest over-cap statement beats a silently truncated one.
 <the statement>
 ```
 
-Report the measured count on the header line. Print nothing else — no summary
-of what you did, no offer to write it somewhere. If a source was missing and
-changed the result, say so in one line beneath the block.
+Report the measured count on the header line. Print nothing else — no summary of
+what you did, no offer to write it somewhere.
+
+Exactly two things may follow the block, each one line, only when true:
+
+- A source was missing and changed the result.
+- The statement is over the cap: state the count and name the criterion at risk.
+
+A caller embedding this output — `/handoff` does — takes the block verbatim and
+supplies its own surrounding header. Do not add one.
 
 ## Related Skills
 

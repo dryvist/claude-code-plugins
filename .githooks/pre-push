@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Pre-push hook: Run all plugin tests before pushing
+# Pre-push hook: Run all plugin tests before pushing.
+# CI installs bats and runs the same command, so a local machine without it
+# skips rather than blocks every push. CI remains the enforcing gate.
+
+if ! command -v bats >/dev/null 2>&1; then
+  echo "pre-push: bats not installed, skipping tests (CI will run them)" >&2
+  exit 0
+fi
 
 bats -r .

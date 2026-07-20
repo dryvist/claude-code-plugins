@@ -27,12 +27,25 @@ Determine the completion outcome based on `/session-status`'s report:
 - **Path A** (complete): Every TaskList task is complete (or empty), AND
   every plan-file checklist item is checked or complete (or no plan file exists).
 
-  *Additional Git Flow Requirement*: On Git Flow repositories (default branch is
-  `develop`), verify if there are any unpromoted changes on `develop`. Run
-  `git fetch origin --force develop main && git log origin/main..origin/develop` to check.
-  If there are commits, they MUST be promoted to `main` via `/promote-release`. If they
-  have not been promoted, the plan is **incomplete** and the session must not follow Path A
-  until `/promote-release` has successfully run.
+  *Additional Git Flow Requirement* — **repository only**. Establish that first:
+
+  ```bash
+  git rev-parse --is-inside-work-tree >/dev/null 2>&1 || echo "not a repository"
+  ```
+
+  Outside a repository, skip this requirement entirely; completion is decided by
+  the TaskList and plan checklist alone. Inside one, check whether it is a
+  git-flow repo (default branch `develop`) before running anything against
+  `origin` — a trunk repo and a repo with no `origin` remote both skip this too:
+
+  ```bash
+  git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | grep -q develop
+  ```
+
+  Only when that succeeds, verify there are no unpromoted changes on `develop`:
+  `git fetch origin --force develop main && git log origin/main..origin/develop`.
+  If there are commits, they MUST be promoted to `main` via `/promote-release`.
+  Until then the plan is **incomplete** and the session must not follow Path A.
 - **Path B** (incomplete): Any TaskList task or plan checklist item
   remains incomplete.
 
@@ -66,7 +79,11 @@ Invoke `/refresh-repo` to:
 
 ### A2. Quick Retrospective
 
-Invoke `/retrospecting quick` to capture a brief session retrospective:
+Invoke `/retrospecting quick` to capture a brief session retrospective. Its git
+history analysis is empty outside a repository — the session-log half still
+works, so run it either way, but when the repository guard failed, record it in
+the summary as "retrospective: session log only, no git history" rather than
+reporting a full retrospective.
 
 - Git history analysis (commits, files changed)
 - Session efficiency metrics
@@ -142,8 +159,9 @@ judgement, not by repo alone:
 
 For each block, resolve the working directory:
 
-1. If the block's tasks name file paths inside a worktree, use that worktree
-   root (`git -C <path> rev-parse --show-toplevel`).
+1. If the block's tasks name file paths inside a repository, use its root —
+   `git -C <path> rev-parse --show-toplevel 2>/dev/null`. When that prints
+   nothing, `<path>` is not in a repository; fall through to 2.
 2. Otherwise, derive from the plan file's "Files to Change" / "File to modify"
    section.
 3. Last resort: the cwd at wrap-up time.

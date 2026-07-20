@@ -7,11 +7,16 @@ Every skill here runs without a git repository. When the working directory
 happens to be one, the skills enrich their output with branch and PR state —
 but none of them require it, and none of them fail without it.
 
+One documented exception: `/wrap-up purge-pr` closes a named PR and deletes its
+branch and worktree. That is a repository operation by definition and needs one.
+The default `/wrap-up` does not.
+
 ## Skills
 
 - **`/goal`** — Emit one objective statement, hard-capped under 4000 characters.
   Takes an optional focus hint like `/compact`. Reads only the conversation, the
-  plan file, and the task list. No git, no network, no file writes.
+  plan file, and the task list. No git, no network, no file writes — its one
+  command is a `wc -m` measurement piped from a heredoc.
 - **`/session-status`** — Done-versus-remaining snapshot from the plan checklist
   and task list. `/session-status mid` gives a fast mid-flight orientation.
 - **`/handoff`** — Paste-ready two-part artifact for a fresh session: the goal

@@ -193,7 +193,12 @@ Split the gathered items into three buckets:
 2. **GitHub issues** — code, config, or repo defects and features: something in
    a repository has to change. Before recommending new issues, search existing
    open issues with `gh issue list --state open --json number,title,url` for
-   duplicates. Use full URLs for references.
+   duplicates. Use full URLs for references. This dedup check needs a repository
+   with a reachable GitHub remote — the same condition Step 3 tested. When Step 3
+   was skipped, or `gh` is unavailable or unauthenticated, still recommend the
+   issues but mark each `[dedup not checked — no GitHub access this session]`,
+   matching how the Zammad bucket below handles its own unavailable case. Never
+   silently present an unchecked list as deduplicated.
 3. **Zammad tickets** — operational/incident-shaped items: a production or
    infrastructure anomaly, an RCA- or postmortem-worthy event, or something a
    runbook should have caught. Zammad is the org's incident system of record;
@@ -285,9 +290,13 @@ to `handoff` and `wrap-up`'s resume blocks, not this dashboard.
 
 - **handoff** (this plugin) — builds the goal-bearing next-session prompt that
   full mode's "Recommended Prompt for Next Session" section emits.
-- **wrap-up** (system) — Wraps up the session, performs repository cleanup, and
-  handles PR purging.
+- **goal** (this plugin) — the objective alone, when you want direction rather
+  than progress.
+- **wrap-up** (this plugin) — session-completion verdict; calls this skill for
+  Step 0 and handles conditional repository cleanup.
+- **resume** (this plugin) — cold pickup; reuses this skill's derivation.
+- **replan** (this plugin) — rebuilds a plan this skill shows has drifted.
 - **refresh-repo** (github-workflows) — Checks PR merge-readiness, syncs local
   main, and cleans worktrees.
-- **retrospecting** (system) — Generates detailed retrospectives based on
-  session logs and git diffs.
+- **retrospecting** (claude-retrospective) — Generates detailed retrospectives
+  based on session logs and git diffs.

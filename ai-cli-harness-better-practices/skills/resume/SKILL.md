@@ -9,9 +9,9 @@ Continue unfinished work in a session that has no memory of how it got here. The
 core rule: **trust live state, never prose.** A resume prompt, a plan file, or a
 prior summary describes what *was* true. Before acting, verify what *is* true.
 
-This exists because "Continue from where you left off" was typed ~53 times and
-"fresh creds / fresh session" ~43 — the recurring need to resume cold without
-redoing merged work or trusting a stale claim.
+This exists because resuming cold is common and easy to get wrong: the failure
+mode is redoing work that already shipped, or acting on a claim that has since
+gone stale.
 
 > **State warning**: everything below drifts. A PR called "open" in the prompt may
 > be merged; a plan item marked `[ ]` may be done. Re-derive all of it now.
@@ -21,8 +21,9 @@ redoing merged work or trusting a stale claim.
 - Read the plan file. The resume prompt should name it (`<HOME>/.claude/plans/<slug>.md`);
   if not, find the most recent under `<HOME>/.claude/plans/`.
 - `TaskList` — the pending/in-progress items.
-- The directory the work lives in (the prompt's `cd` block; in a repository, also
-  `git worktree list`).
+- The directory the work lives in — the prompt's `cd` block. Only if that is
+  missing and `git rev-parse --is-inside-work-tree` succeeds, widen the search
+  with `git worktree list`.
 
 ## Step 2: Re-derive live state (never trust the prompt's claims)
 
@@ -44,7 +45,8 @@ git rev-parse --is-inside-work-tree >/dev/null 2>&1
 ```
 
 When it succeeds, add: `gh pr view <N> --json state,mergedAt` (a PR called open
-may be merged), `git status -sb`, and `git log origin/<default>..HEAD` plus
+may be merged), `git status -sb`, and `git log "$(git symbolic-ref --short
+refs/remotes/origin/HEAD)"..HEAD` plus
 `gh pr list --state merged` to catch work already shipped. When it fails, skip
 the row — the other sources still reconcile the plan.
 
