@@ -4,6 +4,15 @@ A collection of Claude Code plugins for enhanced development workflows with AI a
 
 ## Available Plugins
 
+### ai-cli-harness-better-practices
+
+Session continuity for AI CLI agents. No git repository required.
+
+- **Type**: Skill-based plugin
+- **Skills**: `/goal`, `/session-status`, `/handoff`, `/resume`, `/replan`, `/wrap-up`
+- **Purpose**: Know what you were doing, prove what is actually done, and hand
+  that to a session with no memory
+
 ### ai-delegation
 
 Delegate tasks to AI models, orchestrate premium-model work, and run autonomous maintenance loops.
@@ -46,10 +55,10 @@ Combined git security and workflow protection via PreToolUse hooks.
 
 ### git-workflows
 
-Git main branch sync, repository refresh, and PR merge workflows.
+Git branch sync and local troubleshooting.
 
 - **Type**: Command/Skill-based plugin
-- **Skills**: `/sync-main`, `/refresh-repo`, `/rebase-pr`, `/wrap-up`, `/troubleshoot-rebase`, `/troubleshoot-precommit`, `/troubleshoot-worktree`, `/pre-commit-architecture`
+- **Skills**: `/sync-main`, `/git-flow-next`, `/troubleshoot-rebase`, `/troubleshoot-precommit`, `/troubleshoot-worktree`, `/pre-commit-architecture`
 - **Purpose**: Maintain linear git history and keep branches in sync
 
 ### github-workflows
@@ -118,6 +127,7 @@ claude plugins add jacobpevans-cc-plugins/<plugin-name>
 
 **Available plugins**:
 
+- `jacobpevans-cc-plugins/ai-cli-harness-better-practices`
 - `jacobpevans-cc-plugins/ai-delegation`
 - `jacobpevans-cc-plugins/code-standards`
 - `jacobpevans-cc-plugins/codeql-resolver`
@@ -142,6 +152,7 @@ Clone this repository and link plugins:
 ```bash
 git clone https://github.com/JacobPEvans/claude-code-plugins.git
 cd claude-code-plugins
+claude plugins link ./ai-cli-harness-better-practices
 claude plugins link ./ai-delegation
 claude plugins link ./code-standards
 claude plugins link ./codeql-resolver
@@ -247,17 +258,18 @@ claude plugins list
 
 ### Running Tests
 
-Run the shared test runner to execute all plugin tests:
+Tests are [bats](https://github.com/bats-core/bats-core) files under `tests/`.
+Run them with bats directly — `-r` discovers every `.bats` file recursively:
 
 ```bash
 # Run all tests
-./scripts/run-tests.sh
+bats -r .
 
 # Run tests for a specific plugin
-./scripts/run-tests.sh content-guards
+bats -r tests/content-guards
 
-# Alternative: run bats directly on a specific test file
-bats tests/content-guards/**/*.bats
+# Run a single test file
+bats tests/content-guards/token-limits/validate-token-limits.bats
 ```
 
 ### Git Hooks
