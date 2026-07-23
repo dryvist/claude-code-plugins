@@ -54,9 +54,31 @@ Delegate work whose output can be verified from evidence.
 | Strong reasoning | Complex implementation, deep debugging, cross-module reasoning, risky review, security-sensitive reasoning | Reason deeply, but leave final authority with the premium lead |
 | Premium lead | Intent, architecture, decomposition, tradeoffs, risk, disagreement, final review, synthesis | Own final decisions and user communication |
 
-The strong-reasoning tier may be the same model as the premium lead when no
-cheaper strong model is available — the split is about role and context
-isolation, not necessarily price.
+The table is ordered highest tier (Premium lead) to lowest (Local/free).
+
+## Tier Descent Rule (No Peer Spawning)
+
+**An orchestrator at any tier must delegate strictly downward — never to a
+peer at its own tier.** Spawning a same-tier subagent doesn't separate
+judgment from labor; it just moves the same authority sideways at the same
+cost.
+
+- Every delegation targets a tier below the delegator's own tier in the table
+  above. A premium lead spawns strong-reasoning or lower; a strong-reasoning
+  agent spawns mid-execution or lower; and so on down to local/free, which has
+  no lower tier to delegate to and executes directly.
+- Route quick lookups, exploration, research fan-outs, web search, and other
+  token-heavy-but-reasoning-light work to the **lowest** tier that can do it
+  reliably (local/free first, per "Local And Free-Tier First" below) — not
+  merely "one down." These tasks burn tokens on volume, not on thinking, so
+  paying a higher tier's rate for them is waste regardless of how urgent the
+  request feels.
+- The "same underlying model" case is about **context isolation**, not tier
+  equality: a strong-reasoning delegate may run on the same weights as the
+  premium lead only when spawned as a bounded executor in a fresh context with
+  no return path to orchestrator authority. It stays one tier down in role —
+  it never becomes a peer that re-decides scope, architecture, or when the
+  work is done; those stay with the premium lead per "Senior Model Owns" above.
 
 ## Local And Free-Tier First
 
