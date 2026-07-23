@@ -37,12 +37,12 @@ Keep these decisions with the premium lead (the current session's model):
 - Decide when the work is good enough.
 - Give the final answer to the user.
 
-## Delegation Tiers
+## Model Tiers
 
-Tiers are **capability roles, not model names**. Resolve each role against
-whatever models the current environment actually offers (native subagent
-model options, configured CLIs, local serving); never assume a specific
-vendor's lineup.
+Each row below is a **model tier** — a capability role, not a specific model
+name. Resolve each tier against whatever models the current environment
+actually offers (native subagent model options, configured CLIs, local
+serving); never assume a specific vendor's lineup.
 
 Delegate work whose output can be verified from evidence.
 
@@ -54,9 +54,27 @@ Delegate work whose output can be verified from evidence.
 | Strong reasoning | Complex implementation, deep debugging, cross-module reasoning, risky review, security-sensitive reasoning | Reason deeply, but leave final authority with the premium lead |
 | Premium lead | Intent, architecture, decomposition, tradeoffs, risk, disagreement, final review, synthesis | Own final decisions and user communication |
 
-The strong-reasoning tier may be the same model as the premium lead when no
-cheaper strong model is available — the split is about role and context
-isolation, not necessarily price.
+The table runs highest model tier (Premium lead) to lowest (Local/free).
+
+## Model Tier Descent Rule (No Peer Spawning)
+
+**Delegate strictly downward. Never spawn a peer at your own model tier.** A
+subagent on the same model tier doesn't split judgment from labor — it just
+moves the same authority sideways, at the same cost.
+
+- Every delegation targets a model tier below the delegator's own: premium
+  lead → strong reasoning or lower; strong reasoning → mid execution or lower;
+  and so on down to local/free, which executes directly.
+- Send quick lookups, exploration, research, and web search — token-heavy,
+  reasoning-light work — to the **lowest** capable model tier (see "Local And
+  Free-Tier First" below), not just one down. These tasks cost volume, not
+  thought; paying a higher tier's rate for them is waste.
+- "Same underlying model" means context isolation, not model-tier equality. A
+  strong-reasoning delegate may share weights with the premium lead only as a
+  bounded executor in a fresh context, with no path back to orchestrator
+  authority. It stays one model tier down in role — it never regains scope,
+  architecture, or completion calls; those stay with the premium lead (see
+  "Senior Model Owns").
 
 ## Local And Free-Tier First
 
