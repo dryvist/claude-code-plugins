@@ -19,6 +19,7 @@ flowchart LR
     subgraph consumers["Skills that load these standards"]
         SM["/sync-main\n(git-workflows)"]:::external
         RR["/refresh-repo\n(git-workflows)"]:::external
+        PB["/prune-branches\n(git-workflows)"]:::external
         RP["/rebase-pr\n(git-workflows)"]:::external
         SHIP["/ship\n(github-workflows)"]:::external
         FPR["/finalize-pr\n(github-workflows)"]:::external
@@ -26,7 +27,7 @@ flowchart LR
     end
 
     GWS -.->|"informs branch ops"| SM
-    GWS -.->|"informs cleanup"| RR
+    GWS -.->|"informs cleanup"| PB
     GWS -.->|"informs merge"| RP
     PS -.->|"informs PR creation"| SHIP
     PS -.->|"informs PR finalization"| FPR

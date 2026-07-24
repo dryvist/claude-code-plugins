@@ -101,7 +101,8 @@ Read files, understand both versions, combine intelligently, stage resolved file
 
 ## Related Skills
 
-- **refresh-repo** (github-workflows) — Full repo sync including PR status and worktree cleanup
+- **refresh-repo** (github-workflows) — PR status and default-branch sync
+- **prune-branches** (github-workflows) — Stale branch and worktree cleanup
 - **rebase-pr** (github-workflows) — Rebase-merge workflow that builds on a synced base branch
 - **promote-release** (github-workflows) — Moves develop to main on git-flow repos; the fast-forward step here only reads main, never pushes it
 - **gh-cli-patterns** (github-workflows) — Canonical default-branch detection (trunk vs git-flow)

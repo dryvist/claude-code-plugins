@@ -18,12 +18,15 @@ Create a worktree for the change; remove it when the work is done.
 Every branch with commits MUST have an associated PR.
 Orphaned branches must get a PR or be deleted.
 
-**Stale worktree**: A branch with no open PR, no uncommitted changes, and either a merged PR
-whose `headRefOid` matches local `HEAD`, or a deleted remote (`[gone]`) with no commits ahead
-of the default branch (`git log origin/<default>..HEAD --oneline` is empty). Branches with open
-PRs, local-only branches without merged PRs, local commits beyond the merged PR head, and
-worktrees with uncommitted changes are NEVER stale. Use `git worktree remove` (never `--force`)
-— Git natively blocks removal of dirty worktrees.
+**Stale branch** (worktree-paired, bare local, or remote-only — see
+`prune-branches`, github-workflows, for the full procedure): a non-default
+branch, checked out nowhere, unreferenced by any open PR (`--head` or
+`--base`), with no uncommitted changes (when a worktree exists), and either
+a merged PR whose `headRefOid` matches the branch tip, or zero commits ahead
+of the default branch. Use `git worktree remove` (never `--force`) for
+worktree-paired branches — Git blocks removal of dirty worktrees — and
+`git push origin --delete` for a live remote ref, only after
+`prune-branches`'s pre-push ancestry re-check.
 
 ## Branch Hygiene
 
@@ -53,7 +56,7 @@ Sync workflow (replace `<default>` with the repo's actual default branch — see
 `gh-cli-patterns`, github-workflows):
 
 ```bash
-git fetch origin <default> && git pull origin <default>   # in the <default> worktree
+git pull origin <default>                                   # in the <default> worktree
 git merge origin/<default> --no-edit                       # in the feature worktree
 ```
 
@@ -89,7 +92,8 @@ contradictions, or security-sensitive code.
 ## Related Skills
 
 - **sync-main** (git-workflows) — Syncs the repo's default branch and merges into current or all PR branches
-- **refresh-repo** (github-workflows) — Full repo sync including PR status and worktree cleanup
+- **refresh-repo** (github-workflows) — PR status and default-branch sync
+- **prune-branches** (github-workflows) — Stale branch and worktree cleanup
 - **gh-cli-patterns** (github-workflows) — Canonical default-branch detection (trunk vs git-flow)
 - **pr-standards** (git-standards) — PR creation guards, issue linking, and review standards
 - **git-flow-next** (git-workflows) — Dedicated git-flow-next guide, worktree setup, and promotion steps

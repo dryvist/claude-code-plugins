@@ -65,8 +65,8 @@ This plugin deliberately does not reimplement work that already exists:
 | Prose quality | `elements-of-style:writing-clearly-and-concisely` |
 
 The git-side actions the continuity skills delegate to live in their own
-plugins: `github-workflows:refresh-repo`, `github-workflows:gh-cli-patterns`,
-and `commit-commands:clean_gone`.
+plugin: `github-workflows:refresh-repo`, `github-workflows:prune-branches`,
+and `github-workflows:gh-cli-patterns`.
 
 ## Installation
 

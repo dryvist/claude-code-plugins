@@ -21,8 +21,8 @@ flowchart TD
 
     subgraph optional["Optional git enrichment"]
         refresh["/refresh-repo\n(github-workflows)"]:::external
+        prune["/prune-branches\n(github-workflows)"]:::external
         ghcli["/gh-cli-patterns\n(github-workflows)"]:::external
-        cleangone["/clean_gone\n(commit-commands)"]:::external
     end
 
     subgraph referred["Referred out, never rebuilt"]
@@ -36,7 +36,7 @@ flowchart TD
     wrapup --> handoff
     wrapup --> retro
     wrapup -.->|"if git repo"| refresh
-    wrapup -.->|"if git repo"| cleangone
+    wrapup -.->|"if git repo"| prune
 
     status --> handoff
     status -.->|"if git repo"| ghcli

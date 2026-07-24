@@ -7,8 +7,8 @@ description: "Drive open PRs toward zero across one or many repos by risk-rankin
 
 Take a pile of open PRs and drive it to zero: merge what is safe, surface what is
 not with a specific reason. This is triage-and-clear, distinct from
-`/refresh-repo --sweep` (which syncs repos and cleans worktrees). This skill acts
-on **open PRs**; that one acts on **repo/worktree state**.
+`/prune-branches --sweep` (which deletes dead branches and worktrees). This
+skill acts on **open PRs**; that one acts on **repo/worktree state**.
 
 It does not reimplement merging. It **risk-ranks**, then hands each merge to
 `/squash-merge-pr` (which itself runs the readiness gate and calls `/finalize-pr`).
@@ -83,5 +83,5 @@ outcome, not a failure.
 
 - **squash-merge-pr** (github-workflows) — performs each merge; this skill decides which.
 - **finalize-pr** (github-workflows) — PR metadata/soft-block handling, via squash-merge-pr.
-- **refresh-repo** (github-workflows) — the repo/worktree sweep; complementary, not this.
+- **prune-branches** (github-workflows) — the repo/worktree sweep; complementary, not this.
 - **promote-release** (github-workflows) — the correct path for held promotion PRs.

@@ -84,16 +84,16 @@ skipped" in the summary, and run A2 and A4 as normal. Steps A2 and A4 are the
 part of a wrap-up that always applies.
 
 In a repository, run Steps A1 and A2 **in parallel** (they are independent).
-Step A3 starts as soon as Step A1 completes (depends on its remote prune). Step
-A4 runs after all prior steps finish. Provide a summary of actions taken.
+Step A3 runs after both finish. Provide a summary of actions taken.
 
-### A1. Refresh Repository (repository only)
+### A1. Refresh and Prune Repository (repository only)
 
-Invoke `/refresh-repo` to:
+Invoke `/refresh-repo` to sync, then `/prune-branches` to delete anything
+left with nothing useful:
 
 - Check merge-readiness of any remaining open PRs
 - Sync the local default branch with remote (main on trunk repos, develop on git-flow repos)
-- Clean up stale worktrees (merged PRs, `[gone]` remote branches)
+- Delete stale branches and worktrees — local, remote, or both
 - Report repository state
 
 ### A2. Quick Retrospective
@@ -111,17 +111,7 @@ reporting a full retrospective.
 
 **Requires**: `claude-retrospective` plugin (external). If not installed, skip this step and note it was skipped.
 
-### A3. Clean Gone Branches (repository only)
-
-Invoke `/clean_gone` to remove any local branches whose remote tracking branch has been deleted:
-
-- Identify branches marked `[gone]`
-- Remove associated worktrees
-- Delete the local branches
-
-**Requires**: `commit-commands` plugin (external). If not installed, skip this step and note it was skipped.
-
-### A4. Follow-Up Session Prompt
+### A3. Follow-Up Session Prompt
 
 If `/session-status` in Step 0 surfaced follow-up work, invoke the `/handoff`
 skill to emit the next-session artifact. Pass it the "Recommended Prompt for Next
@@ -159,7 +149,7 @@ Wrap-Up Summary
 
 ## Path B — Resume blocks (plan incomplete)
 
-Skip Path A entirely. Skipping is intentional: `/refresh-repo` prunes stale
+Skip Path A entirely. Skipping is intentional: `/prune-branches` deletes stale
 worktrees, which would delete the in-flight worktree the user needs to resume
 in.
 
@@ -269,15 +259,15 @@ Sequence:
 Closes the gap where `gh pr close --delete-branch` removes only the remote
 branch and leaves the local branch + worktree behind. Reuses the
 worktree-removal command shape from `/troubleshoot-worktree` and aligns with
-`/clean_gone`'s post-removal state.
+`/prune-branches`'s post-removal state.
 
 ## Related Skills
 
 - **handoff** (this plugin) — builds the two-part next-session artifact (goal
-  statement under 4000 chars + full prompt) used by Path A Step A4 and Path B Step B2
-- **refresh-repo** (github-workflows) — PR readiness check + repo sync +
-  worktree cleanup (Path A Step A1 dependency); also provides `--sweep` and
-  `--prune-stale` modes
+  statement under 4000 chars + full prompt) used by Path A Step A3 and Path B Step B2
+- **refresh-repo** (github-workflows) — PR readiness check + default-branch sync (Path A Step A1)
+- **prune-branches** (github-workflows) — stale branch and worktree cleanup
+  (Path A Step A1); also provides `--sweep` and `--prune-stale` modes
 - **shape-issues** (github-workflows) — Shape and create well-structured GitHub
   issues for code/repo defects and features; not for incidents (Zammad, see
   session-status Step 4 and pr-standards)

@@ -181,7 +181,8 @@ invocation. Skill-based plugins provide slash commands:
 /ship                     # Full automation: commit, push, PR, finalize
 /finalize-pr              # Drive PR to merge-ready state
 /squash-merge-pr          # Validate and squash merge
-/refresh-repo             # Sync main, check PRs, cleanup worktrees
+/refresh-repo             # Sync main, check PRs
+/prune-branches           # Delete dead branches and worktrees
 /wrap-up                  # Session-completion verdict + forward artifact
 /resolve-codeql           # Fix CodeQL security alerts
 /delegate-to-ai           # Route tasks to available AI models
