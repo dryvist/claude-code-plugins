@@ -1,5 +1,13 @@
 # Changelog
 
+## [4.25.2](https://github.com/dryvist/claude-code-plugins/compare/v4.25.1...v4.25.2) (2026-07-24)
+
+
+### Bug Fixes
+
+* **refresh-repo,git-workflow-standards:** catch zero-ahead branches, not just [gone] ([83e248b](https://github.com/dryvist/claude-code-plugins/commit/83e248b6c1a08c140cd9e8606d42018d49e351ff))
+* **refresh-repo,git-workflow-standards:** catch zero-ahead branches; split into prune-branches ([97f6b05](https://github.com/dryvist/claude-code-plugins/commit/97f6b05095213fe316044ec0fea62eb3c194f498))
+
 ## [4.25.1](https://github.com/dryvist/claude-code-plugins/compare/v4.25.0...v4.25.1) (2026-07-20)
 
 
