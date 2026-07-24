@@ -18,22 +18,15 @@ Create a worktree for the change; remove it when the work is done.
 Every branch with commits MUST have an associated PR.
 Orphaned branches must get a PR or be deleted.
 
-**Stale branch** (covers worktree-paired, bare local, and remote-only
-branches — see `refresh-repo`, github-workflows, for the full three-pass
-procedure): not the default branch, not checked out anywhere, not referenced
-by an open PR as `--head` or `--base`, no uncommitted changes (when a
-worktree exists), and either a merged PR whose `headRefOid` matches the
-branch tip, or zero commits ahead of the default branch
-(`git merge-base --is-ancestor <ref> origin/<default>`) — unconditional, not
-gated on `[gone]`. That widening is only safe because the protected-branch
-check runs first and unconditionally: `origin/main` is routinely an ancestor
-of `origin/develop` on a git-flow repo, so never skip the default-branch
-guard to save a step. Everything else — open PRs (either side), local-only
-branches without merged PRs, local commits beyond the merged PR head,
-uncommitted changes — is NEVER stale. Use `git worktree remove` (never
-`--force`) for worktree-paired branches — Git natively blocks removal of
-dirty worktrees — and `git push origin --delete` for a live remote ref only
-after re-confirming ancestry immediately before the push.
+**Stale branch** (worktree-paired, bare local, or remote-only — see
+`prune-branches`, github-workflows, for the full procedure): a non-default
+branch, checked out nowhere, unreferenced by any open PR (`--head` or
+`--base`), with no uncommitted changes (when a worktree exists), and either
+a merged PR whose `headRefOid` matches the branch tip, or zero commits ahead
+of the default branch. Use `git worktree remove` (never `--force`) for
+worktree-paired branches — Git blocks removal of dirty worktrees — and
+`git push origin --delete` for a live remote ref, only after
+`prune-branches`'s pre-push ancestry re-check.
 
 ## Branch Hygiene
 
@@ -63,7 +56,7 @@ Sync workflow (replace `<default>` with the repo's actual default branch — see
 `gh-cli-patterns`, github-workflows):
 
 ```bash
-git fetch origin <default> && git pull origin <default>   # in the <default> worktree
+git pull origin <default>                                   # in the <default> worktree
 git merge origin/<default> --no-edit                       # in the feature worktree
 ```
 
@@ -99,7 +92,8 @@ contradictions, or security-sensitive code.
 ## Related Skills
 
 - **sync-main** (git-workflows) — Syncs the repo's default branch and merges into current or all PR branches
-- **refresh-repo** (github-workflows) — Full repo sync including PR status and worktree cleanup
+- **refresh-repo** (github-workflows) — PR status and default-branch sync
+- **prune-branches** (github-workflows) — Stale branch and worktree cleanup
 - **gh-cli-patterns** (github-workflows) — Canonical default-branch detection (trunk vs git-flow)
 - **pr-standards** (git-standards) — PR creation guards, issue linking, and review standards
 - **git-flow-next** (git-workflows) — Dedicated git-flow-next guide, worktree setup, and promotion steps

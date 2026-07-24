@@ -24,9 +24,10 @@ graph LR
 
 ## 1. Skill Dependency Map
 
-All skills and their cross-plugin dependencies. `/refresh-repo`, `/rebase-pr`,
-`/squash-merge-pr`, `/promote-release`, and `/gh-cli-patterns` are local to this
-plugin (no cross-plugin hop) — `/squash-merge-pr`, `/rebase-pr`, and
+All skills and their cross-plugin dependencies. `/refresh-repo`,
+`/prune-branches`, `/rebase-pr`, `/squash-merge-pr`, `/promote-release`, and
+`/gh-cli-patterns` are local to this plugin (no cross-plugin hop) —
+`/squash-merge-pr`, `/rebase-pr`, and
 `/promote-release` all consume the canonical PR-readiness gate and the
 default-branch detection from `/gh-cli-patterns` directly. On a git-flow repo,
 `/squash-merge-pr` and `/rebase-pr` both refuse a `main`-targeting PR and point
@@ -41,6 +42,7 @@ flowchart TD
     RBP["/rebase-pr"]:::ai
     PRR["/promote-release"]:::ai
     RFR["/refresh-repo"]:::ai
+    PBR["/prune-branches"]:::ai
     GCP["/gh-cli-patterns"]:::ai
     TAR["/trigger-ai-reviews"]:::ai
     SI["/shape-issues"]:::ai
@@ -152,7 +154,7 @@ flowchart TD
         direction TB
         W1["/refresh-repo\n(this plugin)"]:::ai
         W2["/retrospecting quick\n(claude-retrospective, external)"]:::external
-        W3["/clean_gone\n(commit-commands, external)"]:::external
+        W3["/prune-branches\n(this plugin)"]:::ai
         W4["Summary report"]:::ai
 
         W1 --> W3 --> W4

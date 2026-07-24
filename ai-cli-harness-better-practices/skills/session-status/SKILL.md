@@ -296,7 +296,7 @@ to `handoff` and `wrap-up`'s resume blocks, not this dashboard.
   Step 0 and handles conditional repository cleanup.
 - **resume** (this plugin) — cold pickup; reuses this skill's derivation.
 - **replan** (this plugin) — rebuilds a plan this skill shows has drifted.
-- **refresh-repo** (github-workflows) — Checks PR merge-readiness, syncs local
-  main, and cleans worktrees.
+- **refresh-repo** (github-workflows) — Checks PR merge-readiness and syncs local main.
+- **prune-branches** (github-workflows) — Deletes stale branches and worktrees.
 - **retrospecting** (claude-retrospective) — Generates detailed retrospectives
   based on session logs and git diffs.

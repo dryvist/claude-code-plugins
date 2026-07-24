@@ -24,6 +24,7 @@
     "./skills/rebase-pr",
     "./skills/promote-release",
     "./skills/refresh-repo",
+    "./skills/prune-branches",
     "./skills/gh-cli-patterns",
     "./skills/shape-issues",
     "./skills/resolve-pr-threads",

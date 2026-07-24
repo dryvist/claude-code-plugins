@@ -10,7 +10,8 @@ description: Use when looking up available tools, skills, commands, agents, or p
 | Intent | Command | Plugin | Notes |
 | --- | --- | --- | --- |
 | Sync branch with main | `/sync-main` | `git-workflows` | Merge into current |
-| Sync repo, cleanup | `/refresh-repo` | `git-workflows` | Also merges PRs |
+| Sync repo | `/refresh-repo` | `git-workflows` | Also merges PRs |
+| Prune dead branches, worktrees | `/prune-branches` | `github-workflows` | Local and remote |
 | Rebase + merge PR | `/rebase-pr` | `git-workflows` | Local rebase-merge |
 | Squash + merge PR | `/squash-merge-pr` | `github-workflows` | Squash-merge |
 | Troubleshoot rebase | `/troubleshoot-rebase` | `git-workflows` | Recover failures |

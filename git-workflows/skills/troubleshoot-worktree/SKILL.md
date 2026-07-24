@@ -68,4 +68,5 @@ echo "<folder>/" >> .gitignore
 
 - **troubleshoot-rebase** (git-workflows) — Diagnose and recover from git rebase failures
 - **troubleshoot-precommit** (git-workflows) — Troubleshoot pre-commit hook failures
-- **refresh-repo** (github-workflows) — Full repo sync including worktree cleanup
+- **refresh-repo** (github-workflows) — Default-branch sync
+- **prune-branches** (github-workflows) — Worktree and branch cleanup
