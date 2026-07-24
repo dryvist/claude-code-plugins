@@ -18,12 +18,22 @@ Create a worktree for the change; remove it when the work is done.
 Every branch with commits MUST have an associated PR.
 Orphaned branches must get a PR or be deleted.
 
-**Stale worktree**: A branch with no open PR, no uncommitted changes, and either a merged PR
-whose `headRefOid` matches local `HEAD`, or a deleted remote (`[gone]`) with no commits ahead
-of the default branch (`git log origin/<default>..HEAD --oneline` is empty). Branches with open
-PRs, local-only branches without merged PRs, local commits beyond the merged PR head, and
-worktrees with uncommitted changes are NEVER stale. Use `git worktree remove` (never `--force`)
-— Git natively blocks removal of dirty worktrees.
+**Stale branch** (covers worktree-paired, bare local, and remote-only
+branches — see `refresh-repo`, github-workflows, for the full three-pass
+procedure): not the default branch, not checked out anywhere, not referenced
+by an open PR as `--head` or `--base`, no uncommitted changes (when a
+worktree exists), and either a merged PR whose `headRefOid` matches the
+branch tip, or zero commits ahead of the default branch
+(`git merge-base --is-ancestor <ref> origin/<default>`) — unconditional, not
+gated on `[gone]`. That widening is only safe because the protected-branch
+check runs first and unconditionally: `origin/main` is routinely an ancestor
+of `origin/develop` on a git-flow repo, so never skip the default-branch
+guard to save a step. Everything else — open PRs (either side), local-only
+branches without merged PRs, local commits beyond the merged PR head,
+uncommitted changes — is NEVER stale. Use `git worktree remove` (never
+`--force`) for worktree-paired branches — Git natively blocks removal of
+dirty worktrees — and `git push origin --delete` for a live remote ref only
+after re-confirming ancestry immediately before the push.
 
 ## Branch Hygiene
 

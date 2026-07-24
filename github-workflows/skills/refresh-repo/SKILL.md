@@ -1,13 +1,13 @@
 ---
 name: refresh-repo
-description: Check PR merge readiness, sync local repo, cleanup stale worktrees; optional cross-repo sweep and stale-branch prune modes
+description: Check PR merge readiness, sync local repo, cleanup stale branches and worktrees (local and remote); optional cross-repo sweep and stale-branch prune modes
 ---
 
 <!-- cspell:words refspec oneline headRefOid mergedAt -->
 
 # Git Refresh
 
-Check open PR merge-readiness status, sync the local repository, and cleanup stale worktrees.
+Check open PR merge-readiness status, sync the local repository, and cleanup stale branches and worktrees.
 
 > **State warning**: Branch state, remote tracking, and PR status change between
 > invocations. Re-run all git/gh commands from Step 1.
@@ -74,16 +74,17 @@ Replace `<OWNER>`, `<REPO>`, `<PR_NUMBER>` per the placeholder legend in that sk
    of the current shell directory:
    `git -C <path> merge --ff-only origin/<default>`.
    If the default worktree is dirty or divergent, report it and skip instead of resetting.
-6. Delete local branches already merged into the default branch with `git branch -d`.
-   Never delete main/master/develop/current branches, worktree-checked-out branches, or branches
-   with open PRs.
-7. Conclude the operation without switching branches. Because Steps 4 and 5 used
+6. Conclude the operation without switching branches. Because Steps 4 and 5 used
    `git -C <path>` to operate on the default worktree directly, the current shell's
    working directory and branch were never changed — each worktree owns its checkout.
 
 Do not use `git fetch --tags`, `git fetch --prune-tags`, or `git pull --tags` during the
 normal refresh. Tags are audited separately in Step 4 so local-only non-release tags and
 tag rewrites are not deleted by a broad fetch refspec.
+
+Local and remote branch cleanup (including bare local branches with no
+worktree) happens in Step 5, not here — Step 5's stale definition is a strict
+superset of "already merged into default."
 
 ### 4. Tag Audit And Cleanup
 
@@ -106,32 +107,75 @@ For local-only tags:
 For tags that exist both locally and on origin but point at different objects, report the
 mismatch and do not force-update it automatically. Never delete or rewrite remote tags.
 
-### 5. Worktree Cleanup
+### 5. Branch and Worktree Cleanup
 
-Only remove a worktree if it is confirmed stale.
+Only remove a branch or worktree if it is confirmed stale.
 
-**Stale definition**: No open PR, no uncommitted changes, and either:
+**Protected — never touch, regardless of any other check below.** Check this
+FIRST, before computing staleness, on every one of the three passes below —
+each pass runs independently and none may assume an earlier pass already
+checked it:
 
-- The branch has a merged PR (most recently merged by `mergedAt`) whose `headRefOid` matches the local branch `HEAD`
-  (`gh pr list --state merged --head <branch> --json number,headRefOid,mergedAt`)
-- Its remote tracking branch was deleted (`[gone]` in `git branch -vv`) and it has no commits
-  ahead of the default branch (`git log origin/<default>..HEAD --oneline` is empty)
+- The default branch (`main`/`master`/`develop`) and the branch currently
+  checked out in any worktree in this repo. (Git itself refuses
+  `branch -d`/`-D` on a branch checked out in some worktree, so passes 1–2
+  are doubly protected — but pass 3's remote delete is a different ref and
+  is NOT protected by that, so check explicitly there too.)
+- Any branch referenced by an open PR as **either** `--head` or `--base` —
+  `--head` alone misses a branch that's the base of someone's stacked PR:
 
-Branches with open PRs, local-only branches without PRs, and worktrees with uncommitted
-changes are **NEVER** stale.
+  ```bash
+  gh pr list --head <branch> --state open --json number
+  gh pr list --base <branch> --state open --json number
+  ```
 
-For each worktree from `git worktree list`:
+**Stale definition** (branch passes this check only after clearing
+Protected, above): no uncommitted changes (when a worktree exists), and
+either:
 
-1. Skip the default branch worktree, the current branch, and bare repo entries
-2. If the branch has an open PR, skip — it is **never** stale
-3. Check if stale using the definition above
-4. If not stale, skip
-5. Run `git worktree remove <path>` — **NEVER use `--force`**
-6. If Git blocks removal (dirty worktree), report it and skip
-7. If removed, also delete the branch: `git branch -d <branch>`.
-   If this fails only because a squash-merged branch is not reachable from local default,
-   use `git branch -D <branch>` only when the merged PR `headRefOid` matched the local
-   branch `HEAD` before removing the worktree.
+- **Zero commits ahead of the default branch** —
+  `git merge-base --is-ancestor <ref> origin/<default>` (equivalent to
+  `git log origin/<default>..<ref> --oneline` being empty). Unconditional —
+  does NOT require `[gone]` status. This is a deliberate widening from an
+  earlier version of this rule that gated on `[gone]` as a proxy for
+  "probably merged"; the ancestor check is the real signal. The Protected
+  guard above is what keeps this widening safe on git-flow repos, where
+  `origin/main` is routinely an ancestor of `origin/develop` (the actual
+  default there) — never skip that guard to save a step.
+- The branch has a merged PR (most recently merged by `mergedAt`) whose
+  `headRefOid` matches the branch tip
+  (`gh pr list --state merged --head <branch> --json number,headRefOid,mergedAt`) —
+  still needed for squash-merges, where the branch's own commits are never
+  literal ancestors of the default branch.
+
+Apply Protected + Stale in three passes — each covers a different ref shape
+existing checks miss:
+
+1. **Worktree-paired branches**, from `git worktree list` (skip bare repo
+   entries). If stale: `git worktree remove <path>` — never `--force`; if
+   Git blocks removal for a dirty worktree, report and skip. Then
+   `git branch -d <branch>` (fall back to `-D` only when the merged-PR
+   `headRefOid` matched the branch tip before removal, e.g. a squash-merged
+   branch unreachable from local default).
+2. **Bare local branches** — local branches with no worktree
+   (`git for-each-ref refs/heads`, excluding branches already covered by
+   pass 1). If stale: `git branch -d <branch>` (same `-D` fallback as pass 1).
+3. **Remote-only branches** — remote branches with no local ref at all
+   (`git branch -r`, excluding `origin/HEAD` and anything with a local
+   counterpart). Check Stale against `origin/<branch>` directly (no local
+   ancestry to walk, no local `git branch -d` to run — this pass has nothing
+   local to delete, so its only action IS the remote delete below).
+
+**Remote delete.** Passes 1 and 2 trigger it after their local
+`git branch -d`/`-D` succeeds; pass 3 has no local step, so a Stale
+remote-only branch goes straight here. If a live (non-`[gone]`) remote
+tracking ref exists, delete it: `git push origin --delete` ignores tip
+state — if someone pushed new commits to the branch between your last fetch
+and now, a plain delete would silently discard them, no `--force` needed. So
+immediately before this specific push (not once at the top of the run):
+`git fetch` and re-confirm `git merge-base --is-ancestor origin/<branch>
+origin/<default>` still holds; skip and report if it no longer does.
+Otherwise: `git push origin --delete <branch>`.
 
 Finish with `git worktree prune`.
 
@@ -144,9 +188,8 @@ current branch, and sync status.
 ## Cross-Repo Operating Modes
 
 Optional modes that change `/refresh-repo` from single-repo to workspace-wide.
-Both modes reuse the stale-worktree definition from Step 5 and the deletion
-rules from Step 5.7 — they only add new pre-filters, never weaken existing
-safety.
+Both modes reuse the Protected + Stale definition and deletion rules from
+Step 5 — they only add new pre-filters, never weaken existing safety.
 
 ### `--sweep [<repo-glob>]`
 
