@@ -35,9 +35,20 @@ DENY_GIT_ONLY = [
     (r"^push\s+.*(--force|--force-with-lease|-f)\b", "force-pushes overwrite remote history"),
 ]
 
-# Commands requiring explicit user confirmation
-# Ordered from most specific to least specific to avoid false matches
-ASK_GIT = [
+# Commands that are allowed, but carry a caution note back to the agent.
+#
+# These used to emit permissionDecision "ask". They no longer do: an ask
+# stops the agent and waits for a human, and in a scheduled run, CI job,
+# container, or overnight session no human arrives — the run stalls until
+# timeout and the session goal is abandoned. Every entry below is recoverable
+# (reflog, re-clone, re-run), so a block was never warranted and a prompt was
+# only ever a speed bump for an attended session.
+#
+# The genuinely unrecoverable git operations stay hard denials in
+# DENY_GIT_ONLY / DENY_ALWAYS / BLOCKED_ON_MAIN — those are unchanged.
+#
+# Ordered from most specific to least specific to avoid false matches.
+GUIDANCE_GIT = [
     ("commit --amend", "Rewrites the last commit"),
     ("worktree remove --force", "Removes worktree directory, discarding uncommitted changes"),
     ("worktree remove -f", "Removes worktree directory, discarding uncommitted changes"),
@@ -55,7 +66,7 @@ ASK_GIT = [
     ("gc", "May remove unreferenced objects"),
 ]
 
-ASK_GH = []
+GUIDANCE_GH = []
 
 DENY_GH = [
     ("pr comment", (
@@ -185,16 +196,9 @@ def deny(reason: str) -> None:
     sys.exit(0)
 
 
-def ask(command: str, risk: str) -> None:
-    """Output ask decision (requires user confirmation) and exit."""
-    print(json.dumps({
-        "hookSpecificOutput": {
-            "hookEventName": "PreToolUse",
-            "permissionDecision": "ask",
-            "permissionDecisionReason": f"CAUTION: {risk}\nCommand: {command}",
-        }
-    }))
-    sys.exit(0)
+# NOTE: there is deliberately no ask() emitter. This hook only ever decides
+# "deny" or "allow" (optionally with guidance). An "ask" decision blocks on a
+# human, which makes the hook a hang in any unattended run.
 
 
 def allow_with_guidance(reason: str) -> None:
@@ -416,14 +420,15 @@ def main():
     if is_gh and sub_tokens[:2] == ["api", "graphql"]:
         check_graphql_guidance(command)
 
-    # Check ASK patterns - use word boundaries to avoid false matches
-    # (e.g., "merge" shouldn't match "emergency")
-    patterns = ASK_GIT if is_git else ASK_GH
+    # Check GUIDANCE patterns - use word boundaries to avoid false matches
+    # (e.g., "merge" shouldn't match "emergency"). These allow the command
+    # and hand the agent a caution note rather than stalling on a prompt.
+    patterns = GUIDANCE_GIT if is_git else GUIDANCE_GH
     for cmd, risk in patterns:
         # Match as exact token sequence at start of subcommand
         cmd_tokens = cmd.split()
         if len(sub_tokens) >= len(cmd_tokens) and sub_tokens[:len(cmd_tokens)] == cmd_tokens:
-            ask(command, risk)
+            allow_with_guidance(f"CAUTION: {risk}\nCommand: {command}")
 
     # Allow by default (exit 0, no output)
     sys.exit(0)

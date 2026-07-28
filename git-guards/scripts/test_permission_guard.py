@@ -141,29 +141,29 @@ all_pass &= check("git rm plain", "git rm some/file.txt", "silent_allow")
 # git rm --cached - silent allow: only removes from index, working tree untouched
 all_pass &= check("git rm --cached", "git rm --cached some/file.txt", "silent_allow")
 
-# git rm -f - must ask: permanently discards uncommitted changes
-all_pass &= check("git rm -f", "git rm -f some/file.txt", "ask")
+# git rm -f - allowed with guidance: permanently discards uncommitted changes
+all_pass &= check("git rm -f", "git rm -f some/file.txt", "allow")
 
-# git rm --force - must ask: permanently discards uncommitted changes
-all_pass &= check("git rm --force", "git rm --force some/file.txt", "ask")
+# git rm --force - allowed with guidance: permanently discards uncommitted changes
+all_pass &= check("git rm --force", "git rm --force some/file.txt", "allow")
 
-# git rm -r - must ask: recursive deletion
-all_pass &= check("git rm -r", "git rm -r some/directory/", "ask")
+# git rm -r - allowed with guidance: recursive deletion
+all_pass &= check("git rm -r", "git rm -r some/directory/", "allow")
 
-# git rm -rf - must ask: combined short flags, force-removes recursively
-all_pass &= check("git rm -rf", "git rm -rf some/directory/", "ask")
+# git rm -rf - allowed with guidance: combined short flags, force-removes recursively
+all_pass &= check("git rm -rf", "git rm -rf some/directory/", "allow")
 
-# git rm -r -f - must ask: matches -r first (more specific would need ordering)
-all_pass &= check("git rm -r -f", "git rm -r -f some/directory/", "ask")
+# git rm -r -f - allowed with guidance: matches -r first (more specific would need ordering)
+all_pass &= check("git rm -r -f", "git rm -r -f some/directory/", "allow")
 
-# git restore - must ask: discards local changes
-all_pass &= check("git restore", "git restore some/file.txt", "ask")
+# git restore - allowed with guidance: discards local changes
+all_pass &= check("git restore", "git restore some/file.txt", "allow")
 
-# git clean - must ask: removes untracked files
-all_pass &= check("git clean", "git clean -fd", "ask")
+# git clean - allowed with guidance: removes untracked files
+all_pass &= check("git clean", "git clean -fd", "allow")
 
-# git reset - must ask: can lose uncommitted work
-all_pass &= check("git reset", "git reset --hard HEAD", "ask")
+# git reset - allowed with guidance: can lose uncommitted work
+all_pass &= check("git reset", "git reset --hard HEAD", "allow")
 
 # git push --force origin main - must DENY (DENY_GIT_ONLY: any force-push is denied)
 all_pass &= check("git push --force origin main", "git push --force origin main", "deny")
@@ -183,8 +183,8 @@ all_pass &= check("git commit -n deny", "git commit -n -m msg", "deny")
 # DENY: commit -an (combined short flags including -n)
 all_pass &= check("git commit -an deny", "git commit -an -m msg", "deny")
 
-# ALLOW (ask): commit --amend --no-edit must not be blocked (regression: issue #180)
-all_pass &= check("git commit --amend --no-edit allow", "git commit --amend --no-edit", "ask")
+# ALLOW (guidance): commit --amend --no-edit must not be blocked (regression: issue #180)
+all_pass &= check("git commit --amend --no-edit allow", "git commit --amend --no-edit", "allow")
 
 # DENY: remove hooks
 all_pass &= check("rm .git/hooks", "rm .git/hooks/pre-commit", "deny")
@@ -234,12 +234,12 @@ all_pass &= check("commit.gpgsign in message", 'git -c user.name=test tag v99-te
 # Non-git command: silent allow
 all_pass &= check("ls command", "ls -la", "silent_allow")
 
-# git -C <path> tests: subcommand extracted correctly before DENY/ASK checks
+# git -C <path> tests: subcommand extracted correctly before DENY/GUIDANCE checks
 all_pass &= check("git -C rm plain", "git -C ~/git/.github/main rm .github/workflows/file.yml", "silent_allow")
 all_pass &= check("git -C commit --no-verify", 'git -C /some/path commit -m "msg" --no-verify', "deny")
-all_pass &= check("git -C reset --hard", "git -C /some/path reset --hard HEAD", "ask")
+all_pass &= check("git -C reset --hard", "git -C /some/path reset --hard HEAD", "allow")
 all_pass &= check("git -C -c core.hooksPath deny", "git -C /some/path -c core.hooksPath=/dev/null commit -m test", "deny")
-all_pass &= check("git -C restore ask", "git -C /some/path restore file.txt", "ask")
+all_pass &= check("git -C restore guidance", "git -C /some/path restore file.txt", "allow")
 
 # core.hooksPath precision: value containing the substring must not trigger deny (uses fetch, not commit)
 all_pass &= check("hooksPath in value only", "git -c some.key=echo-core.hooksPath fetch origin", "silent_allow")
