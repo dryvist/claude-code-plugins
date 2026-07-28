@@ -23,7 +23,7 @@ flowchart TD
 
     PG --> PG_CLASSIFY{"Classify\ncommand"}
     PG_CLASSIFY -->|"force-push to main\nhook bypass --no-verify\nmerge on main\nhard reset\nbranch -D on main\ngh pr comment"| PG_BLOCK["permissionDecision: deny\n(BLOCKED)"]
-    PG_CLASSIFY -->|"merge, rebase\nforce-push to branch\nworktree remove"| PG_CONFIRM["permissionDecision: ask\n(CONFIRM)"]
+    PG_CLASSIFY -->|"merge, rebase, reset, restore\nclean, gc, prune, worktree remove"| PG_CONFIRM["permissionDecision: allow\n+ CAUTION guidance"]
     PG_CLASSIFY -->|"Everything else"| PG_ALLOW["exit 0 / no decision\n(allowed)"]
 
     MBG --> MBG_CHECK{"On main\nbranch?"}
@@ -74,14 +74,19 @@ flowchart LR
 
 Every hook follows a strict fail-open contract: if the hook errors or crashes, it exits 0
 with no decision and the operation proceeds. Blocking is signalled by emitting a JSON
-`permissionDecision` (`deny` or `ask`) on stdout while still exiting 0; the worktree
+`permissionDecision: deny` on stdout while still exiting 0; the worktree
 reminder never blocks — it injects a `systemMessage` on stdout to require a worktree.
+
+These hooks never emit `permissionDecision: ask`. An ask stops the agent and waits for a
+human, so in a scheduled run, CI job, container, or overnight session it stalls until
+timeout and the session goal is abandoned. Risky-but-recoverable commands are allowed
+with a `CAUTION` reason attached instead; only unrecoverable ones are denied.
 
 | Outcome | Mechanism | Effect |
 |---------|-----------|--------|
 | Intentional allow | exit 0, no decision | Operation proceeds |
 | Intentional block | exit 0 with `permissionDecision: deny` | Operation denied |
-| User confirmation | exit 0 with `permissionDecision: ask` | User prompted |
+| Allow with caution | exit 0 with `permissionDecision: allow` + reason | Proceeds; agent sees the warning |
 | Hook crash / error | exit 0 (no JSON) | Fail-open — proceeds anyway |
 
 ## Relationship to git-standards
