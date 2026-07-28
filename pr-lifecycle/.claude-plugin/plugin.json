@@ -1,6 +1,6 @@
 {
   "name": "pr-lifecycle",
-  "version": "4.25.2",
+  "version": "5.0.0",
   "description": "Automatically triggers PR finalization after PR creation",
   "author": {
     "name": "JacobPEvans"
