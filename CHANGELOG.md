@@ -1,5 +1,16 @@
 # Changelog
 
+## [5.0.0](https://github.com/dryvist/claude-code-plugins/compare/v4.25.2...v5.0.0) (2026-07-28)
+
+
+### ⚠ BREAKING CHANGES
+
+* **git-guards:** commands previously prompting for confirmation now proceed automatically with a caution message.
+
+### Features
+
+* **git-guards:** never emit "ask" — allow with guidance instead ([#447](https://github.com/dryvist/claude-code-plugins/issues/447)) ([fe1fdaf](https://github.com/dryvist/claude-code-plugins/commit/fe1fdaffae52151185118a112a270fb8cc0de5a5))
+
 ## [4.25.2](https://github.com/dryvist/claude-code-plugins/compare/v4.25.1...v4.25.2) (2026-07-24)
 
 
