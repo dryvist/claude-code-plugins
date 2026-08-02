@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.1.0](https://github.com/dryvist/claude-code-plugins/compare/v5.0.0...v5.1.0) (2026-08-02)
+
+
+### Features
+
+* **ai-delegation:** add delegate-to-router and openrouter-models skills ([#450](https://github.com/dryvist/claude-code-plugins/issues/450)) ([fe173de](https://github.com/dryvist/claude-code-plugins/commit/fe173de533704f2645ffd4790d4f5eaee0bfd044))
+
 ## [5.0.0](https://github.com/dryvist/claude-code-plugins/compare/v4.25.2...v5.0.0) (2026-07-28)
 
 
