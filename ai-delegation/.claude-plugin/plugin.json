@@ -18,6 +18,8 @@
   "skills": [
     "./skills/delegate-to-ai",
     "./skills/auto-maintain",
-    "./skills/premium-agent-orchestration"
+    "./skills/premium-agent-orchestration",
+    "./skills/delegate-to-router",
+    "./skills/openrouter-models"
   ]
 }

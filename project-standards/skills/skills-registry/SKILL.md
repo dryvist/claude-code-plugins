@@ -27,6 +27,8 @@ description: Use when looking up available tools, skills, commands, agents, or p
 | Autonomous maintenance | `/auto-maintain` | `ai-delegation` | Finds work |
 | Delegate to AI models | `/delegate-to-ai` | `ai-delegation` | External AI |
 | Orchestrate premium agents | `/premium-agent-orchestration` | `ai-delegation` | Preserve senior judgment |
+| Offload to the model router | `/delegate-to-router` | `ai-delegation` | Live model menu |
+| Pick a hosted model, watch spend | `/openrouter-models` | `ai-delegation` | Budget & egress |
 | Sync permissions | `/sync-permissions` | `config-management` | Merge perms |
 | Add tool permissions | `/quick-add-permission` | `config-management` | Quick allow |
 | Orchestrate infra | `/orchestrate-infra` | `infra-orchestration` | Cross-repo |
