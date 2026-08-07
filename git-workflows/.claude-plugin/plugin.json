@@ -1,6 +1,6 @@
 {
   "name": "git-workflows",
-  "version": "5.1.0",
+  "version": "5.2.0",
   "description": "Git main branch synchronization, troubleshooting, and post-merge cleanup workflows",
   "author": {
     "name": "JacobPEvans"
