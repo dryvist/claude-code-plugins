@@ -44,8 +44,6 @@ name. Resolve each tier against whatever models the current environment
 actually offers (native subagent model options, configured CLIs, local
 serving); never assume a specific vendor's lineup.
 
-Delegate work whose output can be verified from evidence.
-
 | Tier | Use for | Boundary |
 | --- | --- | --- |
 | Local/free | File discovery, log summaries, simple scans, checklist verification, cheap summaries | Report facts and evidence; avoid product or architecture calls |
@@ -145,6 +143,15 @@ must survive losing it:
   spawning is unavailable. Degrade to serial — never abort the mission or
   restart shared infrastructure that would kill the lead session mid-run.
 - On spawn failure, re-probe with backoff; do not retry-loop spawns.
+- Arm a recurring heartbeat (cron/monitor) re-invoking the lead every ~30 min
+  (your call, never over 50 min — the prompt-cache ceiling). Each firing:
+  check which executors owe reports, ground-truth-verify anything silent
+  >45 min (silence isn't progress — watchers die silently, e.g. credential
+  expiry), advance the critical path.
+- Every subagent waiter/poller needs a bounded timeout (~30 min default, your
+  call); on expiry it surfaces state to the lead instead of waiting longer.
+  Poll loops re-mint short-lived credentials per attempt, never held across
+  waits.
 
 See the `subagent-resilience` rule (ai-assistant-instructions) for the full
 contract.
