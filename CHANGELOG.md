@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.2.0](https://github.com/dryvist/claude-code-plugins/compare/v5.1.0...v5.2.0) (2026-08-07)
+
+
+### Features
+
+* **ai-delegation:** add orchestrator heartbeat + subagent waiter timeouts ([#453](https://github.com/dryvist/claude-code-plugins/issues/453)) ([140143e](https://github.com/dryvist/claude-code-plugins/commit/140143e013c6d5d058017b2d280261e0fc366d3a))
+
 ## [5.1.0](https://github.com/dryvist/claude-code-plugins/compare/v5.0.0...v5.1.0) (2026-08-02)
 
 
