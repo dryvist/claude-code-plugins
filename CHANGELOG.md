@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.3.0](https://github.com/dryvist/claude-code-plugins/compare/v5.2.0...v5.3.0) (2026-08-07)
+
+
+### Features
+
+* **content-guards:** score README quality, not just section presence ([#452](https://github.com/dryvist/claude-code-plugins/issues/452)) ([5f9017c](https://github.com/dryvist/claude-code-plugins/commit/5f9017ca4514c2119106c606209f46d7b38487d5))
+
 ## [5.2.0](https://github.com/dryvist/claude-code-plugins/compare/v5.1.0...v5.2.0) (2026-08-07)
 
 
