@@ -1,5 +1,18 @@
 # git-guards — Test Authoring Guide
 
+## Mentioning a blocked command in commit text
+
+`git-permission-guard.py` splits a command into segments and checks each one,
+so a blocked command reached through `&&`, `;`, `|`, `` ` ``, `$(...)` or
+`bash -c` is caught. Quoted text is not: `git commit -m 'git push --all'`
+stays allowed because the message is one token.
+
+A **bare heredoc body is raw text, not a token** — prose inside
+`git commit -F - <<'EOF' … EOF` that begins a line with a blocked command is
+read as its own segment and denied. Fails closed, which is the right
+direction, but when writing docs about a blocked command, put the mention in
+quotes or indent it rather than starting a heredoc line with it.
+
 ## Branch Isolation in Guard Tests
 
 `git-permission-guard.py` calls `_is_on_main_branch()` to gate `BLOCKED_ON_MAIN`

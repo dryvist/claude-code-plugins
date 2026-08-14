@@ -360,6 +360,9 @@ all_pass &= check("; separated git push --all", "echo hi; git push --all", "deny
 all_pass &= check("piped git push --all", "true | git push --all", "deny")
 all_pass &= check("env-prefixed git push --all", "FOO=1 git push --all", "deny")
 all_pass &= check("bash -c git push --all", "bash -c 'git push --all'", "deny")
+all_pass &= check("command substitution git push --all",
+                  "echo $(git push --all)", "deny")
+all_pass &= check("backtick git push --all", "echo `git push --all`", "deny")
 
 # DENY: alias creation that bakes in a bulk push
 all_pass &= check("git config alias push --all",

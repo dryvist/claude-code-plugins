@@ -140,7 +140,12 @@ WRONG_MUTATIONS = {
 
 
 # Shell tokens that separate independently-executed commands.
-_SEPARATORS = {"&&", "||", "|", "|&", ";", ";;", "&", "(", ")", "{", "}", "\n"}
+# Backtick is included because `cmd` substitution runs cmd as its own command;
+# shlex's default punctuation set omits it, which left it as a bypass.
+_SEPARATORS = {"&&", "||", "|", "|&", ";", ";;", "&", "(", ")", "{", "}", "`", "\n"}
+
+# shlex's default punctuation set is "();<>|&" — backtick added, same reason.
+_PUNCTUATION = "();<>|&`"
 
 # Wrappers whose -c argument is itself a command to inspect.
 _SHELL_RUNNERS = {"bash", "sh", "zsh", "dash", "ksh"}
@@ -159,7 +164,7 @@ def _split_segments(command: str, depth: int = 0) -> list:
     the previous behaviour rather than failing open on a parse error.
     """
     try:
-        lexer = shlex.shlex(command, posix=True, punctuation_chars=True)
+        lexer = shlex.shlex(command, posix=True, punctuation_chars=_PUNCTUATION)
         lexer.whitespace_split = True
         tokens = list(lexer)
     except ValueError:
