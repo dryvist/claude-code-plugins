@@ -1,6 +1,6 @@
 ---
 name: pr-sweep
-description: "Drive open PRs toward zero across one or many repos by risk-ranking every open PR, auto-merging the low-risk mergeable ones, and surfacing the rest with the exact reason each is held. Use when open PRs have piled up and you want them triaged and cleared in one pass. Batches over the existing /squash-merge-pr and /finalize-pr per PR — it decides which PRs are safe to merge and delegates the merge, it does not reimplement merging."
+description: "Drive open PRs toward zero across one or many repos by risk-ranking every open PR, auto-merging the low-risk mergeable ones, and surfacing the rest with the exact reason each is held. Use when open PRs have piled up and you want them triaged and cleared in one pass. Batches over the existing /merge-pr and /finalize-pr per PR — it decides which PRs are safe to merge and delegates the merge, it does not reimplement merging."
 ---
 
 # PR Sweep
@@ -11,7 +11,9 @@ not with a specific reason. This is triage-and-clear, distinct from
 skill acts on **open PRs**; that one acts on **repo/worktree state**.
 
 It does not reimplement merging. It **risk-ranks**, then hands each merge to
-`/squash-merge-pr` (which itself runs the readiness gate and calls `/finalize-pr`).
+`/merge-pr` (which itself runs the readiness gate and calls `/finalize-pr`).
+Merges use `/merge-pr`'s default (merge commit) — this sweep never passes
+`--squash`.
 
 > **State warning**: PR status, CI, and mergeability change between invocations.
 > Re-list and re-check every PR in this run; never act on a cached list.
@@ -54,7 +56,7 @@ costs a revert.
 
 For each low-risk PR, delegate — do not merge by hand:
 
-- Invoke **`/squash-merge-pr <N>`**. It re-runs the readiness gate, calls
+- Invoke **`/merge-pr <N>`** (no `--squash`). It re-runs the readiness gate, calls
   `/finalize-pr` for soft blocks, and aborts on hard stops. Trust its refusal: if
   it declines, the PR moves to the surfaced list with that reason.
 - Never pass `--admin`, never bypass a failing check, never merge a draft.
@@ -77,11 +79,11 @@ outcome, not a failure.
 - Draft, failing/pending CI, merge conflicts, unresolved review threads.
 - `develop → main` promotion PRs — use `/promote-release`.
 - Anything touching auth, secrets, DB migrations, or live infra — a human decides.
-- `/squash-merge-pr` refused — carry its reason forward verbatim.
+- `/merge-pr` refused — carry its reason forward verbatim.
 
 ## Related Skills
 
-- **squash-merge-pr** (github-workflows) — performs each merge; this skill decides which.
-- **finalize-pr** (github-workflows) — PR metadata/soft-block handling, via squash-merge-pr.
+- **merge-pr** (github-workflows) — performs each merge; this skill decides which.
+- **finalize-pr** (github-workflows) — PR metadata/soft-block handling, via merge-pr.
 - **prune-branches** (github-workflows) — the repo/worktree sweep; complementary, not this.
 - **promote-release** (github-workflows) — the correct path for held promotion PRs.

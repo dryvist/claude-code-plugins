@@ -25,20 +25,22 @@ graph LR
 ## 1. Skill Dependency Map
 
 All skills and their cross-plugin dependencies. `/refresh-repo`,
-`/prune-branches`, `/rebase-pr`, `/squash-merge-pr`, `/promote-release`, and
+`/prune-branches`, `/rebase-pr`, `/merge-pr`, `/promote-release`, and
 `/gh-cli-patterns` are local to this plugin (no cross-plugin hop) —
-`/squash-merge-pr`, `/rebase-pr`, and
+`/merge-pr`, `/rebase-pr`, and
 `/promote-release` all consume the canonical PR-readiness gate and the
 default-branch detection from `/gh-cli-patterns` directly. On a git-flow repo,
-`/squash-merge-pr` and `/rebase-pr` both refuse a `main`-targeting PR and point
-to `/promote-release` instead.
+`/rebase-pr` refuses a `main`-targeting PR outright, `/merge-pr` refuses only a
+`--squash`/`-s` attempt against `main` (a plain merge-commit call is a valid
+promotion), and both point to `/promote-release`, which invokes `/merge-pr`
+directly for the actual merge.
 
 ```mermaid
 flowchart TD
     SHIP["/ship"]:::ai
     FPR["/finalize-pr"]:::ai
     RPT["/resolve-pr-threads"]:::ai
-    SMP["/squash-merge-pr"]:::ai
+    SMP["/merge-pr"]:::ai
     RBP["/rebase-pr"]:::ai
     PRR["/promote-release"]:::ai
     RFR["/refresh-repo"]:::ai
@@ -65,9 +67,10 @@ flowchart TD
 
     RPT -->|"Step 3"| RCR
 
-    SMP -->|"refuses, points to (git-flow + base=main)"| PRR
+    SMP -->|"refuses --squash, points to (git-flow + base=main)"| PRR
     RBP -->|"refuses, points to (git-flow + base=main)"| PRR
     PRR -->|"drives PR to mergeable"| FPR
+    PRR -->|"invokes for the merge commit"| SMP
 
     FPR -.->|"reference"| GCP
     SHIP -.->|"reference"| GCP
@@ -139,12 +142,12 @@ flowchart TD
         H2 -->|"Approved"| H4
     end
 
-    subgraph MERGE ["AI — On Human Command (/squash-merge-pr)"]
+    subgraph MERGE ["AI — On Human Command (/merge-pr)"]
         direction TB
-        M0["Step 0: refuse if base=main\non a git-flow repo\n(see /promote-release)"]:::ai
+        M0["Step 0: refuse --squash if base=main\non a git-flow repo\n(see /promote-release)"]:::ai
         M1["Validate readiness\n(/gh-cli-patterns PR-readiness gate)"]:::ai
-        M2["Generate squash commit"]:::ai
-        M3["gh pr merge --squash\n--delete-branch"]:::ai
+        M2["Merge commit (default)\nor generate squash commit (--squash)"]:::ai
+        M3["gh pr merge --merge\nor --squash"]:::ai
         M4["git switch base branch && git pull"]:::ai
 
         M0 --> M1 --> M2 --> M3 --> M4

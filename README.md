@@ -63,10 +63,10 @@ Git branch sync and local troubleshooting.
 
 ### github-workflows
 
-PR finalization, squash-merge, review thread resolution, and issue shaping.
+PR finalization, merge, review thread resolution, and issue shaping.
 
 - **Type**: Command/Skill-based plugin
-- **Skills**: `/finalize-pr`, `/squash-merge-pr`, `/resolve-pr-threads`, `/shape-issues`, `/trigger-ai-reviews`, `/shared-workflow-org-refs`
+- **Skills**: `/finalize-pr`, `/merge-pr`, `/resolve-pr-threads`, `/shape-issues`, `/trigger-ai-reviews`, `/shared-workflow-org-refs`
 - **Purpose**: GitHub PR/issue management workflows
 
 ### infra-orchestration
@@ -180,7 +180,7 @@ invocation. Skill-based plugins provide slash commands:
 ```text
 /ship                     # Full automation: commit, push, PR, finalize
 /finalize-pr              # Drive PR to merge-ready state
-/squash-merge-pr          # Validate and squash merge
+/merge-pr                 # Validate and merge (merge commit by default, --squash to squash)
 /refresh-repo             # Sync main, check PRs
 /prune-branches           # Delete dead branches and worktrees
 /wrap-up                  # Session-completion verdict + forward artifact

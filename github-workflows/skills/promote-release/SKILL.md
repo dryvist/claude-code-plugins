@@ -5,7 +5,7 @@ description: >-
   commit only, never squash or rebase — main accepts merge commits only.
   Every merge to main triggers release-please, which takes over tagging and
   release notes from there. Refuses on trunk repos (default branch main) —
-  use /squash-merge-pr instead.
+  use /merge-pr instead.
 ---
 
 # Promote Release
@@ -39,7 +39,7 @@ If `DEFAULT_BRANCH != develop`, **abort**:
 
 > "This repo's default branch is `{DEFAULT_BRANCH}`, not `develop` — it is not
 > on the git-flow model. There is no develop → main promotion step here; use
-> `/squash-merge-pr` for ordinary PRs into `{DEFAULT_BRANCH}`."
+> `/merge-pr` for ordinary PRs into `{DEFAULT_BRANCH}`."
 
 ## Step 1: Sync Develop
 
@@ -94,13 +94,14 @@ gate. Do not proceed until `mergeStateStatus` is `CLEAN` or `HAS_HOOKS`.
 > so instructed. If you want a human to sign off before the release, apply
 > `human:review` and stop here instead of merging.
 
-```bash
-gh pr merge <PR_NUMBER> --merge --subject "chore: promote develop to main"
-```
+Invoke `/merge-pr <PR_NUMBER>` directly — its default is a merge commit, and
+Step 0 there recognizes this exact base-branch shape as a legitimate
+promotion and lets it through.
 
-**Never** add `--squash` or `--rebase` to this command — both are banned by
-`main`'s ruleset on a git-flow repo and the merge will be rejected (or, worse,
-silently strip the multi-commit history the promotion exists to preserve).
+**Never** pass `--squash` or `-s` to `/merge-pr` here — both are banned by
+`main`'s ruleset on a git-flow repo (its Step 0 aborts a `--squash` attempt
+against `main` on a git-flow repo), and squashing would silently strip the
+multi-commit history the promotion exists to preserve.
 
 ## Step 5: Report
 
@@ -115,8 +116,9 @@ or tag manually.
 
 ## Related Skills
 
-- squash-merge-pr (github-workflows) — the feature-PR-into-develop path; refuses and
-  points here when a PR targets main on a git-flow repo
+- merge-pr (github-workflows) — invoked directly by Step 4 above to perform the
+  merge commit; the feature-PR-into-develop path too, and refuses `--squash`
+  into main on a git-flow repo
 - finalize-pr (github-workflows) — drives the promotion PR to mergeable state, same as any other PR
 - rebase-pr (github-workflows) — refuses and points here when its target is main on a git-flow repo
 - gh-cli-patterns (github-workflows) — canonical gh CLI command shapes, placeholder convention, PR-readiness gate, default-branch detection

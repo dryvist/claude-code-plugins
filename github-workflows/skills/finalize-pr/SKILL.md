@@ -283,7 +283,7 @@ For `all`/`org` modes: Phases 2-5 loop per PR, Phase 6 aggregates results.
 
 ## Related Skills
 
-- squash-merge-pr (github-workflows) — squash merge a PR after finalize-pr reports ready
+- merge-pr (github-workflows) — merge a PR after finalize-pr reports ready
 - resolve-pr-threads (github-workflows) — invoked internally to resolve review threads
 - rebase-pr (github-workflows) — alternative merge strategy after finalize-pr reports ready
 - pr-standards (git-standards) — PR authoring and review standards

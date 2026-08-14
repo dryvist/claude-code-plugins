@@ -13,7 +13,7 @@ description: Use when looking up available tools, skills, commands, agents, or p
 | Sync repo | `/refresh-repo` | `git-workflows` | Also merges PRs |
 | Prune dead branches, worktrees | `/prune-branches` | `github-workflows` | Local and remote |
 | Rebase + merge PR | `/rebase-pr` | `git-workflows` | Local rebase-merge |
-| Squash + merge PR | `/squash-merge-pr` | `github-workflows` | Squash-merge |
+| Merge PR | `/merge-pr` | `github-workflows` | Merge commit by default; `--squash`/`-s` to squash |
 | Troubleshoot rebase | `/troubleshoot-rebase` | `git-workflows` | Recover failures |
 | Troubleshoot worktrees | `/troubleshoot-worktree` | `git-workflows` | Fix refname |
 | Troubleshoot pre-commit | `/troubleshoot-precommit` | `git-workflows` | Fix hooks |

@@ -236,7 +236,7 @@ This commonly occurs with release-please CHANGELOG.md entries that don't conform
 
 ## Related Skills
 
-- **squash-merge-pr** (github-workflows) — Squash merge after rebase-pr prepares the branch
+- **merge-pr** (github-workflows) — Merge after rebase-pr prepares the branch
 - **finalize-pr** (github-workflows) — Full PR finalization pipeline that may invoke rebase-pr
 - **promote-release** (github-workflows) — The develop → main merge-commit path this skill refuses to substitute for
 - **sync-main** (git-workflows) — Syncs the default branch, often needed before rebasing

@@ -54,7 +54,7 @@
     "finalize-pr"
     "refresh-repo"
     "rebase-pr"
-    "squash-merge-pr"
+    "merge-pr"
     "resolve-pr-threads"
     "shape-issues"
     "ship"
