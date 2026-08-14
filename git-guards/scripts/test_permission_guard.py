@@ -323,6 +323,68 @@ if _GIT_FIXTURE_OK:
 else:
     print("SKIP: git fixture unavailable, skipping BLOCKED_ON_MAIN worktree tests")
 
+# ---------------------------------------------------------------------------
+# Bulk-ref pushes (--all / --branches / --mirror / wildcard refspec)
+# A bulk push publishes local-only refs (e.g. agent session transcripts under
+# refs/heads/entire/*) that were never meant to leave the machine.
+# ---------------------------------------------------------------------------
+
+# DENY: the literal flag, and with the remote named first
+all_pass &= check("git push --all", "git push --all", "deny")
+all_pass &= check("git push origin --all", "git push origin --all", "deny")
+
+# DENY: git accepts unambiguous long-option prefixes
+all_pass &= check("git push --al abbrev", "git push --al origin", "deny")
+all_pass &= check("git push --b abbrev", "git push --b origin", "deny")
+
+# DENY: --branches is a documented synonym of --all
+all_pass &= check("git push --branches", "git push origin --branches", "deny")
+
+# DENY: --mirror pushes refs/*, a strict superset of --all
+all_pass &= check("git push --mirror", "git push --mirror origin", "deny")
+all_pass &= check("git push --m abbrev", "git push --m origin", "deny")
+
+# DENY: wildcard refspec is --all spelled the long way
+all_pass &= check("git push wildcard refspec",
+                  "git push origin 'refs/heads/*:refs/heads/*'", "deny")
+all_pass &= check("git push forced wildcard refspec",
+                  "git push origin '+refs/*:refs/*'", "deny")
+
+# DENY: git global options before the subcommand must not evade the check
+all_pass &= check("git --no-pager push --all", "git --no-pager push --all", "deny")
+all_pass &= check("git -C path push --all", "git -C /tmp/x push --all", "deny")
+
+# DENY: bulk push reached through shell composition
+all_pass &= check("cd && git push --all", "cd /tmp/x && git push --all", "deny")
+all_pass &= check("; separated git push --all", "echo hi; git push --all", "deny")
+all_pass &= check("piped git push --all", "true | git push --all", "deny")
+all_pass &= check("env-prefixed git push --all", "FOO=1 git push --all", "deny")
+all_pass &= check("bash -c git push --all", "bash -c 'git push --all'", "deny")
+
+# DENY: alias creation that bakes in a bulk push
+all_pass &= check("git config alias push --all",
+                  "git config alias.pa 'push --all'", "deny")
+
+# ALLOW: ordinary pushes must not regress
+all_pass &= check("git push origin main allow",
+                  "git push origin main", "silent_allow")
+all_pass &= check("git push -u origin branch allow",
+                  "git push -u origin feature/x", "silent_allow")
+all_pass &= check("git push --atomic allow",
+                  "git push --atomic origin main", "silent_allow")
+all_pass &= check("git push --tags allow",
+                  "git push --tags origin", "silent_allow")
+
+# ALLOW: `git stash push --all` is a different subcommand entirely — the ^push
+# anchor must keep it working (regression guard for the deny pattern above).
+all_pass &= check("git stash push --all allow",
+                  "git stash push --all", "silent_allow")
+
+# ALLOW: prose mentioning the blocked command stays inert inside quotes
+all_pass &= check("commit message mentioning push --all",
+                  "git commit -m 'docs: explain why git push --all is blocked'",
+                  "silent_allow")
+
 print()
 print("ALL TESTS PASSED" if all_pass else "SOME TESTS FAILED")
 sys.exit(0 if all_pass else 1)

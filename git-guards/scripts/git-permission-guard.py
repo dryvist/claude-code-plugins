@@ -33,6 +33,21 @@ DENY_GIT_ONLY = [
     (r"^config\s+(?!.*--(?:get|list|unset))(?:\S+\s+)*\b(?:commit|tag)\.gpgsign\s+(?:false|0|off|no)\b", "disables commit/tag signing"),
     (r"^config\s+--unset\s+(?:commit|tag)\.gpgsign\b", "unsetting reverts signing to default-off"),
     (r"^push\s+.*(--force|--force-with-lease|-f)\b", "force-pushes overwrite remote history"),
+    # Bulk-ref pushes publish every local ref, including local-only bookkeeping
+    # refs (agent session transcripts under refs/heads/entire/*, scratch branches).
+    # git accepts unambiguous long-option prefixes, so match by minimal unique
+    # prefix rather than the full spelling:
+    #   --all / --branches (synonyms) -> unique at --al and --b
+    #   --mirror (pushes refs/*, a strict superset) -> unique at --m
+    # No other `git push` option starts with al/b/m, and overmatching a
+    # nonexistent flag is harmless (git rejects it anyway).
+    # ^push anchor is load-bearing: `git stash push --all` must stay allowed.
+    (r"^push\b.*(?<![\w-])--(?:al|b|m)[a-z-]*\b",
+     "pushes all local refs at once, publishing local-only refs that were never meant for the remote"),
+    (r"^push\b.*(?<![\w-])\+?refs/\S*\*",
+     "uses a wildcard refspec, publishing every matching local ref"),
+    (r"^config\s+.*\balias\.\S+.*\bpush\b.*(?<![\w-])(--(?:al|b|m)[a-z-]*|\+?refs/\S*\*)",
+     "defines an alias that bulk-pushes local refs"),
 ]
 
 # Commands that are allowed, but carry a caution note back to the agent.
@@ -122,6 +137,66 @@ WRONG_MUTATIONS = {
         ),
     ),
 }
+
+
+# Shell tokens that separate independently-executed commands.
+_SEPARATORS = {"&&", "||", "|", "|&", ";", ";;", "&", "(", ")", "{", "}", "\n"}
+
+# Wrappers whose -c argument is itself a command to inspect.
+_SHELL_RUNNERS = {"bash", "sh", "zsh", "dash", "ksh"}
+
+
+def _split_segments(command: str, depth: int = 0) -> list:
+    """Split a shell command into independently-executed command segments.
+
+    Without this, `cd /repo && git push --all` bypasses every git rule here,
+    because the guard's git/gh detection only looked at the start of the whole
+    command string.
+
+    Quoted content survives as a single token and is re-quoted on rejoin, so a
+    commit message mentioning a blocked command stays inert. On malformed shell
+    input shlex raises ValueError; falling back to the whole command preserves
+    the previous behaviour rather than failing open on a parse error.
+    """
+    try:
+        lexer = shlex.shlex(command, posix=True, punctuation_chars=True)
+        lexer.whitespace_split = True
+        tokens = list(lexer)
+    except ValueError:
+        return [command]
+
+    segments, current = [], []
+    for tok in tokens:
+        if tok in _SEPARATORS:
+            if current:
+                segments.append(current)
+                current = []
+        else:
+            current.append(tok)
+    if current:
+        segments.append(current)
+
+    out = []
+    for seg in segments:
+        seg = _strip_env_prefix(seg)
+        if not seg:
+            continue
+        # Recurse into `bash -c '<command>'` style wrappers.
+        if depth < 3 and seg[0].rsplit("/", 1)[-1] in _SHELL_RUNNERS:
+            for i, tok in enumerate(seg[1:-1], start=1):
+                if tok == "-c":
+                    out.extend(_split_segments(seg[i + 1], depth + 1))
+                    break
+        out.append(" ".join(shlex.quote(t) for t in seg))
+    return out or [command]
+
+
+def _strip_env_prefix(tokens: list) -> list:
+    """Drop leading VAR=value assignments so `FOO=1 git push` is still seen as git."""
+    i = 0
+    while i < len(tokens) and re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", tokens[i]):
+        i += 1
+    return tokens[i:]
 
 
 def _is_inside_work_tree(target_dir: str = "") -> bool:
@@ -308,21 +383,38 @@ def main():
         sys.exit(0)
 
     hook_cwd = data.get("cwd", "")
-    target_dir = ""
-    command = data.get("tool_input", {}).get("command", "").strip()
-    if not command:
+    raw_command = data.get("tool_input", {}).get("command", "").strip()
+    if not raw_command:
         sys.exit(0)
 
     # Check universal DENY patterns (non-git-specific)
     for pattern, reason in DENY_ALWAYS:
-        if re.search(pattern, command, re.IGNORECASE):
+        if re.search(pattern, raw_command, re.IGNORECASE):
             deny(f"This command {reason}. Fix the underlying issue instead.")
+
+    # Every git/gh rule below is evaluated per command segment, so a git command
+    # chained after another (`cd /repo && git push --all`) is still inspected.
+    # Any check that fires exits the process, so the first hit wins.
+    for segment in _split_segments(raw_command):
+        _check_segment(segment, raw_command, hook_cwd)
+
+    # Allow by default (exit 0, no output)
+    sys.exit(0)
+
+
+def _check_segment(command: str, raw_command: str, hook_cwd: str) -> None:
+    """Run the git/gh rules against one command segment.
+
+    `command` is the segment; `raw_command` is the untouched original, used for
+    display and for checks that depend on raw shell syntax.
+    """
+    target_dir = ""
 
     # EARLY EXIT: Most commands are not git/gh
     is_git = command.startswith("git ") or command == "git"
     is_gh = command.startswith("gh ") or command == "gh"
     if not is_git and not is_gh:
-        sys.exit(0)
+        return
 
     # Extract subcommand (handle -C <path>, -c <key=value>) + collect git config options
     if is_git:
@@ -416,9 +508,11 @@ def main():
             if re.search(pattern, subcommand_for_regex, re.IGNORECASE):
                 deny(f"This command {reason}. {guidance}")
 
-    # Check GraphQL guidance (allow with corrective warnings)
+    # Check GraphQL guidance (allow with corrective warnings).
+    # Uses the raw command: segment splitting resolves shell quoting, which
+    # would hide the trailing-backslash / literal-\n multi-line detection.
     if is_gh and sub_tokens[:2] == ["api", "graphql"]:
-        check_graphql_guidance(command)
+        check_graphql_guidance(raw_command)
 
     # Check GUIDANCE patterns - use word boundaries to avoid false matches
     # (e.g., "merge" shouldn't match "emergency"). These allow the command
@@ -428,10 +522,9 @@ def main():
         # Match as exact token sequence at start of subcommand
         cmd_tokens = cmd.split()
         if len(sub_tokens) >= len(cmd_tokens) and sub_tokens[:len(cmd_tokens)] == cmd_tokens:
-            allow_with_guidance(f"CAUTION: {risk}\nCommand: {command}")
+            allow_with_guidance(f"CAUTION: {risk}\nCommand: {raw_command}")
 
-    # Allow by default (exit 0, no output)
-    sys.exit(0)
+    # No rule fired for this segment; main() continues with the next one.
 
 
 if __name__ == "__main__":
