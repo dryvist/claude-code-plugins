@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.4.0](https://github.com/dryvist/claude-code-plugins/compare/v5.3.0...v5.4.0) (2026-08-14)
+
+
+### Features
+
+* **git-guards:** block bulk-ref pushes and close compound-command bypass ([#456](https://github.com/dryvist/claude-code-plugins/issues/456)) ([2878d9b](https://github.com/dryvist/claude-code-plugins/commit/2878d9be50a0a8054c4b11ed77eeec306e19b608))
+
 ## [5.3.0](https://github.com/dryvist/claude-code-plugins/compare/v5.2.0...v5.3.0) (2026-08-07)
 
 
