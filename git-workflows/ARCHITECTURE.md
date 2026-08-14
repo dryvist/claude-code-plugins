@@ -2,7 +2,7 @@
 
 Local git operations: branch sync and troubleshooting.
 
-For PR-related operations (refresh, rebase-merge, finalize, squash-merge), see
+For PR-related operations (refresh, rebase-merge, finalize, merge), see
 [github-workflows/ARCHITECTURE.md](../github-workflows/ARCHITECTURE.md).
 
 Session-continuity skills (`/goal`, `/session-status`, `/handoff`, `/resume`,
@@ -66,7 +66,7 @@ flowchart LR
         refresh_repo["/refresh-repo"]:::external
         rebase_pr["/rebase-pr"]:::external
         finalize_pr["/finalize-pr"]:::external
-        squash_merge_pr["/squash-merge-pr"]:::external
+        merge_pr["/merge-pr"]:::external
         resolve_threads["/resolve-pr-threads"]:::external
         shape_issues["/shape-issues"]:::external
         trigger_reviews["/trigger-ai-reviews"]:::external

@@ -272,7 +272,7 @@ PRs in the current repo (including unrelated ones).
 ## Related Skills
 
 - finalize-pr (github-workflows) — invoked by ship to drive each PR to mergeable state
-- squash-merge-pr (github-workflows) — merge a PR after ship reports it ready
+- merge-pr (github-workflows) — merge a PR after ship reports it ready
 - resolve-pr-threads (github-workflows) — invoked internally via finalize-pr to resolve review threads
 - gh-cli-patterns (github-workflows) — canonical gh CLI command shapes, placeholder convention, PR gate, code-scanning query
 - pr-standards (git-standards) — the Human-Review Gate policy: when to apply `human:review` and the absolute no-merge-without-instruction rule

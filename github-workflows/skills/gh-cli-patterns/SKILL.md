@@ -43,8 +43,8 @@ gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name'
 
 | `<DEFAULT_BRANCH>` | Model | What it means for skills in this plugin |
 |---|---|---|
-| `main` | Trunk | `main` is both the default branch and production. Existing squash-to-main behavior applies unchanged. |
-| `develop` | git-flow (see [git-flow rule](https://github.com/dryvist/ai-assistant-instructions/blob/main/agentsmd/rules/git-flow.md)) | `develop` is the default integration branch — feature PRs target it, squash-merge is the default. `main` is production only: **merge commits only**, no direct pushes, every merge triggers release-please. |
+| `main` | Trunk | `main` is both the default branch and production. `/merge-pr` merges into it with its normal default (merge commit) or `--squash`/`-s`. |
+| `develop` | git-flow (see [git-flow rule](https://github.com/dryvist/ai-assistant-instructions/blob/main/agentsmd/rules/git-flow.md)) | `develop` is the default integration branch — feature PRs target it, `/merge-pr`'s default (merge commit) or `--squash` both apply. `main` is production only: **merge commits only**, no direct pushes, every merge triggers release-please. |
 
 **Never infer the model from the current local branch name** — always read
 `defaultBranchRef` (or `origin/HEAD`) fresh, since it can differ per repo and
@@ -274,7 +274,7 @@ All Open PRs — <OWNER>/<REPO>
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Ready to merge (1):
-  /squash-merge-pr 42   (<OWNER>/<REPO>)
+  /merge-pr 42   (<OWNER>/<REPO>)
 
 Blocked — needs human (2):
   https://github.com/<OWNER>/<REPO>/pull/43 — CI pending
@@ -358,12 +358,12 @@ For org-wide mode, run once per repo from Phase 1 discovery, replacing `<OWNER>`
 
 ### Merge commands
 
-All modes: `/squash-merge-pr <NUMBER>` — run from the worktree of the target repo.
+All modes: `/merge-pr <NUMBER>` — run from the worktree of the target repo.
 The repo context is shown as a label, not a flag (the skill has no `--repo` argument):
 
 ```text
 Ready to merge (1):
-  /squash-merge-pr 42   (JacobPEvans/claude-code-plugins)
+  /merge-pr 42   (JacobPEvans/claude-code-plugins)
 ```
 
 For org-wide mode, note the target repo so the user knows which worktree to navigate to.

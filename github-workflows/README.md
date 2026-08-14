@@ -11,7 +11,8 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for integration diagrams and the master s
 - **`/refresh-repo`** - Check PR merge-readiness and sync the local repo with its default branch
 - **`/prune-branches`** - Delete branches and worktrees with nothing useful, local and remote; optional multi-repo sweep
 - **`/rebase-pr`** - Merge a PR using local git rebase + signed commits + a direct push to its base branch (main on trunk repos, develop on git-flow repos)
-- **`/squash-merge-pr`** - Validate PR readiness and squash merge into its base branch (errors if not ready); refuses on git-flow repos when the base is main
+- **`/merge-pr`** - Validate PR readiness and merge into its base branch. Merge commit by default,
+  `--squash`/`-s` to squash instead. Refuses squash/rebase into main on git-flow repos
 - **`/promote-release`** - Merge-commit a develop → main promotion PR on a git-flow repo; release-please takes over from there
 - **`/resolve-pr-threads`** - Orchestrate resolution of PR review threads (requires superpowers plugin)
 - **`/gh-cli-patterns`** - Canonical reference for gh CLI command shapes used by other skills in this plugin, including trunk-vs-git-flow default-branch detection
@@ -37,7 +38,8 @@ claude plugins add jacobpevans-cc-plugins/github-workflows
 /prune-branches           # Delete dead branches and worktrees
 /rebase-pr                # Rebase-merge current branch
 /rebase-pr 42             # Rebase-merge specific PR by number
-/squash-merge-pr          # Validate and squash merge
+/merge-pr                 # Validate and merge (merge commit by default)
+/merge-pr 42 --squash     # Validate and squash merge specific PR
 /promote-release          # Merge-commit develop into main (git-flow repos)
 /resolve-pr-threads       # Batch resolve review threads
 /shape-issues             # Shape ideas into GitHub issues

@@ -1,16 +1,17 @@
 ---
-name: squash-merge-pr
+name: merge-pr
 description: >-
-  Squash-merge a PR into its base branch. Invoke only when the user explicitly
-  requests a squash merge. Single PR by number or current branch. Refuses on
-  git-flow repos when the base is main — use /promote-release there instead.
+  Merge a PR into its base branch. Defaults to a merge commit; pass --squash
+  or -s to squash instead. Falls back to squash when the repo disallows merge
+  commits. Single PR by number or current branch. Refuses to squash/rebase into
+  main on a git-flow repo — use /promote-release there instead.
 metadata:
-  argument-hint: "[PR_NUMBER]"
+  argument-hint: "[PR_NUMBER] [--squash|-s]"
 ---
 
-# Squash Merge PR
+# Merge PR
 
-Validates readiness, invokes `/finalize-pr` for soft blocks, then squash-merges.
+Validates readiness, invokes `/finalize-pr` for soft blocks, then merges.
 Hard stops abort immediately. Some cases require human action: closed/merged PR,
 draft, unresolvable conflicts, unrecoverable CI, or more than 100 review threads.
 
@@ -22,9 +23,12 @@ draft, unresolvable conflicts, unrecoverable CI, or more than 100 review threads
 - Run the GraphQL readiness gate on every invocation before merging
 - PR metadata updates are `/finalize-pr`'s responsibility
 - Invoke `/finalize-pr` for soft blocks; abort on hard stops with reason
-- Squash is never used to merge into `main` on a git-flow repo — Step 0 guards this
+- Merge commit is the default; `--squash`/`-s` opts into a squash merge
+- Squash and rebase are never used to merge into `main` on a git-flow repo —
+  Step 0 guards this. Plain merge commit into `main` on a git-flow repo IS
+  allowed — that's the `/promote-release` path.
 
-## Step 0: Refuse Squash Into Main On Git-Flow Repos
+## Step 0: Refuse Squash/Rebase Into Main On Git-Flow Repos
 
 Resolve the PR's base branch and the repo's default branch:
 
@@ -34,15 +38,39 @@ DEFAULT_BRANCH=$(gh repo view --json defaultBranchRef --jq '.defaultBranchRef.na
 ```
 
 If `BASE_BRANCH == main` AND `DEFAULT_BRANCH == develop` (repo is on git-flow —
-see /gh-cli-patterns Canonical Default-Branch Detection), **abort immediately,
-no finalize**:
+see /gh-cli-patterns Canonical Default-Branch Detection):
 
-> "This is a `develop` → `main` promotion PR on a git-flow repo. `main` accepts
-> merge commits only — squash and rebase are banned by ruleset, no exceptions.
-> Run `/promote-release` instead, or merge manually with `gh pr merge --merge`."
+- **`--squash`/`-s` was passed → abort immediately, no finalize**:
+
+  > "This is a `develop` → `main` promotion PR on a git-flow repo. `main` accepts
+  > merge commits only — squash and rebase are banned by ruleset, no exceptions.
+  > Run `/promote-release` instead, or merge manually with `gh pr merge --merge`."
+
+- **No `--squash` (default merge commit) → this is a legitimate promotion.**
+  Continue to Step 1, but note in the final report that `/promote-release` is
+  the normal entry point for this (it also opens the PR and explains
+  release-please) — this invocation may be a manual equivalent of that.
 
 Otherwise (trunk repo, or a git-flow repo's ordinary feature PR into `develop`),
-continue to Step 1 — squash-merge remains the default there.
+continue to Step 1 with the requested (or default) merge method.
+
+## Step 0.5: Resolve The Merge Method
+
+```bash
+gh repo view --json mergeCommitAllowed,squashMergeAllowed,rebaseMergeAllowed
+```
+
+Decide before attempting any merge — never retry after a failed `gh pr merge`:
+
+1. `--squash`/`-s` was passed → use squash. If `squashMergeAllowed == false`,
+   abort: "Repo does not allow squash merges."
+2. Otherwise → use a merge commit. If `mergeCommitAllowed == false` and
+   `squashMergeAllowed == true`, fall back to squash and say so in the final
+   report ("repo disallows merge commits — squashed instead").
+3. Neither `mergeCommitAllowed` nor `squashMergeAllowed` (and no explicit
+   `--squash`) → abort, reporting what the repo does allow.
+
+Carry the resolved method (`merge` or `squash`) into Step 2 and Step 3.
 
 ## Step 1: Validate PR Ready
 
@@ -79,10 +107,14 @@ Invoke `/finalize-pr <PR_NUMBER>`. If it reports human intervention needed, abor
 its reason. Then re-run the full gate (Steps 1.1 + 1.2); if any soft block persists,
 abort with the specific failing field.
 
-## Step 2: Generate Squash Commit Message
+## Step 2: Generate Commit Message (squash only)
 
-Analyze the full changeset to generate a release-note-friendly commit message.
-Replace `<PR_NUMBER>` and `<BASE_BRANCH>` (from Step 0) before running:
+Merge commits use GitHub's default subject — skip this step entirely when
+Step 0.5 resolved to `merge`.
+
+For a squash, analyze the full changeset to generate a release-note-friendly
+commit message. Replace `<PR_NUMBER>` and `<BASE_BRANCH>` (from Step 0) before
+running:
 
 ```bash
 git fetch origin <BASE_BRANCH>
@@ -103,7 +135,7 @@ Store the title in a shell variable:
 SQUASH_TITLE="<generated title>"
 ```
 
-## Step 3: Execute Squash Merge
+## Step 3: Execute The Merge
 
 Capture the branch name before merging (needed for cleanup). Replace `<PR_NUMBER>` before running:
 
@@ -112,13 +144,21 @@ BRANCH=$(gh pr view <PR_NUMBER> --json headRefName --jq '.headRefName')
 ```
 
 Merge without `--delete-branch` (avoids `git switch` failure in bare+worktree repos).
-Use the heredoc body pattern from /gh-cli-patterns:
+Use the heredoc body pattern from /gh-cli-patterns.
+
+**Squash** (Step 0.5 resolved to squash, whether by `--squash`/`-s` or fallback):
 
 ```bash
 gh pr merge <PR_NUMBER> --squash --subject "$SQUASH_TITLE" --body "$(cat <<'EOF'
 ... generated body ...
 EOF
 )"
+```
+
+**Merge commit** (default):
+
+```bash
+gh pr merge <PR_NUMBER> --merge
 ```
 
 Single-quoted `'EOF'` prevents shell expansion. Closing `EOF` must be alone on its own line with no leading whitespace.
@@ -155,14 +195,16 @@ git worktree prune
 Invoke at any time — auto-finalizes if needed:
 
 ```text
-/squash-merge-pr          # Current branch PR
-/squash-merge-pr 42       # Specific PR number
+/merge-pr             # Current branch PR, merge commit
+/merge-pr 42          # Specific PR number, merge commit
+/merge-pr 42 --squash # Specific PR number, squash merge
+/merge-pr -s          # Current branch PR, squash merge
 ```
 
 ## Related Skills
 
-- finalize-pr (github-workflows) — invoked automatically by squash-merge-pr when blockers are found
+- finalize-pr (github-workflows) — invoked automatically by merge-pr when blockers are found
 - rebase-pr (github-workflows) — alternative merge strategy that preserves commit history
-- promote-release (github-workflows) — the develop → main merge-commit path this skill refuses to substitute for
+- promote-release (github-workflows) — the develop → main promotion path; calls this skill directly and never squashes
 - pr-standards (git-standards) — PR authoring and review standards
 - gh-cli-patterns (github-workflows) — canonical gh CLI command shapes, placeholder convention, PR-readiness gate, default-branch detection

@@ -1,7 +1,7 @@
 {
   "name": "github-workflows",
   "version": "5.3.0",
-  "description": "PR finalization (single, repo-wide, or org-wide including bots), repo refresh, rebase-merge, squash-merge, review thread resolution, and issue shaping",
+  "description": "PR finalization (single, repo-wide, or org-wide including bots), repo refresh, rebase-merge, merge, review thread resolution, and issue shaping",
   "author": {
     "name": "JacobPEvans"
   },
@@ -20,7 +20,7 @@
   "skills": [
     "./skills/finalize-pr",
     "./skills/ship",
-    "./skills/squash-merge-pr",
+    "./skills/merge-pr",
     "./skills/rebase-pr",
     "./skills/promote-release",
     "./skills/refresh-repo",
