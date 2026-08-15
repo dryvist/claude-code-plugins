@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.5.0](https://github.com/dryvist/claude-code-plugins/compare/v5.4.0...v5.5.0) (2026-08-15)
+
+
+### Features
+
+* **skills:** add github-code-search and track-followups, absorb ensemble mode ([#459](https://github.com/dryvist/claude-code-plugins/issues/459)) ([547c77e](https://github.com/dryvist/claude-code-plugins/commit/547c77e3fa186f676afb798dee4a430c1912a4b7))
+
 ## [5.4.0](https://github.com/dryvist/claude-code-plugins/compare/v5.3.0...v5.4.0) (2026-08-14)
 
 
