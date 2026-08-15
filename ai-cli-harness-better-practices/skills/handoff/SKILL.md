@@ -42,8 +42,9 @@ git rev-parse --is-inside-work-tree >/dev/null 2>&1
 ```
 
 When that succeeds, add: `git status`, current branch, and any worktree paths
-the work lives in; open PRs/issues via `gh pr list` / `gh issue list`. Capture
-**full URLs**, never bare `#123`.
+the work lives in; open PRs via `gh pr list`. Capture **full URLs**, never bare
+`#123`. Tracked follow-up work is not a GitHub issue — its identifier comes from
+`track-followups`, not from `gh`.
 
 When it fails, skip the whole block and say so in the emitted artifact ("no
 repository at this cwd; branch and PR state omitted"). A handoff without git
