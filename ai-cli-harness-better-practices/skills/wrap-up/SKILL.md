@@ -80,11 +80,13 @@ git rev-parse --is-inside-work-tree >/dev/null 2>&1
 ```
 
 When that fails, skip A1 and A3, note "no repository at this cwd; cleanup
-skipped" in the summary, and run A2 and A4 as normal. Steps A2 and A4 are the
-part of a wrap-up that always applies.
+skipped" in the summary, and run A2, A2.5, and A4 as normal. Steps A2, A2.5, and
+A4 are the part of a wrap-up that always applies — tracking a follow-up needs a
+tracker, not a repository.
 
 In a repository, run Steps A1 and A2 **in parallel** (they are independent).
-Step A3 runs after both finish. Provide a summary of actions taken.
+A2.5 runs after A2, and A3 after both A2.5 and A1 finish. Provide a summary of
+actions taken.
 
 ### A1. Refresh and Prune Repository (repository only)
 
@@ -111,15 +113,35 @@ reporting a full retrospective.
 
 **Requires**: `claude-retrospective` plugin (external). If not installed, skip this step and note it was skipped.
 
+When the session hit a real failure rather than merely finishing, deepen the
+retrospective with `/why` (Five Whys — drill from the symptom to the systemic
+cause) and frame the improvement with `/kaizen` (small, incremental, error-proofed
+by design). Both are optional passes over the same material, not replacements for
+the retrospective.
+
+### A2.5. Record Follow-Ups
+
+Invoke the `track-followups` skill with the triaged buckets from the Step 0 report.
+It deduplicates, **creates** each item in the issue tracker or the incident system
+of record, and returns the created identifiers.
+
+This runs **before** A3 so the handoff can cite real item URLs instead of
+restating work that is now tracked. Follow-ups that are only listed are follow-ups
+that get lost.
+
+No follow-up work in the Step 0 report → skip this step and say so.
+
 ### A3. Follow-Up Session Prompt
 
 If `/session-status` in Step 0 surfaced follow-up work, invoke the `/handoff`
 skill to emit the next-session artifact. Pass it the "Recommended Prompt for Next
-Session", "Recommended GitHub Issues", "Recommended Zammad Tickets", and
-"Session Issues Log" sections from the Step 0 report as the source material.
-Keep the two tracked-follow-up kinds distinct in the handoff — a GitHub issue is
-a code/repo fix, a Zammad ticket is operational/incident work — never relabel
-one as the other.
+Session" and "Session Issues Log" sections from the Step 0 report, plus the
+identifiers `track-followups` returned in A2.5, as the source material.
+
+Keep the two tracked-follow-up kinds distinct in the handoff — a tracker task is
+work to be done, an incident ticket is operational/incident work — never relabel
+one as the other. Items already tracked in A2.5 appear in the handoff as a
+one-line reference to their identifier, not as restated work.
 
 `/handoff` produces the two-part artifact — a `## Goal statement` capped under
 4000 characters (measured with `wc -m`) plus an unbounded `## Full prompt` — so
@@ -140,6 +162,7 @@ Wrap-Up Summary
   Refresh:          done or skipped
   Retrospective:    done or skipped
   Branch cleanup:   done or skipped
+  Follow-ups filed: <n> tracked (<identifiers>) or "none" or "listed only — <reason>"
   Follow-up prompt: done or skipped
   Git Flow promote: done or N/A
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -268,9 +291,9 @@ worktree-removal command shape from `/troubleshoot-worktree` and aligns with
 - **refresh-repo** (github-workflows) — PR readiness check + default-branch sync (Path A Step A1)
 - **prune-branches** (github-workflows) — stale branch and worktree cleanup
   (Path A Step A1); also provides `--sweep` and `--prune-stale` modes
-- **shape-issues** (github-workflows) — Shape and create well-structured GitHub
-  issues for code/repo defects and features; not for incidents (Zammad, see
-  session-status Step 4 and pr-standards)
+- **track-followups** (this plugin) — routes and actually creates each follow-up
+  in the issue tracker or the incident system of record (Path A Step A2.5); never
+  opens a GitHub issue
 - **troubleshoot-worktree** (git-workflows) — Worktree-removal command shape reused by `purge-pr` mode
 - **pr-standards** (git-standards) — Workaround Classification rubric used to decide when `purge-pr` is the right action
 - **git-flow-next** (git-workflows) — Dedicated git-flow-next guide, worktree setup, and promotion steps

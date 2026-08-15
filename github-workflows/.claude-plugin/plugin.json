@@ -30,6 +30,7 @@
     "./skills/resolve-pr-threads",
     "./skills/trigger-ai-reviews",
     "./skills/shared-workflow-org-refs",
-    "./skills/pr-sweep"
+    "./skills/pr-sweep",
+    "./skills/github-code-search"
   ]
 }

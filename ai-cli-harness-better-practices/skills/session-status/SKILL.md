@@ -180,7 +180,7 @@ remote state:
    (unvalidated, or validated evidence went stale when new commits landed),
    state `failure`, or the PR is validated but sitting unmerged. These are
    enforced follow-ups — they go in the report and, when unfinished, into
-   the next-session prompt or a GitHub issue (Step 4).
+   the next-session prompt or a tracker item (Step 4).
 
 ---
 
@@ -190,27 +190,23 @@ Split the gathered items into three buckets:
 
 1. **Next-session prompt** — items small enough to complete in a single focused
    session (roughly 1–3 tasks). Combine related items where possible.
-2. **GitHub issues** — code, config, or repo defects and features: something in
-   a repository has to change. Before recommending new issues, search existing
-   open issues with `gh issue list --state open --json number,title,url` for
-   duplicates. Use full URLs for references. This dedup check needs a repository
-   with a reachable GitHub remote — the same condition Step 3 tested. When Step 3
-   was skipped, or `gh` is unavailable or unauthenticated, still recommend the
-   issues but mark each `[dedup not checked — no GitHub access this session]`,
-   matching how the Zammad bucket below handles its own unavailable case. Never
-   silently present an unchecked list as deduplicated.
-3. **Zammad tickets** — operational/incident-shaped items: a production or
-   infrastructure anomaly, an RCA- or postmortem-worthy event, or something a
-   runbook should have caught. Zammad is the org's incident system of record;
-   these do not become GitHub issues. If the `mcp__zammad__*` tools are
-   available this session, search for duplicates first with
-   `zammad_search_tickets` — same shape as the `gh issue list` dedup check
-   above. If those tools are not configured this session, skip the dedup check
-   and say so explicitly; never guess a ticket number or state.
+2. **Tracker items** — code, config, or repo defects and features, plus chores,
+   tech debt, and side quests: something has to change and it will not happen
+   this session. These go to the issue tracker, **never to GitHub Issues**.
+3. **Incident tickets** — operational/incident-shaped items: a production or
+   infrastructure anomaly, an RCA- or postmortem-worthy event, a security
+   finding, or something a runbook should have caught. The incident system of
+   record owns these; they never become tracker items alone and never appear in
+   a public repository.
 
-An item that is both (e.g. a bug that caused an outage) gets split: a Zammad
-ticket for the incident, a GitHub issue for the underlying code fix, each
-referencing the other.
+An item that is both (e.g. a bug that caused an outage) gets split: an incident
+ticket for the outage, a tracker item for the underlying code fix, each
+referencing the other's URL.
+
+**Triage only — this skill does not create anything.** Routing details,
+dedup-before-create, and actual item creation belong to the `track-followups`
+skill (this plugin), which `/wrap-up` invokes at Path A step A2.5. Duplicating
+those mechanics here is how the two drift apart.
 
 ---
 
@@ -256,26 +252,28 @@ task list. Include the resolved plan file path (~/.claude/plans/<slug>.md) so th
 new session can re-enter plan mode against it.>
 ─────────────────────────────────────
 
-Recommended GitHub Issues:
+Recommended Tracker Items:
 ─────────────────────────────────────
-1. <Title> — <one-line summary> [new | update <issue-url>]
+1. <Title> — <one-line summary> [new | update <item URL>]
 ─────────────────────────────────────
 
-Recommended Zammad Tickets:
+Recommended Incident Tickets:
 ─────────────────────────────────────
-1. <Title> — <one-line summary> [new | update <Zammad ticket URL> | dedup not
-   checked — Zammad MCP unavailable this session]
+1. <Title> — <one-line summary> [new | update <ticket URL>]
 ─────────────────────────────────────
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
+Both lists are **recommendations**; `track-followups` creates them and reports the
+resulting identifiers.
+
 If every item in the "Unfinished Work & Future Tasks" section above is already
-a tracked Zammad ticket, write the heading as
-`Unfinished Work & Future Tasks (tracked in Zammad, not GitHub):` and prefix
-each item with its bare ticket number, matching this shape:
+tracked, write the heading as
+`Unfinished Work & Future Tasks (already tracked):` and prefix
+each item with its bare identifier, matching this shape:
 
 ```text
-Unfinished Work & Future Tasks (tracked in Zammad, not GitHub):
+Unfinished Work & Future Tasks (already tracked):
   - #17053  <one-line description>
   - #17058  <one-line description>
 ```
@@ -294,6 +292,8 @@ to `handoff` and `wrap-up`'s resume blocks, not this dashboard.
   than progress.
 - **wrap-up** (this plugin) — session-completion verdict; calls this skill for
   Step 0 and handles conditional repository cleanup.
+- **track-followups** (this plugin) — consumes Step 4's triage and actually
+  creates the tracker and incident items this skill only recommends.
 - **resume** (this plugin) — cold pickup; reuses this skill's derivation.
 - **replan** (this plugin) — rebuilds a plan this skill shows has drifted.
 - **refresh-repo** (github-workflows) — Checks PR merge-readiness and syncs local main.

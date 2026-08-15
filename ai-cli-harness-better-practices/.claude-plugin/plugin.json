@@ -21,6 +21,7 @@
     "./skills/handoff",
     "./skills/resume",
     "./skills/replan",
-    "./skills/wrap-up"
+    "./skills/wrap-up",
+    "./skills/track-followups"
   ]
 }
