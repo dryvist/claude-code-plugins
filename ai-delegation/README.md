@@ -15,6 +15,9 @@ Claude Code plugin for delegating tasks to AI models, orchestrating premium-mode
 - **`/openrouter-models`** - Choose among hosted models by current price and context length
   from the public catalog, self-enforce a daily spend budget the router does not meter,
   and respect the free-tier prompt-logging caveat
+- **`/multi-model-review`** - Fan a plan or diff out to independent model families
+  (a cloud coding-agent CLI, a cloud reasoning-agent CLI, a local model server) for
+  adversarial review, plus the gotcha each invocation type hits
 
 `delegate-to-router` and `openrouter-models` are written to be harness-agnostic: they
 use only shell, `curl`, and `jq`, name no model ids, and read their endpoint from the
@@ -35,6 +38,7 @@ claude plugins add jacobpevans-cc-plugins/ai-delegation
 /premium-agent-orchestration
 /delegate-to-router
 /openrouter-models
+/multi-model-review
 ```
 
 ## License

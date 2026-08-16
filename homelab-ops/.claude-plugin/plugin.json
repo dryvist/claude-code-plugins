@@ -1,7 +1,7 @@
 {
   "name": "homelab-ops",
   "version": "1.0.0",
-  "description": "High-level operational runbooks for homelab management: DR-node power management, DNS ingress convergence, and secrets-engine identity bring-up",
+  "description": "High-level operational runbooks for homelab management: DR-node power management, DNS ingress convergence, secrets-engine identity bring-up, Proxmox VE cluster operations, Terrakube operations, PXE netboot installs, LLM router operations, and workstation off-box backup",
   "author": {
     "name": "JacobPEvans"
   },
@@ -15,6 +15,11 @@
     "secrets"
   ],
   "skills": [
-    "./skills/homelab-runbooks"
+    "./skills/homelab-runbooks",
+    "./skills/proxmox-cluster-ops",
+    "./skills/terrakube-ops",
+    "./skills/pxe-netboot",
+    "./skills/llm-router-ops",
+    "./skills/workstation-offbox-backup"
   ]
 }
