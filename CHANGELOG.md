@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.7.0](https://github.com/dryvist/claude-code-plugins/compare/v5.6.0...v5.7.0) (2026-08-16)
+
+
+### Features
+
+* **issue-sweep:** add an evidence-based issue sweep skill ([f3b5c46](https://github.com/dryvist/claude-code-plugins/commit/f3b5c468586bf7bd52a9bbc414b0ccd6af2e4c83))
+
 ## [5.6.0](https://github.com/dryvist/claude-code-plugins/compare/v5.5.0...v5.6.0) (2026-08-16)
 
 
