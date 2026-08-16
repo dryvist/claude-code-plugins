@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.6.0](https://github.com/dryvist/claude-code-plugins/compare/v5.5.0...v5.6.0) (2026-08-16)
+
+
+### Features
+
+* **pr-sweep:** add a parallel execution model and sweep mechanics reference ([d3fe2e4](https://github.com/dryvist/claude-code-plugins/commit/d3fe2e4327a238e7bd5c846de1df9b554d5c0ff3))
+
 ## [5.5.0](https://github.com/dryvist/claude-code-plugins/compare/v5.4.0...v5.5.0) (2026-08-15)
 
 
