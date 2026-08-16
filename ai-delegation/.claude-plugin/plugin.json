@@ -20,6 +20,7 @@
     "./skills/auto-maintain",
     "./skills/premium-agent-orchestration",
     "./skills/delegate-to-router",
-    "./skills/openrouter-models"
+    "./skills/openrouter-models",
+    "./skills/multi-model-review"
   ]
 }

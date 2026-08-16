@@ -26,6 +26,11 @@ The skill is deliberately environment-agnostic. Which engines are configured,
 mount paths, role names, and runbooks belong in your own operations docs — this
 plugin is the model, not the inventory.
 
+A second skill, `/openbao-dynamic-aws-creds`, applies the model to one concrete
+engine: replacing a static AWS access key with short-lived STS credentials
+minted on demand via an AWS `credential_process` wrapper — architecture,
+bring-up order, verification, and common failure modes.
+
 ## Installation
 
 ```bash
@@ -39,6 +44,7 @@ involves obtaining or handling a credential. Invoke it explicitly with:
 
 ```text
 /openbao-secrets
+/openbao-dynamic-aws-creds
 ```
 
 Reach for it before fetching any credential, wiring a service to a secret,

@@ -16,6 +16,7 @@
     "least-privilege"
   ],
   "skills": [
-    "./skills/openbao-secrets"
+    "./skills/openbao-secrets",
+    "./skills/openbao-dynamic-aws-creds"
   ]
 }

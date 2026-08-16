@@ -1,7 +1,7 @@
 {
   "name": "github-workflows",
   "version": "5.7.0",
-  "description": "PR finalization (single, repo-wide, or org-wide including bots), repo refresh, rebase-merge, merge, review thread resolution, issue shaping, and issue sweeping that reconciles open issues against reality",
+  "description": "PR finalization (single, repo-wide, or org-wide including bots), repo refresh, rebase-merge, merge, review thread resolution, issue shaping, issue sweeping that reconciles open issues against reality, and diagnosing silent GitHub Actions failures",
   "author": {
     "name": "JacobPEvans"
   },
@@ -32,6 +32,7 @@
     "./skills/trigger-ai-reviews",
     "./skills/shared-workflow-org-refs",
     "./skills/pr-sweep",
-    "./skills/github-code-search"
+    "./skills/github-code-search",
+    "./skills/github-actions-silent-failures"
   ]
 }
