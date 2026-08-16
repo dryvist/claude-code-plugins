@@ -71,9 +71,39 @@ issued personal access token at once. Plan for a `tofu login` re-auth on
 every machine that touches the platform right after that rotation — it isn't
 a sign anything else is broken.
 
+## Never judge an apply by its exit code alone
+
+A remote apply can exit 0 while its log still contains `Error:` lines and no
+"Apply complete" summary — a partial failure that looks clean from the exit
+status. Grep the apply output for both `Error:` and the completion summary
+(`Apply complete` / `Resources:`); the summary's absence is the real signal,
+not the process exit code.
+
+## Importing existing infrastructure into an empty workspace
+
+Onboarding a root that already manages **live** infrastructure into a
+workspace whose state starts empty is not a normal apply, and the ordinary
+0-destroy review is not enough to make it safe.
+
+> A plan against an empty workspace reads "create everything, 0 destroy."
+> That falsely passes a naive 0-destroy gate — the apply then hits an
+> already-exists error and duplicates live infrastructure. For an
+> empty-state workspace the real gate is a **refresh-only plan showing
+> 0 add / 0 change / 0 destroy** — proof state already matches reality. A
+> create-everything plan on a workspace that should already hold resources
+> means the state was never migrated.
+
+Recipe: migrate the existing state into the workspace first (a state push,
+or an init with state migration against the new backend), run a
+refresh-only plan and require exactly 0/0/0, reconcile any benign drift with
+`moved`/`removed` blocks rather than destroy-and-recreate, and only then is
+the ordinary 0-destroy apply gate meaningful.
+
 ## Verification
 
-1. The run reaches `applied` (CLI exits 0; UI shows a green Applied state).
+1. The run reaches `applied` (CLI exits 0; UI shows a green Applied state)
+   **and** the log shows a completion summary with no `Error:` lines — see
+   above.
 2. `tofu output` reflects the expected values.
 3. Re-running `tofu plan` immediately after a clean apply reports "No
    changes" — if it doesn't, something outside the applied config drifted,

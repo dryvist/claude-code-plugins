@@ -19,6 +19,9 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for integration diagrams and the master s
 - **`/shape-issues`** - Shape raw ideas into actionable GitHub Issues using Shape Up methodology
 - **`/trigger-ai-reviews`** - Trigger Claude, Gemini, and Copilot reviews on a PR
 - **`/shared-workflow-org-refs`** - Literal current-owner `uses:` references for reusable workflows; shared-CI homes under dryvist
+- **`/github-actions-silent-failures`** - Diagnose GitHub Actions workflows that fail
+  silently: zero-job `startup_failure` runs, gh-aw's `.github`-named-repo import bug, and
+  self-hosted-runner traps (shared-tmp races, `docker exec` landing as an unprivileged user)
 
 ## Installation
 
