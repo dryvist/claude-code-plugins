@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.8.0](https://github.com/dryvist/claude-code-plugins/compare/v5.7.0...v5.8.0) (2026-08-16)
+
+
+### Features
+
+* **skills:** convert homelab runbooks into public skills ([#465](https://github.com/dryvist/claude-code-plugins/issues/465)) ([8862606](https://github.com/dryvist/claude-code-plugins/commit/88626068ad2ba1a1fcf179b3aaab74a93bbf6585))
+
 ## [5.7.0](https://github.com/dryvist/claude-code-plugins/compare/v5.6.0...v5.7.0) (2026-08-16)
 
 
