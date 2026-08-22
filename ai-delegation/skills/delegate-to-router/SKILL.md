@@ -46,16 +46,19 @@ Model inventories change far faster than this skill does, so the menu is
 fetched, not remembered:
 
 ```sh
-# Preferred: the router's published registry contract.
+# Preferred: LiteLLM-native, includes per-model metadata (aliases, limits).
 curl -fsS --max-time 10 -H "Authorization: Bearer $ROUTER_KEY" \
-  "$ROUTER_BASE/registry.json"
+  "$ROUTER_BASE/model/info"
 
-# Fallback: the OpenAI-compatible listing every router serves.
+# Fallback: the plain OpenAI-compatible listing every router serves.
 curl -fsS --max-time 10 -H "Authorization: Bearer $ROUTER_KEY" \
   "$ROUTER_BASE/models" | jq -r '.data[].id'
 ```
 
-Substitute the variable names you actually found in step 1.
+Substitute the variable names you actually found in step 1 — `$ROUTER_BASE` is
+expected to already include the API version (e.g. end in `/v1`), matching the
+`chat/completions` call in step 3. If the variable you found doesn't, add the
+version segment yourself before appending these paths.
 
 Select from what came back. Prefer a **stable role alias** over a concrete
 model id where the registry publishes one — the alias is the part promised to

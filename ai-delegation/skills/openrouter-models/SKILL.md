@@ -76,6 +76,17 @@ locally served tier or is not delegated at all. When in doubt, treat it as
 confidential — the cost of using a paid tier is bounded, the cost of a leak is
 not.
 
+## Prefer the free tier when it is adequate
+
+When the router serves a free handle that can plausibly do the subtask,
+prefer it over any paid tier — subject to the egress rule above (free tiers
+log prompt content; never send secrets, secret-store-adjacent context,
+infrastructure topology, incident detail, or personal data).
+
+A free handle is a **stable handle whose underlying model is repointed
+server-side** — its identity is not something to record or reason about.
+That is the existing "never write a model id" rule below, applied.
+
 ## Discover current models and prices
 
 The hosted catalog is public and keyless, so pricing research costs nothing:
