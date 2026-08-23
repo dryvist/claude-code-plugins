@@ -132,5 +132,8 @@ show the count — do not silently ship an over-cap goal.
 - **wrap-up** (this plugin) — calls this skill for its follow-up prompt (Path A)
   and resume blocks (Path B).
 - **session-status** (this plugin) — supplies the live state gathered in Step 1.
+- **wrap-up-docs** (this plugin) — the weak-reader counterpart: same
+  self-contained-prompt discipline, inverted compression (expands instead of
+  compresses) for a local model updating documentation.
 - **git-flow-next** (git-workflows) — branching model facts for the HARD RULES
   section, when the work is in a repository.
