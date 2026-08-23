@@ -1,6 +1,6 @@
 ---
 name: wrap-up-docs
-description: "Emit one paste-ready prompt for a local (weaker) LLM whose sole job is updating public and private documentation to match every technical change this session made — an exhaustive per-item changelog (file/component path, what changed technically, commit SHAs, PR URLs, why), routed between public repo docs and the private docs site by fixed rules, wrapped in zero-inference instructions and a documentation-only scope fence. Read-only: emits the artifact, writes nothing. Git-first evidence (session commits, PRs, diff vs default branch) with a conversation-history scan for rationale; runs outside a repository too. Use at end of session when docs must catch up, especially before delegating doc updates to a less capable model."
+description: "Emit one paste-ready prompt for a local (weaker) LLM whose sole job is updating public and private documentation to match every technical change this session made — an exhaustive per-item changelog (file/component path, what changed technically, commit SHAs, PR URLs, why), routed between public repo docs and the private docs site by fixed rules, wrapped in zero-inference instructions and a documentation-only scope fence. Read-only: emits the artifact, writes nothing. Git-first evidence (working-tree status, commits ahead of upstream, PRs) with a conversation-history scan for rationale; runs outside a repository too. Use at end of session when docs must catch up, especially before delegating doc updates to a less capable model."
 ---
 
 # Wrap-Up Docs
@@ -31,27 +31,22 @@ smart reader, this skill expands for a weak one.
 
 ### 1a. Version control — only when the cwd is a repository
 
-Gate and resolve the default branch as one block:
+Gate the whole step:
 
 ```bash
-if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-  echo "not a repository — git sources skipped"
-else
-  default_branch=$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null)
-  default_branch=${default_branch#origin/}
-  [ -n "$default_branch" ] || default_branch=$(
-    gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name' 2>/dev/null)
-  [ -n "$default_branch" ] || echo "default branch unknown — diff-based sources skipped"
-fi
+git rev-parse --is-inside-work-tree >/dev/null 2>&1
 ```
 
-When the gate succeeds, collect:
+When it fails, skip every git source below, note the skip for the emitted
+prompt's NOT GATHERED section, and continue on conversation evidence alone.
+When it succeeds, collect:
 
 1. Uncommitted and untracked work: `git status --porcelain`.
-2. Branch commits: `git log --oneline "$default_branch"..HEAD` (empty on the
-   default branch itself — normal, not an error).
-3. Diff shape: `git diff --stat "$default_branch"...HEAD` plus the same against
-   the working tree for uncommitted changes.
+2. Branch commits relative to the remote-tracking upstream, when one exists:
+   `git log --oneline '@{upstream}..HEAD'`. Empty output means nothing is
+   committed ahead — normal, not an error; conversation SHAs (1c) still cover
+   work committed directly to a synced default branch.
+3. Diff shape against the same upstream: `git diff --stat '@{upstream}...HEAD'`.
 4. Associated PRs: fetch candidates with
    `gh pr list --state all --limit 30 --json number,title,url,state,headRefName,headRefOid`
    and keep those whose `headRefOid` matches an inventoried commit SHA or whose
@@ -63,7 +58,7 @@ prompt, never silently dropped.
 
 ### 1b. Union the commit sets
 
-The inventory's commit set is the union of: branch-diff commits (1a.2),
+The inventory's commit set is the union of: upstream-diff commits (1a.2),
 uncommitted/untracked files (1a.1), and any commit SHAs created during this
 conversation. Verify each conversational SHA exists in `git log` before using
 it; drop SHAs that do not resolve rather than guessing.
