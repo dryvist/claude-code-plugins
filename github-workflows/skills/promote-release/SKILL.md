@@ -28,6 +28,10 @@ git-flow repo outside a `hotfix/*` PR.
   release-please owns both once this PR lands on `main`.
 - `release/*` stabilization branches are out of scope here — use this skill
   only for the ordinary `develop` → `main` promotion.
+- **Strongly prefer a manual end-to-end validation of `develop` before
+  promoting** — see Step 2. CI re-runs the repo's automated checks on the
+  promotion PR; it does not replace an actual build/deploy/converge of the
+  real artifact.
 
 ## Step 0: Confirm Git-Flow Repo
 
@@ -51,7 +55,37 @@ git log --oneline origin/main..origin/develop   # commits this promotion will ca
 If the list is empty, **stop** and report: "`develop` has no commits ahead of
 `main` — nothing to promote."
 
-## Step 2: Find Or Create the Promotion PR
+## Step 2: Manual End-to-End Validation (strongly recommended)
+
+Before opening or merging the promotion PR, strongly prefer running the
+target repo's actual end-to-end build/deploy/converge command against
+`develop` — whatever that repo's own CLAUDE.md/AGENTS.md, README, or CI
+defines as the real validation for its riskiest class of change, not just
+its unit-test or lint suite. The promotion PR's own CI re-runs the repo's
+automated checks anyway; this step exists to catch what CI cannot — an
+actual live convergence, a real deploy, an interactive smoke test.
+
+- Run it from a clean checkout of `origin/develop` in a scratch worktree —
+  never the operator's own working checkout, and never a worktree with
+  unrelated uncommitted state in it.
+- The validation command and its pass bar are **repo-specific and
+  caller-set** — this skill does not hardcode one. If the caller states a
+  bar (e.g. "zero warnings, not just a non-zero exit code"), enforce it
+  literally; do not quietly downgrade "any issue" to "no fatal errors" on
+  your own judgment.
+- If the caller asks for promotion but names no validation command and no
+  bar, ask before inventing one — a promotion this skill was asked to gate
+  stays blocked on that question, not on a guess.
+- **Once a bar is set, any issue that meets it fully blocks promotion** —
+  whether it was introduced by the commits being promoted or is pre-existing
+  drift already sitting on `develop`. Fix it, or route it to whoever can,
+  before proceeding to Step 3. Never promote past a known issue "for now."
+
+Skip this step only when the caller explicitly says the promotion PR's CI
+coverage is sufficient for this change, or the target repo has no such
+end-to-end validation path.
+
+## Step 3: Find Or Create the Promotion PR
 
 ```bash
 gh pr list --base main --head develop --state open --json number,url
@@ -75,7 +109,7 @@ EOF
 )"
 ```
 
-## Step 3: Wait For CI
+## Step 4: Wait For CI
 
 Run the **canonical PR-readiness gate** from /gh-cli-patterns against the
 promotion PR's number. Replace `<OWNER>`, `<REPO>`, `<PR_NUMBER>` per the
@@ -85,7 +119,7 @@ If blocked (CI red, conflicts, unresolved threads), invoke `/finalize-pr
 <PR_NUMBER>` — it works the same regardless of base branch — then re-run the
 gate. Do not proceed until `mergeStateStatus` is `CLEAN` or `HAS_HOOKS`.
 
-## Step 4: Merge Commit Into Main
+## Step 5: Merge Commit Into Main
 
 > **Human-review gate.** A promotion into `main` is exactly the merge the
 > `human:review` label protects (see pr-standards, git-standards → Human-Review
@@ -103,7 +137,7 @@ promotion and lets it through.
 against `main` on a git-flow repo), and squashing would silently strip the
 multi-commit history the promotion exists to preserve.
 
-## Step 5: Report
+## Step 6: Report
 
 ```bash
 gh pr view <PR_NUMBER> --json state,mergedAt --jq '{state, mergedAt}'   # expect: MERGED
@@ -116,7 +150,7 @@ or tag manually.
 
 ## Related Skills
 
-- merge-pr (github-workflows) — invoked directly by Step 4 above to perform the
+- merge-pr (github-workflows) — invoked directly by Step 5 above to perform the
   merge commit; the feature-PR-into-develop path too, and refuses `--squash`
   into main on a git-flow repo
 - finalize-pr (github-workflows) — drives the promotion PR to mergeable state, same as any other PR
