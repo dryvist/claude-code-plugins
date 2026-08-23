@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.9.0](https://github.com/dryvist/claude-code-plugins/compare/v5.8.0...v5.9.0) (2026-08-23)
+
+
+### Features
+
+* **promote-release:** encourage manual e2e validation before promotion ([8455b2c](https://github.com/dryvist/claude-code-plugins/commit/8455b2c745ae53e598b2d2a0b0b529b87d895a2d))
+
 ## [5.8.0](https://github.com/dryvist/claude-code-plugins/compare/v5.7.0...v5.8.0) (2026-08-16)
 
 
