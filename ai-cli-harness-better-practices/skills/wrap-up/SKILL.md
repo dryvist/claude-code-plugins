@@ -288,6 +288,9 @@ worktree-removal command shape from `/troubleshoot-worktree` and aligns with
 
 - **handoff** (this plugin) — builds the two-part next-session artifact (goal
   statement under 4000 chars + full prompt) used by Path A Step A3 and Path B Step B2
+- **wrap-up-docs** (this plugin) — emits a documentation-catchup prompt for a
+  weaker local LLM; run alongside this skill when docs must absorb the
+  session's technical changes
 - **refresh-repo** (github-workflows) — PR readiness check + default-branch sync (Path A Step A1)
 - **prune-branches** (github-workflows) — stale branch and worktree cleanup
   (Path A Step A1); also provides `--sweep` and `--prune-stale` modes

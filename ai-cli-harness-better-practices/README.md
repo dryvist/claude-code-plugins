@@ -27,6 +27,10 @@ The default `/wrap-up` does not.
 - **`/replan`** — Rebuild a plan that no longer matches reality.
 - **`/wrap-up`** — Decide whether the plan is actually complete, then emit the
   right forward artifact for either answer.
+- **`/wrap-up-docs`** — Emit one paste-ready prompt for a weaker local LLM that
+  updates public and private documentation from every technical change the
+  session made: exhaustive per-item changelog with commit SHAs and PR URLs,
+  routed public/private by fixed rules.
 
 ## Usage
 
@@ -38,6 +42,7 @@ The default `/wrap-up` does not.
 /resume                                # pick up cold; verifies before trusting
 /replan                                # rebuild a plan that drifted from reality
 /wrap-up                               # end-of-session verdict + forward artifact
+/wrap-up-docs                          # docs-catchup prompt for a local LLM
 ```
 
 `/goal` is the atom — it runs anywhere, needs no repository, and writes nothing.
