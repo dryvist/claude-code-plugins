@@ -1,5 +1,13 @@
 # Changelog
 
+## [5.10.0](https://github.com/dryvist/claude-code-plugins/compare/v5.9.0...v5.10.0) (2026-08-24)
+
+
+### Features
+
+* **ai-cli-harness-better-practices:** add /wrap-up-docs skill ([c026748](https://github.com/dryvist/claude-code-plugins/commit/c0267488091309d9c71b0734916c7e9a4a432813))
+* **ai-cli-harness-better-practices:** add /wrap-up-docs skill ([#470](https://github.com/dryvist/claude-code-plugins/issues/470)) ([ffeb30f](https://github.com/dryvist/claude-code-plugins/commit/ffeb30fd18fa7871d0366cb5f85987e31ae321e5))
+
 ## [5.9.0](https://github.com/dryvist/claude-code-plugins/compare/v5.8.0...v5.9.0) (2026-08-23)
 
 
