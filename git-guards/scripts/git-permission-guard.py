@@ -13,12 +13,6 @@ import shlex
 import subprocess
 import sys
 
-# Patterns checked against ALL commands (not git-specific)
-DENY_ALWAYS = [
-    (r"pre-commit\s+uninstall", "removes pre-commit hooks"),
-    (r"rm\s+.*\.git/hooks", "deletes git hooks"),
-    (r"chmod\s+.*-x\s+\.git/hooks", "disables git hooks"),
-]
 
 # Patterns checked ONLY when command starts with 'git ' to avoid false
 # positives from matching substrings in gh api body text or other commands
@@ -145,7 +139,7 @@ WRONG_MUTATIONS = {
 _SEPARATORS = {"&&", "||", "|", "|&", ";", ";;", "&", "(", ")", "{", "}", "`", "\n"}
 
 # shlex's default punctuation set is "();<>|&" — backtick added, same reason.
-_PUNCTUATION = "();<>|&`"
+_PUNCTUATION = "();<>|&`\n"
 
 # Wrappers whose -c argument is itself a command to inspect.
 _SHELL_RUNNERS = {"bash", "sh", "zsh", "dash", "ksh"}
@@ -166,6 +160,7 @@ def _split_segments(command: str, depth: int = 0) -> list:
     try:
         lexer = shlex.shlex(command, posix=True, punctuation_chars=_PUNCTUATION)
         lexer.whitespace_split = True
+        lexer.whitespace = " \t\r"
         tokens = list(lexer)
     except ValueError:
         return [command]
@@ -202,6 +197,89 @@ def _strip_env_prefix(tokens: list) -> list:
     while i < len(tokens) and re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", tokens[i]):
         i += 1
     return tokens[i:]
+
+
+def _heredoc_delimiter(line: str):
+    quote = None
+    index = 0
+    while index < len(line):
+        character = line[index]
+        if quote:
+            if quote == '"' and character == "\\":
+                index += 2
+                continue
+            if character == quote:
+                quote = None
+            index += 1
+            continue
+        if character in "'\"":
+            quote = character
+            index += 1
+            continue
+        if character != "<" or index + 1 >= len(line) or line[index + 1] != "<":
+            index += 1
+            continue
+
+        index += 2
+        strip_tabs = index < len(line) and line[index] == "-"
+        if strip_tabs:
+            index += 1
+        while index < len(line) and line[index].isspace():
+            index += 1
+        if index >= len(line):
+            return None
+        if line[index] in "'\"":
+            delimiter_quote = line[index]
+            end = line.find(delimiter_quote, index + 1)
+            if end == -1:
+                return None
+            return line[index + 1:end], strip_tabs
+        match = re.match(r"[A-Za-z_][A-Za-z0-9_]*", line[index:])
+        if match:
+            return match.group(0), strip_tabs
+        return None
+    return None
+
+
+def _strip_heredoc_bodies(command: str) -> str:
+    kept_lines = []
+    delimiter = None
+    strip_tabs = False
+    for line in command.splitlines(keepends=True):
+        if delimiter is not None:
+            candidate = line.rstrip("\r\n")
+            if strip_tabs:
+                candidate = candidate.lstrip("\t")
+            if candidate == delimiter:
+                delimiter = None
+            continue
+
+        kept_lines.append(line)
+        marker = _heredoc_delimiter(line)
+        if marker:
+            delimiter, strip_tabs = marker
+    return "".join(kept_lines)
+
+
+def _deny_always_reason(command: str):
+    try:
+        tokens = _strip_env_prefix(shlex.split(command))
+    except ValueError:
+        return None
+    if not tokens:
+        return None
+
+    executable = os.path.basename(tokens[0])
+    arguments = tokens[1:]
+    touches_git_hooks = any(".git/hooks" in arg for arg in arguments)
+
+    if executable == "pre-commit" and arguments[:1] == ["uninstall"]:
+        return "removes pre-commit hooks"
+    if executable == "rm" and touches_git_hooks:
+        return "deletes git hooks"
+    if executable == "chmod" and "-x" in arguments and touches_git_hooks:
+        return "disables git hooks"
+    return None
 
 
 def _is_inside_work_tree(target_dir: str = "") -> bool:
@@ -392,15 +470,16 @@ def main():
     if not raw_command:
         sys.exit(0)
 
-    # Check universal DENY patterns (non-git-specific)
-    for pattern, reason in DENY_ALWAYS:
-        if re.search(pattern, raw_command, re.IGNORECASE):
+    segments = _split_segments(_strip_heredoc_bodies(raw_command))
+    for segment in segments:
+        reason = _deny_always_reason(segment)
+        if reason:
             deny(f"This command {reason}. Fix the underlying issue instead.")
 
     # Every git/gh rule below is evaluated per command segment, so a git command
     # chained after another (`cd /repo && git push --all`) is still inspected.
     # Any check that fires exits the process, so the first hit wins.
-    for segment in _split_segments(raw_command):
+    for segment in segments:
         _check_segment(segment, raw_command, hook_cwd)
 
     # Allow by default (exit 0, no output)
