@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.10.1](https://github.com/dryvist/claude-code-plugins/compare/v5.10.0...v5.10.1) (2026-08-31)
+
+
+### Bug Fixes
+
+* **git-guards:** ignore commit message prose ([#449](https://github.com/dryvist/claude-code-plugins/issues/449)) ([#472](https://github.com/dryvist/claude-code-plugins/issues/472)) ([9b388dc](https://github.com/dryvist/claude-code-plugins/commit/9b388dc570d0c48901b74ca362e3d739cf5bbbd1))
+
 ## [5.10.0](https://github.com/dryvist/claude-code-plugins/compare/v5.9.0...v5.10.0) (2026-08-24)
 
 
