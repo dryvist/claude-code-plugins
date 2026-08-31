@@ -189,6 +189,37 @@ all_pass &= check("git commit --amend --no-edit allow", "git commit --amend --no
 # DENY: remove hooks
 all_pass &= check("rm .git/hooks", "rm .git/hooks/pre-commit", "deny")
 
+# DENY: direct standalone hook-disabling commands remain blocked.
+all_pass &= check("pre-commit uninstall", "pre-commit uninstall", "deny")
+all_pass &= check("chmod removes hook execute bit", "chmod -x .git/hooks/pre-commit", "deny")
+
+deny_always_prose = "pre-commit uninstall; rm -rf .git/hooks; chmod -x .git/hooks"
+all_pass &= check(
+    "deny-always phrases in commit message",
+    f"git commit -m 'docs: {deny_always_prose}'",
+    "silent_allow",
+)
+all_pass &= check(
+    "deny-always phrases in echo argument",
+    f"echo '{deny_always_prose}'",
+    "silent_allow",
+)
+all_pass &= check(
+    "deny-always phrases in commit-message heredoc",
+    f"git commit -F - <<'EOF'\n{deny_always_prose}\nEOF",
+    "silent_allow",
+)
+all_pass &= check(
+    "quoted heredoc marker does not hide hook deletion",
+    "echo '<<EOF'\nrm .git/hooks/pre-commit\nEOF",
+    "deny",
+)
+all_pass &= check(
+    "hook deletion after heredoc remains denied",
+    "git commit -F - <<'EOF'\ndocumentation\nEOF\nrm .git/hooks/pre-commit",
+    "deny",
+)
+
 # DENY: --no-gpg-sign on commit (required_signatures rejects unsigned)
 all_pass &= check("git commit --no-gpg-sign", "git commit -m msg --no-gpg-sign", "deny")
 
