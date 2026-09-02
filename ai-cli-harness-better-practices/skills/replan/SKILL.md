@@ -59,6 +59,36 @@ Use every source available; skip the ones this environment does not have.
 Note any source you could not reach. An unreachable source is an unknown, never
 an implicit "nothing there".
 
+### Delegate the bulk read
+
+Steps above produce token-heavy, reasoning-light output: the default-branch
+log, merged/open PR listings with their CI state, and the plan file's checkbox
+inventory. Hand that raw material to the **router** via the `delegate-to-router`
+skill (ai-delegation) at the cheapest capable tier — alias `cheap`, or a
+subagent carrying an explicit lower `model:` when the input is longer than one
+call holds. Reason over the returned table, never the raw dump.
+
+Cap the input: at most 30 log lines, 30 PRs, and the plan file itself. Truncate
+rather than paginate — more evidence is not a better reconciliation.
+
+Small-model prompt (short imperatives, explicit schema, hard STOP):
+
+```text
+Extract facts from the input. Do not explain. Do not advise.
+Output ONLY this table, one row per plan item or PR:
+  id | title | state (MERGED/OPEN/CLOSED/CHECKED/UNCHECKED) | evidence
+Rules:
+1. Copy titles verbatim. Never summarize a title.
+2. Unknown field -> write UNKNOWN. Never guess.
+3. At most 60 rows. STOP after the table.
+```
+
+**Fallback (verbatim from `delegate-to-router`)**: none of the router's failure
+paths authorize a silent fallback. "Absorbing the work back into your own
+context without saying so is the exact cost delegation was meant to avoid, and
+it hides the failure from whoever pays for it." If the router is unreachable,
+do the step yourself and **say so in the Step 4 delta**. Never silently skip it.
+
 ## Step 2: Reconcile against the plan
 
 For each plan item, classify from live evidence, not the checkbox:
@@ -107,3 +137,4 @@ directly.
   be written from scratch.
 - **autoresearch:plan** — when the replanned goal needs a measurable metric and an
   automated verify command rather than prose criteria.
+- **delegate-to-router** (ai-delegation) — the router mechanics used by "Delegate the bulk read": live model menu, tier choice, and the fallback rule.

@@ -184,6 +184,37 @@ remote state:
 
 ---
 
+## Step 3.5: Delegate the bulk read
+
+Steps 2 and 3 are the token-heavy, reasoning-light half of this skill: the
+reverse-chronological conversation scan for unfinished work and pivots, the
+plan-file checkbox extraction, and the `git status` / `gh pr list` / commit-status
+tables. Hand that raw material to the **router** via the `delegate-to-router`
+skill (ai-delegation) at the cheapest capable tier — alias `cheap`, or a subagent
+carrying an explicit lower `model:` when the transcript is longer than one call
+holds. The premium lead triages (Step 4) over the returned table, not the dump.
+
+Cap the input: the plan file, at most 30 open PRs, and the history scan's own
+stop rule (~10 quiet messages). Truncate rather than paginate.
+
+Small-model prompt (short imperatives, explicit schema, hard STOP):
+
+```text
+Extract items from the input. Do not explain. Do not advise. Do not fix.
+Output ONLY this table, one row per item:
+  item | kind (TASK/ISSUE/PR/CHECKLIST) | state | evidence (line no, URL, or quote)
+Rules:
+1. Copy text verbatim. Never paraphrase an item.
+2. Unknown field -> write UNKNOWN. Never guess a state.
+3. At most 60 rows. STOP after the table.
+```
+
+**Fallback (verbatim from `delegate-to-router`)**: none of the router's failure
+paths authorize a silent fallback. "Absorbing the work back into your own
+context without saying so is the exact cost delegation was meant to avoid, and
+it hides the failure from whoever pays for it." If the router is unreachable, do
+the step yourself and **say so in the Step 5 dashboard**. Never silently skip it.
+
 ## Step 4: Triage and Recommendations
 
 Split the gathered items into three buckets:
@@ -300,3 +331,4 @@ to `handoff` and `wrap-up`'s resume blocks, not this dashboard.
 - **prune-branches** (github-workflows) — Deletes stale branches and worktrees.
 - **retrospecting** (claude-retrospective) — Generates detailed retrospectives
   based on session logs and git diffs.
+- **delegate-to-router** (ai-delegation) — the router mechanics used by "Delegate the bulk read": live model menu, tier choice, and the fallback rule.

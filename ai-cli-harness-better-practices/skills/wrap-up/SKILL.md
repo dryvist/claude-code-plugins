@@ -18,6 +18,40 @@ description: "End-of-session handler that first checks whether the current sessi
 
 The `purge-pr` focused mode (bottom of this file) bypasses Step 0 entirely.
 
+## Delegate the bulk read
+
+Everything this skill reads before it decides is token-heavy and reasoning-light:
+the `/session-status` report, the `origin/main..origin/develop` promotion log, the
+open-PR listing, and the remaining plan/TaskList items Path B groups. Hand that
+raw material to the **router** via the `delegate-to-router` skill (ai-delegation)
+at the cheapest capable tier — alias `cheap`, or a subagent carrying an explicit
+lower `model:` when the input is longer than one call holds. The premium lead
+makes the Path A/Path B verdict over the returned table, never the raw dump.
+
+Cap the input: at most 30 promotion-log lines and 30 PRs. Truncate, do not
+paginate.
+
+Small-model prompt (short imperatives, explicit schema, hard STOP):
+
+```text
+Extract items from the input. Do not explain. Do not advise. Do not decide.
+Output ONLY this table, one row per item:
+  item | kind (TASK/CHECKLIST/COMMIT/PR) | state | evidence (line no, SHA, or URL)
+Rules:
+1. Copy text verbatim. Never paraphrase an item.
+2. Unknown field -> write UNKNOWN. Never guess a state.
+3. At most 60 rows. STOP after the table.
+```
+
+**Fallback (verbatim from `delegate-to-router`)**: none of the router's failure
+paths authorize a silent fallback. "Absorbing the work back into your own
+context without saying so is the exact cost delegation was meant to avoid, and
+it hides the failure from whoever pays for it." If the router is unreachable, do
+the step yourself and **say so in the Wrap-Up Summary**. Never silently skip it.
+
+The completion verdict itself is never delegated — that is the judgment this
+skill exists to make.
+
 ## Step 0: Determine session state
 
 Invoke the `/session-status` skill to analyze the plan checklist, TaskList state, and gather unfinished work and issues.
@@ -300,3 +334,4 @@ worktree-removal command shape from `/troubleshoot-worktree` and aligns with
 - **troubleshoot-worktree** (git-workflows) — Worktree-removal command shape reused by `purge-pr` mode
 - **pr-standards** (git-standards) — Workaround Classification rubric used to decide when `purge-pr` is the right action
 - **git-flow-next** (git-workflows) — Dedicated git-flow-next guide, worktree setup, and promotion steps
+- **delegate-to-router** (ai-delegation) — the router mechanics used by "Delegate the bulk read": live model menu, tier choice, and the fallback rule.
