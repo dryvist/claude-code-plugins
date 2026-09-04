@@ -1,6 +1,6 @@
 {
   "name": "session-analytics",
-  "version": "5.10.1",
+  "version": "5.11.0",
   "description": "Claude Code session token analytics via Splunk OTEL telemetry",
   "author": {
     "name": "JacobPEvans"
