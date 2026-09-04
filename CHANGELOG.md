@@ -1,5 +1,13 @@
 # Changelog
 
+## [5.11.0](https://github.com/dryvist/claude-code-plugins/compare/v5.10.1...v5.11.0) (2026-09-04)
+
+
+### Features
+
+* **harness:** delegate bulk evidence reads in replan, wrap-up, and session-status to the router ([7f287ae](https://github.com/dryvist/claude-code-plugins/commit/7f287ae8f8471db4cfd67461a9ec08f544111d68))
+* **harness:** delegate bulk evidence reads in replan, wrap-up, and session-status to the router ([fa5636a](https://github.com/dryvist/claude-code-plugins/commit/fa5636a13c5bfd4b9dea8f6b7e137faf9e483f15))
+
 ## [5.10.1](https://github.com/dryvist/claude-code-plugins/compare/v5.10.0...v5.10.1) (2026-08-31)
 
 
