@@ -84,6 +84,10 @@ easy to verify. Good fits include file search summaries, log inspection,
 test-output summaries, checklist verification, mechanical comparisons, and
 other evidence-gathering tasks.
 
+Subagent cache-creation was measured at 35% of all cache writes for 9% of
+output, so every reading or mechanical subagent must carry an explicit lower
+`model:` and report to a file rather than back into the lead's context.
+
 Prefer these routes in order for simple checkable work:
 
 1. Local LLMs already reachable from the environment.
