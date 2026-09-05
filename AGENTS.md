@@ -1,3 +1,7 @@
+---
+skill-groups: [core, ai]
+---
+
 # Claude Code Plugins Quick Reference
 
 Reference guide for AI assistants working with this repository.
