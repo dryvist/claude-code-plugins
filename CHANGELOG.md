@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.13.0](https://github.com/dryvist/claude-code-plugins/compare/v5.12.0...v5.13.0) (2026-09-05)
+
+
+### Features
+
+* **openbao:** add identity step and narrow runtime injection to secret-zero ([#478](https://github.com/dryvist/claude-code-plugins/issues/478)) ([b795c2f](https://github.com/dryvist/claude-code-plugins/commit/b795c2fa01346f67321db3f17b531b0d6a0108a7))
+
 ## [5.12.0](https://github.com/dryvist/claude-code-plugins/compare/v5.11.0...v5.12.0) (2026-09-05)
 
 
