@@ -188,6 +188,15 @@
       "author": {
         "name": "JacobPEvans"
       }
+    },
+    {
+      "name": "slack",
+      "source": "./slack",
+      "description": "Slack messaging from any AI CLI through a shell command instead of an MCP server: read, thread, send and search with an OpenBao-minted bot token that is never stored",
+      "version": "5.11.0",
+      "author": {
+        "name": "JacobPEvans"
+      }
     }
   ]
 }
