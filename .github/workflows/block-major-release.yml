@@ -1,0 +1,49 @@
+# Blocks an accidental major release.
+#
+# The org release workflow enables `gh pr merge --auto` on every release PR and
+# does not special-case major bumps, so a stray `!` in a squash subject or a
+# `BREAKING CHANGE:` footer ships a major minutes later. Commitlint's header
+# pattern rejects `!`, but it cannot reject a footer — this is the other half.
+#
+# A non-required check cannot stop `--auto`, so this closes the release PR as
+# well as failing. Reopen it deliberately if the major is intended.
+
+name: Block Major Release
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+permissions: {}
+
+jobs:
+  block-major:
+    if: startsWith(github.head_ref, 'release-please--')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Fail and close on a major bump
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          manifest=.release-please-manifest.json
+          new=$(jq -r '."."' "$manifest")
+          old=$(git show "$BASE_SHA:$manifest" | jq -r '."."')
+          echo "proposed=$new current=$old"
+          [ "${new%%.*}" = "${old%%.*}" ] && exit 0
+          gh pr close "$PR" -R "$REPO" --comment \
+            "Closed by the major-release guard: this release PR proposes $new, a major bump from $old. A major ships only by decision. Reopen this PR if the major is intended, or drop the breaking marker from the offending commit and let release-please recompute."
+          echo "::error::release PR proposes a major bump ($old -> $new); closed"
+          exit 1
