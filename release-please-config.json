@@ -3,6 +3,7 @@
   "release-type": "simple",
   "include-v-in-tag": true,
   "separate-pull-requests": false,
+  "last-release-sha": "aeba91991ac0ef2bb35c0d458d73c52b746fef85",
   "changelog-sections": [
     {
       "type": "feat",
