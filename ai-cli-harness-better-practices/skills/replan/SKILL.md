@@ -29,6 +29,9 @@ Use every source available; skip the ones this environment does not have.
   claims a capability is "live", check the thing itself (the mount, the secret, the
   endpoint), not the flag that would enable it. (This is the exact trap that makes
   plans go stale — a default read as a fact.)
+- **Box-drawn CLI output is not a list**: `doppler secrets --only-names` and
+  tools like it print a bordered table. Strip the borders before diffing:
+  `grep '^│' | sed 's/[│ ]//g'`.
 - **Decisions**: scan for anything that invalidates a plan step — a new rule, a
   closed ticket, a design the user changed mid-flight.
 - **Version control** *(only when `git rev-parse --is-inside-work-tree` succeeds)*:

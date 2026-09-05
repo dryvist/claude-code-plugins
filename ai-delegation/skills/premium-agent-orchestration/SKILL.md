@@ -156,6 +156,12 @@ must survive losing it:
   call); on expiry it surfaces state to the lead instead of waiting longer.
   Poll loops re-mint short-lived credentials per attempt, never held across
   waits.
+- A helper that prints a bare token (`... token read`) is captured with
+  `VAR=$(...)`, never `eval`-ed. An `eval` echoes the value into the transcript;
+  the immediate action is to revoke that token.
+- A required check whose name is a prefixed form of an advisory one (`Merge Gate`
+  vs `ci / Merge Gate`) is read from the repository's rulesets, not inferred from
+  the check list on a pull request.
 
 See the `subagent-resilience` rule (ai-assistant-instructions) for the full
 contract.
