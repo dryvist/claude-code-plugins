@@ -1,5 +1,16 @@
 # Changelog
 
+## [6.0.0](https://github.com/dryvist/claude-code-plugins/compare/v5.13.0...v6.0.0) (2026-09-05)
+
+
+### ⚠ BREAKING CHANGES
+
+* **slack:** the slack plugin is removed from the marketplace.
+
+### Bug Fixes
+
+* **slack:** remove the slack plugin from the marketplace ([280eabe](https://github.com/dryvist/claude-code-plugins/commit/280eabe1dce06c2f525d5f44d71da72123020bc7))
+
 ## [5.13.0](https://github.com/dryvist/claude-code-plugins/compare/v5.12.0...v5.13.0) (2026-09-05)
 
 
