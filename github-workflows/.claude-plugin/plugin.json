@@ -1,6 +1,6 @@
 {
   "name": "github-workflows",
-  "version": "5.12.0",
+  "version": "5.13.0",
   "description": "PR finalization (single, repo-wide, or org-wide including bots), repo refresh, rebase-merge, merge, review thread resolution, issue shaping, issue sweeping that reconciles open issues against reality, and diagnosing silent GitHub Actions failures",
   "author": {
     "name": "JacobPEvans"
