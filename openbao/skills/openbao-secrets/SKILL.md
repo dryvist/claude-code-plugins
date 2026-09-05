@@ -14,6 +14,28 @@ you have it. Two rules carry most of the weight: **mint, don't store**, and
 > an engine is live because a config flag says enabled. A default is not a running
 > system.
 
+## Step 0: Which identity am I?
+
+Every later step depends on *who is asking*. Answer this before touching a
+store. Three identities exist, and they are not interchangeable:
+
+| Identity | What it is | May do |
+| --- | --- | --- |
+| **Trusted automation identity** | A dedicated non-human principal the automation runs as, with its own login credential and its own policy | Pre-authorized reads; the gated writes its policy allows; the only identity that may hold unattended privilege |
+| **Interactive operator** | A person at a terminal, authenticating as themselves | Pre-authorized reads; performs the human gate that authorizes a write |
+| **Untrusted harness** | Any agent or tool session that has not been separated onto the automation identity — it borrows whoever launched it | Pre-authorized reads only; no writes, no unattended privilege |
+
+Rules that follow from the table:
+
+- **Reads are pre-authorized for all three.** Fetching a secret you are entitled
+  to needs no ceremony regardless of identity.
+- **A gated write happens under the trusted automation identity**, authorized by
+  the interactive operator's gate (Step 3). An untrusted harness never writes,
+  and never obtains a credential that would let it.
+- **Unattended privilege — a credential that acts with no human present — exists
+  only under the automation identity.** If you cannot name which identity you
+  are, you are the untrusted harness; act accordingly.
+
 ## Step 1: Does this credential need to exist at all?
 
 If a secrets **engine** can mint the credential, that engine is the only correct
@@ -27,6 +49,7 @@ the opposite on all four counts.
 | AWS credentials | `aws/sts/<role>` | a static access key |
 | Anything else an engine covers | that engine | a KV copy of it |
 | A value nothing can mint (third-party API key, app config, bootstrap material) | KV — that is KV's whole job | — |
+| A bootstrap-store copy of a value already migrated to the central store | nothing — delete it once a live consumer is proven against the central store | leaving both copies live |
 
 **If the engine for a resource is not configured in this environment, that need is
 blocked — it is not a licence to seed a static secret.** "The engine isn't ready
@@ -39,7 +62,9 @@ Match the secret to the tier that owns it, then stop — one secret, one home:
 
 - **At-rest in-repo, encrypted** — for values a repo must carry (SOPS + age).
 - **Runtime injection** — ambient environment for a process (a secrets manager
-  run-wrapper). This is how a workload receives its bootstrap.
+  run-wrapper). It supplies **secret-zero only**: the central store's address and
+  the identity's login pair. Every other value resolves from the central store at
+  run time. A second secret in the run-wrapper is a value that escaped the store.
 - **Central secrets store (OpenBao)** — the source of truth for shared/service
   credentials, and the only place engines mint from.
 - **Human vault** — credentials only a person uses interactively.

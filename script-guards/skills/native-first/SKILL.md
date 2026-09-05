@@ -76,6 +76,14 @@ script by default. The output is an **evidenced conclusion**:
 > (maintainer confirms unsupported). A small script is the remaining option —
 > here it is, scoped to just this gap."
 
+### Sanctioned helper
+
+A helper that survives the terminal rule is **sanctioned, not incidental**: record
+it in the project's own docs alongside the evidence that justified it — the rungs
+checked and what each returned — and re-check that evidence when the underlying
+tool ships its next major version. A native path that did not exist at v2 often
+exists at v3, and the helper should retire the moment it does.
+
 Only after that evidence is a custom script the right call. A script written
 *without* that evidence is the thing this skill and the `script-guards` hooks
 exist to stop. "I couldn't find one" is not evidence; "I checked these five
