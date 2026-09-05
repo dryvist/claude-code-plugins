@@ -76,7 +76,7 @@
       "name": "ai-cli-harness-better-practices",
       "source": "./ai-cli-harness-better-practices",
       "description": "Harness-agnostic session continuity: goal statements, status snapshots, handoffs, cold resume, replanning, and wrap-up. No git or GitHub required.",
-      "version": "5.13.0",
+      "version": "4.24.0",
       "author": {
         "name": "JacobPEvans"
       }
@@ -103,7 +103,7 @@
       "name": "homelab-ops",
       "source": "./homelab-ops",
       "description": "High-level operational runbooks for homelab management: DR-node power management, DNS ingress convergence, and secrets-engine identity bring-up",
-      "version": "5.13.0",
+      "version": "1.0.0",
       "author": {
         "name": "JacobPEvans"
       }
@@ -130,7 +130,7 @@
       "name": "openbao",
       "source": "./openbao",
       "description": "OpenBao-backed secrets access model: mint ephemeral credentials from secrets engines instead of storing static ones; reads pre-authorized, writes human-gated",
-      "version": "5.13.0",
+      "version": "4.21.0",
       "author": {
         "name": "JacobPEvans"
       }
@@ -156,7 +156,7 @@
     {
       "name": "process-cleanup",
       "source": "./process-cleanup",
-      "description": "Cleanup orphaned MCP server processes on session exit — workaround for upstream bug #1935",
+      "description": "Cleanup orphaned MCP server processes on session exit \u2014 workaround for upstream bug #1935",
       "version": "5.13.0",
       "author": {
         "name": "JacobPEvans"
@@ -193,7 +193,7 @@
       "name": "slack",
       "source": "./slack",
       "description": "Slack messaging from any AI CLI through a shell command instead of an MCP server: read, thread, send and search with an OpenBao-minted bot token that is never stored",
-      "version": "5.13.0",
+      "version": "5.10.1",
       "author": {
         "name": "JacobPEvans"
       }

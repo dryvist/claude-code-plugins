@@ -1,48 +1,374 @@
 {
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "release-type": "simple",
+  "include-v-in-tag": true,
+  "separate-pull-requests": false,
+  "changelog-sections": [
+    {
+      "type": "feat",
+      "section": "Features"
+    },
+    {
+      "type": "fix",
+      "section": "Bug Fixes"
+    },
+    {
+      "type": "perf",
+      "section": "Performance"
+    },
+    {
+      "type": "breaking",
+      "section": "Breaking Changes"
+    },
+    {
+      "type": "chore",
+      "section": "Miscellaneous",
+      "hidden": true
+    },
+    {
+      "type": "ci",
+      "section": "CI",
+      "hidden": true
+    },
+    {
+      "type": "docs",
+      "section": "Documentation",
+      "hidden": true
+    },
+    {
+      "type": "refactor",
+      "section": "Refactoring",
+      "hidden": true
+    },
+    {
+      "type": "test",
+      "section": "Tests",
+      "hidden": true
+    }
+  ],
   "packages": {
     ".": {
-      "release-type": "simple",
-      "include-v-in-tag": true,
-      "changelog-sections": [
-        {"type": "feat", "section": "Features"},
-        {"type": "fix", "section": "Bug Fixes"},
-        {"type": "perf", "section": "Performance"},
-        {"type": "breaking", "section": "Breaking Changes"},
-        {"type": "chore", "section": "Miscellaneous", "hidden": true},
-        {"type": "ci", "section": "CI", "hidden": true},
-        {"type": "docs", "section": "Documentation", "hidden": true},
-        {"type": "refactor", "section": "Refactoring", "hidden": true},
-        {"type": "test", "section": "Tests", "hidden": true}
-      ],
       "version-file": "VERSION",
       "extra-files": [
-        {"type": "json", "path": "ai-delegation/.claude-plugin/plugin.json", "jsonpath": "$.version"},
-        {"type": "json", "path": "code-standards/.claude-plugin/plugin.json", "jsonpath": "$.version"},
-        {"type": "json", "path": "codeql-resolver/.claude-plugin/plugin.json", "jsonpath": "$.version"},
-        {"type": "json", "path": "config-management/.claude-plugin/plugin.json", "jsonpath": "$.version"},
-        {"type": "json", "path": "content-guards/.claude-plugin/plugin.json", "jsonpath": "$.version"},
-        {"type": "json", "path": "git-guards/.claude-plugin/plugin.json", "jsonpath": "$.version"},
-        {"type": "json", "path": "git-standards/.claude-plugin/plugin.json", "jsonpath": "$.version"},
-        {"type": "json", "path": "git-workflows/.claude-plugin/plugin.json", "jsonpath": "$.version"},
-        {"type": "json", "path": "github-workflows/.claude-plugin/plugin.json", "jsonpath": "$.version"},
-        {"type": "json", "path": "infra-orchestration/.claude-plugin/plugin.json", "jsonpath": "$.version"},
-        {"type": "json", "path": "infra-standards/.claude-plugin/plugin.json", "jsonpath": "$.version"},
-        {"type": "json", "path": "pal-health/.claude-plugin/plugin.json", "jsonpath": "$.version"},
-        {"type": "json", "path": "pr-lifecycle/.claude-plugin/plugin.json", "jsonpath": "$.version"},
-        {"type": "json", "path": "process-cleanup/.claude-plugin/plugin.json", "jsonpath": "$.version"},
-        {"type": "json", "path": "project-standards/.claude-plugin/plugin.json", "jsonpath": "$.version"},
-        {"type": "json", "path": "script-guards/.claude-plugin/plugin.json", "jsonpath": "$.version"},
-        {"type": "json", "path": "session-analytics/.claude-plugin/plugin.json", "jsonpath": "$.version"},
-        {
-          "type": "json",
-          "path": ".claude-plugin/marketplace.json",
-          "jsonpath": "$.plugins[*].version"
-        },
         {
           "type": "json",
           "path": ".claude-plugin/marketplace.json",
           "jsonpath": "$.metadata.version"
+        }
+      ]
+    },
+    "ai-cli-harness-better-practices": {
+      "component": "ai-cli-harness-better-practices",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": ".claude-plugin/plugin.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "/.claude-plugin/marketplace.json",
+          "jsonpath": "$.plugins[?(@.name==\"ai-cli-harness-better-practices\")].version"
+        }
+      ]
+    },
+    "ai-delegation": {
+      "component": "ai-delegation",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": ".claude-plugin/plugin.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "/.claude-plugin/marketplace.json",
+          "jsonpath": "$.plugins[?(@.name==\"ai-delegation\")].version"
+        }
+      ]
+    },
+    "code-standards": {
+      "component": "code-standards",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": ".claude-plugin/plugin.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "/.claude-plugin/marketplace.json",
+          "jsonpath": "$.plugins[?(@.name==\"code-standards\")].version"
+        }
+      ]
+    },
+    "codeql-resolver": {
+      "component": "codeql-resolver",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": ".claude-plugin/plugin.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "/.claude-plugin/marketplace.json",
+          "jsonpath": "$.plugins[?(@.name==\"codeql-resolver\")].version"
+        }
+      ]
+    },
+    "config-management": {
+      "component": "config-management",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": ".claude-plugin/plugin.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "/.claude-plugin/marketplace.json",
+          "jsonpath": "$.plugins[?(@.name==\"config-management\")].version"
+        }
+      ]
+    },
+    "content-guards": {
+      "component": "content-guards",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": ".claude-plugin/plugin.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "/.claude-plugin/marketplace.json",
+          "jsonpath": "$.plugins[?(@.name==\"content-guards\")].version"
+        }
+      ]
+    },
+    "git-guards": {
+      "component": "git-guards",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": ".claude-plugin/plugin.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "/.claude-plugin/marketplace.json",
+          "jsonpath": "$.plugins[?(@.name==\"git-guards\")].version"
+        }
+      ]
+    },
+    "git-standards": {
+      "component": "git-standards",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": ".claude-plugin/plugin.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "/.claude-plugin/marketplace.json",
+          "jsonpath": "$.plugins[?(@.name==\"git-standards\")].version"
+        }
+      ]
+    },
+    "git-workflows": {
+      "component": "git-workflows",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": ".claude-plugin/plugin.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "/.claude-plugin/marketplace.json",
+          "jsonpath": "$.plugins[?(@.name==\"git-workflows\")].version"
+        }
+      ]
+    },
+    "github-workflows": {
+      "component": "github-workflows",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": ".claude-plugin/plugin.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "/.claude-plugin/marketplace.json",
+          "jsonpath": "$.plugins[?(@.name==\"github-workflows\")].version"
+        }
+      ]
+    },
+    "homelab-ops": {
+      "component": "homelab-ops",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": ".claude-plugin/plugin.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "/.claude-plugin/marketplace.json",
+          "jsonpath": "$.plugins[?(@.name==\"homelab-ops\")].version"
+        }
+      ]
+    },
+    "infra-orchestration": {
+      "component": "infra-orchestration",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": ".claude-plugin/plugin.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "/.claude-plugin/marketplace.json",
+          "jsonpath": "$.plugins[?(@.name==\"infra-orchestration\")].version"
+        }
+      ]
+    },
+    "infra-standards": {
+      "component": "infra-standards",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": ".claude-plugin/plugin.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "/.claude-plugin/marketplace.json",
+          "jsonpath": "$.plugins[?(@.name==\"infra-standards\")].version"
+        }
+      ]
+    },
+    "openbao": {
+      "component": "openbao",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": ".claude-plugin/plugin.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "/.claude-plugin/marketplace.json",
+          "jsonpath": "$.plugins[?(@.name==\"openbao\")].version"
+        }
+      ]
+    },
+    "pal-health": {
+      "component": "pal-health",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": ".claude-plugin/plugin.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "/.claude-plugin/marketplace.json",
+          "jsonpath": "$.plugins[?(@.name==\"pal-health\")].version"
+        }
+      ]
+    },
+    "pr-lifecycle": {
+      "component": "pr-lifecycle",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": ".claude-plugin/plugin.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "/.claude-plugin/marketplace.json",
+          "jsonpath": "$.plugins[?(@.name==\"pr-lifecycle\")].version"
+        }
+      ]
+    },
+    "process-cleanup": {
+      "component": "process-cleanup",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": ".claude-plugin/plugin.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "/.claude-plugin/marketplace.json",
+          "jsonpath": "$.plugins[?(@.name==\"process-cleanup\")].version"
+        }
+      ]
+    },
+    "project-standards": {
+      "component": "project-standards",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": ".claude-plugin/plugin.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "/.claude-plugin/marketplace.json",
+          "jsonpath": "$.plugins[?(@.name==\"project-standards\")].version"
+        }
+      ]
+    },
+    "script-guards": {
+      "component": "script-guards",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": ".claude-plugin/plugin.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "/.claude-plugin/marketplace.json",
+          "jsonpath": "$.plugins[?(@.name==\"script-guards\")].version"
+        }
+      ]
+    },
+    "session-analytics": {
+      "component": "session-analytics",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": ".claude-plugin/plugin.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "/.claude-plugin/marketplace.json",
+          "jsonpath": "$.plugins[?(@.name==\"session-analytics\")].version"
+        }
+      ]
+    },
+    "slack": {
+      "component": "slack",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": ".claude-plugin/plugin.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "/.claude-plugin/marketplace.json",
+          "jsonpath": "$.plugins[?(@.name==\"slack\")].version"
         }
       ]
     }
