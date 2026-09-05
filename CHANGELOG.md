@@ -1,5 +1,13 @@
 # Changelog
 
+## [5.12.0](https://github.com/dryvist/claude-code-plugins/compare/v5.11.0...v5.12.0) (2026-09-05)
+
+
+### Features
+
+* **slack:** reach Slack from every AI CLI without an MCP server ([e092b29](https://github.com/dryvist/claude-code-plugins/commit/e092b29734702c1db3254f77f3aa9890800589af))
+* **slack:** reach Slack from every AI CLI without an MCP server ([aaada52](https://github.com/dryvist/claude-code-plugins/commit/aaada524680360deff67f11e6a9c947ea32f3a9d))
+
 ## [5.11.0](https://github.com/dryvist/claude-code-plugins/compare/v5.10.1...v5.11.0) (2026-09-04)
 
 
