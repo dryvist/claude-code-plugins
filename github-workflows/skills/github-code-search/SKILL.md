@@ -49,7 +49,13 @@ good:  ANSIBLE_HOST_KEY_CHECKING       bad:  how to disable ansible host key che
 
 ## Primary path — the `grep` MCP server
 
-One tool: **`mcp__grep__searchGitHub`**.
+The tool **`mcp__grep__searchGitHub`** is available on-demand only — the server is held
+out of every session's always-on profile to save tokens (measured usage: 117 calls
+across 1,651 transcripts). To use it, attach the server with:
+
+```bash
+claude --mcp-config ~/.claude/mcp-available/grep.json
+```
 
 | Param | Type | Notes |
 | --- | --- | --- |
@@ -63,17 +69,29 @@ One tool: **`mcp__grep__searchGitHub`**.
 
 The server is keyless and stateless, so there is no auth step and nothing to rotate.
 
-## Fallback — keyless HTTP
+## Fallback — keyless alternatives
 
-For any harness without MCP, the same corpus is reachable over plain HTTP:
+**MCP endpoint (primary)** — when the standalone grep MCP server is not available:
 
 ```bash
-curl -s 'https://grep.app/api/search?q=fetchGitTree&l=Nix' \
-  | jq -r '.hits.hits[] | "\(.repo.raw)  \(.path.raw)"' | head -20
+curl -s -X POST https://mcp.grep.app \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"searchGitHub",
+       "arguments":{"query":"ANSIBLE_HOST_KEY_CHECKING","language":["YAML"],"matchCase":true}}}' \
+  | sed -n 's/^data: //p' | jq -r '.result.content[].text'
 ```
 
-Query params: `q` (required), `l` (language), `r` (repo), `regexp=true`.
-Matched spans in returned content are wrapped in `»…«`.
+**Sourcegraph** (secondary, unauthenticated GraphQL endpoint):
+
+```bash
+curl -s 'https://sourcegraph.com/.api/graphql' \
+  -H 'Content-Type: application/json' \
+  -d '{"query":"query{search(query:\"fetchGitTree case:yes\"){results{...on FileMatch{file{path}}}}}"}'
+```
+
+Sourcegraph defaults to case-insensitive; prefix a query with `case:yes` for parity with grep.app.
+Never put hostnames, credentials, or customer names in any query.
 
 ## Working the query
 
