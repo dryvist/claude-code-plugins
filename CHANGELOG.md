@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.4.0](https://github.com/dryvist/claude-code-plugins/compare/v6.3.0...v6.4.0) (2026-09-12)
+
+
+### Features
+
+* **openbao:** add version metadata and an agent quickstart ([#503](https://github.com/dryvist/claude-code-plugins/issues/503)) ([157f509](https://github.com/dryvist/claude-code-plugins/commit/157f509e9915c1d0ce7207c4b44c2d503d18a4e6))
+
 ## [6.3.0](https://github.com/dryvist/claude-code-plugins/compare/v6.2.1...v6.3.0) (2026-09-12)
 
 
