@@ -4,7 +4,6 @@
   "ai-delegation": "6.2.1",
   "code-standards": "6.2.1",
   "codeql-resolver": "6.2.1",
-  "config-management": "6.2.2",
   "content-guards": "6.2.1",
   "git-guards": "6.2.1",
   "git-standards": "6.3.0",

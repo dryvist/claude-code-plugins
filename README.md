@@ -29,14 +29,6 @@ Systematic CodeQL alert analysis and resolution for GitHub Actions workflows.
 - **Command**: `/resolve-codeql`
 - **Purpose**: Resolve CodeQL security alerts in GitHub Actions workflows
 
-### config-management
-
-Sync AI tool permissions across repos and quickly add always-allow permissions.
-
-- **Type**: Skill-based plugin
-- **Skills**: `/sync-permissions`, `/quick-add-permission`
-- **Purpose**: Manage Claude and Gemini permission configs across repositories
-
 ### content-guards
 
 Combined content validation and guard plugin.
@@ -131,7 +123,6 @@ claude plugins add jacobpevans-cc-plugins/<plugin-name>
 - `jacobpevans-cc-plugins/ai-delegation`
 - `jacobpevans-cc-plugins/code-standards`
 - `jacobpevans-cc-plugins/codeql-resolver`
-- `jacobpevans-cc-plugins/config-management`
 - `jacobpevans-cc-plugins/content-guards`
 - `jacobpevans-cc-plugins/git-guards`
 - `jacobpevans-cc-plugins/git-standards`
@@ -156,7 +147,6 @@ claude plugins link ./ai-cli-harness-better-practices
 claude plugins link ./ai-delegation
 claude plugins link ./code-standards
 claude plugins link ./codeql-resolver
-claude plugins link ./config-management
 claude plugins link ./content-guards
 claude plugins link ./git-guards
 claude plugins link ./git-standards

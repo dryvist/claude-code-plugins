@@ -26,7 +26,6 @@
     "github-workflows@jacobpevans-cc-plugins"
     "code-standards@jacobpevans-cc-plugins"
     "project-standards@jacobpevans-cc-plugins"
-    "config-management@jacobpevans-cc-plugins"
     "process-cleanup@jacobpevans-cc-plugins"
     "pal-health@jacobpevans-cc-plugins"
     "pr-lifecycle@jacobpevans-cc-plugins"
@@ -76,9 +75,6 @@
     # jacobpevans codeql-resolver
     "codeql-permission-classification"
     "github-workflow-security-patterns"
-    # jacobpevans config-management
-    "sync-permissions"
-    "quick-add-permission"
     # jacobpevans session-analytics
     "token-breakdown"
     # jacobpevans content-guards

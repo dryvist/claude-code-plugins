@@ -37,15 +37,6 @@
       }
     },
     {
-      "name": "config-management",
-      "source": "./config-management",
-      "description": "Sync AI tool permissions across repos and quickly add always-allow permissions",
-      "version": "6.2.2",
-      "author": {
-        "name": "JacobPEvans"
-      }
-    },
-    {
       "name": "content-guards",
       "source": "./content-guards",
       "description": "Combined content validation and guard plugin that merges token-validator, markdown-validator, webfetch-guard, and issue-limiter functionality",
