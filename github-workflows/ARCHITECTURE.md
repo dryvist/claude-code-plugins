@@ -25,7 +25,8 @@ graph LR
 ## 1. Skill Dependency Map
 
 All skills and their cross-plugin dependencies. `/refresh-repo`,
-`/prune-branches`, `/rebase-pr`, `/merge-pr`, `/promote-release`, and
+`/prune-branches`, `/rebase-pr`, `/merge-pr`, `/promote-release`,
+`/pr-stacks`, and
 `/gh-cli-patterns` are local to this plugin (no cross-plugin hop) —
 `/merge-pr`, `/rebase-pr`, and
 `/promote-release` all consume the canonical PR-readiness gate and the
