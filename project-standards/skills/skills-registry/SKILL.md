@@ -29,8 +29,6 @@ description: Use when looking up available tools, skills, commands, agents, or p
 | Orchestrate premium agents | `/premium-agent-orchestration` | `ai-delegation` | Preserve senior judgment |
 | Offload to a local or cheap model | `/local-subagents` | `ai-delegation` | Live model menu with speed/quality hints |
 | Pick a hosted model, watch spend | `/openrouter-models` | `ai-delegation` | Budget & egress |
-| Sync permissions | `/sync-permissions` | `config-management` | Merge perms |
-| Add tool permissions | `/quick-add-permission` | `config-management` | Quick allow |
 | Orchestrate infra | `/orchestrate-infra` | `infra-orchestration` | Cross-repo |
 | Sync terraform inventory | `/sync-inventory` | `infra-orchestration` | Outputs |
 | E2E pipeline test | `/test-e2e` | `infra-orchestration` | Full stack |
