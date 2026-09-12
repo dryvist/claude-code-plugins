@@ -227,6 +227,19 @@ rules above already cover degrading to serial or solo.
 `ensemble-orchestrator` agent in [mhattingpete/claude-skills-marketplace](https://github.com/mhattingpete/claude-skills-marketplace)
 (Apache-2.0), rewritten in capability-tier terms.*
 
+## Plan Mode Versus Execution Mode
+
+Decide the mode first. A "Plan mode is active" system notice, a plan file,
+or a request to design before building means plan mode; anything else is
+execution.
+
+In plan mode, when the work is more than a quick single-step change, invoke
+the `goal` skill (`ai-cli-harness-better-practices`) and place its output at
+the top of the plan. The goal names the objective, one explicit boundary, and
+numbered exit conditions in dependency order — each a yes/no check a reader
+can run with no other context, the last one an end-to-end verification. A
+plan whose exit conditions cannot be checked is not ready to leave plan mode.
+
 ## Operating Loop
 
 1. Decide whether the task needs premium judgment.
@@ -262,3 +275,4 @@ passed or failed, and any important remaining risk.
 
 - delegate-to-ai (ai-delegation)
 - auto-maintain (ai-delegation)
+- goal (ai-cli-harness-better-practices)
