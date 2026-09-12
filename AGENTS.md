@@ -15,7 +15,7 @@ This is a **Claude Code plugins repository** containing production-ready hooks f
 | Plugin | Type | Tools/Commands | Purpose |
 |--------|------|--------|------|
 | **ai-cli-harness-better-practices** | Skill | `/goal`, `/session-status`, `/handoff`, `/resume`, `/replan`, `/wrap-up` (incl. `purge-pr` mode), `/wrap-up-docs` | Harness-agnostic session continuity: capped goal statements, done-vs-remaining snapshots, cold-start handoffs, verify-before-trust resume, stale-plan repair, and end-of-session wrap-up. Runs without a git repository |
-| **ai-delegation** | Skill | `/delegate-to-ai`, `/auto-maintain`, `/premium-agent-orchestration`, `/delegate-to-router`, `/openrouter-models`, `/multi-model-review` | Route tasks to AI models, preserve premium reasoning while cheaper agents or local/free LLMs handle checkable work, and fan a plan/diff out to independent model families for adversarial review |
+| **ai-delegation** | Skill | `/delegate-to-ai`, `/auto-maintain`, `/premium-agent-orchestration`, `/local-subagents`, `/openrouter-models`, `/multi-model-review` | Route tasks to AI models, preserve premium reasoning while cheaper agents or local/free LLMs handle checkable work, and fan a plan/diff out to independent model families for adversarial review |
 | **codeql-resolver** | Command/Skill/Agent | `/resolve-codeql` | Resolve CodeQL security alerts in GitHub Actions workflows |
 | **config-management** | Skill | `/sync-permissions`, `/quick-add-permission` | Manage Claude and Gemini permission configs across repositories |
 | **content-guards** | Pre/PostToolUse | Bash, Write, Edit | Token limits, markdown/README validation, webfetch guard, issue/PR backlog limits, public-repo leakage guard |

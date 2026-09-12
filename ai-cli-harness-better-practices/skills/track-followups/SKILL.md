@@ -3,7 +3,7 @@ name: track-followups
 description: Record triaged follow-up work where it will actually be seen — create the item in the issue tracker (Vikunja) or the incident system of record (Zammad), deduplicating first and reporting the created identifier. Use when a session produced work that outlives it, or when another skill has triaged items and needs them tracked rather than merely listed. Never opens a GitHub issue.
 license: Apache-2.0
 metadata:
-  version: 1.0.0
+  version: 1.1.0
   author: dryvist homelab
   hermes:
     category: workflow
@@ -94,8 +94,52 @@ Title rules: imperative and specific enough to act on cold — "Fix stale
 the context the next reader will not have, and the origin URL so the trail is
 navigable both ways.
 
-For incidents, use `mcp__zammad__zammad_create_ticket` with the same discipline,
-plus the tags that install already uses.
+### 4b. Create an incident: every ticket needs a closure condition
+
+A ticket with no closure condition never closes — it sits open until someone
+reads the whole thing again. Every Zammad ticket this skill creates states, in
+its first article, how it closes:
+
+```text
+type: outage | weakness | hygiene
+resolved_when: probe:<bounded query the reviewer can re-run>
+             | url:<the PR or Vikunja task URL that fixes this>
+             | ttl:<days, for hygiene only>
+```
+
+```text
+mcp__zammad__zammad_create_ticket {
+  title:   "<what happened or what is weak — specific, not a category>",
+  group:   "<the incident group this Zammad install uses>",
+  article: { body: "<the type: / resolved_when: block above, then the full
+                      narrative — timeline, hosts, what depended on what>" },
+  tags:    ["type:<outage|weakness|hygiene>"]
+}
+```
+
+Then set these fields — inline on create if the tool accepts them, otherwise
+follow with `PUT /tickets/<id>` under the Doppler `ai-ci-automation/prd`
+token (`ZAMMAD_URL` already carries `/api/v1`; never print the token):
+
+- `detection_method`: `probe` | `user-report` | `alert` | `agent` | `other`
+  — a Claude session filing its own finding uses `agent`.
+- `source_issue`: the Vikunja task or PR URL this ticket came from.
+- For a **weakness**, `source_issue` must point at the task or PR that fixes
+  it — create the Vikunja task first (step 4) if none exists yet, and use its
+  URL.
+
+Closure differs by `type`, and it is never "looks fixed":
+
+| Type | Closes when | How |
+| --- | --- | --- |
+| `outage` | a probe confirms recovery | re-run the `resolved_when` probe, then close |
+| `weakness` | the linked PR merges or the linked task is done | verify the link, then close |
+| `hygiene` | its `ttl` elapses | move to **pending close** (`state_id: 6` + `pending_time`) at the ttl — never straight to `closed` on "probably fine" |
+
+Every close sets `root_cause` in the same `PUT`, whichever type it is.
+
+For plain work items with no incident shape, use step 4 (Vikunja) instead —
+this step is for the incident destination only.
 
 ### 5. Report what was created
 
@@ -104,6 +148,13 @@ report that says "tracked" without an identifier is not evidence that anything w
 created — the caller cannot verify it and neither can the user.
 
 State explicitly, in one line, anything that was listed instead of created and why.
+
+### Before your session ends
+
+Any ticket you filed and cannot close yourself still needs a way to close
+without you. Its `resolved_when` must point at a real task or PR URL — not a
+promise to check later — so the review automation can close it once that
+target lands.
 
 ## Related Skills
 

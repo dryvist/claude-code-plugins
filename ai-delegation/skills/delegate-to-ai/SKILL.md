@@ -38,9 +38,24 @@ curl -s http://127.0.0.1:11434/v1/chat/completions \
   -d '{"model":"default","messages":[{"role":"user","content":"..."}]}'
 ```
 
-Roles: `default`, `quickest`, `coding`, `tool-calling`, `large-context`,
-`most-capable`, `oss`. Pick the role that fits the task; the registry maps it to
-the physical model.
+The role names are the keys of `.models` in that same registry. Read them from
+it rather than from a list here, for exactly the reason the physical ids are
+read from it — a list in this file goes stale silently, and this one already
+had: it was missing a role the registry defines.
+
+```bash
+jq -r '.models | keys[]' ~/.config/ai-stack/registry.json
+```
+
+Pick the role that fits the task; the registry maps it to the physical model.
+
+**A role name is not guaranteed to be addressable at every endpoint.** A local
+server generates its aliases from this same role map, so every role resolves
+there. A gateway in front of several backends keeps its own routing table,
+which can name a different set — asking it for a role it does not route
+returns a "no healthy deployments" error, distinct from a `429` (route exists,
+no free slot) and a `502` (route exists, backend down). When you call through a
+gateway, take the model name from that gateway's own menu instead.
 
 ## Route Selection
 

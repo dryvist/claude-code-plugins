@@ -1,5 +1,34 @@
 # Changelog
 
+## [6.2.1](https://github.com/dryvist/claude-code-plugins/compare/v6.2.0...v6.2.1) (2026-09-12)
+
+
+### Bug Fixes
+
+* **git-guards:** allow reading and unsetting core.hooksPath ([#496](https://github.com/dryvist/claude-code-plugins/issues/496)) ([04d2088](https://github.com/dryvist/claude-code-plugins/commit/04d20887f1114df152aac55eaed0d064da0b75ec))
+
+## [6.2.0](https://github.com/dryvist/claude-code-plugins/compare/v6.1.1...v6.2.0) (2026-09-12)
+
+
+### Features
+
+* **track-followups:** typed tickets with closure condition ([#492](https://github.com/dryvist/claude-code-plugins/issues/492)) ([d7c82ae](https://github.com/dryvist/claude-code-plugins/commit/d7c82aeeb7c15dde4cc5f6b77568f027d8c00acb))
+
+## [6.1.1](https://github.com/dryvist/claude-code-plugins/compare/v6.1.0...v6.1.1) (2026-09-11)
+
+
+### Bug Fixes
+
+* **script-guards:** stop the nix guard denying Nix own syntax ([329a097](https://github.com/dryvist/claude-code-plugins/commit/329a0972a4dffa65b92c635af41cf9e82423a7f8))
+* **script-guards:** stop the nix guard denying Nix's own syntax ([1fbf39a](https://github.com/dryvist/claude-code-plugins/commit/1fbf39aec22c66a427357022f1871578c2c5095a))
+
+## [6.1.0](https://github.com/dryvist/claude-code-plugins/compare/v6.0.0...v6.1.0) (2026-09-06)
+
+
+### Features
+
+* **ai-delegation:** replace delegate-to-router with local-subagents ([#486](https://github.com/dryvist/claude-code-plugins/issues/486)) ([4936fea](https://github.com/dryvist/claude-code-plugins/commit/4936fea4b5454101e007c2d67209055f4a5e2754))
+
 ## [6.0.0](https://github.com/dryvist/claude-code-plugins/compare/v5.13.0...v6.0.0) (2026-09-05)
 
 

@@ -29,6 +29,9 @@ Use every source available; skip the ones this environment does not have.
   claims a capability is "live", check the thing itself (the mount, the secret, the
   endpoint), not the flag that would enable it. (This is the exact trap that makes
   plans go stale — a default read as a fact.)
+- **Box-drawn CLI output is not a list**: `doppler secrets --only-names` and
+  tools like it print a bordered table. Strip the borders before diffing:
+  `grep '^│' | sed 's/[│ ]//g'`.
 - **Decisions**: scan for anything that invalidates a plan step — a new rule, a
   closed ticket, a design the user changed mid-flight.
 - **Version control** *(only when `git rev-parse --is-inside-work-tree` succeeds)*:
@@ -63,7 +66,7 @@ an implicit "nothing there".
 
 Steps above produce token-heavy, reasoning-light output: the default-branch
 log, merged/open PR listings with their CI state, and the plan file's checkbox
-inventory. Hand that raw material to the **router** via the `delegate-to-router`
+inventory. Hand that raw material to the **router** via the `local-subagents`
 skill (ai-delegation) at the cheapest capable tier — alias `cheap`, or a
 subagent carrying an explicit lower `model:` when the input is longer than one
 call holds. Reason over the returned table, never the raw dump.
@@ -83,7 +86,7 @@ Rules:
 3. At most 60 rows. STOP after the table.
 ```
 
-**Fallback (verbatim from `delegate-to-router`)**: none of the router's failure
+**Fallback (verbatim from `local-subagents`)**: none of the router's failure
 paths authorize a silent fallback. "Absorbing the work back into your own
 context without saying so is the exact cost delegation was meant to avoid, and
 it hides the failure from whoever pays for it." If the router is unreachable,
@@ -137,4 +140,4 @@ directly.
   be written from scratch.
 - **autoresearch:plan** — when the replanned goal needs a measurable metric and an
   automated verify command rather than prose criteria.
-- **delegate-to-router** (ai-delegation) — the router mechanics used by "Delegate the bulk read": live model menu, tier choice, and the fallback rule.
+- **local-subagents** (ai-delegation) — the router mechanics used by "Delegate the bulk read": live model menu, tier choice, and the fallback rule.

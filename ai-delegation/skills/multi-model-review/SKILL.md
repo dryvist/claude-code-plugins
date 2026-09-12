@@ -72,7 +72,7 @@ past it wastes the whole review.
 
 ## Related
 
-- **delegate-to-router** (ai-delegation) — for routing a bounded subtask
+- **local-subagents** (ai-delegation) — for routing a bounded subtask
   through a shared OpenAI-compatible router instead of a direct local
   endpoint.
 - **premium-agent-orchestration** (ai-delegation) — for the broader pattern

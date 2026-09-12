@@ -22,7 +22,11 @@ DENY_GIT_ONLY = [
     (r"merge\s+.*--no-verify", "bypasses merge hooks"),
     (r"cherry-pick\s+.*--no-verify", "bypasses commit hooks"),
     (r"rebase\s+.*--no-verify", "bypasses commit hooks"),
-    (r"config\s+.*core\.hooksPath", "changes hook directory"),
+    # Only block forms that repoint hooks; allow `--get`, `--list`, and
+    # `--unset`. Unsetting restores .git/hooks, which re-ENABLES hooks, and
+    # is the documented remediation for a stale value left behind by a repo
+    # move (a set core.hooksPath also makes `pre-commit install` refuse).
+    (r"^config\s+(?!.*--(?:get|list|unset))(?:\S+\s+)*\bcore\.hooksPath\b", "changes hook directory"),
     # Only block explicit value-disabling forms; allow `--get`, `--unset`, and `commit.gpgsign true`.
     (r"^config\s+(?!.*--(?:get|list|unset))(?:\S+\s+)*\b(?:commit|tag)\.gpgsign\s+(?:false|0|off|no)\b", "disables commit/tag signing"),
     (r"^config\s+--unset\s+(?:commit|tag)\.gpgsign\b", "unsetting reverts signing to default-off"),

@@ -14,7 +14,7 @@ metadata:
       - budget
       - egress
     related_skills:
-      - delegate-to-router
+      - local-subagents
 ---
 
 # openrouter-models
@@ -23,7 +23,7 @@ Your locally served brain handles routine work. For reasoning or coding where a
 stronger hosted model would genuinely change the outcome, escalate through the
 shared router — a deliberate per-call choice, never an automatic on-error
 fallback. This skill covers what is available, what it costs, and the rules
-around it. `delegate-to-router` covers the mechanics of the call itself.
+around it. `local-subagents` covers when to delegate and the mechanics of the call.
 
 ## The model set is enforced; the budget is yours to enforce
 
@@ -114,7 +114,7 @@ Refresh this when you actually need it (prices move), not on a schedule.
 **A model existing upstream does not mean the router serves it.** The catalog
 above tells you what exists and what it costs; the router's own contract tells
 you what you may actually call. Get the served list from
-`delegate-to-router` step 2 and select only from that. Never write a model id
+`local-subagents` step 3 and select only from that. Never write a model id
 into a rule, skill, doc, or config — that is a second spelling that drifts from
 the registry, and this skill deliberately names none.
 

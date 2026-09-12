@@ -189,7 +189,7 @@ remote state:
 Steps 2 and 3 are the token-heavy, reasoning-light half of this skill: the
 reverse-chronological conversation scan for unfinished work and pivots, the
 plan-file checkbox extraction, and the `git status` / `gh pr list` / commit-status
-tables. Hand that raw material to the **router** via the `delegate-to-router`
+tables. Hand that raw material to the **router** via the `local-subagents`
 skill (ai-delegation) at the cheapest capable tier — alias `cheap`, or a subagent
 carrying an explicit lower `model:` when the transcript is longer than one call
 holds. The premium lead triages (Step 4) over the returned table, not the dump.
@@ -209,7 +209,7 @@ Rules:
 3. At most 60 rows. STOP after the table.
 ```
 
-**Fallback (verbatim from `delegate-to-router`)**: none of the router's failure
+**Fallback (verbatim from `local-subagents`)**: none of the router's failure
 paths authorize a silent fallback. "Absorbing the work back into your own
 context without saying so is the exact cost delegation was meant to avoid, and
 it hides the failure from whoever pays for it." If the router is unreachable, do
@@ -331,4 +331,4 @@ to `handoff` and `wrap-up`'s resume blocks, not this dashboard.
 - **prune-branches** (github-workflows) — Deletes stale branches and worktrees.
 - **retrospecting** (claude-retrospective) — Generates detailed retrospectives
   based on session logs and git diffs.
-- **delegate-to-router** (ai-delegation) — the router mechanics used by "Delegate the bulk read": live model menu, tier choice, and the fallback rule.
+- **local-subagents** (ai-delegation) — the router mechanics used by "Delegate the bulk read": live model menu, tier choice, and the fallback rule.

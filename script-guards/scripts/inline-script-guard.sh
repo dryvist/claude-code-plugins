@@ -23,10 +23,26 @@ extension=$(echo "${file_path##*.}" | tr '[:upper:]' '[:lower:]')
 
 # --- Check .nix files for inline shell scripts ---
 if [[ "$extension" == "nix" ]]; then
-    # Count lines containing shell control-flow keywords or pipeline operators
-    # Uses grep -c on the whole string instead of a per-line loop
+    # Count lines containing tokens that mean nothing in Nix, so their presence
+    # really does indicate shell.
+    #
+    # The previous pattern also counted `if`, `then`, `else`, `&&` and `||`.
+    # Every one of those is core Nix syntax: Nix has `if c then a else b`, and
+    # `&&`/`||` are its boolean operators. The repo's own
+    # `assert cond || throw "..."` idiom — used throughout lib/checks/*.nix — is
+    # pure Nix and was denied by this hook. A guard that blocks the language it
+    # is guarding teaches people to route around it, which is worse than no
+    # guard.
+    #
+    # Comments are stripped before counting, because the English word "else" in
+    # a prose comment was on its own enough to deny an edit.
+    #
+    # What is left (`fi`, `done`, `esac`, and the loop/case heads) has no
+    # meaning in Nix at all, so a file accumulating more than the threshold is
+    # genuinely carrying shell.
     shell_keyword_count=$(echo "$new_string" \
-        | grep -cE '\b(if|then|else|fi|for|while|do|done|case|esac)\b|&&|\|\|' 2>/dev/null) || true
+        | sed 's/#.*$//' \
+        | grep -cE '\b(fi|for|while|do|done|case|esac)\b' 2>/dev/null) || true
 
     if [[ "$shell_keyword_count" -gt 3 ]]; then
         jq -n --arg fp "$file_path" '{
