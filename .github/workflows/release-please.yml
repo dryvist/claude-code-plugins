@@ -12,5 +12,7 @@ jobs:
       contents: write
       pull-requests: write
     uses: dryvist/.github/.github/workflows/_release-please.yml@main
+    with:
+      include-component-in-tag: true
     secrets:
       GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY: ${{ secrets.GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY }}
