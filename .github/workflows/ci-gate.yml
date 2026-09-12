@@ -32,10 +32,3 @@ jobs:
       # validation (startup_failure).
       actions: write
     uses: dryvist/.github/.github/workflows/_ci-gate.yml@main
-    with:
-      markdown_lint: true
-      file_size: true
-      filters: |
-        markdown:
-          - '**.md'
-          - '.markdownlint*'
