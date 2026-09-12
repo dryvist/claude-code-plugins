@@ -58,6 +58,10 @@ Otherwise continue — `BASE_BRANCH` is either a trunk repo's `main` or a git-fl
 repo's `develop`, both of which allow this workflow's direct push. Use
 `<BASE_BRANCH>` in every step below.
 
+> If the PR belongs to a stack, this workflow does not apply — rebasing and
+> force-pushing individual layers breaks stack sync. Use `gh stack`'s cascading
+> rebase instead; see `/pr-stacks`.
+
 ## Prerequisite: Validate Rulesets
 
 Before anything else, check the all-branches ruleset. Replace `<OWNER>` and `<REPO>` before running:
@@ -239,6 +243,7 @@ This commonly occurs with release-please CHANGELOG.md entries that don't conform
 - **merge-pr** (github-workflows) — Merge after rebase-pr prepares the branch
 - **finalize-pr** (github-workflows) — Full PR finalization pipeline that may invoke rebase-pr
 - **promote-release** (github-workflows) — The develop → main merge-commit path this skill refuses to substitute for
+- **pr-stacks** (github-workflows) — stacked PRs use `gh stack` cascading rebase, not this per-branch rebase
 - **sync-main** (git-workflows) — Syncs the default branch, often needed before rebasing
 - **pr-standards** (git-standards) — PR creation and review standards
 - **gh-cli-patterns** (github-workflows) — Canonical gh CLI command shapes, placeholder convention, PR-readiness gate, default-branch detection

@@ -34,7 +34,9 @@ worktree-paired branches — Git blocks removal of dirty worktrees — and
 - Long-running branches: rebase from the default branch weekly
 - Before PRs: ensure branch is on the latest default branch
 - Never branch from feature branches — always from the default branch fresh
-  (git-flow repos: `git flow feature start` branches from `develop`)
+  (git-flow repos: `git flow feature start` branches from `develop`).
+  The one exception is layering a PR stack, and only via `gh stack`; see
+  `pr-stacks` (github-workflows).
 - Commit messages: conventional-commit prefixes only, no emoji (see `pr-standards`)
 
 ### Git Flow Repositories
@@ -94,6 +96,7 @@ contradictions, or security-sensitive code.
 - **sync-main** (git-workflows) — Syncs the repo's default branch and merges into current or all PR branches
 - **refresh-repo** (github-workflows) — PR status and default-branch sync
 - **prune-branches** (github-workflows) — Stale branch and worktree cleanup
+- **pr-stacks** (github-workflows) — the sanctioned exception to "never branch from feature branches": layering a PR stack
 - **gh-cli-patterns** (github-workflows) — Canonical default-branch detection (trunk vs git-flow)
 - **pr-standards** (git-standards) — PR creation guards, issue linking, and review standards
 - **git-flow-next** (git-workflows) — Dedicated git-flow-next guide, worktree setup, and promotion steps
