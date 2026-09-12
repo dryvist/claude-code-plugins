@@ -1,5 +1,20 @@
 # Changelog
 
+## [6.3.0](https://github.com/dryvist/claude-code-plugins/compare/v6.2.1...v6.3.0) (2026-09-12)
+
+
+### Features
+
+* **github-workflows:** add pr-stacks skill for stacked pull requests ([3732651](https://github.com/dryvist/claude-code-plugins/commit/373265134c8803dfd388f6151fdacedcab8f0c23))
+* **github-workflows:** add pr-stacks skill for stacked pull requests ([058fd5e](https://github.com/dryvist/claude-code-plugins/commit/058fd5e4da49b1c8be262a801015a8ccc18e9e6c))
+
+
+### Bug Fixes
+
+* **ci:** ignore per-plugin CHANGELOG.md in markdown lint ([6a8fe44](https://github.com/dryvist/claude-code-plugins/commit/6a8fe44bb111be497cb46b8faa13e38f99e00b16))
+* **ci:** ignore per-plugin CHANGELOG.md in markdown lint ([2689686](https://github.com/dryvist/claude-code-plugins/commit/26896863028b112a2be2af58c2be8ad15aad61f9))
+* **rules:** use paths: frontmatter so scoped rules load conditionally ([#500](https://github.com/dryvist/claude-code-plugins/issues/500)) ([5bc77c8](https://github.com/dryvist/claude-code-plugins/commit/5bc77c8f58856940bf80bfb13d6a707c565eff73))
+
 ## [6.2.1](https://github.com/dryvist/claude-code-plugins/compare/v6.2.0...v6.2.1) (2026-09-12)
 
 

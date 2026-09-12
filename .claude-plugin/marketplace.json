@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "Claude Code plugins and hooks by JacobPEvans",
-    "version": "6.2.1"
+    "version": "6.3.0"
   },
   "plugins": [
     {
@@ -40,7 +40,7 @@
       "name": "config-management",
       "source": "./config-management",
       "description": "Sync AI tool permissions across repos and quickly add always-allow permissions",
-      "version": "6.2.1",
+      "version": "6.2.2",
       "author": {
         "name": "JacobPEvans"
       }
@@ -67,7 +67,7 @@
       "name": "git-standards",
       "source": "./git-standards",
       "description": "Git workflow standards, branch hygiene, PR creation guards, and issue linking",
-      "version": "6.2.1",
+      "version": "6.3.0",
       "author": {
         "name": "JacobPEvans"
       }
@@ -94,7 +94,7 @@
       "name": "github-workflows",
       "source": "./github-workflows",
       "description": "PR management, multi-repo PR finalization, and issue shaping with Shape Up methodology",
-      "version": "6.2.1",
+      "version": "6.3.0",
       "author": {
         "name": "JacobPEvans"
       }
