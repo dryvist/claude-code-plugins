@@ -23,8 +23,8 @@ OpenTofu provisions infrastructure first through Terrakube. Ansible configures i
 
 ### plan-all
 
-Run `tofu plan` in the `tofu-proxmox` Terrakube workspace, then
-`ansible-playbook --check` across all Ansible repos in dependency order.
+Run `tofu plan` in the `tofu-proxmox` Terrakube workspace, targeted with `-target` to the modules the change touches, then
+`ansible-playbook --check --limit <hosts>` on the roles the change touches, in dependency order.
 
 ### validate-all
 
