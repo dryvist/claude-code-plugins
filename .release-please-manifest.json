@@ -1,5 +1,5 @@
 {
-  ".": "6.3.0",
+  ".": "6.4.0",
   "ai-cli-harness-better-practices": "4.25.0",
   "ai-delegation": "6.2.1",
   "code-standards": "6.2.1",
@@ -12,7 +12,7 @@
   "homelab-ops": "1.0.0",
   "infra-orchestration": "6.2.1",
   "infra-standards": "6.2.1",
-  "openbao": "4.21.0",
+  "openbao": "4.22.0",
   "pal-health": "6.2.1",
   "pr-lifecycle": "6.2.1",
   "process-cleanup": "6.2.1",
