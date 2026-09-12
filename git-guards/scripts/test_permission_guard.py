@@ -272,6 +272,13 @@ all_pass &= check("git -C reset --hard", "git -C /some/path reset --hard HEAD", 
 all_pass &= check("git -C -c core.hooksPath deny", "git -C /some/path -c core.hooksPath=/dev/null commit -m test", "deny")
 all_pass &= check("git -C restore guidance", "git -C /some/path restore file.txt", "allow")
 
+# core.hooksPath: setting it is denied; reading and unsetting it are the remediation path
+all_pass &= check("config core.hooksPath set", "git config core.hooksPath /dev/null", "deny")
+all_pass &= check("config --global core.hooksPath set", "git config --global core.hooksPath .githooks", "deny")
+all_pass &= check("git -C config core.hooksPath set", "git -C /some/path config core.hooksPath .githooks", "deny")
+all_pass &= check("config --unset core.hooksPath", "git config --unset core.hooksPath", "silent_allow")
+all_pass &= check("config --get core.hooksPath", "git config --get core.hooksPath", "silent_allow")
+
 # core.hooksPath precision: value containing the substring must not trigger deny (uses fetch, not commit)
 all_pass &= check("hooksPath in value only", "git -c some.key=echo-core.hooksPath fetch origin", "silent_allow")
 
