@@ -1,6 +1,19 @@
 ---
 name: openbao-secrets
 description: "How to obtain and handle secrets under an OpenBao-backed access model: pick the right store tier, prefer engine-minted ephemeral credentials over static secrets, read with the pre-authorized tier, and route write/apply through the human-gated wrapped single-use secret_id. Use before fetching any credential, wiring a service to a secret, converging a publisher, or when tempted to paste a token — and whenever a task needs a credential and you are unsure whether you may just take it."
+license: Apache-2.0
+metadata:
+  version: 1.0.0
+  author: dryvist homelab
+  hermes:
+    category: security
+    tags:
+      - openbao
+      - secrets
+      - credentials
+      - approle
+    related_skills:
+      - native-first
 ---
 
 # OpenBao Secrets Access
@@ -8,6 +21,42 @@ description: "How to obtain and handle secrets under an OpenBao-backed access mo
 How to get a credential without creating a standing one, and how to handle it once
 you have it. Two rules carry most of the weight: **mint, don't store**, and
 **reading is pre-authorized, writing is gated**.
+
+## Agent quickstart
+
+The fast path for a read, in order:
+
+1. **Log in** with the ambient AppRole (secret-zero arrives from the run-wrapper,
+   never hand-typed):
+
+   ```bash
+   token=$(bao write -field=token auth/approle/login \
+     role_id="$ROLE_ID" secret_id="$SECRET_ID")
+   ```
+
+2. **Read** the value from the KV path you need:
+
+   ```bash
+   value=$(BAO_TOKEN="$token" bao kv get -field=<key> <mount>/<path>)
+   ```
+
+3. **Pick the mount by reachability, not habit.** Two KV mounts share identical
+   sub-paths: `secrets-external/` for anything reachable from the public
+   internet (a SaaS API key, a third-party webhook secret), `secret/` for
+   everything internal-only. Only the mount changes, never the path shape.
+
+4. **Prefer an engine over a KV copy.** GitHub, AWS, and Slack already mint
+   short-lived credentials on demand — read from the engine (an installation
+   token, an STS session, an OAuth-app token) and never keep a static copy of
+   what it can mint.
+
+5. **Never print the value.** Capture it into a variable and use the variable —
+   no `echo`, no `curl -v`, no dumping the environment to check it landed.
+
+6. **A helper that exits 0 having exported nothing is the bug, not a quiet
+   success.** If a credential-fetch wrapper reports success but the variable
+   it was supposed to set is empty, report that as a defect — never work
+   around it by hand-typing the value instead.
 
 > **State warning**: which engines are configured differs per environment and
 > changes over time. Verify capability before relying on it (below) — never assume
