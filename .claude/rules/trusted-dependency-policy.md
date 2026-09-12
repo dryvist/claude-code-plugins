@@ -1,6 +1,6 @@
 ---
 description: Require ≥1,000 GitHub stars before adding a dependency to trusted auto-merge lists
-globs:
+paths:
   - "renovate-presets.json"
   - "renovate.json"
   - ".github/renovate.json"

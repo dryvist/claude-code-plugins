@@ -1,6 +1,6 @@
 ---
 description: Permission format rules for AI tool settings — enforces Bash(command *) space-wildcard format
-globs:
+paths:
   - "data/permissions/**"
 ---
 
