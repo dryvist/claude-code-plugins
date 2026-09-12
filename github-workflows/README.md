@@ -14,6 +14,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for integration diagrams and the master s
 - **`/merge-pr`** - Validate PR readiness and merge into its base branch. Merge commit by default,
   `--squash`/`-s` to squash instead. Refuses squash/rebase into main on git-flow repos
 - **`/promote-release`** - Merge-commit a develop → main promotion PR on a git-flow repo; release-please takes over from there
+- **`/pr-stacks`** - Split a large change into an ordered chain of dependent PRs with `gh stack`: layering, cascading rebase, and stack-aware merge
 - **`/resolve-pr-threads`** - Orchestrate resolution of PR review threads (requires superpowers plugin)
 - **`/gh-cli-patterns`** - Canonical reference for gh CLI command shapes used by other skills in this plugin, including trunk-vs-git-flow default-branch detection
 - **`/shape-issues`** - Shape raw ideas into actionable GitHub Issues using Shape Up methodology
@@ -44,6 +45,7 @@ claude plugins add jacobpevans-cc-plugins/github-workflows
 /merge-pr                 # Validate and merge (merge commit by default)
 /merge-pr 42 --squash     # Validate and squash merge specific PR
 /promote-release          # Merge-commit develop into main (git-flow repos)
+/pr-stacks                # Split a large change into an ordered chain of dependent PRs
 /resolve-pr-threads       # Batch resolve review threads
 /shape-issues             # Shape ideas into GitHub issues
 /trigger-ai-reviews       # Trigger Claude, Gemini, Copilot reviews

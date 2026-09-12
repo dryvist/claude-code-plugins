@@ -66,7 +66,7 @@ Git branch sync and local troubleshooting.
 PR finalization, merge, review thread resolution, and issue shaping.
 
 - **Type**: Command/Skill-based plugin
-- **Skills**: `/finalize-pr`, `/merge-pr`, `/resolve-pr-threads`, `/shape-issues`, `/trigger-ai-reviews`, `/shared-workflow-org-refs`
+- **Skills**: `/finalize-pr`, `/merge-pr`, `/pr-stacks`, `/resolve-pr-threads`, `/shape-issues`, `/trigger-ai-reviews`, `/shared-workflow-org-refs`
 - **Purpose**: GitHub PR/issue management workflows
 
 ### infra-orchestration

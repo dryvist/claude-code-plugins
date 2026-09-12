@@ -16,6 +16,11 @@ repo (see `gh-cli-patterns`, github-workflows, for detection).
 > You must also add a checklist item to the session plan to merge `develop` into
 > `main` (using `/promote-release`) before wrapping up the session.
 
+Stacked PRs are not exempt: the guards and standards below apply to every layer.
+Because `gh stack submit` creates the PRs (rather than `gh pr create`), run the
+guards before submitting and apply the body rules afterward. See `pr-stacks`
+(github-workflows).
+
 **Guard 1 — Check for merged twin** (prevents zombie PRs):
 
 ```bash
@@ -233,5 +238,6 @@ Every issue MUST have explicit, checkbox-format acceptance criteria.
 - **rebase-pr** (git-workflows) — Rebase-merge workflow for merging approved PRs
 - **finalize-pr** (github-workflows) — Finalize PR state before merging
 - **git-workflow-standards** (git-standards) — Branch and worktree conventions that feed into PRs
+- **pr-stacks** (github-workflows) — stacked PRs: layering, cascading rebase, and stack-aware merge
 - **gh-cli-patterns** (github-workflows) — Canonical default-branch detection (trunk vs git-flow)
 - **git-flow-next** (git-workflows) — Dedicated git-flow-next guide, worktree setup, and promotion steps

@@ -27,6 +27,9 @@ draft, unresolvable conflicts, unrecoverable CI, or more than 100 review threads
 - Squash and rebase are never used to merge into `main` on a git-flow repo —
   Step 0 guards this. Plain merge commit into `main` on a git-flow repo IS
   allowed — that's the `/promote-release` path.
+- If the PR belongs to a stack, merging it lands every unmerged layer below it
+  atomically, and a partial merge auto-retargets the layers above. Do not treat
+  those as orphans; see `/pr-stacks`.
 
 ## Step 0: Refuse Squash/Rebase Into Main On Git-Flow Repos
 
@@ -205,6 +208,7 @@ Invoke at any time — auto-finalizes if needed:
 
 - finalize-pr (github-workflows) — invoked automatically by merge-pr when blockers are found
 - rebase-pr (github-workflows) — alternative merge strategy that preserves commit history
+- pr-stacks (github-workflows) — stack-aware merge: landing a layer takes every unmerged layer below it
 - promote-release (github-workflows) — the develop → main promotion path; calls this skill directly and never squashes
 - pr-standards (git-standards) — PR authoring and review standards
 - gh-cli-patterns (github-workflows) — canonical gh CLI command shapes, placeholder convention, PR-readiness gate, default-branch detection
