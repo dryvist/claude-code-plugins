@@ -13,6 +13,7 @@
     "issues",
     "pr-management",
     "rebase",
+    "stacked-prs",
     "refresh",
     "shape-up",
     "workflow"
@@ -22,6 +23,7 @@
     "./skills/ship",
     "./skills/merge-pr",
     "./skills/rebase-pr",
+    "./skills/pr-stacks",
     "./skills/promote-release",
     "./skills/refresh-repo",
     "./skills/prune-branches",
