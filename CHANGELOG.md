@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.2.0](https://github.com/dryvist/claude-code-plugins/compare/v6.1.1...v6.2.0) (2026-09-12)
+
+
+### Features
+
+* **track-followups:** typed tickets with closure condition ([#492](https://github.com/dryvist/claude-code-plugins/issues/492)) ([d7c82ae](https://github.com/dryvist/claude-code-plugins/commit/d7c82aeeb7c15dde4cc5f6b77568f027d8c00acb))
+
 ## [6.1.1](https://github.com/dryvist/claude-code-plugins/compare/v6.1.0...v6.1.1) (2026-09-11)
 
 

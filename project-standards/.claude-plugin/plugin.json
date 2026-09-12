@@ -1,6 +1,6 @@
 {
   "name": "project-standards",
-  "version": "6.1.1",
+  "version": "6.2.0",
   "description": "Claude skill authoring standards, workspace management, and skills/tools registry lookup",
   "author": {
     "name": "JacobPEvans"
