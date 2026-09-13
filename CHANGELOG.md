@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.5.0](https://github.com/dryvist/claude-code-plugins/compare/v6.4.0...v6.5.0) (2026-09-13)
+
+
+### Features
+
+* **estate-lsp:** add Nix, Terraform/OpenTofu, and YAML language-server plugin ([#505](https://github.com/dryvist/claude-code-plugins/issues/505)) ([499c82f](https://github.com/dryvist/claude-code-plugins/commit/499c82f18c8227f94fb6f0a82f72c358f8a4d827))
+
 ## [6.4.0](https://github.com/dryvist/claude-code-plugins/compare/v6.3.0...v6.4.0) (2026-09-12)
 
 
