@@ -1,0 +1,25 @@
+{
+  "nix": {
+    "command": "nixd",
+    "extensionToLanguage": {
+      ".nix": "nix"
+    }
+  },
+  "terraform": {
+    "command": "terraform-ls",
+    "args": ["serve"],
+    "extensionToLanguage": {
+      ".tf": "terraform",
+      ".tofu": "terraform",
+      ".tfvars": "terraform-vars"
+    }
+  },
+  "yaml": {
+    "command": "yaml-language-server",
+    "args": ["--stdio"],
+    "extensionToLanguage": {
+      ".yml": "yaml",
+      ".yaml": "yaml"
+    }
+  }
+}
