@@ -179,6 +179,15 @@
       "author": {
         "name": "JacobPEvans"
       }
+    },
+    {
+      "name": "estate-lsp",
+      "source": "./estate-lsp",
+      "description": "Language servers for Nix, Terraform/OpenTofu, and YAML: post-edit diagnostics and code navigation. Expects nixd, terraform-ls, and yaml-language-server binaries on PATH",
+      "version": "1.0.0",
+      "author": {
+        "name": "JacobPEvans"
+      }
     }
   ]
 }

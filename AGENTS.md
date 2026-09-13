@@ -33,6 +33,7 @@ This is a **Claude Code plugins repository** containing production-ready hooks f
 | **project-standards** | Skill | `/claude-skill-authoring`, `/workspace-standards`, `/skills-registry` | Claude skill authoring standards, workspace management, and skills/tools registry lookup |
 | **script-guards** | PreToolUse/UserPromptSubmit + Skill | Bash, Write, Edit, `native-first` | Blocks unnecessary script/wrapper generation and supplies the `native-first` discovery ladder that finds the non-custom path |
 | **session-analytics** | Skill | `/token-breakdown` | Session token analytics via Splunk OTEL telemetry |
+| **estate-lsp** | LSP (code intelligence) | nixd, terraform-ls, yaml-language-server | Post-edit diagnostics and code navigation for Nix, Terraform/OpenTofu, and YAML. Expects the server binaries on PATH |
 
 ## Multi-Model Delegation
 
