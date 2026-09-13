@@ -1,0 +1,44 @@
+{
+  "name": "estate-lsp",
+  "version": "1.0.0",
+  "description": "Language servers for Nix, Terraform/OpenTofu, and YAML: post-edit diagnostics and code navigation. Expects nixd, terraform-ls, and yaml-language-server binaries on PATH",
+  "author": {
+    "name": "JacobPEvans"
+  },
+  "license": "Apache-2.0",
+  "repository": "https://github.com/JacobPEvans/claude-code-plugins",
+  "keywords": [
+    "lsp",
+    "diagnostics",
+    "nix",
+    "terraform",
+    "opentofu",
+    "yaml",
+    "language-server"
+  ],
+  "lspServers": {
+    "nix": {
+      "command": "nixd",
+      "extensionToLanguage": {
+        ".nix": "nix"
+      }
+    },
+    "terraform": {
+      "command": "terraform-ls",
+      "args": ["serve"],
+      "extensionToLanguage": {
+        ".tf": "terraform",
+        ".tofu": "terraform",
+        ".tfvars": "terraform-vars"
+      }
+    },
+    "yaml": {
+      "command": "yaml-language-server",
+      "args": ["--stdio"],
+      "extensionToLanguage": {
+        ".yml": "yaml",
+        ".yaml": "yaml"
+      }
+    }
+  }
+}
