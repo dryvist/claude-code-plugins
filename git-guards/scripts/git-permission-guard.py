@@ -110,6 +110,19 @@ DENY_GH_REGEX = [
     (r"api\b(?=.*(?:-X|--method)\s+(?:PUT|PATCH|DELETE))(?=.*\b(?:rulesets|branches/[^/]+/protection)\b)",
      "modifies repository branch protection or rulesets directly",
      "Manage branch protections through the GitHub web interface instead."),
+    # REST equivalent of the DENY_GH "pr comment" block: POSTing to an issue's
+    # /comments collection creates the same unresolvable top-level comment.
+    # Requires the POST method (a GET listing comments stays allowed) and the
+    # issues/{n}/comments shape specifically, so pulls/{n}/comments and
+    # pulls/comments/{id} (the sanctioned review-thread endpoints) are unaffected.
+    (r"api\b(?=.*(?:-X\s+|--method[\s=])POST\b)(?=.*\brepos/[^\s/]+/[^\s/]+/issues/\d+/comments\b)",
+     "creates a top-level issue/PR comment that cannot be resolved or tracked",
+     (
+         "For code review feedback, you MUST use review threads (line-specific, resolvable comments) instead.\n"
+         "Use the documented thread workflows for creating review comments, replying, and resolving threads:\n"
+         "  - github-workflows/skills/resolve-pr-threads/graphql-queries.md\n"
+         "  - github-workflows/skills/resolve-pr-threads/rest-api-patterns.md"
+     )),
 ]
 
 # Maps incorrect GraphQL mutation names to (correct_name, example_command).
@@ -407,6 +420,19 @@ def check_graphql_guidance(command: str) -> None:
     Allows the command to proceed (it will fail naturally) while showing the
     correct pattern inline so Claude can self-correct immediately.
     """
+    # addComment is the GraphQL equivalent of the REST issues/{n}/comments POST
+    # and the DENY_GH "pr comment" entry: it creates the same unresolvable
+    # top-level comment, on any subject (issue, PR, commit, gist). Unlike the
+    # WRONG_MUTATIONS below, this mutation is real and would succeed, so it is
+    # a hard deny rather than corrective guidance.
+    if re.search(r"\baddComment\s*\(\s*input\s*:", command):
+        deny(
+            "This command creates a top-level issue/PR comment via the GraphQL API that cannot be "
+            "resolved or tracked. For code review feedback, you MUST use review threads instead:\n"
+            "  - github-workflows/skills/resolve-pr-threads/graphql-queries.md\n"
+            "  - github-workflows/skills/resolve-pr-threads/rest-api-patterns.md"
+        )
+
     warnings = []
 
     # Detection 1 - Shell $variable expansion (excluding --jq content)
