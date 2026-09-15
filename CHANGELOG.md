@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.5.1](https://github.com/dryvist/claude-code-plugins/compare/v6.5.0...v6.5.1) (2026-09-15)
+
+
+### Bug Fixes
+
+* **git-guards:** close gh api/graphql bypass of the pr-comment deny ([#507](https://github.com/dryvist/claude-code-plugins/issues/507)) ([7e9aa6f](https://github.com/dryvist/claude-code-plugins/commit/7e9aa6f4947d332eb1a248e6cb531a9416222794))
+
 ## [6.5.0](https://github.com/dryvist/claude-code-plugins/compare/v6.4.0...v6.5.0) (2026-09-13)
 
 
