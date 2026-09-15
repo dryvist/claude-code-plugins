@@ -84,8 +84,25 @@ all_pass &= check("gh api protection GET safe", "gh api repos/owner/repo/branche
 # Regression: Safe gh api graphql queries mentioning rulesets must not be blocked
 all_pass &= check("gh api graphql rulesets query safe", "gh api graphql --raw-field query='query { repository(name: \"repo\", owner: \"owner\") { rulesets(first: 10) { totalCount } } }'", "silent_allow")
 
-# Regression: API calls with -f body containing "rulesets" in text must NOT be blocked
-all_pass &= check("gh api comment with rulesets in body", "gh api repos/owner/repo/issues/42/comments -X POST -f body='See the rulesets docs for context'", "silent_allow")
+# Regression: a -f body value must not defeat the deny below (kept allow-only
+# text is incidental; the deny fires on the POST + issues/{n}/comments shape)
+all_pass &= check("gh api comment with rulesets in body", "gh api repos/owner/repo/issues/42/comments -X POST -f body='See the rulesets docs for context'", "deny")
+
+# DENY: REST equivalent of `gh pr comment` - POSTing to issues/{n}/comments
+# creates the same unresolvable top-level comment `gh pr comment` is denied for.
+all_pass &= check("gh api issue comment POST deny", "gh api repos/owner/repo/issues/42/comments -X POST -f body='hello'", "deny")
+all_pass &= check("gh api issue comment POST deny, flags before path", "gh api -X POST repos/owner/repo/issues/42/comments -f body='hello'", "deny")
+all_pass &= check("gh api issue comment POST deny, --method flag", "gh api repos/owner/repo/issues/42/comments --method POST -f body='hello'", "deny")
+all_pass &= check("gh api issue comment POST deny, --method= flag", "gh api repos/owner/repo/issues/42/comments --method=POST -f body='hello'", "deny")
+all_pass &= check("gh api issue comment POST deny, absolute URL", "gh api https://api.github.com/repos/owner/repo/issues/42/comments -X POST -f body='hello'", "deny")
+all_pass &= check("gh api issue comment POST deny, leading slash", "gh api /repos/owner/repo/issues/42/comments -X POST -f body='hello'", "deny")
+
+# Safe: a GET (no method flag, gh api's default) of the same path must still be allowed
+all_pass &= check("gh api issue comments GET safe", "gh api repos/owner/repo/issues/42/comments", "silent_allow")
+
+# Safe: the sanctioned review-thread endpoints must remain unaffected
+all_pass &= check("gh api pulls comments POST safe", "gh api repos/owner/repo/pulls/42/comments -X POST -f body='hello'", "silent_allow")
+all_pass &= check("gh api pulls comment reply POST safe", "gh api repos/owner/repo/pulls/comments/123/replies -X POST -f body='hello'", "silent_allow")
 
 print()
 print("ALL TESTS PASSED" if all_pass else "SOME TESTS FAILED")

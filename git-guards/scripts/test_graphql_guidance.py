@@ -109,6 +109,30 @@ all_pass &= check(
     ["MULTI-LINE QUERY"],
 )
 
+# 9: addComment mutation - GraphQL equivalent of `gh pr comment` / the REST
+# issues/{n}/comments POST, denied outright (not correctable - unlike
+# WRONG_MUTATIONS, this mutation name is real and would succeed)
+all_pass &= check(
+    "addComment mutation deny",
+    "gh api graphql --raw-field query='mutation { addComment(input: {subjectId: \"PR_kwABC\", body: \"hi\"}) { commentEdge { node { id } } } }'",
+    "deny",
+    ["top-level issue/PR comment", "resolve-pr-threads"],
+)
+
+# 10: addComment mutation with -f flag variant - still denied
+all_pass &= check(
+    "addComment mutation deny, -f flag",
+    "gh api graphql -f query='mutation { addComment(input: {subjectId: \"PR_kwABC\", body: \"hi\"}) { commentEdge { node { id } } } }'",
+    "deny",
+)
+
+# 11: addPullRequestReviewThreadReply (sanctioned) must stay unaffected
+all_pass &= check(
+    "addPullRequestReviewThreadReply unaffected",
+    "gh api graphql --raw-field query='mutation { addPullRequestReviewThreadReply(input: {pullRequestReviewThreadId: \"abc\", body: \"hi\"}) { comment { id } } }'",
+    "silent_allow",
+)
+
 print()
 print("ALL TESTS PASSED" if all_pass else "SOME TESTS FAILED")
 sys.exit(0 if all_pass else 1)
