@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "Claude Code plugins and hooks by JacobPEvans",
-    "version": "6.5.0"
+    "version": "6.5.1"
   },
   "plugins": [
     {
@@ -49,7 +49,7 @@
       "name": "git-guards",
       "source": "./git-guards",
       "description": "Combined git security and workflow protection via PreToolUse hooks - merges git-permission-guard and main-branch-guard functionality",
-      "version": "6.2.1",
+      "version": "6.2.2",
       "author": {
         "name": "JacobPEvans"
       }
