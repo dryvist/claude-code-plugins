@@ -157,7 +157,7 @@ Rules:
 | --- | --- | --- |
 | DNS failure, refused connection, timeout | Router unreachable | Report it; defer the subtask or do it yourself as a stated choice |
 | `401` / `403` | Credential invalid or not scoped to that model | Report it; do not retry with a different credential |
-| `429` | Backend busy — often a single-slot local model, or a single-caller lock on a session-locked entry (§8) | Wait once and retry, or take another entry; see `openrouter-models` for budget refusals |
+| `429` | Backend busy — often a single-slot local model, or `fast-gpu`'s contention lock (§8 — `fast`/`subagent` redirect instead of returning this) | Wait once and retry, or take another entry; see `openrouter-models` for budget refusals |
 | `400` naming an unknown model | Your id is not served | Re-fetch the menu; do not retry the same id |
 | A context-length refusal | Pre-call check working | Send a smaller slice or pick a larger-window entry |
 
@@ -171,31 +171,37 @@ of them by reaching for a provider credential.
 Name the alias that produced each delegated result, and say when you chose
 without hints, used the id-only listing, or did the work yourself because the
 router was unreachable. A reader weighing your output needs to know which
-parts came from a cheap tier.
+parts came from a cheap tier. For a role that redirects instead of failing
+(§8), name what the response says actually answered — not just the role you
+called; the two can differ.
 
-## 8. The fast-subagent tier — explicit choice only
+## 8. Fast local roles — `fast-gpu` visible, `fast`/`subagent` silent
 
-One router entry is a dedicated, session-locked tier for fast turnaround on
-routine work. It is reached through the same router as everything else in
-this skill — not a separate endpoint or a direct connection. Ask the menu
-(§3) for whichever entry carries a fast-subagent-style role hint; the exact
-alias is still settling, so match on the hint, not a name hardcoded here.
+The router publishes more than one role for local-first work, and they do
+not behave the same way under contention. Ask the menu (§3) for what is
+current — this is a behavioral split, not just a name, so verify before
+relying on it.
 
-- **Single caller.** Only one request holds it at a time; an idle caller is
-  released automatically after a short timeout. Contention is the normal
-  state, not a fault.
-- **A `429` from this tier means "busy," never "down."** Its body names the
-  current holder and a retry hint — respect it. Wait once for the hinted
-  interval, or fall back to another entry (or do the subtask yourself) as a
-  stated choice per §6. Do not loop-poll or hammer it; that only extends the
-  wait for whoever is already holding it.
-- **Less capable than you, not more.** Route only Delegate-column work here
-  (§1) — menial, routine, checkable. Faster is not the same as smarter, and
-  this tier does not earn a judgment call a slower entry wouldn't.
-- **Never a silent default.** You reach this tier only by deliberately
-  selecting it from the menu, same as any other entry. Hermes is the one
-  caller with it wired as an automatic fallback, configured on its own side
-  — that does not extend to this skill's callers.
+- **`fast-gpu` surfaces contention as a `429`.** Its body names the current
+  holder and a retry hint — respect it. Wait once for the hinted interval,
+  or fall back to another entry (or do the subtask yourself) as a stated
+  choice per §6. Do not loop-poll or hammer it; that only extends the wait
+  for whoever is already holding it. Reach for `fast-gpu` when you want to
+  *observe* contention and build your own fallback sequence around it.
+- **`fast` and `subagent` never surface contention.** Rather than failing,
+  they redirect through their own fallback ladder and answer from whichever
+  rung was free — silently. Do not expect a `429` as a busy signal from
+  either of these, and do not assume the reply came from the fastest rung:
+  check whatever field the router's response publishes for what actually
+  answered (§7) before reporting it as this tier. Reach for one of these
+  when you just want an answer and do not care which rung produced it.
+- **None of these are more capable than you.** Route only Delegate-column
+  work here (§1) — menial, routine, checkable — no matter which of these
+  roles answers.
+- **Never a silent default.** You reach any of these roles only by
+  deliberately selecting one from the menu, same as any other entry. Hermes
+  is the one caller with one wired as an automatic fallback, configured on
+  its own side — that does not extend to this skill's callers.
 
 ## Related skills
 
