@@ -31,6 +31,7 @@
     "pr-lifecycle@jacobpevans-cc-plugins"
     "script-guards@jacobpevans-cc-plugins"
     "session-analytics@jacobpevans-cc-plugins"
+    "ai-delegation@jacobpevans-cc-plugins"
     "codeql-resolver@jacobpevans-cc-plugins"
     # claude-plugins-official — owns commit-commands, whose synthesized
     # skill names appear in claudeCommands below
@@ -85,6 +86,11 @@
     "delegate-to-ai"
     "auto-maintain"
     "premium-agent-orchestration"
+    # Delegation mechanics are universal: every session has routine work to
+    # hand to a local model, and a skill only some sessions carry is a skill
+    # nothing delegates through.
+    "local-subagents"
+    "fast-subagent"
   ];
 
   claudeCommands = [
