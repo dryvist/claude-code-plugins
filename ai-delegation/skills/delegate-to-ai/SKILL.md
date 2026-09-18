@@ -22,9 +22,12 @@ external/adversarial second opinion, and the shared router (see
   skill), optionally adding Codex as one of the voices. Synthesize the results
   yourself.
 - **Private / offline / cheap / routine local task** -> the **local-subagents**
-  skill (ai-delegation). It owns the live model menu, the call contract, and
-  the failure modes for everything served through the shared router — this
-  skill does not duplicate them.
+  skill (ai-delegation). Local MLX is still a real, available option here —
+  it is reached through the shared router now, not by a direct call, so ask
+  the router's live menu for the role that fits rather than assuming it is
+  gone. That skill owns the live model menu, the call contract, and the
+  failure modes for everything served through the router — this skill does
+  not duplicate them.
 
 ## Route Selection
 
