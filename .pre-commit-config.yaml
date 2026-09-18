@@ -37,7 +37,7 @@ repos:
   # Markdown linting
   # ---------------------------------------------------------------------------
   - repo: https://github.com/DavidAnson/markdownlint-cli2
-    rev: v0.20.0
+    rev: v0.23.2
     hooks:
       - id: markdownlint-cli2
         name: Lint markdown files
@@ -47,7 +47,7 @@ repos:
   # Commit message validation (commit-msg stage)
   # ---------------------------------------------------------------------------
   - repo: https://github.com/alessandrojcm/commitlint-pre-commit-hook
-    rev: v9.24.0
+    rev: v9.26.0
     hooks:
       - id: commitlint
         name: Validate commit message format
@@ -55,7 +55,7 @@ repos:
         additional_dependencies: ["@commitlint/config-conventional@20.4.1"]
 
   - repo: https://github.com/commit-check/commit-check
-    rev: v2.4.1
+    rev: v2.18.0
     hooks:
       - id: check-branch
         name: Check branch naming conventions
@@ -106,7 +106,8 @@ repos:
         name: Validate plugin frontmatter (cclint, staged)
         language: golang
         additional_dependencies:
-          - github.com/dotcommander/cclint@latest
+          # renovate: datasource=github-releases depName=dotcommander/cclint
+          - github.com/dotcommander/cclint@v0.57.0
         entry: cclint --staged
         pass_filenames: false
         files: '^[^/]+/(skills/.*\.md$|\.claude-plugin/plugin\.json$)'
