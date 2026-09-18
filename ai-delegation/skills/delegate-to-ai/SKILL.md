@@ -7,7 +7,8 @@ description: Route a task to the right model — a native Claude subagent, Codex
 
 Picks the right executor when Claude-in-this-session is not the best tool:
 native Claude subagents for implementation and planning, Codex for an
-external/adversarial second opinion, and local MLX for private or offline work.
+external/adversarial second opinion, and the shared router (see
+`local-subagents`) for private, offline, or routine work.
 
 ## When to Delegate
 
@@ -20,42 +21,10 @@ external/adversarial second opinion, and local MLX for private or offline work.
   subagents in parallel (see the `superpowers:dispatching-parallel-agents`
   skill), optionally adding Codex as one of the voices. Synthesize the results
   yourself.
-- **Private / offline / cheap local task** -> local MLX via llama-swap (below).
-  No prompt leaves the machine.
-
-## Local MLX — direct call
-
-Local models are named by **capability role**, not physical id. Roles resolve to
-the resident model via the ai-stack registry
-(`~/.config/ai-stack/registry.json`, written by nix-ai); never hardcode a
-physical model id — when the resident model changes, only the registry changes.
-
-Call llama-swap directly (OpenAI-compatible, no gateway hop):
-
-```bash
-curl -s http://127.0.0.1:11434/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{"model":"default","messages":[{"role":"user","content":"..."}]}'
-```
-
-The role names are the keys of `.models` in that same registry. Read them from
-it rather than from a list here, for exactly the reason the physical ids are
-read from it — a list in this file goes stale silently, and this one already
-had: it was missing a role the registry defines.
-
-```bash
-jq -r '.models | keys[]' ~/.config/ai-stack/registry.json
-```
-
-Pick the role that fits the task; the registry maps it to the physical model.
-
-**A role name is not guaranteed to be addressable at every endpoint.** A local
-server generates its aliases from this same role map, so every role resolves
-there. A gateway in front of several backends keeps its own routing table,
-which can name a different set — asking it for a role it does not route
-returns a "no healthy deployments" error, distinct from a `429` (route exists,
-no free slot) and a `502` (route exists, backend down). When you call through a
-gateway, take the model name from that gateway's own menu instead.
+- **Private / offline / cheap / routine local task** -> the **local-subagents**
+  skill (ai-delegation). It owns the live model menu, the call contract, and
+  the failure modes for everything served through the shared router — this
+  skill does not duplicate them.
 
 ## Route Selection
 
@@ -65,25 +34,26 @@ gateway, take the model name from that gateway's own menu instead.
 | Architecture / planning | native subagent | `Plan` mode / `Plan` subagent |
 | Adversarial review | external model | Codex (`codex` MCP) |
 | Multi-perspective / consensus | parallel subagents | N native subagents (+ Codex) |
-| Private / offline / quick local | local MLX | llama-swap `:11434`, capability role |
+| Private / offline / cheap / routine local | shared router | `local-subagents` skill |
 
 ## Workflow
 
-1. **Identify task type** (implementation, review, research, architecture).
+1. **Identify task type** (implementation, review, research, architecture,
+   routine/local).
 2. **Select route** from the table above.
 3. **Execute**: native subagent via the Agent tool; Codex via its MCP tool;
-   local MLX via `curl`/Bash to `:11434`.
+   anything routine or local via the `local-subagents` skill.
 4. **Synthesize** if you fanned out to multiple executors — you remain
    accountable for the final answer.
 
 ## Notes
 
-- There is no local multi-provider gateway. The Bifrost gateway now runs on the
-  Proxmox homelab; this skill does not route through it.
 - Cloud fan-out across many providers is not part of this skill — reach for
   Codex (OpenAI) or a dedicated tool when you need a specific external model.
 
 ## Related Skills
 
+- **local-subagents** (ai-delegation) — the shared router: live menu, call
+  contract, and failure modes.
 - auto-maintain (ai-delegation)
 - superpowers:dispatching-parallel-agents

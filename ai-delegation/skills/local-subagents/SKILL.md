@@ -157,7 +157,7 @@ Rules:
 | --- | --- | --- |
 | DNS failure, refused connection, timeout | Router unreachable | Report it; defer the subtask or do it yourself as a stated choice |
 | `401` / `403` | Credential invalid or not scoped to that model | Report it; do not retry with a different credential |
-| `429` | Backend busy — often a single-slot local model | Wait once and retry, or take another entry; see `openrouter-models` for budget refusals |
+| `429` | Backend busy — often a single-slot local model, or a single-caller lock on a session-locked entry (§8) | Wait once and retry, or take another entry; see `openrouter-models` for budget refusals |
 | `400` naming an unknown model | Your id is not served | Re-fetch the menu; do not retry the same id |
 | A context-length refusal | Pre-call check working | Send a smaller slice or pick a larger-window entry |
 
@@ -172,6 +172,30 @@ Name the alias that produced each delegated result, and say when you chose
 without hints, used the id-only listing, or did the work yourself because the
 router was unreachable. A reader weighing your output needs to know which
 parts came from a cheap tier.
+
+## 8. The fast-subagent tier — explicit choice only
+
+One router entry is a dedicated, session-locked tier for fast turnaround on
+routine work. It is reached through the same router as everything else in
+this skill — not a separate endpoint or a direct connection. Ask the menu
+(§3) for whichever entry carries a fast-subagent-style role hint; the exact
+alias is still settling, so match on the hint, not a name hardcoded here.
+
+- **Single caller.** Only one request holds it at a time; an idle caller is
+  released automatically after a short timeout. Contention is the normal
+  state, not a fault.
+- **A `429` from this tier means "busy," never "down."** Its body names the
+  current holder and a retry hint — respect it. Wait once for the hinted
+  interval, or fall back to another entry (or do the subtask yourself) as a
+  stated choice per §6. Do not loop-poll or hammer it; that only extends the
+  wait for whoever is already holding it.
+- **Less capable than you, not more.** Route only Delegate-column work here
+  (§1) — menial, routine, checkable. Faster is not the same as smarter, and
+  this tier does not earn a judgment call a slower entry wouldn't.
+- **Never a silent default.** You reach this tier only by deliberately
+  selecting it from the menu, same as any other entry. Hermes is the one
+  caller with it wired as an automatic fallback, configured on its own side
+  — that does not extend to this skill's callers.
 
 ## Related skills
 
