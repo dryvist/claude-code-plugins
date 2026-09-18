@@ -1,0 +1,8 @@
+# Changelog
+
+## [6.3.0](https://github.com/dryvist/claude-code-plugins/compare/ai-delegation-v6.2.1...ai-delegation-v6.3.0) (2026-09-18)
+
+
+### Features
+
+* **ai-delegation:** add fast-subagent skill and one-command helper ([#510](https://github.com/dryvist/claude-code-plugins/issues/510)) ([0e642a5](https://github.com/dryvist/claude-code-plugins/commit/0e642a5cec5834afce2ae2098f7230031703ade5))

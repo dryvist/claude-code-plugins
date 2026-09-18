@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "Claude Code plugins and hooks by JacobPEvans",
-    "version": "6.5.1"
+    "version": "6.6.0"
   },
   "plugins": [
     {
       "name": "ai-delegation",
       "source": "./ai-delegation",
       "description": "Delegate tasks to AI models, orchestrate premium-model work, and run autonomous maintenance loops",
-      "version": "6.2.1",
+      "version": "6.3.0",
       "author": {
         "name": "JacobPEvans"
       }
