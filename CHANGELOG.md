@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.6.0](https://github.com/dryvist/claude-code-plugins/compare/v6.5.1...v6.6.0) (2026-09-18)
+
+
+### Features
+
+* **ai-delegation:** add fast-subagent skill and one-command helper ([#510](https://github.com/dryvist/claude-code-plugins/issues/510)) ([0e642a5](https://github.com/dryvist/claude-code-plugins/commit/0e642a5cec5834afce2ae2098f7230031703ade5))
+
 ## [6.5.1](https://github.com/dryvist/claude-code-plugins/compare/v6.5.0...v6.5.1) (2026-09-15)
 
 
