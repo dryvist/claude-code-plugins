@@ -20,6 +20,7 @@
     "./skills/auto-maintain",
     "./skills/premium-agent-orchestration",
     "./skills/local-subagents",
+    "./skills/fast-subagent",
     "./skills/openrouter-models",
     "./skills/multi-model-review"
   ]
