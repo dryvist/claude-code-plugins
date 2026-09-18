@@ -24,8 +24,10 @@ jobs:
 
       - name: Install cclint
         run: |
-          # Pin to specific commit for reproducibility
-          go install github.com/dotcommander/cclint@latest
+          # Pinned to a release; Renovate tracks the tag through the
+          # customManager in renovate.json (same pin as .pre-commit-config.yaml).
+          # renovate: datasource=github-releases depName=dotcommander/cclint
+          go install github.com/dotcommander/cclint@v0.57.0
           echo "$HOME/go/bin" >> $GITHUB_PATH
 
       - name: Validate plugin structure

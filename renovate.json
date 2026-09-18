@@ -1,4 +1,19 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["local>dryvist/.github"]
+  "extends": [
+    "local>dryvist/.github"
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "cclint is installed with `go install <module>@<tag>` in pre-commit and CI; neither is a manager Renovate parses, so the tag is tracked from the annotation comment above each pin.",
+      "managerFilePatterns": [
+        "/(^|/)\\.pre-commit-config\\.yaml$/",
+        "/^\\.github/workflows/validate-plugin\\.yml$/"
+      ],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>[a-z-]+) depName=(?<depName>[^\\s]+)\\n\\s*(?:- |go install )github\\.com/[^@]+@(?<currentValue>v[0-9.]+)"
+      ]
+    }
+  ]
 }
