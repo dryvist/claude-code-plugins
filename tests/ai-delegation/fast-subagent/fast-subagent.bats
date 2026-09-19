@@ -9,6 +9,7 @@
 #   - 429 with Retry-After, then 200 → one wait, then success
 #   - 429 twice → exit 4
 #   - 401 → exit 3, no retry
+#   - 200 with empty content → exit 7
 #   - --release adds the x-subagent-release header
 #
 # Run with: bats tests/ai-delegation/fast-subagent/fast-subagent.bats
@@ -60,6 +61,15 @@ teardown() { rm -rf "$TMP"; }
   grep -q '^model=openai/q fallbacks=0$' "$TMP/err"
   grep -q 'Bearer test-key' "$FAKE_CURL_LOG"
   grep -q 'http://router.invalid/v1/chat/completions' "$FAKE_CURL_LOG"
+}
+
+@test "200 with empty content → exit 7, nothing on stdout" {
+  body='{"model":"openai/q","choices":[{"finish_reason":"length","message":{"role":"assistant","content":""}}]}'
+  printf '200|x-litellm-model-name: openai/q|%s\n' "$body" > "$FAKE_CURL_SCRIPT"
+  run bash -c 'echo hi | "$1" 2>"$2"' _ "$SCRIPT" "$TMP/err"
+  [ "$status" -eq 7 ]
+  [ -z "$output" ]
+  grep -q 'finish_reason=length' "$TMP/err"
 }
 
 @test "429 then 200 → waits Retry-After once, succeeds" {
