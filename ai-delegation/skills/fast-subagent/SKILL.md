@@ -79,6 +79,7 @@ was busy and the router moved on; that is the chain working, not an error.
 | 3 | `401`/`403` | Report it. Never retry with a different credential. |
 | 4 | Still busy after one `Retry-After` wait | Do the step yourself or pick another entry from `local-subagents` §3, and say which. Do not loop. |
 | 5 | Transport or request failure | Report the message; a `400` naming an unknown model means the role is not seeded on this router yet. |
+| 7 | `200` but no text (budget spent on reasoning, `finish_reason=length`) | Retry once with a higher `--max-tokens`; never treat empty output as an answer. |
 
 `--release` on your **last** call of a burst frees the single-slot backend for
 the next caller instead of waiting for the lock's own timeout. It is a

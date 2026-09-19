@@ -18,7 +18,8 @@
 # `model=<id> fallbacks=<n>` so a caller can report which rung answered.
 #
 # Exit codes: 0 ok · 2 no endpoint · 3 auth refused · 4 still busy after one
-# Retry-After wait · 5 request/transport failure · 6 bad usage.
+# Retry-After wait · 5 request/transport failure · 6 bad usage · 7 empty answer
+# (the model spent --max-tokens on reasoning or finish_reason=length; raise it).
 set -euo pipefail
 
 model="${FAST_SUBAGENT_MODEL:-fast}"
@@ -86,4 +87,10 @@ esac
 hv() { awk -v k="$1:" 'tolower($1)==k{gsub(/\r/,"",$2);print $2}' "$hdr"; }
 served="$(hv x-litellm-model-name)"; fell="$(hv x-litellm-attempted-fallbacks)"
 echo "model=${served:-$(jq -r '.model // "?"' "$out")} fallbacks=${fell:-?}" >&2
-if [ "$raw" = 1 ]; then cat "$out"; else jq -r '.choices[0].message.content // empty' "$out"; fi
+if [ "$raw" = 1 ]; then cat "$out"; exit 0; fi
+text="$(jq -r '.choices[0].message.content // empty' "$out")"
+if [ -z "$text" ]; then
+  echo "fast-subagent: $model returned no content (finish_reason=$(jq -r '.choices[0].finish_reason // "?"' "$out")) — raise --max-tokens or shorten the prompt" >&2
+  exit 7
+fi
+printf '%s\n' "$text"
