@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.6.2](https://github.com/dryvist/claude-code-plugins/compare/v6.6.1...v6.6.2) (2026-09-19)
+
+
+### Bug Fixes
+
+* **ai-delegation:** align delegate-to-ai and local-subagents on the shared router ([71a6967](https://github.com/dryvist/claude-code-plugins/commit/71a6967b057678c1207232bb253ec1a836d0fc5b))
+
 ## [6.6.1](https://github.com/dryvist/claude-code-plugins/compare/v6.6.0...v6.6.1) (2026-09-19)
 
 
