@@ -1,5 +1,13 @@
 # Changelog
 
+## [6.6.3](https://github.com/dryvist/claude-code-plugins/compare/v6.6.2...v6.6.3) (2026-09-19)
+
+
+### Bug Fixes
+
+* **ci:** forward the router secrets to ai-pr-care with secrets: inherit ([329333a](https://github.com/dryvist/claude-code-plugins/commit/329333aa6d2e0742fc23c6b2f0ea48e887ddedca))
+* **ci:** forward the router secrets to ai-pr-care with secrets: inherit ([1a3f2a7](https://github.com/dryvist/claude-code-plugins/commit/1a3f2a73ecfb2150c0b8997bb16cbd9d7703b63d))
+
 ## [6.6.2](https://github.com/dryvist/claude-code-plugins/compare/v6.6.1...v6.6.2) (2026-09-19)
 
 
