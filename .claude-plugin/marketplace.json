@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "Claude Code plugins and hooks by JacobPEvans",
-    "version": "6.6.3"
+    "version": "6.6.4"
   },
   "plugins": [
     {
@@ -67,7 +67,7 @@
       "name": "ai-cli-harness-better-practices",
       "source": "./ai-cli-harness-better-practices",
       "description": "Harness-agnostic session continuity: goal statements, status snapshots, handoffs, cold resume, replanning, and wrap-up. No git or GitHub required.",
-      "version": "4.25.0",
+      "version": "4.25.1",
       "author": {
         "name": "JacobPEvans"
       }
