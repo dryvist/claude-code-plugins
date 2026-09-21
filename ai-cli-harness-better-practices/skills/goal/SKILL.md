@@ -80,13 +80,15 @@ Check the draft against every rule before printing.
 | Absolute paths; full URLs for any PR, issue, or ticket | A bare `#123` is unresolvable cold |
 | No secret values, hostnames, or IPs — name where the value lives | The statement gets pasted into other tools and logs |
 | Harness-neutral wording | It may be pasted into any agent CLI, not only the one that produced it |
+| Never a blockquote — the `>` marker on every line is counted toward the 4000-character cap and pushes the statement over it | The reader pastes the body as plain text, not quoted prose |
 
 ## Step 4: Measure the cap
 
 The 4000-character cap comes from Claude Code's goal feature, which is the
 statement's most common consumer. Measure it. Never estimate.
 
-Pipe the draft straight into `wc -m` — no file, no temp directory:
+The measured text is exactly what gets pasted — no quote markers, no
+indentation. Pipe the draft straight into `wc -m` — no file, no temp directory:
 
 ```bash
 LC_ALL=en_US.UTF-8 wc -m <<'GOAL_EOF'
@@ -117,7 +119,8 @@ honest over-cap statement beats a silently truncated one.
 ## Step 5: Print
 
 **The statement is the body only — it never contains a heading.** That is what
-makes it embeddable: a caller supplies whatever header its own format needs.
+makes it embeddable: a caller supplies whatever header its own format needs. Print it
+as plain paragraphs, never inside a Markdown blockquote.
 
 Invoked directly, wrap the body in this header so the user sees the count:
 
