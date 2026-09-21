@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.6.4](https://github.com/dryvist/claude-code-plugins/compare/v6.6.3...v6.6.4) (2026-09-21)
+
+
+### Bug Fixes
+
+* **goal:** never wrap the statement in a blockquote ([#522](https://github.com/dryvist/claude-code-plugins/issues/522)) ([209edb4](https://github.com/dryvist/claude-code-plugins/commit/209edb4c4f5e2d04613e05f07fb854deac4f8896))
+
 ## [6.6.3](https://github.com/dryvist/claude-code-plugins/compare/v6.6.2...v6.6.3) (2026-09-19)
 
 
