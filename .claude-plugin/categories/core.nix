@@ -27,10 +27,8 @@
     "code-standards@jacobpevans-cc-plugins"
     "project-standards@jacobpevans-cc-plugins"
     "process-cleanup@jacobpevans-cc-plugins"
-    "pal-health@jacobpevans-cc-plugins"
     "pr-lifecycle@jacobpevans-cc-plugins"
     "script-guards@jacobpevans-cc-plugins"
-    "session-analytics@jacobpevans-cc-plugins"
     "ai-delegation@jacobpevans-cc-plugins"
     "codeql-resolver@jacobpevans-cc-plugins"
     # claude-plugins-official — owns commit-commands, whose synthesized
@@ -76,8 +74,6 @@
     # jacobpevans codeql-resolver
     "codeql-permission-classification"
     "github-workflow-security-patterns"
-    # jacobpevans session-analytics
-    "token-breakdown"
     # jacobpevans content-guards
     "validate-readme"
     # jacobpevans infra-standards

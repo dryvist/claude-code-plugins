@@ -253,21 +253,6 @@
         }
       ]
     },
-    "pal-health": {
-      "component": "pal-health",
-      "extra-files": [
-        {
-          "type": "json",
-          "path": ".claude-plugin/plugin.json",
-          "jsonpath": "$.version"
-        },
-        {
-          "type": "json",
-          "path": "/.claude-plugin/marketplace.json",
-          "jsonpath": "$.plugins[?(@.name==\"pal-health\")].version"
-        }
-      ]
-    },
     "pr-lifecycle": {
       "component": "pr-lifecycle",
       "extra-files": [
@@ -325,21 +310,6 @@
           "type": "json",
           "path": "/.claude-plugin/marketplace.json",
           "jsonpath": "$.plugins[?(@.name==\"script-guards\")].version"
-        }
-      ]
-    },
-    "session-analytics": {
-      "component": "session-analytics",
-      "extra-files": [
-        {
-          "type": "json",
-          "path": ".claude-plugin/plugin.json",
-          "jsonpath": "$.version"
-        },
-        {
-          "type": "json",
-          "path": "/.claude-plugin/marketplace.json",
-          "jsonpath": "$.plugins[?(@.name==\"session-analytics\")].version"
         }
       ]
     }
