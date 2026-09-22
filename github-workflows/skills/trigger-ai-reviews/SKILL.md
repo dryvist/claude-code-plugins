@@ -108,4 +108,3 @@ When a specific AI is named in the argument (e.g., `/trigger-ai-reviews 42 claud
 
 - finalize-pr (github-workflows) — full PR finalization pipeline; trigger AI reviews as part of the process
 - resolve-pr-threads (github-workflows) — resolve review threads after AI reviewers post feedback
-- review-standards (code-standards) — standards applied when reviewing code

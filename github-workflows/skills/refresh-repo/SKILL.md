@@ -24,7 +24,7 @@ default branch.
 gh pr view --json state,number,title 2>/dev/null
 
 # ALWAYS also check for any open PRs by the user
-gh pr list --author @me --state open --json number,title,headRefName
+gh pr list --author @me --state open --limit 50 --json number,title,headRefName
 ```
 
 ### 2. Report Merge-Readiness Status
@@ -117,7 +117,7 @@ current branch, and sync status.
 
 **DO NOT** skip the PR check just because you're on main. The user may have multiple open PRs from different branches.
 
-Always run `gh pr list --author @me --state open` to find work that needs merging.
+Always run `gh pr list --author @me --state open --limit 50 --json number,title,headRefName` to find work that needs merging.
 
 Do not use `--prune-tags` as a shortcut for tag cleanup. Git treats tag pruning as an
 explicit refspec prune and can delete local-only tags that are not release artifacts.
@@ -127,5 +127,5 @@ explicit refspec prune and can delete local-only tags that are not release artif
 - **prune-branches** (github-workflows) — stale branch and worktree cleanup, run after this sync
 - **sync-main** (git-workflows) — Syncs the default branch and merges into current or all PR branches
 - **rebase-pr** (github-workflows) — Rebase-merge workflow for merging individual PRs
-- **git-workflow-standards** (git-standards) — Worktree structure and branch hygiene conventions
+- **git-workflow-standards** (git-workflows) — Worktree structure and branch hygiene conventions
 - **gh-cli-patterns** (github-workflows) — Canonical gh CLI command shapes, placeholder convention, PR-readiness gate, default-branch detection

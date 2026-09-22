@@ -1,6 +1,6 @@
 ---
 name: wrap-up
-description: "End-of-session handler that first checks whether the current session's plan is actually complete. If complete: run a quick retrospective, emit a forward-looking follow-up prompt, and — in a git repository — refresh the repo and clean gone branches. If incomplete: skip cleanup and emit ready-to-paste resume prompts so the unfinished work can be picked up cold in a new session. The completion verdict and forward artifact work outside a repository; only the cleanup steps need one."
+description: "End-of-session handler: checks if the plan is complete. If complete: quick retrospective, forward follow-up prompt, and (in a repo) refresh + clean gone branches. If incomplete: skip cleanup, emit resume prompts. Cleanup needs a repo; rest doesn't."
 ---
 
 # Post-Session Wrap-Up
@@ -235,6 +235,6 @@ in one operation. Sequence and command shapes:
   in the issue tracker or the incident system of record (Path A Step A2.5); never
   opens a GitHub issue
 - **troubleshoot-worktree** (git-workflows) — Worktree-removal command shape reused by `purge-pr` mode
-- **pr-standards** (git-standards) — Workaround Classification rubric used to decide when `purge-pr` is the right action
+- **pr-standards** (github-workflows) — Workaround Classification rubric used to decide when `purge-pr` is the right action
 - **git-flow-next** (git-workflows) — Dedicated git-flow-next guide, worktree setup, and promotion steps
 - **local-subagents** (ai-delegation) — the router mechanics used by "Delegate the bulk read": live model menu, tier choice, and the fallback rule.

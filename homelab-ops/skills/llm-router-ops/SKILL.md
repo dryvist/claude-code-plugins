@@ -1,6 +1,6 @@
 ---
 name: llm-router-ops
-description: Operate a self-hosted OpenAI-compatible LLM router/proxy (e.g. LiteLLM) in front of one or more backends — the minimal client-wiring block for every client type, the context-window advertisement gotcha, the env-vs-persisted-config gotcha, and why an unauthenticated health probe should 401, not 200. Use when wiring a new client to a shared LLM router, adding a backend model, or diagnosing why a router-fronted client silently misbehaves.
+description: Operate a self-hosted OpenAI-compatible LLM router — client-wiring per client, context-window ad gotcha, env-vs-persisted-config gotcha, why an unauth health probe should 401. Use wiring a client, adding a backend, diagnosing misbehavior.
 ---
 
 # Operating an OpenAI-compatible LLM router

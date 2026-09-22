@@ -1,6 +1,6 @@
 ---
 name: openbao-secrets
-description: "How to obtain and handle secrets under an OpenBao-backed access model: pick the right store tier, prefer engine-minted ephemeral credentials over static secrets, read with the pre-authorized tier, and route write/apply through the human-gated wrapped single-use secret_id. Use before fetching any credential, wiring a service to a secret, converging a publisher, or when tempted to paste a token — and whenever a task needs a credential and you are unsure whether you may just take it."
+description: "How to obtain and handle secrets under an OpenBao-backed model: pick the store tier, prefer engine-minted ephemeral creds over static, read pre-authorized, route write/apply via the human-gated secret_id. Use before fetching/wiring a credential."
 license: Apache-2.0
 metadata:
   version: 1.0.0
@@ -183,7 +183,7 @@ halfway through a publisher is worse than one that never started.
 
 ## Related
 
-- **native-first** (script-guards) — the discovery ladder; use it before building
+- **native-first** (content-guards) — the discovery ladder; use it before building
   any bespoke credential plumbing.
 - Environment-specific detail (which engines are live, mount paths, role names,
   runbooks) belongs in your own operations docs, not here — this skill is the

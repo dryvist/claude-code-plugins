@@ -1,6 +1,6 @@
 ---
 name: openbao-dynamic-aws-creds
-description: "Replace a static AWS access key on a workstation or CI runner with short-lived STS credentials minted on demand by OpenBao's (or Vault's) AWS secrets engine, via an AWS credential_process wrapper. Covers the architecture, bring-up order, verification, plugin-upgrade caution, and common failure modes. Use when a workstation profile still holds a static AWS key, when setting up dynamic AWS credentials for infra-as-code tooling, or when diagnosing a credential_process failure."
+description: "Replace a static AWS access key with short-lived STS creds minted by OpenBao's AWS engine via a credential_process wrapper. Covers architecture, bring-up, verification, upgrade caution. Use for a static key or credential_process diagnosis."
 ---
 
 # Dynamic AWS credentials from a central secrets engine

@@ -50,7 +50,7 @@ Combined git security and workflow protection via PreToolUse hooks.
 Git branch sync and local troubleshooting.
 
 - **Type**: Command/Skill-based plugin
-- **Skills**: `/sync-main`, `/git-flow-next`, `/troubleshoot-rebase`, `/troubleshoot-precommit`, `/troubleshoot-worktree`, `/pre-commit-architecture`
+- **Skills**: `/sync-main`, `/git-flow-next`, `/git-workflow-standards`, `/troubleshoot-rebase`, `/troubleshoot-precommit`, `/troubleshoot-worktree`, `/pre-commit-architecture`
 - **Purpose**: Maintain linear git history and keep branches in sync
 
 ### github-workflows
@@ -58,7 +58,7 @@ Git branch sync and local troubleshooting.
 PR finalization, merge, review thread resolution, and issue shaping.
 
 - **Type**: Command/Skill-based plugin
-- **Skills**: `/finalize-pr`, `/merge-pr`, `/pr-stacks`, `/resolve-pr-threads`, `/shape-issues`, `/trigger-ai-reviews`, `/shared-workflow-org-refs`
+- **Skills**: `/finalize-pr`, `/merge-pr`, `/pr-stacks`, `/resolve-pr-threads`, `/pr-standards`, `/shape-issues`, `/trigger-ai-reviews`, `/shared-workflow-org-refs`
 - **Purpose**: GitHub PR/issue management workflows
 
 ### infra-orchestration
@@ -75,8 +75,7 @@ On-demand skill-based plugins that load specific standards as context.
 
 | Plugin | Skills | Coverage |
 |--------|--------|----------|
-| **code-standards** | `/code-quality-standards`, `/review-standards` | Code quality, documentation, testing, review guidelines |
-| **git-standards** | `/git-workflow-standards`, `/pr-standards` | Branching, PR creation, issue linking |
+| **code-standards** | `/code-quality-standards` | Estate-specific code conventions: logging format, monitoring-vs-test philosophy, doc format |
 | **infra-standards** | `/infrastructure-standards` | Proxmox, Terraform, Ansible deployment |
 | **project-standards** | `/claude-skill-authoring`, `/workspace-standards`, `/skills-registry`, `/nix-tool-policy` | Claude skill authoring, workspace, skills registry, Nix tool policy |
 
@@ -88,26 +87,12 @@ High-level operational runbooks for homelab management.
 - **Skills**: `/homelab-runbooks`
 - **Purpose**: DR-node power management, DNS ingress convergence, secrets-engine identity bring-up
 
-### pal-health
-
-Warns on session start if PAL MCP had a recent Doppler auth failure.
-
-- **Type**: SessionStart hook
-
 ### process-cleanup
 
 Cleanup orphaned MCP server processes on session exit.
 
 - **Type**: PostToolUse hook
 - **Purpose**: Workaround for upstream MCP orphan-process bug (#1935)
-
-### session-analytics
-
-Claude Code session token analytics via Splunk OTEL telemetry.
-
-- **Type**: Skill-based plugin
-- **Skills**: `/token-breakdown`
-- **Purpose**: Per-model token breakdown, tool call costs, cache efficiency, burn rate timeline
 
 ## Installation
 
@@ -125,16 +110,13 @@ claude plugins add jacobpevans-cc-plugins/<plugin-name>
 - `jacobpevans-cc-plugins/codeql-resolver`
 - `jacobpevans-cc-plugins/content-guards`
 - `jacobpevans-cc-plugins/git-guards`
-- `jacobpevans-cc-plugins/git-standards`
 - `jacobpevans-cc-plugins/git-workflows`
 - `jacobpevans-cc-plugins/github-workflows`
 - `jacobpevans-cc-plugins/homelab-ops`
 - `jacobpevans-cc-plugins/infra-orchestration`
 - `jacobpevans-cc-plugins/infra-standards`
-- `jacobpevans-cc-plugins/pal-health`
 - `jacobpevans-cc-plugins/process-cleanup`
 - `jacobpevans-cc-plugins/project-standards`
-- `jacobpevans-cc-plugins/session-analytics`
 
 ### Local Development
 
@@ -149,22 +131,19 @@ claude plugins link ./code-standards
 claude plugins link ./codeql-resolver
 claude plugins link ./content-guards
 claude plugins link ./git-guards
-claude plugins link ./git-standards
 claude plugins link ./git-workflows
 claude plugins link ./github-workflows
 claude plugins link ./homelab-ops
 claude plugins link ./infra-orchestration
 claude plugins link ./infra-standards
-claude plugins link ./pal-health
 claude plugins link ./process-cleanup
 claude plugins link ./project-standards
-claude plugins link ./session-analytics
 ```
 
 ## Usage
 
 Plugins activate automatically after installation. Hook-based plugins (git-guards,
-content-guards, pr-lifecycle, process-cleanup) intercept tool calls with no manual
+content-guards, github-workflows, process-cleanup) intercept tool calls with no manual
 invocation. Skill-based plugins provide slash commands:
 
 ```text

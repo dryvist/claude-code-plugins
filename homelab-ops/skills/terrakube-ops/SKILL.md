@@ -1,6 +1,6 @@
 ---
 name: terrakube-ops
-description: Operate self-hosted Terrakube (remote OpenTofu/Terraform plan/apply, state, and workspace locking) — the canonical login/plan/apply workflow, why a targeted apply is dangerous, workspace lock recovery, the offline-mirror gotcha, and the token-rotation trap. Use when running or observing a Terrakube plan/apply, recovering a stuck workspace lock, or standing up a new workspace against Terrakube.
+description: Operate self-hosted Terrakube (remote OpenTofu/Terraform plan/apply, state, locking) — login/plan/apply flow, why targeted apply is dangerous, lock recovery, offline-mirror gotcha, token rotation. Use for a plan/apply, stuck lock, new workspace.
 ---
 
 # Terrakube operations

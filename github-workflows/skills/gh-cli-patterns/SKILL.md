@@ -274,4 +274,4 @@ Same pattern for `gh pr create`, `gh pr comment`, `gh issue comment`. Never use 
 
 ## Related Skills
 
-- **pr-standards** (git-standards) — PR creation guards, issue linking
+- **pr-standards** (github-workflows) — PR creation guards, issue linking
