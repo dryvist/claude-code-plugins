@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "Claude Code plugins and hooks by JacobPEvans",
-    "version": "6.6.5"
+    "version": "6.6.6"
   },
   "plugins": [
     {
@@ -40,7 +40,7 @@
       "name": "content-guards",
       "source": "./content-guards",
       "description": "Combined content validation and guard plugin that merges token-validator, markdown-validator, webfetch-guard, and issue-limiter functionality",
-      "version": "6.2.1",
+      "version": "6.2.2",
       "author": {
         "name": "JacobPEvans"
       }
@@ -120,7 +120,7 @@
     {
       "name": "process-cleanup",
       "source": "./process-cleanup",
-      "description": "Cleanup orphaned MCP server processes on session exit \u2014 workaround for upstream bug #1935",
+      "description": "Cleanup orphaned MCP server processes on session exit — workaround for upstream bug #1935",
       "version": "6.2.1",
       "author": {
         "name": "JacobPEvans"
