@@ -22,7 +22,7 @@
       "name": "code-standards",
       "source": "./code-standards",
       "description": "Estate-specific code conventions not covered by generic review skills: logging format, monitoring-vs-test philosophy, doc format",
-      "version": "6.2.1",
+      "version": "6.2.2",
       "author": {
         "name": "JacobPEvans"
       }
