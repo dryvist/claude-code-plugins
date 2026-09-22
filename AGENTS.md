@@ -28,7 +28,6 @@ This is a **Claude Code plugins repository** containing production-ready hooks f
 | **infra-standards** | Skill | `/infrastructure-standards` | Infrastructure standards for Proxmox, Terraform, Ansible including deployment pipeline and secrets management |
 | **openbao** | Skill | `/openbao-secrets`, `/openbao-dynamic-aws-creds` | OpenBao secrets access model: mint ephemeral credentials from engines instead of storing static ones; reads pre-authorized, writes human-gated; includes a concrete dynamic-AWS-STS pattern |
 | **pal-health** | SessionStart | — | Warns on session start if PAL MCP had a recent Doppler auth failure |
-| **pr-lifecycle** | PostToolUse | Bash | Automatically triggers `/finalize-pr` after `gh pr create` succeeds |
 | **process-cleanup** | PostToolUse | — | Cleanup orphaned MCP server processes on session exit |
 | **project-standards** | Skill | `/claude-skill-authoring`, `/workspace-standards`, `/skills-registry` | Claude skill authoring standards, workspace management, and skills/tools registry lookup |
 | **script-guards** | PreToolUse/UserPromptSubmit + Skill | Bash, Write, Edit, `native-first` | Blocks unnecessary script/wrapper generation and supplies the `native-first` discovery ladder that finds the non-custom path |

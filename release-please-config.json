@@ -268,21 +268,6 @@
         }
       ]
     },
-    "pr-lifecycle": {
-      "component": "pr-lifecycle",
-      "extra-files": [
-        {
-          "type": "json",
-          "path": ".claude-plugin/plugin.json",
-          "jsonpath": "$.version"
-        },
-        {
-          "type": "json",
-          "path": "/.claude-plugin/marketplace.json",
-          "jsonpath": "$.plugins[?(@.name==\"pr-lifecycle\")].version"
-        }
-      ]
-    },
     "process-cleanup": {
       "component": "process-cleanup",
       "extra-files": [

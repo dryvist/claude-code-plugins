@@ -136,18 +136,9 @@
       }
     },
     {
-      "name": "pr-lifecycle",
-      "source": "./pr-lifecycle",
-      "description": "Automatically triggers PR finalization after PR creation",
-      "version": "6.2.1",
-      "author": {
-        "name": "JacobPEvans"
-      }
-    },
-    {
       "name": "process-cleanup",
       "source": "./process-cleanup",
-      "description": "Cleanup orphaned MCP server processes on session exit — workaround for upstream bug #1935",
+      "description": "Cleanup orphaned MCP server processes on session exit \u2014 workaround for upstream bug #1935",
       "version": "6.2.1",
       "author": {
         "name": "JacobPEvans"
