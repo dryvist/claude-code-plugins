@@ -28,7 +28,6 @@
     "project-standards@jacobpevans-cc-plugins"
     "process-cleanup@jacobpevans-cc-plugins"
     "pr-lifecycle@jacobpevans-cc-plugins"
-    "script-guards@jacobpevans-cc-plugins"
     "ai-delegation@jacobpevans-cc-plugins"
     "codeql-resolver@jacobpevans-cc-plugins"
     # claude-plugins-official — owns commit-commands, whose synthesized

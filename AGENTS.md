@@ -30,7 +30,6 @@ This is a **Claude Code plugins repository** containing production-ready hooks f
 | **pr-lifecycle** | PostToolUse | Bash | Automatically triggers `/finalize-pr` after `gh pr create` succeeds |
 | **process-cleanup** | PostToolUse | — | Cleanup orphaned MCP server processes on session exit |
 | **project-standards** | Skill | `/claude-skill-authoring`, `/workspace-standards`, `/skills-registry` | Claude skill authoring standards, workspace management, and skills/tools registry lookup |
-| **script-guards** | PreToolUse/UserPromptSubmit + Skill | Bash, Write, Edit, `native-first` | Blocks unnecessary script/wrapper generation and supplies the `native-first` discovery ladder that finds the non-custom path |
 | **estate-lsp** | LSP (code intelligence) | nixd, terraform-ls, yaml-language-server | Post-edit diagnostics and code navigation for Nix, Terraform/OpenTofu, and YAML. Expects the server binaries on PATH |
 
 Session token analytics: use the `token-meter` MCP server (replaces the retired `session-analytics` plugin).

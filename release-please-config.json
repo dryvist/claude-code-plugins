@@ -297,21 +297,6 @@
           "jsonpath": "$.plugins[?(@.name==\"project-standards\")].version"
         }
       ]
-    },
-    "script-guards": {
-      "component": "script-guards",
-      "extra-files": [
-        {
-          "type": "json",
-          "path": ".claude-plugin/plugin.json",
-          "jsonpath": "$.version"
-        },
-        {
-          "type": "json",
-          "path": "/.claude-plugin/marketplace.json",
-          "jsonpath": "$.plugins[?(@.name==\"script-guards\")].version"
-        }
-      ]
     }
   }
 }

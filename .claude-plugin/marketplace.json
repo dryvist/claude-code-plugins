@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "Claude Code plugins and hooks by JacobPEvans",
-    "version": "6.6.4"
+    "version": "6.6.5"
   },
   "plugins": [
     {
@@ -49,7 +49,7 @@
       "name": "git-guards",
       "source": "./git-guards",
       "description": "Combined git security and workflow protection via PreToolUse hooks - merges git-permission-guard and main-branch-guard functionality",
-      "version": "6.2.2",
+      "version": "6.2.3",
       "author": {
         "name": "JacobPEvans"
       }
@@ -148,15 +148,6 @@
       "name": "project-standards",
       "source": "./project-standards",
       "description": "AgentsMD authoring standards, workspace management, and skills/tools registry lookup",
-      "version": "6.2.1",
-      "author": {
-        "name": "JacobPEvans"
-      }
-    },
-    {
-      "name": "script-guards",
-      "source": "./script-guards",
-      "description": "Prevents unnecessary script generation - enforces research-first, native-tool-first patterns via PreToolUse and UserPromptSubmit hooks",
       "version": "6.2.1",
       "author": {
         "name": "JacobPEvans"
