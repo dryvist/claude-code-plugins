@@ -1,21 +1,17 @@
 {
-  ".": "6.6.4",
+  ".": "6.6.5",
   "ai-cli-harness-better-practices": "4.25.1",
   "ai-delegation": "6.3.2",
   "code-standards": "6.2.1",
   "codeql-resolver": "6.2.1",
   "content-guards": "6.2.1",
-  "git-guards": "6.2.2",
+  "git-guards": "6.2.3",
   "git-workflows": "6.2.1",
   "github-workflows": "6.3.0",
   "homelab-ops": "1.0.0",
   "infra-orchestration": "6.2.1",
   "infra-standards": "6.2.1",
   "openbao": "4.22.0",
-  "pal-health": "6.2.1",
-  "pr-lifecycle": "6.2.1",
   "process-cleanup": "6.2.1",
-  "project-standards": "6.2.1",
-  "script-guards": "6.2.1",
-  "session-analytics": "6.2.1"
+  "project-standards": "6.2.1"
 }

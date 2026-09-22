@@ -87,26 +87,12 @@ High-level operational runbooks for homelab management.
 - **Skills**: `/homelab-runbooks`
 - **Purpose**: DR-node power management, DNS ingress convergence, secrets-engine identity bring-up
 
-### pal-health
-
-Warns on session start if PAL MCP had a recent Doppler auth failure.
-
-- **Type**: SessionStart hook
-
 ### process-cleanup
 
 Cleanup orphaned MCP server processes on session exit.
 
 - **Type**: PostToolUse hook
 - **Purpose**: Workaround for upstream MCP orphan-process bug (#1935)
-
-### session-analytics
-
-Claude Code session token analytics via Splunk OTEL telemetry.
-
-- **Type**: Skill-based plugin
-- **Skills**: `/token-breakdown`
-- **Purpose**: Per-model token breakdown, tool call costs, cache efficiency, burn rate timeline
 
 ## Installation
 
@@ -129,10 +115,8 @@ claude plugins add jacobpevans-cc-plugins/<plugin-name>
 - `jacobpevans-cc-plugins/homelab-ops`
 - `jacobpevans-cc-plugins/infra-orchestration`
 - `jacobpevans-cc-plugins/infra-standards`
-- `jacobpevans-cc-plugins/pal-health`
 - `jacobpevans-cc-plugins/process-cleanup`
 - `jacobpevans-cc-plugins/project-standards`
-- `jacobpevans-cc-plugins/session-analytics`
 
 ### Local Development
 
@@ -152,16 +136,14 @@ claude plugins link ./github-workflows
 claude plugins link ./homelab-ops
 claude plugins link ./infra-orchestration
 claude plugins link ./infra-standards
-claude plugins link ./pal-health
 claude plugins link ./process-cleanup
 claude plugins link ./project-standards
-claude plugins link ./session-analytics
 ```
 
 ## Usage
 
 Plugins activate automatically after installation. Hook-based plugins (git-guards,
-content-guards, pr-lifecycle, process-cleanup) intercept tool calls with no manual
+content-guards, github-workflows, process-cleanup) intercept tool calls with no manual
 invocation. Skill-based plugins provide slash commands:
 
 ```text

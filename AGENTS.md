@@ -26,13 +26,11 @@ This is a **Claude Code plugins repository** containing production-ready hooks f
 | **code-standards** | Skill | `/code-quality-standards`, `/review-standards` | Code quality standards, documentation formatting, testing philosophy, and review guidelines |
 | **infra-standards** | Skill | `/infrastructure-standards` | Infrastructure standards for Proxmox, Terraform, Ansible including deployment pipeline and secrets management |
 | **openbao** | Skill | `/openbao-secrets`, `/openbao-dynamic-aws-creds` | OpenBao secrets access model: mint ephemeral credentials from engines instead of storing static ones; reads pre-authorized, writes human-gated; includes a concrete dynamic-AWS-STS pattern |
-| **pal-health** | SessionStart | — | Warns on session start if PAL MCP had a recent Doppler auth failure |
-| **pr-lifecycle** | PostToolUse | Bash | Automatically triggers `/finalize-pr` after `gh pr create` succeeds |
 | **process-cleanup** | PostToolUse | — | Cleanup orphaned MCP server processes on session exit |
 | **project-standards** | Skill | `/claude-skill-authoring`, `/workspace-standards`, `/skills-registry` | Claude skill authoring standards, workspace management, and skills/tools registry lookup |
-| **script-guards** | PreToolUse/UserPromptSubmit + Skill | Bash, Write, Edit, `native-first` | Blocks unnecessary script/wrapper generation and supplies the `native-first` discovery ladder that finds the non-custom path |
-| **session-analytics** | Skill | `/token-breakdown` | Session token analytics via Splunk OTEL telemetry |
 | **estate-lsp** | LSP (code intelligence) | nixd, terraform-ls, yaml-language-server | Post-edit diagnostics and code navigation for Nix, Terraform/OpenTofu, and YAML. Expects the server binaries on PATH |
+
+Session token analytics: use the `token-meter` MCP server (replaces the retired `session-analytics` plugin).
 
 ## Multi-Model Delegation
 
