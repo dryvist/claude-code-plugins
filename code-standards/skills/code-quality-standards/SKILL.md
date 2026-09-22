@@ -16,7 +16,7 @@ to this estate.
   requires interactive prompts. Use parallel tool calls or tool-native batch
   operations instead.
 - **NEVER generate scripts** — execute commands directly via tool calls (see
-  `native-first`, script-guards).
+  `native-first`, content-guards).
 
 ## Logging Standards
 
