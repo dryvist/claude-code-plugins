@@ -18,21 +18,25 @@ No manual intervention required. For manual review-focused workflows, use `/revi
 > asynchronously. CI may have re-run. Merge conflicts may have appeared.
 > Re-fetch live PR state from Step 1.
 
-## Critical Rules
+## Goal and done-criteria
 
-1. **Verify all checks pass via Phase 3 gate** - Re-run Phase 3 against live API on every
-   invocation; "mergeable" means git-conflict-free only, not fully unblocked.
-2. **Resolve all conversations** - Automatically invoke `/resolve-pr-threads` for review threads
-3. **Fix all CodeQL violations** - Check repository and automatically fix using `/resolve-codeql`
-4. **Simplify all code changes** - Invoke /simplify at Step 2.3.5 (after all fixes). Pre-push simplification is handled by `/ship`.
-5. **Validate locally before pushing** - Run project linters and tests
-6. **Monitor CI early, block last** - Start CI monitoring in background immediately, but fix other issues while it runs
-7. **Update PR metadata automatically** - Before reporting ready, update title, description, and linked issues via haiku subagent
-8. **Take direct action** - Identify issues and fix them automatically
-9. **Include bot PRs** - Never filter by author. All modes include dependabot, release-please, claude, github-actions, etc.
-10. **Never cross org boundaries** - Org mode derives owner from current repo only
-11. **Git Flow Promotion** - For Git Flow repositories, after merging the PR into `develop` and validating it, you must ensure a release promotion to `main` is
-    triggered via `/promote-release` as a mandatory, non-optional step. You must add this task to the active session checklist.
+Goal: drive every targeted PR (single, `all` in-repo, or `org`) to
+merge-ready without manual intervention — CI green, CodeQL clean, review
+threads resolved, no conflicts, code simplified, metadata current — by
+taking direct action on whatever blocks it, never by reporting the blocker
+back.
+
+Done when, for every targeted PR: Phase 3's live-API gate passes (re-run on
+every invocation — "mergeable" means git-conflict-free only, not fully
+unblocked); `/resolve-pr-threads` and `/resolve-codeql` found nothing left
+to fix; `/simplify` ran once after all other fixes (Step 2.3.5 — pre-push
+simplification is `/ship`'s job, not this skill's); local linters and tests
+pass; title/description/linked-issues were regenerated via a haiku subagent
+before reporting ready; bot-authored PRs (dependabot, release-please,
+claude, github-actions, etc.) were never filtered out; org mode never
+crossed the org boundary the current repo implies; and, on a Git Flow repo,
+the post-merge `develop`→`main` promotion via `/promote-release` was added
+to the active session checklist as mandatory, not optional.
 
 ## Phase 1: PR Discovery and Targeting
 
@@ -216,39 +220,13 @@ Do not stop the batch for one blocked PR.
 
 ## Phase 4: Update PR Metadata
 
-Delegate to a **haiku subagent** to keep full diff out of main context.
-Steps 4.1 and 4.2 run sequentially within the agent. Step 4.3 runs after both.
-
-### 4.1 Update PR Title and Description
-
-1. Summarize branch history and diff stats against the PR's base branch; read current PR title and body.
-2. Generate updated title (conventional commit format, <70 chars) and description with sections:
-   **Summary**, **Changes**, **Test Plan**.
-
-### 4.2 Link Related Issues and PRs
-
-1. Extract keywords from branch name and commit messages.
-2. Search GitHub issues and PRs for related items (limit 5 each).
-3. Add `Closes #X` (directly related issues) or `Related: #X` (adjacent PRs) — no guessing.
-4. If the branch name, commits, or existing PR body already name a Zammad
-   ticket (`#NNNNN`, `Zammad #NNNNN`, or a `$ZAMMAD_URL/#ticket/zoom/<id>`
-   link), preserve it in the regenerated body as `Zammad: <full ticket URL>`.
-   Do not search Zammad for new matches here — only carry forward a reference
-   that already exists in this PR's own history.
-
-### 4.3 Apply Updates
-
-After 4.1 and 4.2 complete, apply title and body together — no temp files.
-Use the heredoc body pattern from /gh-cli-patterns:
-
-```bash
-gh pr edit <PR_NUMBER> --title "generated title" --body "$(cat <<'EOF'
-... generated body ...
-EOF
-)"
-```
-
-Single-quoted `'EOF'` prevents shell expansion. Closing `EOF` must be alone on its own line with no leading whitespace.
+Delegate to a **haiku subagent** to keep full diff out of main context:
+regenerate title (conventional commit format, <70 chars) and description
+(Summary/Changes/Test Plan sections), link related issues/PRs (`Closes #X`
+or `Related: #X`, carrying forward any existing Zammad reference verbatim),
+then apply both together via the heredoc body pattern from
+/gh-cli-patterns. Exact per-step mechanics:
+[references/phase-4-metadata.md](references/phase-4-metadata.md).
 
 Proceed to Phase 5.
 
