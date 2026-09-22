@@ -106,7 +106,7 @@ flowchart TD
         S1["Detect uncommitted changes"]:::ai
         S2["Commit, /simplify, validate,\npush, PR create (inline)"]:::ai
         S3["Build context brief\n(purpose, decisions, scope)"]:::ai
-        S4["pr-lifecycle hook fires\npost-pr-create.sh"]:::hook
+        S4["github-workflows hook fires\npost-pr-create.sh"]:::hook
         S5["Invoke /finalize-pr\n(sequential per PR)"]:::ai
 
         subgraph FINALIZE ["AI — /finalize-pr phases"]
@@ -196,9 +196,7 @@ See [git-guards/ARCHITECTURE.md](../git-guards/ARCHITECTURE.md) and
   `/git-flow-next`, `/troubleshoot-*`
 - [ai-cli-harness-better-practices/ARCHITECTURE.md](../ai-cli-harness-better-practices/ARCHITECTURE.md)
   — `/goal`, `/handoff`, `/resume`, `/replan`, `/session-status`, `/wrap-up`
-- [pr-lifecycle/ARCHITECTURE.md](../pr-lifecycle/ARCHITECTURE.md) — PostToolUse hook
   bridging `gh pr create` to `/finalize-pr`
 - [git-guards/ARCHITECTURE.md](../git-guards/ARCHITECTURE.md) — PreToolUse hooks
 - [content-guards/ARCHITECTURE.md](../content-guards/ARCHITECTURE.md) — Content validation
 - [code-standards/ARCHITECTURE.md](../code-standards/ARCHITECTURE.md) — Quality standards
-- [git-standards/ARCHITECTURE.md](../git-standards/ARCHITECTURE.md) — Git conventions

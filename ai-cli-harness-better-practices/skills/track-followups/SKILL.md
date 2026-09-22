@@ -1,6 +1,6 @@
 ---
 name: track-followups
-description: Record triaged follow-up work where it will actually be seen — create the item in the issue tracker (Vikunja) or the incident system of record (Zammad), deduplicating first and reporting the created identifier. Use when a session produced work that outlives it, or when another skill has triaged items and needs them tracked rather than merely listed. Never opens a GitHub issue.
+description: "Record triaged follow-up work where it'll be seen: create the item in Vikunja or Zammad (incidents), deduplicating first and reporting the id. Use when session work outlives it or items were triaged elsewhere. Never opens a GitHub issue."
 license: Apache-2.0
 metadata:
   version: 1.1.0

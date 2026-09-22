@@ -1,6 +1,6 @@
 ---
 name: resume
-description: "Pick up unfinished work cold in a fresh session by re-deriving state from live git, gh, the plan file, and TaskList — never from remembered or pasted claims. Use at the start of a new session that continues prior work, or when handed a resume prompt. Verifies what is actually merged, open, committed, and checked-off right now, reconciles it against the plan, then states exactly where things stand and what the next action is before touching anything."
+description: "Pick up unfinished work cold by re-deriving state from live git, gh, the plan file, and TaskList — never from remembered claims. Use at the start of a session continuing prior work. Verifies what's merged, open, committed, checked-off first."
 ---
 
 # Resume

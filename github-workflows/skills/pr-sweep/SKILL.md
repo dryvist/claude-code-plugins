@@ -1,6 +1,6 @@
 ---
 name: pr-sweep
-description: "Use when open pull requests have piled up in one repo or across an owner's repos and you want the pile triaged and driven toward zero in one pass — including when most of them are bot- or teammate-authored. Also use when a sweep must run many repos in parallel without racing approvals or flooding CI."
+description: "Use when open PRs piled up in one repo or an owner's repos and you want them triaged and driven to zero in one pass — bot/teammate-authored included. Also for sweeps running many repos in parallel without racing approvals or flooding CI."
 ---
 
 # PR Sweep

@@ -33,7 +33,14 @@ teardown() {
 # Run the hook from a specific directory
 run_hook_in() {
   local dir="$1"
-  run bash -c "cd '$dir' && /bin/bash '$SCRIPT'"
+  run bash -c "cd '$dir' && /bin/bash '$SCRIPT' </dev/null"
+}
+
+# Run the hook from a specific directory with a session_id on stdin
+run_hook_in_session() {
+  local dir="$1"
+  local session_id="$2"
+  run bash -c "cd '$dir' && echo '{\"session_id\":\"$session_id\"}' | /bin/bash '$SCRIPT'"
 }
 
 # ---------------------------------------------------------------------------
@@ -112,5 +119,40 @@ run_hook_in() {
 
   run_hook_in "$repo_dir"
   [ "$status" -eq 0 ]
+  [[ "$output" =~ "systemMessage" ]]
+}
+
+# ---------------------------------------------------------------------------
+# TC6: Once per session — same session_id, branch "main" → warns once, then
+# empty JSON on the second prompt in the same session.
+# ---------------------------------------------------------------------------
+
+@test "TC6: second prompt in same session outputs empty JSON" {
+  local repo_dir
+  repo_dir="$TMPDIR_BASE/myrepo"
+  make_repo "$repo_dir" "main" >/dev/null
+
+  TMPDIR="$TMPDIR_BASE" run_hook_in_session "$repo_dir" "sess-abc"
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ "systemMessage" ]]
+
+  TMPDIR="$TMPDIR_BASE" run_hook_in_session "$repo_dir" "sess-abc"
+  [ "$status" -eq 0 ]
+  [[ "$output" == "{}" ]]
+}
+
+# ---------------------------------------------------------------------------
+# TC7: A different session_id on the same branch still warns.
+# ---------------------------------------------------------------------------
+
+@test "TC7: different session still warns after another session's marker" {
+  local repo_dir
+  repo_dir="$TMPDIR_BASE/myrepo"
+  make_repo "$repo_dir" "main" >/dev/null
+
+  TMPDIR="$TMPDIR_BASE" run_hook_in_session "$repo_dir" "sess-one"
+  [[ "$output" =~ "systemMessage" ]]
+
+  TMPDIR="$TMPDIR_BASE" run_hook_in_session "$repo_dir" "sess-two"
   [[ "$output" =~ "systemMessage" ]]
 }

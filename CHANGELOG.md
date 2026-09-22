@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.6.5](https://github.com/dryvist/claude-code-plugins/compare/v6.6.4...v6.6.5) (2026-09-22)
+
+
+### Bug Fixes
+
+* **git-guards,script-guards:** fire worktree reminder once per session; drop research-reminder ([#524](https://github.com/dryvist/claude-code-plugins/issues/524)) ([5d6f2eb](https://github.com/dryvist/claude-code-plugins/commit/5d6f2eb950a46d2b82e1463799d514679dbd0a23))
+
 ## [6.6.4](https://github.com/dryvist/claude-code-plugins/compare/v6.6.3...v6.6.4) (2026-09-21)
 
 

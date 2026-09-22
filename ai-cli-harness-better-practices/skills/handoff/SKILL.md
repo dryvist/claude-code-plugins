@@ -1,6 +1,6 @@
 ---
 name: handoff
-description: "Emit a paste-ready two-part handoff for a fresh session: a `## Goal statement` hard-capped under 4000 characters (produced by the /goal skill), plus an unbounded `## Full prompt` carrying cwd, ordered reading list, hard rules, pitfalls, and deliverables. Runs with or without a git repository — branch and PR facts are optional enrichment. Use when forking work to a new session, spinning up an orchestrator, or when wrap-up needs a next-session prompt with a real goal and not just a task list."
+description: "Emit a paste-ready two-part handoff: a /goal-capped Goal statement plus an unbounded Full prompt (cwd, reading list, rules, pitfalls, deliverables). Repo-optional. Use when forking to a new session/orchestrator, or wrap-up needs a resume prompt."
 ---
 
 # Handoff
@@ -42,8 +42,9 @@ git rev-parse --is-inside-work-tree >/dev/null 2>&1
 ```
 
 When that succeeds, add: `git status`, current branch, and any worktree paths
-the work lives in; open PRs via `gh pr list`. Capture **full URLs**, never bare
-`#123`. Tracked follow-up work is not a GitHub issue — its identifier comes from
+the work lives in; open PRs via `gh pr list --author @me --state open --limit 20
+--json number,title,url`. Capture **full URLs**, never bare `#123`. Tracked
+follow-up work is not a GitHub issue — its identifier comes from
 `track-followups`, not from `gh`.
 
 When it fails, skip the whole block and say so in the emitted artifact ("no

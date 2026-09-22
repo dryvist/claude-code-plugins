@@ -1,6 +1,6 @@
 ---
 name: local-subagents
-description: Use when any step of your work is bulk reading, summarizing, classifying, extracting, drafting boilerplate, or a first pass over unfamiliar code — hand it to a locally served or cheap model through the shared router instead of spending your own context on it. Covers when to delegate, how to read the live model menu (speed, quality, best-for, context, price) from the router's own contract, how to bound the call, and what to do when the router says no. Names no model ids; runs on shell, curl and jq in any harness.
+description: Use for bulk reading, summarizing, classifying, extracting, drafting boilerplate, or a first pass over code — hand it to a local/cheap model via the router, not your context. Covers delegation timing, the model menu, bounding calls, refusals.
 license: MIT
 metadata:
   version: 1.0.0

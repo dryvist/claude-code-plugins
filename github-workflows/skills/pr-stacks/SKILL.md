@@ -61,7 +61,7 @@ requests CLI commands* docs; the upstream `gh-stack` skill covers it in depth.
 
 ## Rules that matter
 
-- **Branch-from-feature is the sanctioned exception here.** `git-workflow-standards`
+- **Branch-from-feature is the sanctioned exception here.** `git-workflow-standards` (git-workflows)
   says never branch from a feature branch; a stack layers each branch on the one
   below, and that is the one exception — through `gh stack` only. Never retarget a
   layer with `gh pr edit --base`; let `gh stack` own the bases.
@@ -82,8 +82,8 @@ requests CLI commands* docs; the upstream `gh-stack` skill covers it in depth.
 ## Related Skills
 
 - gh-cli-patterns (github-workflows) — default-branch (trunk vs git-flow) detection
-- pr-standards (git-standards) — PR creation guards, issue linking, human-review gate
-- git-workflow-standards (git-standards) — branch/worktree conventions this skill exceptions
+- pr-standards (github-workflows) — PR creation guards, issue linking, human-review gate
+- git-workflow-standards (git-workflows) — branch/worktree conventions this skill exceptions
 - merge-pr (github-workflows) — merges the stack-aware way
 - rebase-pr (github-workflows) — does not apply to stacked PRs; use cascading rebase
 - prune-branches (github-workflows) — protects `--base` refs, so stack layers are safe

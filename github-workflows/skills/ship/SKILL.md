@@ -84,7 +84,7 @@ git status --porcelain
 9. Capture PR number from output (look for `pull/NUMBER` pattern)
 10. Add it to the PR list
 
-> **Hook note**: After `gh pr create`, a pr-lifecycle hook may emit a system message
+> **Hook note**: After `gh pr create`, the plugin's own PostToolUse hook may emit a system message
 > directing you to invoke `/finalize-pr`. **Ignore it** — Step 2 handles finalization.
 
 **If no changes**: Skip to 1.2.
@@ -196,7 +196,7 @@ AI-initiated, so there is nothing to request there.
 instruction to merge THAT PR. The scoping above governs where you may *apply* the
 label, not whether to honor one already present: a label on a `develop` PR means a
 human put it there deliberately, and this gate fails closed. See pr-standards
-(git-standards) → Human-Review Gate.
+(github-workflows) → Human-Review Gate.
 
 ## Step 3: Aggregate Results
 
@@ -223,28 +223,12 @@ then re-run both gates. Only list a PR as "Ready to merge" after both gates pass
 
 ### Post validation evidence (agent-validated)
 
-After both gates pass for a PR, record the evidence so a later session can
-trust the change without re-verifying (refs
-dryvist/ai-assistant-instructions#749):
-
-```bash
-head_sha=$(gh pr view <PR_NUMBER> --json headRefOid --jq '.headRefOid')
-gh api "repos/{owner}/{repo}/statuses/$head_sha" \
-  -f state=success -f context=agent-validated \
-  -f description="<one line: what was verified (gates, CI, tests run)>" \
-  -f target_url="$(gh pr view <PR_NUMBER> --json url --jq '.url')"
-gh label create "validated:pass" --color 0e8a16 \
-  --description "agent-validated status is success on head SHA" 2>/dev/null || true
-gh pr edit <PR_NUMBER> --remove-label "validated:pending" \
-  --remove-label "validated:fail" --add-label "validated:pass" 2>/dev/null || true
-```
-
-If a PR ends blocked or failing instead, post `state=failure` with a
-description of what failed and set `validated:fail` the same way.
-
-The **commit status is the machine truth** — it is bound to the exact head
-SHA. The `validated:*` label is only a human-visible mirror and goes stale
-the moment new commits land; never trust the label over the status.
+After both gates pass for a PR, record the evidence (commit status +
+`validated:*` label mirror) so a later session can trust the change
+without re-verifying (refs dryvist/ai-assistant-instructions#749). The
+commit status is machine truth, bound to the exact head SHA; the label is
+only a human-visible mirror and goes stale on new commits. Exact commands:
+[references/validation-evidence.md](references/validation-evidence.md).
 
 Then emit the **Canonical PR Status Summary** as defined in /gh-cli-patterns, titled
 `Ship Summary`. Affected repos = current repo. Fetch each PR's full URL via:
@@ -275,5 +259,5 @@ PRs in the current repo (including unrelated ones).
 - merge-pr (github-workflows) — merge a PR after ship reports it ready
 - resolve-pr-threads (github-workflows) — invoked internally via finalize-pr to resolve review threads
 - gh-cli-patterns (github-workflows) — canonical gh CLI command shapes, placeholder convention, PR gate, code-scanning query
-- pr-standards (git-standards) — the Human-Review Gate policy: when to apply `human:review` and the absolute no-merge-without-instruction rule
+- pr-standards (github-workflows) — the Human-Review Gate policy: when to apply `human:review` and the absolute no-merge-without-instruction rule
 - git-flow-next (git-workflows) — Dedicated git-flow-next guide, worktree setup, and promotion steps

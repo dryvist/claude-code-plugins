@@ -1,6 +1,6 @@
 ---
 name: goal
-description: "Emit one goal statement for the current work, hard-capped under 4000 characters and measured with wc -m, never estimated. Takes an optional focus hint like /compact ('focus on the auth path, ignore docs'); with no argument it derives the objective from the session's recent pivots plus any unfinished plan or task items. Reads only conversation, plan file, and task list — no git, no network, no file writes — so it runs in any directory at any moment. Use when asked for a goal, objective, mission, or 'what am I trying to do', when seeding a fresh session or subagent, or when /handoff needs its goal half."
+description: "Emit one goal statement for current work, capped under 4000 chars. Optional focus hint like /compact. Derives from recent pivots/plan/tasks if no arg. Use for 'what am I trying to do', seeding a session/subagent, or /handoff's goal half."
 ---
 
 # Goal

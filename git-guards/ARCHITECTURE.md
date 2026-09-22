@@ -89,11 +89,11 @@ with a `CAUTION` reason attached instead; only unrecoverable ones are denied.
 | Allow with caution | exit 0 with `permissionDecision: allow` + reason | Proceeds; agent sees the warning |
 | Hook crash / error | exit 0 (no JSON) | Fail-open — proceeds anyway |
 
-## Relationship to git-standards
+## Relationship to git-workflows and github-workflows skills
 
-git-guards and git-standards are complementary: one enforces, one advises.
+git-guards and the git-workflow-standards/pr-standards skills are complementary: one enforces, one advises.
 
-| Dimension | git-guards | git-standards |
+| Dimension | git-guards | git-workflow-standards / pr-standards |
 |-----------|-----------|---------------|
 | Activation | Automatic — every operation | On demand — loaded when relevant |
 | Mechanism | `permissionDecision` JSON on stdout | Skill text injected into context |

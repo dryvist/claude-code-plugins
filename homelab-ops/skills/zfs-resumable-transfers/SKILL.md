@@ -1,6 +1,6 @@
 ---
 name: zfs-resumable-transfers
-description: Always send large ZFS datasets as resumable (zfs receive -s / zfs send -t) instead of plain zfs send | zfs receive -F. An interrupted non-resumable transfer discards everything already sent, not just the tail, turning a brief network blip into hours of wasted retransfer. Use when scripting or running any zfs send/receive moving a non-trivial dataset.
+description: Always send large ZFS datasets as resumable (zfs receive -s / zfs send -t), never plain zfs send | zfs receive -F. An interrupted transfer discards everything sent, turning a blip into hours of retransfer. Use for non-trivial zfs send/receive.
 ---
 
 # ZFS resumable send/receive
