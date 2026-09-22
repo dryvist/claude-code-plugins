@@ -183,7 +183,7 @@ halfway through a publisher is worse than one that never started.
 
 ## Related
 
-- **native-first** (script-guards) — the discovery ladder; use it before building
+- **native-first** (content-guards) — the discovery ladder; use it before building
   any bespoke credential plumbing.
 - Environment-specific detail (which engines are live, mount paths, role names,
   runbooks) belongs in your own operations docs, not here — this skill is the

@@ -128,5 +128,5 @@ conservative.
 ## Related Skills
 
 - **refresh-repo** (github-workflows) — sync the default branch first
-- **git-workflow-standards** (git-standards) — worktree and branch conventions
+- **git-workflow-standards** (git-workflows) — worktree and branch conventions
 - **gh-cli-patterns** (github-workflows) — canonical gh CLI command shapes, default-branch detection

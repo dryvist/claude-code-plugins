@@ -107,7 +107,7 @@ Never put hostnames, credentials, or customer names in any query.
 
 ## Related Skills
 
-- **native-first** (script-guards) — the discovery ladder this feeds; search before
+- **native-first** (content-guards) — the discovery ladder this feeds; search before
   you write.
 - **gh-cli-patterns** (this plugin) — for searching a *known* repo or org through
   the GitHub API rather than the public corpus.

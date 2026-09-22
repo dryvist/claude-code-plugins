@@ -1,7 +1,7 @@
 {
   "name": "code-standards",
   "version": "6.2.1",
-  "description": "Code quality standards, documentation formatting, testing philosophy, and review guidelines",
+  "description": "Estate-specific code conventions not covered by generic review skills: logging format, monitoring-vs-test philosophy, doc format",
   "author": {
     "name": "JacobPEvans"
   },
@@ -16,7 +16,6 @@
     "standards"
   ],
   "skills": [
-    "./skills/code-quality-standards",
-    "./skills/review-standards"
+    "./skills/code-quality-standards"
   ]
 }

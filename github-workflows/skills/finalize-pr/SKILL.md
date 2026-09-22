@@ -196,7 +196,7 @@ Applies **only when the PR's `baseRefName` is `main`** — a trunk-repo PR or a
 `develop`→`main` promotion. A PR into `develop` on a git-flow repo is always
 AI-initiated; skip this step for it.
 
-This is the sanctioned moment to ask for a human (see pr-standards, git-standards
+This is the sanctioned moment to ask for a human (see pr-standards, github-workflows
 → Human-Review Gate). With CI, CodeQL, and threads clean, judge whether the change
 should still have human eyes before it merges to `main` — you are not confident
 enough, or merging would take an externally-visible action (e.g. cut a release) you
@@ -286,7 +286,7 @@ For `all`/`org` modes: Phases 2-5 loop per PR, Phase 6 aggregates results.
 - merge-pr (github-workflows) — merge a PR after finalize-pr reports ready
 - resolve-pr-threads (github-workflows) — invoked internally to resolve review threads
 - rebase-pr (github-workflows) — alternative merge strategy after finalize-pr reports ready
-- pr-standards (git-standards) — PR authoring and review standards
+- pr-standards (github-workflows) — PR authoring and review standards
 - code-quality-standards (code-standards) — code quality guidelines applied during fixes
 - gh-cli-patterns (github-workflows) — canonical gh CLI command shapes, placeholder convention, PR gate, code-scanning query
 - git-flow-next (git-workflows) — Dedicated git-flow-next guide, worktree setup, and promotion steps

@@ -127,5 +127,5 @@ explicit refspec prune and can delete local-only tags that are not release artif
 - **prune-branches** (github-workflows) — stale branch and worktree cleanup, run after this sync
 - **sync-main** (git-workflows) — Syncs the default branch and merges into current or all PR branches
 - **rebase-pr** (github-workflows) — Rebase-merge workflow for merging individual PRs
-- **git-workflow-standards** (git-standards) — Worktree structure and branch hygiene conventions
+- **git-workflow-standards** (git-workflows) — Worktree structure and branch hygiene conventions
 - **gh-cli-patterns** (github-workflows) — Canonical gh CLI command shapes, placeholder convention, PR-readiness gate, default-branch detection
