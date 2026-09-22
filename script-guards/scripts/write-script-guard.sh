@@ -35,7 +35,7 @@ esac
 
 # Allow files in known script directories
 case "$file_path" in
-    */scripts/*|*/hooks/*|*/.github/*|*/tests/*|*/test/*|*/plugins/*|*/.claude/plugins/*) exit 0 ;;
+    */scripts/*|*/hooks/*|*/.github/*|*/tests/*|*/test/*|*/plugins/*) exit 0 ;;
 esac
 
 # Expand ~ to $HOME for path normalization (Claude Code may pass ~ paths)
@@ -67,7 +67,8 @@ decision=$(echo "$response" | jq -r '.choices[0].message.content // empty' 2>/de
 
 # Check if response starts with "deny" (case-insensitive)
 if echo "$decision" | head -1 | grep -qi '^deny'; then
-    reason=$(echo "$decision" | sed 's/^[Dd]eny[[:space:]]*//')
+    reason="${decision#[Dd]eny}"
+    reason="${reason#"${reason%%[![:space:]]*}"}"
     jq -n --arg fp "$file_path" --arg reason "$reason" '{
         hookSpecificOutput: {
             hookEventName: "PreToolUse",

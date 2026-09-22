@@ -125,7 +125,7 @@ EOF
   if [[ "$lint_dir" == "/" ]]; then
     lint_file="${file_path#/}"
   else
-    lint_file="${file_path#${lint_dir}/}"
+    lint_file="${file_path#"${lint_dir}"/}"
   fi
 
   # markdownlint-cli2 only applies .markdownlintignore to glob-discovered files,
