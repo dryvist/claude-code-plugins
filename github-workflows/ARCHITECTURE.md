@@ -200,4 +200,3 @@ See [git-guards/ARCHITECTURE.md](../git-guards/ARCHITECTURE.md) and
 - [git-guards/ARCHITECTURE.md](../git-guards/ARCHITECTURE.md) — PreToolUse hooks
 - [content-guards/ARCHITECTURE.md](../content-guards/ARCHITECTURE.md) — Content validation
 - [code-standards/ARCHITECTURE.md](../code-standards/ARCHITECTURE.md) — Quality standards
-- [git-standards/ARCHITECTURE.md](../git-standards/ARCHITECTURE.md) — Git conventions

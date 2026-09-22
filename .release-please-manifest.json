@@ -6,7 +6,6 @@
   "codeql-resolver": "6.2.1",
   "content-guards": "6.2.1",
   "git-guards": "6.2.3",
-  "git-standards": "6.3.0",
   "git-workflows": "6.2.1",
   "github-workflows": "6.3.0",
   "homelab-ops": "1.0.0",

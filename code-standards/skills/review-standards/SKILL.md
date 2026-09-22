@@ -35,5 +35,5 @@ overly restrictive permissions that impede workflows are themselves a failure.
 ## Related Skills
 
 - **code-quality-standards** (code-standards) — Use when writing or reviewing code and documentation
-- **pr-standards** (git-standards) — PR & issue standards, PR guards, issue linking
+- **pr-standards** (github-workflows) — PR & issue standards, PR guards, issue linking
 - **finalize-pr** (github-workflows) — Manage your PR through the full author flow

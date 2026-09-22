@@ -245,5 +245,5 @@ This commonly occurs with release-please CHANGELOG.md entries that don't conform
 - **promote-release** (github-workflows) — The develop → main merge-commit path this skill refuses to substitute for
 - **pr-stacks** (github-workflows) — stacked PRs use `gh stack` cascading rebase, not this per-branch rebase
 - **sync-main** (git-workflows) — Syncs the default branch, often needed before rebasing
-- **pr-standards** (git-standards) — PR creation and review standards
+- **pr-standards** (github-workflows) — PR creation and review standards
 - **gh-cli-patterns** (github-workflows) — Canonical gh CLI command shapes, placeholder convention, PR-readiness gate, default-branch detection

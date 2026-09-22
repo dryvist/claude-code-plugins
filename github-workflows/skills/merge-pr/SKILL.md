@@ -210,5 +210,5 @@ Invoke at any time — auto-finalizes if needed:
 - rebase-pr (github-workflows) — alternative merge strategy that preserves commit history
 - pr-stacks (github-workflows) — stack-aware merge: landing a layer takes every unmerged layer below it
 - promote-release (github-workflows) — the develop → main promotion path; calls this skill directly and never squashes
-- pr-standards (git-standards) — PR authoring and review standards
+- pr-standards (github-workflows) — PR authoring and review standards
 - gh-cli-patterns (github-workflows) — canonical gh CLI command shapes, placeholder convention, PR-readiness gate, default-branch detection

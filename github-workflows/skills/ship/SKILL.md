@@ -196,7 +196,7 @@ AI-initiated, so there is nothing to request there.
 instruction to merge THAT PR. The scoping above governs where you may *apply* the
 label, not whether to honor one already present: a label on a `develop` PR means a
 human put it there deliberately, and this gate fails closed. See pr-standards
-(git-standards) → Human-Review Gate.
+(github-workflows) → Human-Review Gate.
 
 ## Step 3: Aggregate Results
 
@@ -275,5 +275,5 @@ PRs in the current repo (including unrelated ones).
 - merge-pr (github-workflows) — merge a PR after ship reports it ready
 - resolve-pr-threads (github-workflows) — invoked internally via finalize-pr to resolve review threads
 - gh-cli-patterns (github-workflows) — canonical gh CLI command shapes, placeholder convention, PR gate, code-scanning query
-- pr-standards (git-standards) — the Human-Review Gate policy: when to apply `human:review` and the absolute no-merge-without-instruction rule
+- pr-standards (github-workflows) — the Human-Review Gate policy: when to apply `human:review` and the absolute no-merge-without-instruction rule
 - git-flow-next (git-workflows) — Dedicated git-flow-next guide, worktree setup, and promotion steps

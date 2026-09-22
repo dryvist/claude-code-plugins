@@ -332,6 +332,6 @@ worktree-removal command shape from `/troubleshoot-worktree` and aligns with
   in the issue tracker or the incident system of record (Path A Step A2.5); never
   opens a GitHub issue
 - **troubleshoot-worktree** (git-workflows) — Worktree-removal command shape reused by `purge-pr` mode
-- **pr-standards** (git-standards) — Workaround Classification rubric used to decide when `purge-pr` is the right action
+- **pr-standards** (github-workflows) — Workaround Classification rubric used to decide when `purge-pr` is the right action
 - **git-flow-next** (git-workflows) — Dedicated git-flow-next guide, worktree setup, and promotion steps
 - **local-subagents** (ai-delegation) — the router mechanics used by "Delegate the bulk read": live model menu, tier choice, and the fallback rule.
