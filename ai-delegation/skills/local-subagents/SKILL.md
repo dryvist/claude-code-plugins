@@ -1,6 +1,6 @@
 ---
 name: local-subagents
-description: Use when any step of your work is bulk reading, summarizing, classifying, extracting, drafting boilerplate, or a first pass over unfamiliar code — hand it to a locally served or cheap model through the shared router instead of spending your own context on it. Covers when to delegate, how to read the live model menu (speed, quality, best-for, context, price) from the router's own contract, how to bound the call, and what to do when the router says no. Names no model ids; runs on shell, curl and jq in any harness.
+description: Use for bulk reading, summarizing, classifying, extracting, drafting boilerplate, or a first pass over code — hand it to a local/cheap model via the router, not your context. Covers delegation timing, the model menu, bounding calls, refusals.
 license: MIT
 metadata:
   version: 1.0.0
@@ -40,7 +40,7 @@ Delegate a step when its result can be **checked from concrete evidence**:
 | A first pass over unfamiliar code ("where is X handled") | Resolving contradictory evidence |
 | Drafting boilerplate, tests, config from a stated pattern | Reviewing anything risky |
 | Reading and reducing command or test output | The final answer to the user |
-| A single, scoped code edit with the pattern already decided | Deciding the pattern |
+| | Code edits — the main model writes and owns them, even inside a bigger delegated task |
 
 Two rules that keep this honest:
 
@@ -48,6 +48,28 @@ Two rules that keep this honest:
   does not make the task premium work. Delegate the other eight steps.
 - **Capable judges the subtask, not the parent task.** A 9B model summarizing
   a log is the right tool even inside a hard architectural task.
+- **Cheap tiers earn re-checkable lookups, not code.** Delegate to a cheap
+  tier only when the result can be verified against concrete evidence (a
+  grep hit, a test pass, a schema match). Code edits stay on the main model —
+  a misread search or a silently wrong edit from a cheap tier costs more than
+  doing it yourself.
+
+## 1b. Cheap first, escalate on checked failure
+
+When a delegated batch has a verification command (a test, a lint, a diff
+against expected output), run the cheapest capable tier first and re-run
+only the failures at the next tier up:
+
+1. Send the whole batch to the cheapest tier.
+2. Run the verification command per item.
+3. Re-run only the failing items one tier up. Never re-run items that
+   already passed.
+4. Stop after one escalation step — an item still failing goes to you, not a
+   third tier.
+
+This holds pass rate at roughly half the cost of running everything at the
+higher tier. It only works with a verification command; without one, send
+the work to whichever tier can judge it correctly the first time.
 
 **Never delegated, at any tier:** secrets and credentials, secret-store
 context, private infrastructure topology (hosts, addresses, what depends on

@@ -1,6 +1,6 @@
 ---
 name: issue-sweep
-description: "Use when a tracker's open issues have piled up, gone stale, or stopped reflecting reality — issues that may already be fixed, duplicated, vague, or superseded — and you want them reconciled against the actual code and system, grouped by root cause, and turned into a plan for the highest-value cluster. Works with any tracker (GitHub issues, an API-based tracker, or several at once). Also use before planning a work session, to learn which open issues are still real."
+description: "Use when a tracker's open issues piled up, went stale, or stopped reflecting reality — maybe fixed, duplicated, vague, superseded — reconcile against actual code, group by root cause, turn into a plan. Any tracker. Use before a work session too."
 ---
 
 # Issue Sweep

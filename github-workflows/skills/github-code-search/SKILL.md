@@ -1,6 +1,6 @@
 ---
 name: github-code-search
-description: Search real code across ~1M public GitHub repositories via grep.app — use when you need to see how others already solved something before writing it, find real usage of an API or config key, check whether a pattern is idiomatic, or gather prior art for a design decision. Works through the `grep` MCP server or a keyless HTTP fallback.
+description: Search real code across ~1M public GitHub repos via grep.app — use to see how others solved something, find real API/config-key usage, check if a pattern is idiomatic, or gather prior art. Works via the grep MCP server or a keyless HTTP fallback.
 license: Apache-2.0
 metadata:
   version: 1.0.0
@@ -107,7 +107,7 @@ Never put hostnames, credentials, or customer names in any query.
 
 ## Related Skills
 
-- **native-first** (script-guards) — the discovery ladder this feeds; search before
+- **native-first** (content-guards) — the discovery ladder this feeds; search before
   you write.
 - **gh-cli-patterns** (this plugin) — for searching a *known* repo or org through
   the GitHub API rather than the public corpus.

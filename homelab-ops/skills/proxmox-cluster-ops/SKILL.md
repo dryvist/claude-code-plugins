@@ -1,6 +1,6 @@
 ---
 name: proxmox-cluster-ops
-description: Operate a Proxmox VE cluster safely — read-only inspection with pvesh/pct/qm/pvecm instead of hand-editing a live guest, node-by-node package updates that respect quorum, and the shape of joining a new node to an existing cluster. Use when inspecting cluster or guest state, planning a rolling update across cluster nodes, or adding a node to a Proxmox cluster.
+description: Operate a Proxmox VE cluster safely — read-only inspection with pvesh/pct/qm/pvecm instead of hand-editing a live guest, quorum-respecting node updates, joining a new node. Use for cluster/guest inspection, rolling updates, or adding a node.
 ---
 
 # Proxmox VE cluster operations

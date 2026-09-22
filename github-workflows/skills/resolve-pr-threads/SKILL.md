@@ -205,5 +205,5 @@ Omit "Threads:" when zero threads; omit "Comments:" when zero comments.
 
 - finalize-pr (github-workflows) — orchestrator that invokes resolve-pr-threads as part of PR finalization
 - trigger-ai-reviews (github-workflows) — triggers AI reviewers whose feedback is resolved by this skill
-- pr-standards (git-standards) — PR authoring and review standards
+- pr-standards (github-workflows) — PR authoring and review standards
 - gh-cli-patterns (github-workflows) — canonical gh CLI command shapes, fetch/resolve/reply patterns, placeholder convention

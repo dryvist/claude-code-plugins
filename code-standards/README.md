@@ -1,13 +1,13 @@
 # code-standards
 
-Code quality standards, documentation formatting, testing philosophy, and review guidelines.
+Estate-specific code conventions not covered by generic review skills:
+logging format, monitoring-vs-test philosophy, doc format.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for integration diagrams.
 
 ## Skills
 
-- **`/code-quality-standards`** - Code quality, language rules, testing philosophy, documentation format
-- **`/review-standards`** - PR review focus areas, permission review principles
+- **`/code-quality-standards`** - Logging format, monitoring-vs-test philosophy, doc format
 
 ## Installation
 
@@ -19,7 +19,6 @@ claude plugins add jacobpevans-cc-plugins/code-standards
 
 ```text
 /code-quality-standards
-/review-standards
 ```
 
 ## License

@@ -53,6 +53,13 @@ external/adversarial second opinion, and the shared router (see
 
 - Cloud fan-out across many providers is not part of this skill — reach for
   Codex (OpenAI) or a dedicated tool when you need a specific external model.
+- Code edits stay on the main model or a native `general-purpose`/`Plan`
+  subagent — never a cheap/local route, even for a "simple" edit. Cheap
+  tiers (`local-subagents`) are for lookups whose output can be checked
+  against concrete evidence, not for writing code.
+- When a routed batch has a verification command, run it cheap first and
+  re-run only the checked failures one tier up (`local-subagents` §1b) —
+  do not pick a single tier up front for the whole batch.
 
 ## Related Skills
 

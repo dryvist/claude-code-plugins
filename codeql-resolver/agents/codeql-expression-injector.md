@@ -2,6 +2,7 @@
 name: CodeQL Expression Injector Fixer
 description: Mitigate expression injection vulnerabilities in workflows
 model: haiku
+effort: low
 author: JacobPEvans
 allowed-tools: Read, Edit, Write, Bash(git *), Bash(gh *)
 ---

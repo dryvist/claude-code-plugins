@@ -1,6 +1,6 @@
 ---
 name: session-status
-description: "Analyzes current session state without any cleanup. Full mode (default): resolves the active plan file, reads plan checklist + TaskList, gathers unfinished work/issues from conversation history, and emits a /handoff-built next-session prompt. Mid-session mode (`/session-status mid`): a fast plain-language 'done vs remaining' snapshot for mid-flight orientation, skipping the history scan, triage, and handoff. Repository and PR state is optional enrichment — both modes run outside a git repository."
+description: "Analyzes current session state, no cleanup. Full mode (default): plan+TaskList+history scan, emits a /handoff prompt. Mid mode (`/session-status mid`): fast 'done vs remaining' snapshot. Repo/PR state is optional; both modes run outside a repo."
 ---
 
 # Session and Repository Status Analysis
@@ -166,21 +166,10 @@ remote state:
    same block, a bare #123 is acceptable as a short reference after the
    URL has been shown once.
 5. **Validation follow-up** (refs dryvist/ai-assistant-instructions#749): for
-   every open PR this session authored (branch name or PR body carries this
-   session's id, plus any PR created in this conversation), check the
-   `agent-validated` commit status on the current head SHA:
-
-   ```bash
-   head_sha=$(gh pr view <n> --json headRefOid --jq '.headRefOid')
-   gh api "repos/{owner}/{repo}/commits/$head_sha/statuses" \
-     --jq '[.[] | select(.context == "agent-validated")][0].state'
-   ```
-
-   Flag as **needs follow-up**: no `agent-validated` status on the head SHA
-   (unvalidated, or validated evidence went stale when new commits landed),
-   state `failure`, or the PR is validated but sitting unmerged. These are
-   enforced follow-ups — they go in the report and, when unfinished, into
-   the next-session prompt or a tracker item (Step 4).
+   every open PR this session authored, check the `agent-validated` commit
+   status on the current head SHA and flag as needs-follow-up if missing,
+   stale, or `failure`. Exact command and flag conditions:
+   [references/output-format.md](references/output-format.md#validation-follow-up-check).
 
 ---
 
@@ -195,19 +184,9 @@ carrying an explicit lower `model:` when the transcript is longer than one call
 holds. The premium lead triages (Step 4) over the returned table, not the dump.
 
 Cap the input: the plan file, at most 30 open PRs, and the history scan's own
-stop rule (~10 quiet messages). Truncate rather than paginate.
-
-Small-model prompt (short imperatives, explicit schema, hard STOP):
-
-```text
-Extract items from the input. Do not explain. Do not advise. Do not fix.
-Output ONLY this table, one row per item:
-  item | kind (TASK/ISSUE/PR/CHECKLIST) | state | evidence (line no, URL, or quote)
-Rules:
-1. Copy text verbatim. Never paraphrase an item.
-2. Unknown field -> write UNKNOWN. Never guess a state.
-3. At most 60 rows. STOP after the table.
-```
+stop rule (~10 quiet messages). Truncate rather than paginate. Exact
+small-model prompt text:
+[references/output-format.md](references/output-format.md#small-model-extraction-prompt-step-35).
 
 **Fallback (verbatim from `local-subagents`)**: none of the router's failure
 paths authorize a silent fallback. "Absorbing the work back into your own
@@ -243,75 +222,20 @@ those mechanics here is how the two drift apart.
 
 ## Step 5: Output Format
 
-Present the final status analysis in the following structured dashboard:
+Goal: present a live, human-facing dashboard covering plan status, TaskList
+status, repo/git state, unfinished work, session issues, and the
+recommended next-session prompt plus tracker/incident item recommendations.
 
-```text
-Session & Repository Status Report
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Done when: every section below has a value, never a placeholder left
+un-filled; the next-session prompt was built via `/handoff` (a real goal
+statement, not a bare task list); and items already tracked are prefixed
+with their bare identifier instead of restated as new. Exact dashboard
+template, the "already tracked" shape, and the bare-`#NNNNN`-is-fine
+exception for this report only:
+[references/output-format.md](references/output-format.md#step-5-dashboard-template).
 
-Active Plan:
-  Plan File:        <plan-file path or "none">
-  Status:           <complete | incomplete | "no plan file found">
-  Progress:         <n> of <m> checklist items completed
-  Open Items:       <list open checklist items with line numbers, or "none">
-
-Harness TaskList:
-  Status:           <complete | incomplete | "empty">
-  Open Tasks:       <list open tasks, or "none">
-
-Git & Repository Status:      <or "not a repository — skipped">
-  Current Branch:   <branch-name>
-  Sync Status:      <ahead/behind/up-to-date with remote>
-  Modified Files:   <list of modified/untracked files, or "clean">
-  Associated PR:    <PR URL or "none found">
-  Validation:       <per session PR: agent-validated success | FAILURE | MISSING on head SHA; or "no session PRs">
-
-Unfinished Work & Future Tasks:
-  - <item 1>
-  - <item 2>
-
-Session Issues Log:
-  - <error/warning/workaround encountered>
-
-Recommended Prompt for Next Session:
-─────────────────────────────────────
-<Build this by invoking the `/handoff` skill with the triaged 1–3 quick-win tasks
-as source. `/handoff` returns a `## Goal statement` (capped under 4000 chars,
-measured with `wc -m`) plus a `## Full prompt` — paste both here. This guarantees
-the next-session prompt carries a real goal that drops into `/goal`, not a bare
-task list. Include the resolved plan file path (~/.claude/plans/<slug>.md) so the
-new session can re-enter plan mode against it.>
-─────────────────────────────────────
-
-Recommended Tracker Items:
-─────────────────────────────────────
-1. <Title> — <one-line summary> [new | update <item URL>]
-─────────────────────────────────────
-
-Recommended Incident Tickets:
-─────────────────────────────────────
-1. <Title> — <one-line summary> [new | update <ticket URL>]
-─────────────────────────────────────
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-```
-
-Both lists are **recommendations**; `track-followups` creates them and reports the
-resulting identifiers.
-
-If every item in the "Unfinished Work & Future Tasks" section above is already
-tracked, write the heading as
-`Unfinished Work & Future Tasks (already tracked):` and prefix
-each item with its bare identifier, matching this shape:
-
-```text
-Unfinished Work & Future Tasks (already tracked):
-  - #17053  <one-line description>
-  - #17058  <one-line description>
-```
-
-This is a live, human-facing report, not a cold-start artifact — a bare
-`#NNNNN` here is fine. The "always full URL, never bare `#123`" rule applies
-to `handoff` and `wrap-up`'s resume blocks, not this dashboard.
+Both the tracker-items and incident-tickets lists are **recommendations**;
+`track-followups` creates them and reports the resulting identifiers.
 
 ---
 

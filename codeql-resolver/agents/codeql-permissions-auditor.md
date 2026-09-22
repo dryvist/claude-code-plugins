@@ -2,6 +2,7 @@
 name: CodeQL Permissions Auditor
 description: Analyze workflow permission issues and apply fixes
 model: haiku
+effort: low
 author: JacobPEvans
 allowed-tools: Read, Edit, Write, Bash(git *), Bash(gh *)
 ---

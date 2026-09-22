@@ -1,6 +1,6 @@
 ---
 name: pr-sweep
-description: "Use when open pull requests have piled up in one repo or across an owner's repos and you want the pile triaged and driven toward zero in one pass — including when most of them are bot- or teammate-authored. Also use when a sweep must run many repos in parallel without racing approvals or flooding CI."
+description: "Use when open PRs piled up in one repo or an owner's repos and you want them triaged and driven to zero in one pass — bot/teammate-authored included. Also for sweeps running many repos in parallel without racing approvals or flooding CI."
 ---
 
 # PR Sweep
@@ -65,7 +65,8 @@ Run all five in order. Phases 1 and 3 fan out; 0, 2, and 4 are the lead's.
   Report the count. Spawn one worker per repo, capped (default 4 concurrent).
 - **Phase 1 — Triage (workers, parallel, read-only).** Each worker classifies
   every PR in its repo and detects repo-level conditions (broken base,
-  repo-wide gate). Output: one report block per repo. No writes.
+  repo-wide gate). Output: the one-line-per-PR report schema below, never
+  prose — no writes.
 - **Phase 2 — Approval (lead, one round).** Batch **all** escalations into a
   single round — one short paragraph per PR: identity, diffstat, state, and
   the specific yes/no question. No diffs. Then issue per-repo execution

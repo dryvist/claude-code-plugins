@@ -9,11 +9,8 @@ description: >-
 
 # Git Workflow Standards
 
-## Worktree Structure
-
-All development uses dedicated worktrees. Never work directly on the default
-branch — `main` on a trunk repo, `develop` on a git-flow repo.
-Create a worktree for the change; remove it when the work is done.
+Worktree setup and structure: see `superpowers:using-git-worktrees`. This
+skill covers what comes after the worktree exists.
 
 Every branch with commits MUST have an associated PR.
 Orphaned branches must get a PR or be deleted.
@@ -98,5 +95,5 @@ contradictions, or security-sensitive code.
 - **prune-branches** (github-workflows) — Stale branch and worktree cleanup
 - **pr-stacks** (github-workflows) — the sanctioned exception to "never branch from feature branches": layering a PR stack
 - **gh-cli-patterns** (github-workflows) — Canonical default-branch detection (trunk vs git-flow)
-- **pr-standards** (git-standards) — PR creation guards, issue linking, and review standards
+- **pr-standards** (github-workflows) — PR creation guards, issue linking, and review standards
 - **git-flow-next** (git-workflows) — Dedicated git-flow-next guide, worktree setup, and promotion steps

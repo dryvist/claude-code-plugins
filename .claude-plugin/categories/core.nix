@@ -22,15 +22,10 @@
     "ai-cli-harness-better-practices@jacobpevans-cc-plugins"
     "git-guards@jacobpevans-cc-plugins"
     "git-workflows@jacobpevans-cc-plugins"
-    "git-standards@jacobpevans-cc-plugins"
     "github-workflows@jacobpevans-cc-plugins"
     "code-standards@jacobpevans-cc-plugins"
     "project-standards@jacobpevans-cc-plugins"
     "process-cleanup@jacobpevans-cc-plugins"
-    "pal-health@jacobpevans-cc-plugins"
-    "pr-lifecycle@jacobpevans-cc-plugins"
-    "script-guards@jacobpevans-cc-plugins"
-    "session-analytics@jacobpevans-cc-plugins"
     "ai-delegation@jacobpevans-cc-plugins"
     "codeql-resolver@jacobpevans-cc-plugins"
     # claude-plugins-official — owns commit-commands, whose synthesized
@@ -45,8 +40,6 @@
     "workspace-standards"
     # jacobpevans code-standards
     "code-quality-standards"
-    "review-standards"
-    # jacobpevans git-standards
     "git-workflow-standards"
     "pr-standards"
     # jacobpevans github-workflows
@@ -76,8 +69,6 @@
     # jacobpevans codeql-resolver
     "codeql-permission-classification"
     "github-workflow-security-patterns"
-    # jacobpevans session-analytics
-    "token-breakdown"
     # jacobpevans content-guards
     "validate-readme"
     # jacobpevans infra-standards

@@ -1,6 +1,6 @@
 ---
 name: multi-model-review
-description: Fan a plan or diff out to independent model families — a cloud coding-agent CLI, a cloud reasoning-agent CLI, and a local model server — for adversarial review, plus the gotcha each type of invocation hits. Use when a second (or third) opinion on a plan/diff is wanted from genuinely independent models, when one reviewer's verdict seems suspect, or when a local/offline reviewer needs to be brought up first.
+description: Fan a plan/diff to independent model families — cloud coding-agent CLI, cloud reasoning-agent CLI, local model server — for adversarial review, plus each invocation's gotcha. Use for a second opinion, a suspect verdict, or an offline reviewer.
 ---
 
 # Multi-model review

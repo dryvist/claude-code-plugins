@@ -118,7 +118,7 @@ above would have caught all 8 before any CI ran.
 Delete local branches with no open PR and no push activity within `<days>`.
 Adds a time threshold on top of Stale; every rule above still applies.
 
-Per branch: if `gh pr list --head <branch>` is empty and
+Per branch: if `gh pr list --head <branch> --json number --limit 1` is empty and
 `git log -1 --format=%cr <branch>` is older than `<days>`, run
 `git worktree remove <path>` (never `--force`) then `git branch -d <branch>`.
 
@@ -128,5 +128,5 @@ conservative.
 ## Related Skills
 
 - **refresh-repo** (github-workflows) — sync the default branch first
-- **git-workflow-standards** (git-standards) — worktree and branch conventions
+- **git-workflow-standards** (git-workflows) — worktree and branch conventions
 - **gh-cli-patterns** (github-workflows) — canonical gh CLI command shapes, default-branch detection

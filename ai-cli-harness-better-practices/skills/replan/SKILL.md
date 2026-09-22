@@ -1,6 +1,6 @@
 ---
 name: replan
-description: "Rebuild a plan from live ground truth — the artifacts themselves, tests, and (in a repository) git and gh — when the existing plan file no longer matches reality — items silently done, approach superseded, or facts drifted. Use when a plan has gone stale mid-effort or when resuming reveals contradictions. Re-derives ground truth first, never trusting the plan's own prose, then rewrites the plan to match what is actually true and what actually remains."
+description: "Rebuild a plan from live ground truth (artifacts, tests, git/gh) when it no longer matches reality — items done, approach superseded, facts drifted. Use when a plan goes stale or resuming reveals contradictions. Never trusts the plan's own prose."
 ---
 
 # Replan

@@ -1,6 +1,6 @@
 ---
 name: native-first
-description: "Stack-agnostic discovery playbook for finding the native, non-custom way to do something before writing any script or wrapper. Use when tempted to write a shell/python/glue script, add a dependency, or build a custom helper — and whenever a script-guards hook blocks a script write. Climbs a fixed ladder (tool's own config/flag/module, native platform feature, official docs via Context7, package registry, issue tracker) and ends with a hard rule: if no native path exists, output the evidence you checked, never a silent script fallback."
+description: "Stack-agnostic playbook for the native, non-custom way to do something before writing a script or wrapper. Use when tempted to add a dependency or build a helper, or content-guards blocks a write. Climbs a fixed ladder; ends against silent fallback."
 ---
 
 # Native-First
@@ -9,7 +9,7 @@ Find the way something is *meant* to be done before building a custom way. Most
 "I need a script" moments have a native answer that is smaller, already tested,
 and maintained by someone else. This skill is the search for that answer.
 
-It pairs with the `script-guards` hooks. The hooks **block** an unnecessary
+It pairs with the script-guard hooks in this plugin. The hooks **block** an unnecessary
 script; this skill **supplies the native path** that makes the block irrelevant.
 `ponytail` decides *what rung* to reach for; native-first does the *research* that
 rung needs when the answer is not already in front of you.
@@ -18,7 +18,7 @@ rung needs when the answer is not already in front of you.
 
 - You are about to write a shell/python/glue script or a custom helper function.
 - You are about to add a dependency for something small.
-- A `script-guards` hook just blocked a script write. Do not route around it —
+- A script-guard hook just blocked a script write. Do not route around it —
   run this ladder instead.
 - You catch yourself thinking "there's probably a flag for this, but it's faster
   to just script it." That thought is the trigger.
@@ -85,7 +85,7 @@ tool ships its next major version. A native path that did not exist at v2 often
 exists at v3, and the helper should retire the moment it does.
 
 Only after that evidence is a custom script the right call. A script written
-*without* that evidence is the thing this skill and the `script-guards` hooks
+*without* that evidence is the thing this skill and the script-guard hooks
 exist to stop. "I couldn't find one" is not evidence; "I checked these five
 places and here is what each returned" is.
 
@@ -98,7 +98,7 @@ justification the script needs to exist.
 
 ## Related
 
-- **script-guards hooks** (this plugin) — block unnecessary script writes; this
+- **script-guard hooks** (this plugin) — block unnecessary script writes; this
   skill supplies the native alternative they assume exists.
 - **native-first is stack-agnostic** — it is not Nix-specific. On a Nix machine,
   a repo's `nix-tool-policy` rule adds the Nix-specific rungs on top of this ladder.

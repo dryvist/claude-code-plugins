@@ -1,6 +1,6 @@
 ---
 name: fast-subagent
-description: Use whenever a step of your work is routine and checkable — summarize, extract, classify, reformat, draft boilerplate, reduce command output, a first pass over a file — and keep using it for every such step through the whole session. One command sends the step to the shared router's fast-subagent role (`fast`, alias `subagent`) and the router decides which backend answers and the fallback order, so nothing here needs redeploying when the ranking changes. Names no model ids; runs on shell, curl and jq in any harness.
+description: Use for any routine/checkable step — summarize, extract, classify, reformat, draft boilerplate, first pass over a file — every such step, all session. Sends to the router's fast-subagent role, which picks backend/fallback. Names no model ids.
 license: MIT
 metadata:
   version: 1.0.0
