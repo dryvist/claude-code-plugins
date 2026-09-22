@@ -127,15 +127,6 @@
       }
     },
     {
-      "name": "pal-health",
-      "source": "./pal-health",
-      "description": "Session-start hook to warn about recent PAL MCP Doppler failures",
-      "version": "6.2.1",
-      "author": {
-        "name": "JacobPEvans"
-      }
-    },
-    {
       "name": "pr-lifecycle",
       "source": "./pr-lifecycle",
       "description": "Automatically triggers PR finalization after PR creation",
@@ -157,15 +148,6 @@
       "name": "project-standards",
       "source": "./project-standards",
       "description": "AgentsMD authoring standards, workspace management, and skills/tools registry lookup",
-      "version": "6.2.1",
-      "author": {
-        "name": "JacobPEvans"
-      }
-    },
-    {
-      "name": "session-analytics",
-      "source": "./session-analytics",
-      "description": "Claude Code session token analytics via Splunk OTEL telemetry",
       "version": "6.2.1",
       "author": {
         "name": "JacobPEvans"
