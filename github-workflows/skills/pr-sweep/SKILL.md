@@ -65,7 +65,8 @@ Run all five in order. Phases 1 and 3 fan out; 0, 2, and 4 are the lead's.
   Report the count. Spawn one worker per repo, capped (default 4 concurrent).
 - **Phase 1 — Triage (workers, parallel, read-only).** Each worker classifies
   every PR in its repo and detects repo-level conditions (broken base,
-  repo-wide gate). Output: one report block per repo. No writes.
+  repo-wide gate). Output: the one-line-per-PR report schema below, never
+  prose — no writes.
 - **Phase 2 — Approval (lead, one round).** Batch **all** escalations into a
   single round — one short paragraph per PR: identity, diffstat, state, and
   the specific yes/no question. No diffs. Then issue per-repo execution
