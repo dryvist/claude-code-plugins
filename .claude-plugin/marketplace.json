@@ -21,7 +21,7 @@
     {
       "name": "code-standards",
       "source": "./code-standards",
-      "description": "Code quality standards, documentation formatting, testing philosophy, and review guidelines",
+      "description": "Estate-specific code conventions not covered by generic review skills: logging format, monitoring-vs-test philosophy, doc format",
       "version": "6.2.1",
       "author": {
         "name": "JacobPEvans"

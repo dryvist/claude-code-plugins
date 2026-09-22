@@ -75,7 +75,7 @@ On-demand skill-based plugins that load specific standards as context.
 
 | Plugin | Skills | Coverage |
 |--------|--------|----------|
-| **code-standards** | `/code-quality-standards`, `/review-standards` | Code quality, documentation, testing, review guidelines |
+| **code-standards** | `/code-quality-standards` | Estate-specific code conventions: logging format, monitoring-vs-test philosophy, doc format |
 | **infra-standards** | `/infrastructure-standards` | Proxmox, Terraform, Ansible deployment |
 | **project-standards** | `/claude-skill-authoring`, `/workspace-standards`, `/skills-registry`, `/nix-tool-policy` | Claude skill authoring, workspace, skills registry, Nix tool policy |
 
