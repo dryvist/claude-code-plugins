@@ -313,21 +313,6 @@
         }
       ]
     },
-    "script-guards": {
-      "component": "script-guards",
-      "extra-files": [
-        {
-          "type": "json",
-          "path": ".claude-plugin/plugin.json",
-          "jsonpath": "$.version"
-        },
-        {
-          "type": "json",
-          "path": "/.claude-plugin/marketplace.json",
-          "jsonpath": "$.plugins[?(@.name==\"script-guards\")].version"
-        }
-      ]
-    },
     "session-analytics": {
       "component": "session-analytics",
       "extra-files": [

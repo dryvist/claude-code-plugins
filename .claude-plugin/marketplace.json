@@ -147,7 +147,7 @@
     {
       "name": "process-cleanup",
       "source": "./process-cleanup",
-      "description": "Cleanup orphaned MCP server processes on session exit — workaround for upstream bug #1935",
+      "description": "Cleanup orphaned MCP server processes on session exit \u2014 workaround for upstream bug #1935",
       "version": "6.2.1",
       "author": {
         "name": "JacobPEvans"
@@ -158,15 +158,6 @@
       "source": "./project-standards",
       "description": "AgentsMD authoring standards, workspace management, and skills/tools registry lookup",
       "version": "6.2.1",
-      "author": {
-        "name": "JacobPEvans"
-      }
-    },
-    {
-      "name": "script-guards",
-      "source": "./script-guards",
-      "description": "Prevents unnecessary script generation - enforces research-first, native-tool-first patterns via PreToolUse and UserPromptSubmit hooks",
-      "version": "6.2.2",
       "author": {
         "name": "JacobPEvans"
       }

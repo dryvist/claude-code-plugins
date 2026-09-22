@@ -29,7 +29,6 @@
     "process-cleanup@jacobpevans-cc-plugins"
     "pal-health@jacobpevans-cc-plugins"
     "pr-lifecycle@jacobpevans-cc-plugins"
-    "script-guards@jacobpevans-cc-plugins"
     "session-analytics@jacobpevans-cc-plugins"
     "ai-delegation@jacobpevans-cc-plugins"
     "codeql-resolver@jacobpevans-cc-plugins"
