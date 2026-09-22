@@ -35,7 +35,6 @@ description: Use when looking up available tools, skills, commands, agents, or p
 | Git workflow standards | `/git-workflow-standards` | `git-standards` | Branches |
 | PR & issue standards | `/pr-standards` | `git-standards` | PR guards |
 | Code quality | `/code-quality-standards` | `code-standards` | Code rules |
-| Code review | `/review-standards` | `code-standards` | Review focus |
 | Infrastructure | `/infrastructure-standards` | `infra-standards` | IaC standards |
 | Claude skill authoring | `/claude-skill-authoring` | `project-standards` | Token budgets & placement |
 | Workspace management | `/workspace-standards` | `project-standards` | Multi-repo |

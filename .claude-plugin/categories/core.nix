@@ -45,7 +45,6 @@
     "workspace-standards"
     # jacobpevans code-standards
     "code-quality-standards"
-    "review-standards"
     # jacobpevans git-standards
     "git-workflow-standards"
     "pr-standards"
