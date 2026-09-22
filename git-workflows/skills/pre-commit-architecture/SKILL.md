@@ -1,6 +1,6 @@
 ---
 name: pre-commit-architecture
-description: Use when adding or editing .pre-commit-config.yaml, wiring pre-commit hooks into a repo, scaffolding a new repo's lint/hook setup, or deciding where a hook or shared lint config should live. Covers the canonical nix-devenv/dryvist-.github architecture, profiles, and consumer patterns.
+description: Use when adding/editing .pre-commit-config.yaml, wiring pre-commit hooks into a repo, or scaffolding a new repo's lint/hook setup. Covers the canonical nix-devenv/dryvist-.github architecture, profiles, and consumer patterns.
 ---
 
 # Pre-Commit Architecture

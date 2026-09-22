@@ -1,6 +1,6 @@
 ---
 name: dell-idrac-bmc-ops
-description: Bring a Dell PowerEdge BMC (iDRAC) onto the network headlessly, standardize its baseline settings, stage its firmware, and drive an unattended Proxmox/Linux install through it — including generation-specific Redfish/racadm gotchas, the identity-before-power-action rule, and the phantom-drive failure mode caused by stale firmware. Use when bringing up a new or used PowerEdge server, when a BMC won't respond, when planning any BMC power action, or when firmware looks stuck.
+description: Bring a Dell PowerEdge BMC (iDRAC) onto the network headlessly, standardize settings, stage firmware, drive an unattended install — Redfish/racadm gotchas, identity-before-power, phantom-drive from stale firmware. Use bringing up/diagnosing a BMC.
 ---
 
 # Dell iDRAC BMC operations

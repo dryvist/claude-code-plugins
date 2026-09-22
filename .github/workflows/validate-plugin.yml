@@ -111,6 +111,9 @@ jobs:
             jq empty "$json_file"
           done
 
+      - name: Lint skill description length
+        run: scripts/lint-skill-descriptions.sh
+
       - name: Install bats-core and markdownlint-cli2
         run: sudo npm install -g bats markdownlint-cli2
 

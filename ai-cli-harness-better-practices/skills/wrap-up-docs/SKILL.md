@@ -1,6 +1,6 @@
 ---
 name: wrap-up-docs
-description: "Emit one paste-ready prompt for a local (weaker) LLM whose sole job is updating public and private documentation to match every technical change this session made — an exhaustive per-item changelog (file/component path, what changed technically, commit SHAs, PR URLs, why), routed between public repo docs and the private docs site by fixed rules, wrapped in zero-inference instructions and a documentation-only scope fence. Read-only: emits the artifact, writes nothing. Git-first evidence (working-tree status, commits ahead of upstream, PRs) with a conversation-history scan for rationale; runs outside a repository too. Use at end of session when docs must catch up, especially before delegating doc updates to a less capable model."
+description: "Emit a paste-ready prompt for a weaker LLM to update public/private docs from this session's changes: per-item changelog, fixed routing, docs-only scope fence. Read-only, git-first evidence. Use at session end before delegating docs."
 ---
 
 # Wrap-Up Docs

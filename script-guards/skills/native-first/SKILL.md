@@ -1,6 +1,6 @@
 ---
 name: native-first
-description: "Stack-agnostic discovery playbook for finding the native, non-custom way to do something before writing any script or wrapper. Use when tempted to write a shell/python/glue script, add a dependency, or build a custom helper — and whenever a script-guards hook blocks a script write. Climbs a fixed ladder (tool's own config/flag/module, native platform feature, official docs via Context7, package registry, issue tracker) and ends with a hard rule: if no native path exists, output the evidence you checked, never a silent script fallback."
+description: "Stack-agnostic playbook for the native, non-custom way to do something before writing a script or wrapper. Use when tempted to add a dependency or build a helper, or script-guards blocks a write. Climbs a fixed ladder; ends against silent fallback."
 ---
 
 # Native-First

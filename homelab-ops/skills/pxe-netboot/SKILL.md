@@ -1,6 +1,6 @@
 ---
 name: pxe-netboot
-description: Reliable remote OS install over PXE when a server's virtual-media/remote-KVM path is broken or unreliable — proxyDHCP + TFTP via dnsmasq, kernel/initrd served over plain HTTP, and a custom-built iPXE binary with an embedded autoexec script (because a distro-packaged one won't auto-chainload). Use when a legacy BMC's virtual CD is unreliable, USB-boot keeps falling through to an unwanted existing OS, or any headless install needs a from-scratch netboot path.
+description: Reliable remote OS install over PXE when virtual-media/KVM is broken — proxyDHCP+TFTP via dnsmasq, kernel/initrd over HTTP, custom iPXE with embedded autoexec. Use when a BMC's virtual CD is unreliable or a headless install needs netboot.
 ---
 
 # PXE netboot install (legacy/unreliable remote-media hardware)

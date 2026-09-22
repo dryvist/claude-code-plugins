@@ -1,6 +1,6 @@
 ---
 name: github-actions-silent-failures
-description: Diagnose GitHub Actions workflows that fail silently — a reusable-workflow run that shows zero jobs and no logs (startup_failure), a gh-aw cross-repo import that mis-resolves when the source repo is literally named .github, and self-hosted-runner traps (a shared-tmp race across containers, docker exec landing as an unprivileged user). Use when a required check never turns red, a workflow run has no jobs at all, or a self-hosted-runner failure looks flaky but keeps recurring.
+description: Diagnose GitHub Actions workflows that fail silently — a reusable-workflow run with zero jobs/logs, a gh-aw import mis-resolving vs a repo named .github, self-hosted-runner traps. Use when a required check never reds or a run has no jobs.
 ---
 
 # GitHub Actions silent-failure diagnostics
@@ -22,7 +22,11 @@ separate gate alone.
 report only `startup_failure` and a generic "workflow file issue" — the real
 error text exists only on the run's HTML page. Any triage that stops at
 `gh run view` concludes "no useful information" and moves on, which is how
-this stays undiagnosed. Fetch the run's HTML page to read the actual error.
+this stays undiagnosed. Don't pull the whole rendered page into context —
+fetch it and grep for the annotation banner (`grep -A5 'annotation-message\|workflow-file-issue'`)
+to pull out just the error line, or check the run's `referenced_workflows`
+field first (see Detection below) since it often narrows this to one
+permissions mismatch without a page fetch at all.
 
 Four distinct causes produce this exact symptom:
 
