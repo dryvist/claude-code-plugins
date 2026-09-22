@@ -51,4 +51,4 @@ Rabbit Holes (complexity traps), Done Looks Like (acceptance criteria).
 
 ## Related Skills
 
-- pr-standards (git-standards) — PR authoring and review standards applied after issues are implemented
+- pr-standards (github-workflows) — PR authoring and review standards applied after issues are implemented
