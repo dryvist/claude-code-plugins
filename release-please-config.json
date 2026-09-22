@@ -148,21 +148,6 @@
         }
       ]
     },
-    "git-standards": {
-      "component": "git-standards",
-      "extra-files": [
-        {
-          "type": "json",
-          "path": ".claude-plugin/plugin.json",
-          "jsonpath": "$.version"
-        },
-        {
-          "type": "json",
-          "path": "/.claude-plugin/marketplace.json",
-          "jsonpath": "$.plugins[?(@.name==\"git-standards\")].version"
-        }
-      ]
-    },
     "git-workflows": {
       "component": "git-workflows",
       "extra-files": [

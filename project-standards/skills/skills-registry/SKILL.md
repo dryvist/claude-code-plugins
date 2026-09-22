@@ -32,8 +32,8 @@ description: Use when looking up available tools, skills, commands, agents, or p
 | Orchestrate infra | `/orchestrate-infra` | `infra-orchestration` | Cross-repo |
 | Sync terraform inventory | `/sync-inventory` | `infra-orchestration` | Outputs |
 | E2E pipeline test | `/test-e2e` | `infra-orchestration` | Full stack |
-| Git workflow standards | `/git-workflow-standards` | `git-standards` | Branches |
-| PR & issue standards | `/pr-standards` | `git-standards` | PR guards |
+| Git workflow standards | `/git-workflow-standards` | `git-workflows` | Branches |
+| PR & issue standards | `/pr-standards` | `github-workflows` | PR guards |
 | Code quality | `/code-quality-standards` | `code-standards` | Code rules |
 | Code review | `/review-standards` | `code-standards` | Review focus |
 | Infrastructure | `/infrastructure-standards` | `infra-standards` | IaC standards |

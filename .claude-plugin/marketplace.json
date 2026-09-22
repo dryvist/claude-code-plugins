@@ -55,15 +55,6 @@
       }
     },
     {
-      "name": "git-standards",
-      "source": "./git-standards",
-      "description": "Git workflow standards, branch hygiene, PR creation guards, and issue linking",
-      "version": "6.3.0",
-      "author": {
-        "name": "JacobPEvans"
-      }
-    },
-    {
       "name": "ai-cli-harness-better-practices",
       "source": "./ai-cli-harness-better-practices",
       "description": "Harness-agnostic session continuity: goal statements, status snapshots, handoffs, cold resume, replanning, and wrap-up. No git or GitHub required.",
@@ -147,7 +138,7 @@
     {
       "name": "process-cleanup",
       "source": "./process-cleanup",
-      "description": "Cleanup orphaned MCP server processes on session exit — workaround for upstream bug #1935",
+      "description": "Cleanup orphaned MCP server processes on session exit \u2014 workaround for upstream bug #1935",
       "version": "6.2.1",
       "author": {
         "name": "JacobPEvans"

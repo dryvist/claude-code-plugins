@@ -35,6 +35,7 @@
     "./skills/shared-workflow-org-refs",
     "./skills/pr-sweep",
     "./skills/github-code-search",
-    "./skills/github-actions-silent-failures"
+    "./skills/github-actions-silent-failures",
+    "./skills/pr-standards"
   ]
 }

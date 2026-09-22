@@ -22,7 +22,7 @@ flowchart TD
         GHW["github-workflows\nskills"]:::external
         CQR["codeql-resolver\nagents + skills"]:::external
         CS["code-standards\nskills"]:::external
-        GS["git-standards\nskills"]:::external
+        GWS["git-workflows & github-workflows\nstandards skills"]:::external
         OTHER["Every other plugin..."]:::external
     end
 

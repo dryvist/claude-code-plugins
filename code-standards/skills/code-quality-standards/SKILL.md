@@ -76,4 +76,4 @@ Slack, Splunk alerts, email. Silent dashboards are not monitoring.
 ## Related Skills
 
 - **review-standards** (code-standards) — Use when performing formal code review on PRs
-- **pr-standards** (git-standards) — PR & issue standards, PR guards, issue linking
+- **pr-standards** (github-workflows) — PR & issue standards, PR guards, issue linking

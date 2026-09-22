@@ -22,7 +22,6 @@
     "ai-cli-harness-better-practices@jacobpevans-cc-plugins"
     "git-guards@jacobpevans-cc-plugins"
     "git-workflows@jacobpevans-cc-plugins"
-    "git-standards@jacobpevans-cc-plugins"
     "github-workflows@jacobpevans-cc-plugins"
     "code-standards@jacobpevans-cc-plugins"
     "project-standards@jacobpevans-cc-plugins"
@@ -46,7 +45,6 @@
     # jacobpevans code-standards
     "code-quality-standards"
     "review-standards"
-    # jacobpevans git-standards
     "git-workflow-standards"
     "pr-standards"
     # jacobpevans github-workflows

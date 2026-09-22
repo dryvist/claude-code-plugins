@@ -106,4 +106,4 @@ Read files, understand both versions, combine intelligently, stage resolved file
 - **rebase-pr** (github-workflows) — Rebase-merge workflow that builds on a synced base branch
 - **promote-release** (github-workflows) — Moves develop to main on git-flow repos; the fast-forward step here only reads main, never pushes it
 - **gh-cli-patterns** (github-workflows) — Canonical default-branch detection (trunk vs git-flow)
-- **git-workflow-standards** (git-standards) — Branch hygiene and sync conventions
+- **git-workflow-standards** (git-workflows) — Branch hygiene and sync conventions
