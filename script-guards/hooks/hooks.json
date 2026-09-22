@@ -31,18 +31,6 @@
           }
         ]
       }
-    ],
-    "UserPromptSubmit": [
-      {
-        "matcher": "*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/research-reminder.sh",
-            "timeout": 3
-          }
-        ]
-      }
     ]
   }
 }
