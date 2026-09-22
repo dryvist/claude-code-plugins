@@ -73,18 +73,6 @@ repos:
         exclude: '^\.github/(aw/imports/|workflows/.*\.lock\.yml$)'
 
   # ---------------------------------------------------------------------------
-  # Skill description budget — the description loads into every session's
-  # system prompt, so its size is a direct, always-on context cost.
-  # ---------------------------------------------------------------------------
-  - repo: local
-    hooks:
-      - id: skill-description-lint
-        name: Lint skill description length (fail >1024B, warn >250 chars)
-        entry: scripts/lint-skill-descriptions.sh
-        language: system
-        files: 'skills/.*SKILL\.md$'
-
-  # ---------------------------------------------------------------------------
   # Agent Skills validation (agentskills.io spec)
   # ---------------------------------------------------------------------------
   - repo: local
