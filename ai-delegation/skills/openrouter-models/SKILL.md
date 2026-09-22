@@ -1,6 +1,6 @@
 ---
 name: openrouter-models
-description: Choose among the hosted models the shared router serves — discover current ids and prices from the public catalog, self-enforce a spend budget the router does not meter for you, respect the free-tier prompt-logging caveat, and request onboarding of a model the router does not serve yet
+description: Choose among the router's hosted models — discover current ids/prices from the public catalog, self-enforce a spend budget the router doesn't meter, respect the free-tier logging caveat, and request onboarding of a model not yet served.
 license: MIT
 metadata:
   version: 1.0.0

@@ -1,6 +1,6 @@
 ---
 name: workstation-offbox-backup
-description: Keep a data-heavy workstation app's local database small and fast while preserving full history off-box, with archived data staying directly readable without a restore step. Splits by data shape — searchable text to a log/search platform, bulk media to snapshotted storage — and pulls data rather than scripting a push. Use when a continuously-recording local app's database or disk footprint is growing unbounded, or when designing where a new data-heavy app's history should live.
+description: Keep a data-heavy app's local database small while preserving full history off-box, readable without restore. Splits by shape — text to log/search, media to snapshotted storage — pulls data, never a push script. Use when db/disk footprint grows.
 ---
 
 # Workstation data → off-box backup pattern

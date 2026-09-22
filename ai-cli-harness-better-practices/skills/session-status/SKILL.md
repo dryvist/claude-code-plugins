@@ -1,6 +1,6 @@
 ---
 name: session-status
-description: "Analyzes current session state without any cleanup. Full mode (default): resolves the active plan file, reads plan checklist + TaskList, gathers unfinished work/issues from conversation history, and emits a /handoff-built next-session prompt. Mid-session mode (`/session-status mid`): a fast plain-language 'done vs remaining' snapshot for mid-flight orientation, skipping the history scan, triage, and handoff. Repository and PR state is optional enrichment — both modes run outside a git repository."
+description: "Analyzes current session state, no cleanup. Full mode (default): plan+TaskList+history scan, emits a /handoff prompt. Mid mode (`/session-status mid`): fast 'done vs remaining' snapshot. Repo/PR state is optional; both modes run outside a repo."
 ---
 
 # Session and Repository Status Analysis

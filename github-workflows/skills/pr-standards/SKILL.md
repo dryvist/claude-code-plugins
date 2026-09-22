@@ -24,7 +24,7 @@ guards before submitting and apply the body rules afterward. See `pr-stacks`
 **Guard 1 — Check for merged twin** (prevents zombie PRs):
 
 ```bash
-gh pr list --repo JacobPEvans/<repo> --state merged --head <branch>
+gh pr list --repo JacobPEvans/<repo> --state merged --head <branch> --limit 5 --json number,url
 ```
 
 If merged PR exists AND `git log origin/<default>..HEAD --oneline` is empty:
@@ -33,7 +33,7 @@ STOP. Remove stale worktree.
 **Guard 2 — Check for existing open PR** (prevents duplicates):
 
 ```bash
-gh pr list --repo JacobPEvans/<repo> --state open --head <branch>
+gh pr list --repo JacobPEvans/<repo> --state open --head <branch> --limit 5 --json number,url
 ```
 
 If open PR exists: `git push origin <branch>` instead of creating new PR.
@@ -41,7 +41,7 @@ If open PR exists: `git push origin <branch>` instead of creating new PR.
 **Guard 3 — Find related issues** (enforces linking):
 
 ```bash
-gh issue list --repo JacobPEvans/<repo> --state open --search "<keywords>"
+gh issue list --repo JacobPEvans/<repo> --state open --search "<keywords>" --limit 20 --json number,title,url
 ```
 
 Include `Closes #X` or `Related to #X` in PR body. After creation:
