@@ -1,0 +1,11 @@
+# cclint configuration. See docs/guides/configuration.md in dotcommander/cclint.
+#
+# Excludes .claude/rules/**: cclint v0.57.0's rules_linter requires the
+# `paths:` frontmatter field to be a single comma-separated string and fails
+# with "paths: field must be a string" whenever it's a YAML list — but
+# Anthropic's own docs (https://code.claude.com/docs/en/memory#path-specific-rules)
+# document `paths:` as a YAML list, and Claude Code only reads it that way.
+# Our .claude/rules/*.md files are correct; cclint's validator is wrong.
+# Filed upstream: https://github.com/dotcommander/cclint/issues/3
+exclude:
+  - ".claude/rules/**"
