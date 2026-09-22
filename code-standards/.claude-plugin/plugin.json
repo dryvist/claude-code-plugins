@@ -1,6 +1,6 @@
 {
   "name": "code-standards",
-  "version": "6.2.1",
+  "version": "6.2.2",
   "description": "Estate-specific code conventions not covered by generic review skills: logging format, monitoring-vs-test philosophy, doc format",
   "author": {
     "name": "JacobPEvans"
