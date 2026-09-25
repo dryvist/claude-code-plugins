@@ -13,5 +13,6 @@
   "infra-standards": "6.2.1",
   "openbao": "4.22.0",
   "process-cleanup": "6.2.1",
-  "project-standards": "6.2.1"
+  "project-standards": "6.2.1",
+  "testing": "1.0.0"
 }
