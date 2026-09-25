@@ -1,5 +1,5 @@
 {
-  ".": "6.6.7",
+  ".": "6.7.0",
   "ai-cli-harness-better-practices": "4.25.1",
   "ai-delegation": "6.3.2",
   "code-standards": "6.2.2",
@@ -14,5 +14,5 @@
   "openbao": "4.22.0",
   "process-cleanup": "6.2.1",
   "project-standards": "6.2.1",
-  "testing": "1.0.0"
+  "testing": "1.1.0"
 }
