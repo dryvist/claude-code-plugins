@@ -1,6 +1,6 @@
 {
   "name": "git-guards",
-  "version": "6.2.3",
+  "version": "6.2.4",
   "description": "Git security and workflow protection via PreToolUse hooks - dangerous-command, commit-trailer, and main-branch edit guards",
   "author": {
     "name": "JacobPEvans"

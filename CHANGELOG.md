@@ -1,5 +1,14 @@
 # Changelog
 
+## [6.6.7](https://github.com/dryvist/claude-code-plugins/compare/v6.6.6...v6.6.7) (2026-09-25)
+
+
+### Bug Fixes
+
+* **git-guards:** remove the worktree-reminder UserPromptSubmit hook ([c4cd574](https://github.com/dryvist/claude-code-plugins/commit/c4cd574dc8abaeff2017c5fdbf4c9e612668173d))
+* **github-workflows:** remove the dead post-pr-create PostToolUse hook ([5f5fd4e](https://github.com/dryvist/claude-code-plugins/commit/5f5fd4e3de73c27d98b64f483a96134174b3d557))
+* **hooks:** remove the worktree-reminder and post-pr-create hooks ([e5a21dd](https://github.com/dryvist/claude-code-plugins/commit/e5a21dd791d5119fb55db3d64ad933aae1afca83))
+
 ## [6.6.6](https://github.com/dryvist/claude-code-plugins/compare/v6.6.5...v6.6.6) (2026-09-22)
 
 

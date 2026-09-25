@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "Claude Code plugins and hooks by JacobPEvans",
-    "version": "6.6.6"
+    "version": "6.6.7"
   },
   "plugins": [
     {
@@ -49,7 +49,7 @@
       "name": "git-guards",
       "source": "./git-guards",
       "description": "Combined git security and workflow protection via PreToolUse hooks - merges git-permission-guard and main-branch-guard functionality",
-      "version": "6.2.3",
+      "version": "6.2.4",
       "author": {
         "name": "JacobPEvans"
       }
@@ -76,7 +76,7 @@
       "name": "github-workflows",
       "source": "./github-workflows",
       "description": "PR management, multi-repo PR finalization, and issue shaping with Shape Up methodology",
-      "version": "6.3.0",
+      "version": "6.3.1",
       "author": {
         "name": "JacobPEvans"
       }
