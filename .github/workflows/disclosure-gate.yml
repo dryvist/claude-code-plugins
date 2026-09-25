@@ -1,3 +1,4 @@
+---
 # Disclosure Gate — thin wrapper over the dryvist org reusable workflow
 #
 # Delegates the gitleaks and disclosure-denylist checks to
