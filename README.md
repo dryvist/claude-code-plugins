@@ -94,6 +94,15 @@ Cleanup orphaned MCP server processes on session exit.
 - **Type**: PostToolUse hook
 - **Purpose**: Workaround for upstream MCP orphan-process bug (#1935)
 
+### testing
+
+Dispatches browser and UI test work to specialized testing agents.
+
+- **Type**: Skill-based plugin
+- **Skills**: `/test`
+- **Purpose**: Pick one dedicated agent (ui-smoke, spec-author, healer, perf-debug, explorer) so Playwright and
+  Browser Use load only inside that agent, never the main session
+
 ## Installation
 
 ### From Marketplace
@@ -117,6 +126,7 @@ claude plugins add jacobpevans-cc-plugins/<plugin-name>
 - `jacobpevans-cc-plugins/infra-standards`
 - `jacobpevans-cc-plugins/process-cleanup`
 - `jacobpevans-cc-plugins/project-standards`
+- `jacobpevans-cc-plugins/testing`
 
 ### Local Development
 
@@ -138,6 +148,7 @@ claude plugins link ./infra-orchestration
 claude plugins link ./infra-standards
 claude plugins link ./process-cleanup
 claude plugins link ./project-standards
+claude plugins link ./testing
 ```
 
 ## Usage
