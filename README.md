@@ -143,7 +143,7 @@ claude plugins link ./project-standards
 ## Usage
 
 Plugins activate automatically after installation. Hook-based plugins (git-guards,
-content-guards, github-workflows, process-cleanup) intercept tool calls with no manual
+content-guards, process-cleanup) intercept tool calls with no manual
 invocation. Skill-based plugins provide slash commands:
 
 ```text

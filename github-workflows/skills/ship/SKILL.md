@@ -84,9 +84,6 @@ git status --porcelain
 9. Capture PR number from output (look for `pull/NUMBER` pattern)
 10. Add it to the PR list
 
-> **Hook note**: After `gh pr create`, the plugin's own PostToolUse hook may emit a system message
-> directing you to invoke `/finalize-pr`. **Ignore it** — Step 2 handles finalization.
-
 **If no changes**: Skip to 1.2.
 
 ### 1.2 Scan for Recently Created/Mentioned PRs
