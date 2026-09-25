@@ -106,7 +106,6 @@ flowchart TD
         S1["Detect uncommitted changes"]:::ai
         S2["Commit, /simplify, validate,\npush, PR create (inline)"]:::ai
         S3["Build context brief\n(purpose, decisions, scope)"]:::ai
-        S4["github-workflows hook fires\npost-pr-create.sh"]:::hook
         S5["Invoke /finalize-pr\n(sequential per PR)"]:::ai
 
         subgraph FINALIZE ["AI — /finalize-pr phases"]
@@ -125,7 +124,7 @@ flowchart TD
             F5["Phase 5: Report ready"]:::ai
         end
 
-        S0 --> S1 --> S2 --> S3 --> S4 --> S5
+        S0 --> S1 --> S2 --> S3 --> S5
         S5 --> F1 --> F15 --> F21
         F21 --> F22A & F22B & F22C
         F22A & F22B & F22C --> F23 --> F235 --> F24 --> F3 --> F4 --> F5
