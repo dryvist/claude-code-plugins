@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.7.0](https://github.com/dryvist/claude-code-plugins/compare/v6.6.7...v6.7.0) (2026-09-25)
+
+
+### Features
+
+* **testing:** dispatcher skill and testing category ([#541](https://github.com/dryvist/claude-code-plugins/issues/541)) ([abcf657](https://github.com/dryvist/claude-code-plugins/commit/abcf6570d26763046166b7c6ce41a35a891e64a0))
+
 ## [6.6.7](https://github.com/dryvist/claude-code-plugins/compare/v6.6.6...v6.6.7) (2026-09-25)
 
 
