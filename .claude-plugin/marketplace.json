@@ -10,6 +10,15 @@
   },
   "plugins": [
     {
+      "name": "testing",
+      "source": "./testing",
+      "description": "Dispatch browser and UI test work to specialized testing agents",
+      "version": "1.0.0",
+      "author": {
+        "name": "JacobPEvans"
+      }
+    },
+    {
       "name": "ai-delegation",
       "source": "./ai-delegation",
       "description": "Delegate tasks to AI models, orchestrate premium-model work, and run autonomous maintenance loops",
