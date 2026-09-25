@@ -1,5 +1,13 @@
 # Changelog
 
+## [6.2.4](https://github.com/dryvist/claude-code-plugins/compare/git-guards-v6.2.3...git-guards-v6.2.4) (2026-09-25)
+
+
+### Bug Fixes
+
+* **git-guards:** remove the worktree-reminder UserPromptSubmit hook ([c4cd574](https://github.com/dryvist/claude-code-plugins/commit/c4cd574dc8abaeff2017c5fdbf4c9e612668173d))
+* **hooks:** remove the worktree-reminder and post-pr-create hooks ([e5a21dd](https://github.com/dryvist/claude-code-plugins/commit/e5a21dd791d5119fb55db3d64ad933aae1afca83))
+
 ## [6.2.3](https://github.com/dryvist/claude-code-plugins/compare/git-guards-v6.2.2...git-guards-v6.2.3) (2026-09-22)
 
 

@@ -1,5 +1,13 @@
 # Changelog
 
+## [6.3.1](https://github.com/dryvist/claude-code-plugins/compare/github-workflows-v6.3.0...github-workflows-v6.3.1) (2026-09-25)
+
+
+### Bug Fixes
+
+* **github-workflows:** remove the dead post-pr-create PostToolUse hook ([5f5fd4e](https://github.com/dryvist/claude-code-plugins/commit/5f5fd4e3de73c27d98b64f483a96134174b3d557))
+* **hooks:** remove the worktree-reminder and post-pr-create hooks ([e5a21dd](https://github.com/dryvist/claude-code-plugins/commit/e5a21dd791d5119fb55db3d64ad933aae1afca83))
+
 ## [6.3.0](https://github.com/dryvist/claude-code-plugins/compare/github-workflows-v6.2.1...github-workflows-v6.3.0) (2026-09-12)
 
 
