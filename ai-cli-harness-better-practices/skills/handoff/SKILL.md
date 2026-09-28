@@ -51,9 +51,9 @@ When it fails, skip the whole block and say so in the emitted artifact ("no
 repository at this cwd; branch and PR state omitted"). A handoff without git
 facts is still a handoff — the reading list, rules, and pitfalls carry it.
 
-**Ticket enrichment — only when the tools are configured.** If `mcp__zammad__*`
-is available this session, check with `zammad_search_tickets`; otherwise rely on
-ticket numbers already known from context. Capture **full ticket URLs**
+**Ticket enrichment.** If `mcp__zammad__*` is available this session, check with
+`zammad_search_tickets`; otherwise use the REST search in `track-followups` step 1,
+and when neither is reachable rely on ticket numbers already known from context. Capture **full ticket URLs**
 (`$ZAMMAD_URL/#ticket/zoom/<id>`), never a bare `#17053` — same rule as GitHub,
 extended to Zammad.
 

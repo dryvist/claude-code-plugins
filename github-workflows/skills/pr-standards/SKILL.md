@@ -138,7 +138,7 @@ Use `Related to #X` for partial.
 If the PR also resolves an operational incident, add a `Zammad: <full ticket
 URL>` line alongside `Closes #X`. GitHub's auto-close syntax does not reach
 Zammad — update the ticket separately (`zammad_update_ticket` when that MCP
-tool is available, otherwise a manual note).
+tool is available, otherwise the REST update in `track-followups` step 1).
 
 ## AI Mention Policy
 
