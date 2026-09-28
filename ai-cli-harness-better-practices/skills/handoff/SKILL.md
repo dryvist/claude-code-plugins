@@ -102,7 +102,7 @@ Rules:
 - **Ordered reading list.** Number the files. A fresh session reads top-down, so
   order by "what unblocks understanding first."
 - **Rules must be actionable.** "Be careful with secrets" is noise. "Use existing
-  values when re-seeding; no secret values in any transcript or PR" is a rule.
+  values when re-seeding; no secret values in any session log or PR" is a rule.
 - **Restate the goal; never say "continue."** The new session has no memory. Never
   write "continue what you were doing" or "as discussed above."
 - Full URLs for every PR/issue/Zammad ticket. Absolute paths for every file and cwd.
