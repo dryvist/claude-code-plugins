@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.8.0](https://github.com/dryvist/claude-code-plugins/compare/v6.7.0...v6.8.0) (2026-09-28)
+
+
+### Features
+
+* **skills:** reach Zammad over REST when its MCP is not attached ([#544](https://github.com/dryvist/claude-code-plugins/issues/544)) ([8f478f6](https://github.com/dryvist/claude-code-plugins/commit/8f478f682e0a4d636f84842d50c4ec870616527c))
+
 ## [6.7.0](https://github.com/dryvist/claude-code-plugins/compare/v6.6.7...v6.7.0) (2026-09-25)
 
 

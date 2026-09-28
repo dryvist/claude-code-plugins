@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.26.0](https://github.com/dryvist/claude-code-plugins/compare/ai-cli-harness-better-practices-v4.25.1...ai-cli-harness-better-practices-v4.26.0) (2026-09-28)
+
+
+### Features
+
+* **skills:** reach Zammad over REST when its MCP is not attached ([#544](https://github.com/dryvist/claude-code-plugins/issues/544)) ([8f478f6](https://github.com/dryvist/claude-code-plugins/commit/8f478f682e0a4d636f84842d50c4ec870616527c))
+
 ## [4.25.1](https://github.com/dryvist/claude-code-plugins/compare/ai-cli-harness-better-practices-v4.25.0...ai-cli-harness-better-practices-v4.25.1) (2026-09-21)
 
 
