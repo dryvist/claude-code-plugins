@@ -55,7 +55,7 @@ repos:
         additional_dependencies: ["@commitlint/config-conventional@20.4.1"]
 
   - repo: https://github.com/commit-check/commit-check
-    rev: v2.18.0
+    rev: v2.18.1
     hooks:
       - id: check-branch
         name: Check branch naming conventions
