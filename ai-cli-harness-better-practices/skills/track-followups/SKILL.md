@@ -48,10 +48,25 @@ is a plain URL each way; there is no integration to configure.
 
 ### 1. Confirm the tooling is there
 
-Check for `mcp__vikunja__*` and `mcp__zammad__*` before anything else. Nothing
-available for a given destination means this skill **falls back to listing** those
-items and says so in one line — it does not silently drop them, and it does not
-guess an identifier, project, or ticket number.
+Check for `mcp__vikunja__*` and `mcp__zammad__*` before anything else. Zammad is
+attached only where its work happens, so in most repositories reach it over REST
+instead — same Doppler `ai-ci-automation/prd` token as below (`ZAMMAD_URL` already
+carries `/api/v1`; never print the token):
+
+```bash
+# zammad_api <api path> [curl args] — token and URL exist only in doppler's child
+zammad_api() { doppler run -p ai-ci-automation -c prd -- sh -c 'p=$1; shift; curl -sS \
+  -H "Authorization: Token token=$ZAMMAD_HTTP_TOKEN" -H "Content-Type: application/json" \
+  "$ZAMMAD_URL$p" "$@"' _ "$@"; }
+zammad_api /tickets/search -G --data-urlencode limit=5 --data-urlencode expand=false \
+  --data-urlencode 'query=state.name:(new OR open) AND title:"<phrase>"'   # search
+zammad_api /tickets -X POST -d '<the step 4b ticket as JSON>'              # create
+zammad_api /tickets/<id> -X PUT -d '<fields>'                              # update / close
+```
+
+Neither the MCP tools nor this path available for a destination means this skill
+**falls back to listing** those items and says so in one line — it does not
+silently drop them, and it does not guess an identifier, project, or ticket number.
 
 ### 2. Deduplicate before creating
 
@@ -60,7 +75,7 @@ Search the destination for an existing open item covering the same thing.
 ```text
 tracker:   mcp__vikunja__vikunja_tasks  { subcommand: "list", allProjects: true,
                                           search: "<distinctive phrase>", filter: "done = false" }
-incidents: mcp__zammad__zammad_search_tickets
+incidents: mcp__zammad__zammad_search_tickets   (or the REST search in step 1)
 ```
 
 A match means **update it** — add a comment carrying the new evidence — rather than
