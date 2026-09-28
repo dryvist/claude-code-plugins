@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.4.0](https://github.com/dryvist/claude-code-plugins/compare/github-workflows-v6.3.1...github-workflows-v6.4.0) (2026-09-28)
+
+
+### Features
+
+* **skills:** reach Zammad over REST when its MCP is not attached ([#544](https://github.com/dryvist/claude-code-plugins/issues/544)) ([8f478f6](https://github.com/dryvist/claude-code-plugins/commit/8f478f682e0a4d636f84842d50c4ec870616527c))
+
 ## [6.3.1](https://github.com/dryvist/claude-code-plugins/compare/github-workflows-v6.3.0...github-workflows-v6.3.1) (2026-09-25)
 
 
