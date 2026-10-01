@@ -47,7 +47,7 @@ repos:
   # Commit message validation (commit-msg stage)
   # ---------------------------------------------------------------------------
   - repo: https://github.com/alessandrojcm/commitlint-pre-commit-hook
-    rev: v9.26.0
+    rev: v9.27.0
     hooks:
       - id: commitlint
         name: Validate commit message format
