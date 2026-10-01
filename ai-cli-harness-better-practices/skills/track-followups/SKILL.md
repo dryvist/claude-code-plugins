@@ -50,14 +50,15 @@ is a plain URL each way; there is no integration to configure.
 
 Check for `mcp__vikunja__*` and `mcp__zammad__*` before anything else. Zammad is
 attached only where its work happens, so in most repositories reach it over REST
-instead — same Doppler `ai-ci-automation/prd` token as below (`ZAMMAD_URL` already
-carries `/api/v1`; never print the token):
+instead. It reads `ZAMMAD_URL` (already ending in `/api/v1`) and
+`ZAMMAD_HTTP_TOKEN` from the environment, for example a `.env` file loaded into
+the shell. Never print the token:
 
 ```bash
-# zammad_api <api path> [curl args] — token and URL exist only in doppler's child
-zammad_api() { doppler run -p ai-ci-automation -c prd -- sh -c 'p=$1; shift; curl -sS \
+# zammad_api <api path> [curl args]
+zammad_api() { p=$1; shift; curl -sS \
   -H "Authorization: Token token=$ZAMMAD_HTTP_TOKEN" -H "Content-Type: application/json" \
-  "$ZAMMAD_URL$p" "$@"' _ "$@"; }
+  "$ZAMMAD_URL$p" "$@"; }
 zammad_api /tickets/search -G --data-urlencode limit=5 --data-urlencode expand=false \
   --data-urlencode 'query=state.name:(new OR open) AND title:"<phrase>"'   # search
 zammad_api /tickets -X POST -d '<the step 4b ticket as JSON>'              # create
@@ -133,8 +134,7 @@ mcp__zammad__zammad_create_ticket {
 ```
 
 Then set these fields — inline on create if the tool accepts them, otherwise
-follow with `PUT /tickets/<id>` under the Doppler `ai-ci-automation/prd`
-token (`ZAMMAD_URL` already carries `/api/v1`; never print the token):
+follow with `PUT /tickets/<id>` through the same `zammad_api` helper:
 
 - `detection_method`: `probe` | `user-report` | `alert` | `agent` | `other`
   — a Claude session filing its own finding uses `agent`.
