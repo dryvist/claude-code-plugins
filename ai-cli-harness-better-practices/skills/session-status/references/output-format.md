@@ -72,12 +72,12 @@ Session Issues Log:
 
 Recommended Prompt for Next Session:
 ─────────────────────────────────────
-<Build this by invoking the `/handoff` skill with the triaged 1–3 quick-win tasks
-as source. `/handoff` returns a `## Goal statement` (capped under 4000 chars,
-measured with `wc -m`) plus a `## Full prompt` — paste both here. This guarantees
-the next-session prompt carries a real goal that drops into `/goal`, not a bare
-task list. Include the resolved plan file path (~/.claude/plans/<slug>.md) so the
-new session can re-enter plan mode against it.>
+<Invoke `/goal` for the triaged 1–3 quick-win tasks and include its statement
+and measured character count. Add the working directory, resolved plan file
+path, remaining items, and full URLs for referenced work so the new session
+can continue cold. If nothing remains, say so. For a portable Markdown document,
+direct the user to explicitly invoke Matt Pocock's `/handoff`; never invoke it
+from this skill. It writes to the OS temporary directory and has no goal cap.>
 ─────────────────────────────────────
 
 Recommended Tracker Items:
@@ -108,4 +108,4 @@ Unfinished Work & Future Tasks (already tracked):
 
 This is a live, human-facing report, not a cold-start artifact — a bare
 `#NNNNN` here is fine. The "always full URL, never bare `#123`" rule applies
-to `handoff` and `wrap-up`'s resume blocks, not this dashboard.
+to this next-session prompt and `wrap-up`'s resume blocks, not this dashboard.

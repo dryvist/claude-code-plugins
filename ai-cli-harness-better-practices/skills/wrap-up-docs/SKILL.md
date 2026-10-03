@@ -11,10 +11,9 @@ and must not be asked to infer — the prompt carries every change explicitly,
 with instructions requiring no judgment beyond writing prose.
 
 Emit the prompt and stop. This skill creates no tracker items, edits no files,
-runs no cleanup — `/wrap-up` owns those. It is the documentation counterpart to
-`/handoff`: same artifact class (self-contained prompt for a context-free
-consumer), opposite compression strategy. Where `/handoff` compresses for a
-smart reader, this skill expands for a weak one.
+runs no cleanup — `/wrap-up` owns those. Matt Pocock's user-invoked `/handoff`
+saves a compact Markdown document in the OS temporary directory; this skill
+prints an exhaustive documentation prompt for a context-free consumer.
 
 > **State warning**: TaskList contents, plan checklist state, branch state, and
 > any PR facts all change between invocations. Re-gather everything in Step 1;
@@ -160,8 +159,8 @@ fails from missing facts far more often than from long input.
 
 - **wrap-up** (this plugin) — end-of-session handler; run this alongside or
   after it when documentation needs to catch up.
-- **handoff** (this plugin) — the smart-reader counterpart artifact builder;
-  shares the self-contained-prompt discipline, inverts the compression.
+- **handoff** (mattpocock/skills, installed through nix-ai) — user-invoked portable
+  Markdown document for continuing work in another session.
 - **session-status** (this plugin) — derivation engine whose Steps 1–2 this
   skill reuses for plan/task/history gathering.
 - **update-docs** — executes documentation updates in-session with tech-writer

@@ -106,4 +106,5 @@ that no longer matches reality.
 - **replan** (this plugin) — re-derive the whole plan from live state when the
   plan file no longer matches reality.
 - **session-status** (this plugin) — the live-state derivation this skill reuses.
-- **handoff** (this plugin) — the artifact a resume prompt is typically built from.
+- **handoff** (mattpocock/skills, installed through nix-ai) — user-invoked portable
+  Markdown document that a new session can read before resuming.

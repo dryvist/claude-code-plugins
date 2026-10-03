@@ -5,7 +5,7 @@ Local git operations: branch sync and troubleshooting.
 For PR-related operations (refresh, rebase-merge, finalize, merge), see
 [github-workflows/ARCHITECTURE.md](../github-workflows/ARCHITECTURE.md).
 
-Session-continuity skills (`/goal`, `/session-status`, `/handoff`, `/resume`,
+Session-continuity skills (`/goal`, `/session-status`, `/resume`,
 `/replan`, `/wrap-up`) are **not** here. They moved to
 [ai-cli-harness-better-practices](../ai-cli-harness-better-practices/ARCHITECTURE.md)
 because they are harness concerns, not git concerns — they run with or without a
@@ -32,7 +32,7 @@ flowchart TD
 
     subgraph external_deps["External"]
         superpowers["superpowers:\nusing-git-worktrees"]:::external
-        harness["ai-cli-harness-better-practices\n/wrap-up, /handoff"]:::external
+        harness["ai-cli-harness-better-practices\n/wrap-up"]:::external
     end
 
     ts_worktree -.->|"worktree guidance"| superpowers
@@ -51,7 +51,7 @@ flowchart LR
 
     subgraph harness["ai-cli-harness-better-practices — SESSION state"]
         direction TB
-        cont["/goal, /session-status, /handoff\n/resume, /replan, /wrap-up"]:::external
+        cont["/goal, /session-status\n/resume, /replan, /wrap-up"]:::external
     end
 
     subgraph local["git-workflows — LOCAL git operations"]

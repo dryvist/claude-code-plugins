@@ -156,24 +156,22 @@ No follow-up work in the Step 0 report → skip this step and say so.
 
 ### A3. Follow-Up Session Prompt
 
-If `/session-status` in Step 0 surfaced follow-up work, invoke the `/handoff`
-skill to emit the next-session artifact. Pass it the "Recommended Prompt for Next
-Session" and "Session Issues Log" sections from the Step 0 report, plus the
-identifiers `track-followups` returned in A2.5, as the source material.
+If `/session-status` in Step 0 surfaced follow-up work, invoke `/goal` for its
+next-session objective. Print the statement and measured character count with
+the working directory, plan path, remaining work, and relevant context from
+the Step 0 report. Include full URLs for identifiers returned by A2.5.
 
 Keep the two tracked-follow-up kinds distinct in the handoff — a tracker task is
 work to be done, an incident ticket is operational/incident work — never relabel
 one as the other. Items already tracked in A2.5 appear in the handoff as a
 one-line reference to their identifier, not as restated work.
 
-`/handoff` produces the two-part artifact — a `## Goal statement` capped under
-4000 characters (measured with `wc -m`) plus an unbounded `## Full prompt` — so
-the follow-up carries a real goal that pastes into `/goal`, not just a task list.
-This closes the long-standing gap where wrap-up emitted a prompt with no goal and
-no character budget.
+For a portable Markdown document, direct the user to explicitly invoke Matt
+Pocock's `/handoff`, installed through nix-ai. It writes to the OS temporary
+directory and has no goal-length cap. Never invoke it from this skill.
 
 If no follow-up items are found in the `/session-status` report, state that
-explicitly — do not fabricate work, and do not invoke `/handoff`.
+explicitly — do not fabricate work.
 
 ### Path A Summary
 
@@ -201,7 +199,7 @@ in.
 
 Goal: emit one copy-pasteable, self-contained resume block per coherent
 group of remaining work, in dependency order, each carrying a real
-`/handoff`-built goal statement — never "continue what you were doing".
+`/goal` statement — never "continue what you were doing".
 
 Done when: every plan-checklist item still unchecked and every `TaskList`
 task not `completed` appears in exactly one block; each block states its
@@ -223,8 +221,10 @@ in one operation. Sequence and command shapes:
 
 ## Related Skills
 
-- **handoff** (this plugin) — builds the two-part next-session artifact (goal
-  statement under 4000 chars + full prompt) used by Path A Step A3 and Path B Step B2
+- **goal** (this plugin) — supplies the capped objective for Path A Step A3 and
+  Path B Step B2.
+- **handoff** (mattpocock/skills, installed through nix-ai) — user-invoked portable
+  Markdown document; independent of this skill's printed resume prompts.
 - **wrap-up-docs** (this plugin) — emits a documentation-catchup prompt for a
   weaker local LLM; run alongside this skill when docs must absorb the
   session's technical changes

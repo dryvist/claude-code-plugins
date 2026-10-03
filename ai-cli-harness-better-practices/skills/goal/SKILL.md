@@ -1,6 +1,6 @@
 ---
 name: goal
-description: "Emit one goal statement for current work, capped under 4000 chars. Optional focus hint like /compact. Derives from recent pivots/plan/tasks if no arg. Use for 'what am I trying to do', seeding a session/subagent, or /handoff's goal half."
+description: "Emit one goal statement for current work, capped under 4000 chars. Optional focus hint like /compact. Derives from recent pivots/plan/tasks if no arg. Use for 'what am I trying to do' or seeding a session/subagent."
 ---
 
 # Goal
@@ -20,7 +20,7 @@ itself never contains a heading.
 **Out:** file writes, commits, git or `gh` calls, network access, plan edits,
 task updates. The single command this skill runs is the `wc -m` measurement in
 Step 4, which reads from a heredoc and writes nothing. If you find yourself
-running anything else, stop — that belongs to `/handoff`, not here.
+running anything else, stop — it is outside this skill's scope.
 
 ## Step 1: Determine focus
 
@@ -138,10 +138,8 @@ chars: <N>
 <the statement body>
 ```
 
-`/handoff` supplies its own
-`## Goal statement (paste as the session goal — <N> chars, under 4k)` header and
-would otherwise emit two headings; it takes `<N>` from that line rather than
-re-measuring, since this skill owns the count.
+Callers such as `/session-status` and `/wrap-up` supply their own header and
+take `<N>` from that line rather than re-measuring, since this skill owns the count.
 
 Print nothing else — no summary of what you did, no offer to write it somewhere.
 Exactly two things may follow, each one line, only when true:
@@ -152,8 +150,8 @@ Exactly two things may follow, each one line, only when true:
 
 ## Related Skills
 
-- **handoff** (this plugin) — calls this skill for the goal half of its
-  two-part cold-start artifact, then adds the reading list and hard rules.
+- **handoff** (mattpocock/skills, installed through nix-ai) — user-invoked
+  portable Markdown document in the OS temporary directory; no goal-length cap.
 - **session-status** (this plugin) — the done-versus-remaining view; use it when
   you want progress, not an objective.
 - **karpathy-guidelines** (karpathy-skills) — verifiable success criteria and

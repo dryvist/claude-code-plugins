@@ -13,7 +13,6 @@ flowchart TD
     subgraph core["Harness core (no git required)"]
         goal["/goal"]
         status["/session-status"]
-        handoff["/handoff"]
         resume["/resume"]
         replan["/replan"]
         wrapup["/wrap-up"]
@@ -33,22 +32,21 @@ flowchart TD
     end
 
     wrapup --> status
-    wrapup --> handoff
+    wrapup --> goal
     wrapup --> retro
     wrapup -.->|"if git repo"| refresh
     wrapup -.->|"if git repo"| prune
 
-    status --> handoff
+    status --> goal
     status -.->|"if git repo"| ghcli
 
-    handoff --> goal
     goal -.->|"criteria quality"| karpathy
 
     resume --> replan
     replan -.->|"write from scratch"| plans
     replan -.->|"needs a metric"| arplan
 
-    class goal,status,handoff,resume,replan,wrapup ai
+    class goal,status,resume,replan,wrapup ai
 ```
 
 ## The git guard
@@ -120,8 +118,12 @@ not silently take the "no" path and skip a check that would otherwise have run.
 ## /goal composition
 
 `/goal` is the atom. It has no dependencies, reads no repository, and writes no
-files. `/handoff` calls it for the goal half of its artifact rather than
-carrying a second definition of what a goal statement is.
+files. `/session-status` and `/wrap-up` call it for the capped objective in
+their next-session prompts.
+
+Matt Pocock's `/handoff` is installed separately through nix-ai. Only an explicit
+user invocation writes its portable Markdown document to the OS temporary
+directory. It does not promise a capped goal or the continuity prompts' format.
 
 ```mermaid
 flowchart LR

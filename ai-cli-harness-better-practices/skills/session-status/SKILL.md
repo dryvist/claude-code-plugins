@@ -1,6 +1,6 @@
 ---
 name: session-status
-description: "Analyzes current session state, no cleanup. Full mode (default): plan+TaskList+history scan, emits a /handoff prompt. Mid mode (`/session-status mid`): fast 'done vs remaining' snapshot. Repo/PR state is optional; both modes run outside a repo."
+description: "Analyzes current session state, no cleanup. Full mode (default): plan+TaskList+history scan, emits a next-session prompt. Mid mode (`/session-status mid`): fast 'done vs remaining' snapshot. Repo/PR state is optional; both modes run outside a repo."
 ---
 
 # Session and Repository Status Analysis
@@ -227,7 +227,7 @@ status, repo/git state, unfinished work, session issues, and the
 recommended next-session prompt plus tracker/incident item recommendations.
 
 Done when: every section below has a value, never a placeholder left
-un-filled; the next-session prompt was built via `/handoff` (a real goal
+un-filled; the next-session prompt includes a `/goal` statement (a real goal
 statement, not a bare task list); and items already tracked are prefixed
 with their bare identifier instead of restated as new. Exact dashboard
 template, the "already tracked" shape, and the bare-`#NNNNN`-is-fine
@@ -241,8 +241,8 @@ Both the tracker-items and incident-tickets lists are **recommendations**;
 
 ## Related Skills
 
-- **handoff** (this plugin) — builds the goal-bearing next-session prompt that
-  full mode's "Recommended Prompt for Next Session" section emits.
+- **handoff** (mattpocock/skills, installed through nix-ai) — users may explicitly
+  invoke it for a portable Markdown document in the OS temporary directory.
 - **goal** (this plugin) — the objective alone, when you want direction rather
   than progress.
 - **wrap-up** (this plugin) — session-completion verdict; calls this skill for
