@@ -87,6 +87,13 @@ High-level operational runbooks for homelab management.
 - **Skills**: `/homelab-runbooks`
 - **Purpose**: DR-node power management, DNS ingress convergence, secrets-engine identity bring-up
 
+### attention-notify
+
+Raises a local macOS banner whenever a session needs the operator.
+
+- **Type**: PostToolUse + Notification hook
+- **Purpose**: Banner for every PushNotification call and permission/question prompt, focused or not
+
 ### process-cleanup
 
 Cleanup orphaned MCP server processes on session exit.
@@ -115,6 +122,7 @@ claude plugins add jacobpevans-cc-plugins/<plugin-name>
 
 - `jacobpevans-cc-plugins/ai-cli-harness-better-practices`
 - `jacobpevans-cc-plugins/ai-delegation`
+- `jacobpevans-cc-plugins/attention-notify`
 - `jacobpevans-cc-plugins/code-standards`
 - `jacobpevans-cc-plugins/codeql-resolver`
 - `jacobpevans-cc-plugins/content-guards`
