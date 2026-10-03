@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.10.0](https://github.com/dryvist/claude-code-plugins/compare/v6.9.0...v6.10.0) (2026-10-03)
+
+
+### Features
+
+* **ai-cli-harness-better-practices:** use external handoff workflow ([a4cfb34](https://github.com/dryvist/claude-code-plugins/commit/a4cfb343429a1986a9b1e62322a8502dc21b1f75))
+
 ## [6.9.0](https://github.com/dryvist/claude-code-plugins/compare/v6.8.0...v6.9.0) (2026-10-03)
 
 

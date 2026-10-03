@@ -1,6 +1,6 @@
 {
   "name": "ai-cli-harness-better-practices",
-  "version": "4.26.0",
+  "version": "4.27.0",
   "description": "Harness-agnostic session continuity: goal statements, status snapshots, cold resume, replanning, and wrap-up. No git or GitHub required.",
   "author": {
     "name": "JacobPEvans"
