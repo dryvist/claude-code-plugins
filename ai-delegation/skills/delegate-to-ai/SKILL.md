@@ -51,7 +51,10 @@ architecture, gates, final verification, and merging with the trusted caller.
 
 ## ZCode eligibility
 
-Every repository must be in the configured agent-smith installation list.
+Run `zcode-job repos` (local JSON: `{"repos":[...]}`) before either route.
+Every repository must be in the client's configured approved subset of the
+agent-smith installation list. This local list never grants access or proves
+current installation membership; the dispatcher rechecks live scope.
 An absent allowlist or a denied repository fails closed, including public
 repositories. A private repository in that list is eligible only when both
 its content and the submitted task are explicitly non-sensitive. Unknown
