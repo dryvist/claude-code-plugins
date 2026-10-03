@@ -22,7 +22,7 @@
       "name": "ai-delegation",
       "source": "./ai-delegation",
       "description": "Delegate tasks to AI models, orchestrate premium-model work, and run autonomous maintenance loops",
-      "version": "6.3.2",
+      "version": "6.3.3",
       "author": {
         "name": "JacobPEvans"
       }

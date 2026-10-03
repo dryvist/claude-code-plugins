@@ -13,7 +13,12 @@ lineup, including for the premium lead itself.
 | Strong reasoning | Complex implementation, deep debugging, cross-module reasoning, risky review, security-sensitive reasoning | Reason deeply, but leave final authority with the premium lead |
 | Premium lead | Intent, architecture, decomposition, tradeoffs, risk, disagreement, final review, synthesis | Own final decisions and user communication |
 
-The table runs highest model tier (Premium lead) to lowest (Local/free).
+The table runs lowest model tier (Local/free) to highest (Premium lead).
+
+Always set reasoning effort explicitly: **strong reasoning = highest
+available effort**, **mid execution = medium**,
+**scans and checklists = low**. Resolve supported efforts live alongside
+the model; choose the premium lead's effort for the decision at hand.
 
 ## Model Tier Descent Rule (No Peer Spawning)
 
@@ -45,11 +50,6 @@ Use local or free execution first for the lowest-skill tier when the task
 is easy to verify. Good fits include file search summaries, log
 inspection, test-output summaries, checklist verification, mechanical
 comparisons, and other evidence-gathering tasks.
-
-Subagent cache-creation was measured at 35% of all cache writes for 9% of
-output, so every reading or mechanical subagent must carry an explicit
-lower `model:` and report to a file rather than back into the lead's
-context.
 
 Prefer these routes in order for simple checkable work:
 
