@@ -63,7 +63,6 @@
     # jacobpevans ai-cli-harness-better-practices
     "goal"
     "session-status"
-    "handoff"
     "resume"
     "replan"
     "wrap-up"

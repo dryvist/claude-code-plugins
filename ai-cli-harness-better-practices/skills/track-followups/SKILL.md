@@ -176,5 +176,5 @@ target lands.
 - **wrap-up** (this plugin) — calls this skill at Path A step A2.5 so follow-ups
   are recorded before the handoff artifact is built.
 - **session-status** (this plugin) — produces the triage this skill consumes.
-- **handoff** (this plugin) — carries the session-sized bucket that is deliberately
-  *not* tracked here.
+- **goal** (this plugin) — supplies the objective for the session-sized bucket
+  carried in the next-session prompt rather than tracked here.

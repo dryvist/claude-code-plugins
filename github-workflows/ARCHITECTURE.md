@@ -194,7 +194,7 @@ See [git-guards/ARCHITECTURE.md](../git-guards/ARCHITECTURE.md) and
 - [git-workflows/ARCHITECTURE.md](../git-workflows/ARCHITECTURE.md) — `/sync-main`,
   `/git-flow-next`, `/troubleshoot-*`
 - [ai-cli-harness-better-practices/ARCHITECTURE.md](../ai-cli-harness-better-practices/ARCHITECTURE.md)
-  — `/goal`, `/handoff`, `/resume`, `/replan`, `/session-status`, `/wrap-up`
+  — `/goal`, `/resume`, `/replan`, `/session-status`, `/wrap-up`
   bridging `gh pr create` to `/finalize-pr`
 - [git-guards/ARCHITECTURE.md](../git-guards/ARCHITECTURE.md) — PreToolUse hooks
 - [content-guards/ARCHITECTURE.md](../content-guards/ARCHITECTURE.md) — Content validation

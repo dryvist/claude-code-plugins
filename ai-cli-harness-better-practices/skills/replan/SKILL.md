@@ -135,7 +135,8 @@ directly.
 
 - **resume** (this plugin) — continue work cold; calls replan when the plan is broadly stale.
 - **session-status** (this plugin) — live-state derivation reused here.
-- **handoff** (this plugin) — emits a fresh prompt from the replanned state.
+- **handoff** (mattpocock/skills, installed through nix-ai) — users may explicitly
+  invoke it to save a portable Markdown document from the replanned state.
 - **writing-plans** (superpowers) — when there is no plan to correct and one must
   be written from scratch.
 - **autoresearch:plan** — when the replanned goal needs a measurable metric and an

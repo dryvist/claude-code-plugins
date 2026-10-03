@@ -19,9 +19,6 @@ The default `/wrap-up` does not.
   command is a `wc -m` measurement piped from a heredoc.
 - **`/session-status`** — Done-versus-remaining snapshot from the plan checklist
   and task list. `/session-status mid` gives a fast mid-flight orientation.
-- **`/handoff`** — Paste-ready two-part artifact for a fresh session: the goal
-  statement plus an unbounded prompt carrying the reading list, hard rules,
-  pitfalls, and deliverables.
 - **`/resume`** — Pick up unfinished work cold. Re-derives state from live
   evidence instead of trusting a prior summary.
 - **`/replan`** — Rebuild a plan that no longer matches reality.
@@ -38,7 +35,6 @@ The default `/wrap-up` does not.
 /goal                                  # objective for the work in flight
 /goal focus on auth, ignore the docs   # optional focus hint, like /compact
 /session-status mid                    # quick done-vs-remaining snapshot
-/handoff                               # paste-ready artifact for a fresh session
 /resume                                # pick up cold; verifies before trusting
 /replan                                # rebuild a plan that drifted from reality
 /wrap-up                               # end-of-session verdict + forward artifact
@@ -48,6 +44,14 @@ The default `/wrap-up` does not.
 `/goal` is the atom — it runs anywhere, needs no repository, and writes nothing.
 The others build on it. In a git repository they add branch and PR facts; outside
 one they say what they skipped and carry on.
+
+For a portable handoff document, explicitly invoke `/handoff` from
+[mattpocock/skills](https://github.com/mattpocock/skills/tree/main/skills/productivity/handoff),
+installed separately through nix-ai. It writes Markdown to the OS temporary
+directory, references existing artifacts, and suggests skills for the next agent.
+It is user-invoked only; these continuity skills do not invoke it automatically.
+Use `/goal` separately when a capped objective is needed: `/handoff` has no
+goal-length guarantee.
 
 ## Why these are not in a git plugin
 

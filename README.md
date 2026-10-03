@@ -9,7 +9,7 @@ A collection of Claude Code plugins for enhanced development workflows with AI a
 Session continuity for AI CLI agents. No git repository required.
 
 - **Type**: Skill-based plugin
-- **Skills**: `/goal`, `/session-status`, `/handoff`, `/resume`, `/replan`, `/wrap-up`
+- **Skills**: `/goal`, `/session-status`, `/resume`, `/replan`, `/wrap-up`
 - **Purpose**: Know what you were doing, prove what is actually done, and hand
   that to a session with no memory
 

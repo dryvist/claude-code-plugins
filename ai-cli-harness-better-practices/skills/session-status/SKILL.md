@@ -1,6 +1,6 @@
 ---
 name: session-status
-description: "Analyzes current session state, no cleanup. Full mode (default): plan+TaskList+history scan, emits a /handoff prompt. Mid mode (`/session-status mid`): fast 'done vs remaining' snapshot. Repo/PR state is optional; both modes run outside a repo."
+description: "Analyzes current session state, no cleanup. Full mode (default): plan+TaskList+history scan, emits a next-session prompt. Mid mode (`/session-status mid`): fast 'done vs remaining' snapshot. Repo/PR state is optional; both modes run outside a repo."
 ---
 
 # Session and Repository Status Analysis
@@ -101,7 +101,7 @@ Call `TaskList` and inspect `status` per task.
 For checklist items without an explicit `[x]`, decide based on this session's
 actual evidence: file edits, command output, and test results visible in this
 conversation. Be conservative: if in doubt, treat as incomplete. Never consult
-other sessions' transcripts.
+history from other sessions.
 
 ### Completion rule
 
@@ -180,8 +180,8 @@ reverse-chronological conversation scan for unfinished work and pivots, the
 plan-file checkbox extraction, and the `git status` / `gh pr list` / commit-status
 tables. Hand that raw material to the **router** via the `local-subagents`
 skill (ai-delegation) at the cheapest capable tier — alias `cheap`, or a subagent
-carrying an explicit lower `model:` when the transcript is longer than one call
-holds. The premium lead triages (Step 4) over the returned table, not the dump.
+carrying an explicit lower `model:` when the conversation exceeds one call's
+capacity. The premium lead triages (Step 4) over the returned table, not the dump.
 
 Cap the input: the plan file, at most 30 open PRs, and the history scan's own
 stop rule (~10 quiet messages). Truncate rather than paginate. Exact
@@ -227,7 +227,7 @@ status, repo/git state, unfinished work, session issues, and the
 recommended next-session prompt plus tracker/incident item recommendations.
 
 Done when: every section below has a value, never a placeholder left
-un-filled; the next-session prompt was built via `/handoff` (a real goal
+un-filled; the next-session prompt includes a `/goal` statement (a real goal
 statement, not a bare task list); and items already tracked are prefixed
 with their bare identifier instead of restated as new. Exact dashboard
 template, the "already tracked" shape, and the bare-`#NNNNN`-is-fine
@@ -241,8 +241,8 @@ Both the tracker-items and incident-tickets lists are **recommendations**;
 
 ## Related Skills
 
-- **handoff** (this plugin) — builds the goal-bearing next-session prompt that
-  full mode's "Recommended Prompt for Next Session" section emits.
+- **handoff** (mattpocock/skills, installed through nix-ai) — users may explicitly
+  invoke it for a portable Markdown document in the OS temporary directory.
 - **goal** (this plugin) — the objective alone, when you want direction rather
   than progress.
 - **wrap-up** (this plugin) — session-completion verdict; calls this skill for
