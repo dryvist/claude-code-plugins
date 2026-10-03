@@ -49,14 +49,37 @@ regains orchestrator authority. Prefer local/free for checkable, low-skill
 work; discover availability live, never hard-code a physical model ID or a
 static task-to-model table.
 
+## Local Codex CLI executor
+
+Check in order:
+
+1. Installed: `command -v codex && codex --version`.
+2. Authenticated: `codex login status` (exit 0 when logged in).
+3. Weekly usage: run `codex --no-alt-screen`, then `/status` for the
+   weekly percentage left and reset time. `/status` is interactive.
+
+For a non-interactive usage read, run `codex app-server --stdio` and send
+`account/rateLimits/read` after the `initialize`/`initialized` handshake
+([protocol](https://developers.openai.com/codex/app-server/)). Find the
+10,080-minute window in `primary` or `secondary`; remaining is
+`100 - usedPercent`. An absent weekly window means usage is unknown.
+
+With roughly **25% or more of weekly usage remaining**, prefer the newest
+model the CLI offers. Discover it with `/model` or app-server `model/list`,
+including its supported efforts; set `CODEX_MODEL` and `CODEX_EFFORT` from
+that live menu using the tier mapping in `references/model-tiers.md`:
+
+```bash
+codex exec --model "$CODEX_MODEL" -c "model_reasoning_effort=\"$CODEX_EFFORT\"" "$TASK"
+```
+
 ## Concurrency and batching
 
 - **Default cap: 4–6 concurrent workers.** Override explicitly, and say why,
   when a task genuinely needs more or the substrate can't sustain that many.
 - **Batch related lookups into one worker** rather than spawning N workers
-  each paying its own cold start. Every extra worker pays at least the full
-  system-prompt write; a worker that reads five related files is cheaper
-  than five workers that each read one.
+  each paying its own startup overhead. A worker that reads five related
+  files avoids the overhead of five workers that each read one.
 - Probe the spawn substrate before the first fan-out (see Substrate
   Resilience below) — the cap only matters once spawning actually works.
 
@@ -106,10 +129,10 @@ rule (ai-assistant-instructions).
 
 ## Sibling-prefix cache sharing
 
-Parallel workers of the same type only share the cached prefix when it's
-byte-identical: keep SubagentStart hook output static, task-specific text
-**last** in the worker prompt. A varying opener breaks the shared prefix
-and every worker pays its own cold-start write.
+Where the executor supports prefix caching, parallel workers of the same
+type share it only when the prefix is byte-identical: keep startup context
+static, task-specific text **last** in the worker prompt. A varying opener
+breaks the shared prefix and adds cold-start overhead.
 
 ## Ensemble Mode (opt-in, wide solution space only)
 

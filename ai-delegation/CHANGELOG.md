@@ -1,5 +1,11 @@
 # Changelog
 
+## 6.3.3 (2026-10-03)
+
+### Bug Fixes
+
+* **ai-delegation:** use vendor-neutral executor guidance and Codex CLI usage and effort checks.
+
 ## [6.3.2](https://github.com/dryvist/claude-code-plugins/compare/ai-delegation-v6.3.1...ai-delegation-v6.3.2) (2026-09-19)
 
 
