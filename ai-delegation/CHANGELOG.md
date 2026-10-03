@@ -1,5 +1,13 @@
 # Changelog
 
+## [6.4.0](https://github.com/dryvist/claude-code-plugins/compare/ai-delegation-v6.3.2...ai-delegation-v6.4.0) (2026-10-03)
+
+
+### Features
+
+* **ai-delegation:** route coding work to ZCode ([a053d81](https://github.com/dryvist/claude-code-plugins/commit/a053d81e267b3b7e2545a9868008fa0b9724c1ef))
+* **ai-delegation:** route eligible coding work to ZCode ([a65fa45](https://github.com/dryvist/claude-code-plugins/commit/a65fa452e52970c146728327407ca9f2c4012bc1))
+
 ## [6.3.2](https://github.com/dryvist/claude-code-plugins/compare/ai-delegation-v6.3.1...ai-delegation-v6.3.2) (2026-09-19)
 
 
