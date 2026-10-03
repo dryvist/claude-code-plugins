@@ -20,8 +20,7 @@ architecture, gates, final verification, and merging with the trusted caller.
   tool or CLI). A genuinely different model catches what a Claude subagent won't.
 - **Multiple independent perspectives / consensus** -> dispatch several native
   subagents in parallel (see the `superpowers:dispatching-parallel-agents`
-  skill), optionally adding Codex as one of the voices. Synthesize the results
-  yourself.
+  skill); combine the checked outputs yourself.
 - **Private / offline / cheap / routine local task** -> the **local-subagents**
   skill (ai-delegation). Local MLX is still a real, available option here —
   it is reached through the shared router now, not by a direct call, so ask
