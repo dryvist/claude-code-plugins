@@ -101,7 +101,7 @@ Call `TaskList` and inspect `status` per task.
 For checklist items without an explicit `[x]`, decide based on this session's
 actual evidence: file edits, command output, and test results visible in this
 conversation. Be conservative: if in doubt, treat as incomplete. Never consult
-other sessions' transcripts.
+history from other sessions.
 
 ### Completion rule
 
@@ -180,8 +180,8 @@ reverse-chronological conversation scan for unfinished work and pivots, the
 plan-file checkbox extraction, and the `git status` / `gh pr list` / commit-status
 tables. Hand that raw material to the **router** via the `local-subagents`
 skill (ai-delegation) at the cheapest capable tier — alias `cheap`, or a subagent
-carrying an explicit lower `model:` when the transcript is longer than one call
-holds. The premium lead triages (Step 4) over the returned table, not the dump.
+carrying an explicit lower `model:` when the conversation exceeds one call's
+capacity. The premium lead triages (Step 4) over the returned table, not the dump.
 
 Cap the input: the plan file, at most 30 open PRs, and the history scan's own
 stop rule (~10 quiet messages). Truncate rather than paginate. Exact
