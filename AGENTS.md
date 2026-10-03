@@ -26,6 +26,7 @@ This is a **Claude Code plugins repository** containing production-ready hooks f
 | **code-standards** | Skill | `/code-quality-standards` | Estate-specific code conventions: logging format, monitoring-vs-test philosophy, doc format |
 | **infra-standards** | Skill | `/infrastructure-standards` | Infrastructure standards for Proxmox, Terraform, Ansible including deployment pipeline and secrets management |
 | **openbao** | Skill | `/openbao-secrets`, `/openbao-dynamic-aws-creds` | OpenBao secrets access model: mint ephemeral credentials from engines instead of storing static ones; reads pre-authorized, writes human-gated; includes a concrete dynamic-AWS-STS pattern |
+| **attention-notify** | PostToolUse/Notification | PushNotification, permission/question prompts | Local macOS banner ("claude · session name") for every operator-attention event; `scripts/notify-macos.sh "<body>"` is callable directly |
 | **process-cleanup** | PostToolUse | — | Cleanup orphaned MCP server processes on session exit |
 | **project-standards** | Skill | `/claude-skill-authoring`, `/workspace-standards`, `/skills-registry` | Claude skill authoring standards, workspace management, and skills/tools registry lookup |
 | **testing** | Skill | `/test` | Dispatches UI smoke, spec authoring, healing, performance, and exploratory browser testing to specialized agents so Playwright and Browser Use load only inside the chosen agent |
