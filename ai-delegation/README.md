@@ -4,7 +4,7 @@ Claude Code plugin for delegating tasks to AI models, orchestrating premium-mode
 
 ## Skills
 
-- **`/delegate-to-ai`** - Route a task to the right model (native subagent, Codex, or local MLX) based on task type
+- **`/delegate-to-ai`** - Default non-sensitive coding and review to ZCode jobs or live sessions; route other work by task type
 - **`/auto-maintain`** - Autonomous maintenance orchestrator that continuously finds and dispatches work
 - **`/premium-agent-orchestration`** - Preserve top-tier/SOTA model reasoning (any vendor,
   current or future — the session's own model is assumed to be the premium lead)
@@ -25,6 +25,7 @@ Claude Code plugin for delegating tasks to AI models, orchestrating premium-mode
   (a cloud coding-agent CLI, a cloud reasoning-agent CLI, a local model server) for
   adversarial review, plus the gotcha each invocation type hits
 
+`delegate-to-ai` is shared by Claude Code and Codex, with one ZCode eligibility and verification procedure.
 `local-subagents`, `fast-subagent` and `openrouter-models` are written to be harness-agnostic: they
 use only shell, `curl`, and `jq`, name no model ids, and read their endpoint from the
 environment. Non-Claude harnesses consume them straight from this repository rather than
