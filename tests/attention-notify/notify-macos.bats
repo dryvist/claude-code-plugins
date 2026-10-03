@@ -50,7 +50,8 @@ teardown() { rm -rf "$TMP"; }
 
 @test "osascript fallback passes quotes as argv" {
   rm "$TMP/bin/terminal-notifier"
-  run "$SCRIPT" <<<'{"session_id":"abc","cwd":"/r","message":"say \"hi\" & '\''bye'\''"}'
+  # System dirs only, so no host-installed terminal-notifier is found.
+  PATH="$TMP/bin:/usr/bin:/bin" run "$SCRIPT" <<<'{"session_id":"abc","cwd":"/r","message":"say \"hi\" & '\''bye'\''"}'
   [ "$status" -eq 0 ]
   grep -qxF "say \"hi\" & 'bye'" "$LOG"
 }
