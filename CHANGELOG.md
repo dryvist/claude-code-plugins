@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.11.1](https://github.com/dryvist/claude-code-plugins/compare/v6.11.0...v6.11.1) (2026-10-04)
+
+
+### Bug Fixes
+
+* **github-workflows:** narrow human:review requests ([22fefcb](https://github.com/dryvist/claude-code-plugins/commit/22fefcb7a78d65d48176cb9169cd4e95df5a05ef))
+
 ## [6.11.0](https://github.com/dryvist/claude-code-plugins/compare/v6.10.0...v6.11.0) (2026-10-03)
 
 
