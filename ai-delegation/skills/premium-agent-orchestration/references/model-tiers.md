@@ -13,12 +13,9 @@ lineup, including for the premium lead itself.
 | Strong reasoning | Complex implementation, deep debugging, cross-module reasoning, risky review, security-sensitive reasoning | Reason deeply, but leave final authority with the premium lead |
 | Premium lead | Intent, architecture, decomposition, tradeoffs, risk, disagreement, final review, synthesis | Own final decisions and user communication |
 
-The table runs lowest model tier (Local/free) to highest (Premium lead).
-
-Always set reasoning effort explicitly: **strong reasoning = highest
-available effort**, **mid execution = medium**,
-**scans and checklists = low**. Resolve supported efforts live alongside
-the model; choose the premium lead's effort for the decision at hand.
+For specified, checkable tasks, a fast model at high effort beats the
+flagship. Set effort explicitly: high for complex reasoning and low for
+scans and checklists.
 
 ## Model Tier Descent Rule (No Peer Spawning)
 

@@ -27,14 +27,14 @@ one model instead. The baseline to beat is always the frontier model at
 
 ## Senior Model Owns
 
-Intent, scope, architecture, decomposition, tradeoffs, resolving
-disagreement between agents, reviewing every worker's output against a
-verification step before merging, and the final answer. Everything else is
-delegatable.
+The flagship keeps judgment on intent, design, tradeoffs, risk, and final
+approval. The lead checks every result against its yes/no check and sends
+failures back with the named shortfall; a delegate's claim isn't evidence.
 
 ## Model Tiers
 
-Five capability roles, lowest to highest: **local/free** (facts and
+Five capability roles, never vendor or model names, lowest to highest:
+**local/free** (facts and
 evidence only) → **small/cheap cloud** (facts, not direction) → **mid
 execution** (scoped implementation, following existing patterns) →
 **strong reasoning** (complex work, risky review, no final authority) →
@@ -51,23 +51,11 @@ static task-to-model table.
 
 ## Local Codex CLI executor
 
-Check in order:
-
-1. Installed: `command -v codex && codex --version`.
-2. Authenticated: `codex login status` (exit 0 when logged in).
-3. Weekly usage: run `codex --no-alt-screen`, then `/status` for the
-   weekly percentage left and reset time. `/status` is interactive.
-
-For a non-interactive usage read, run `codex app-server --stdio` and send
-`account/rateLimits/read` after the `initialize`/`initialized` handshake
-([protocol](https://developers.openai.com/codex/app-server/)). Find the
-10,080-minute window in `primary` or `secondary`; remaining is
-`100 - usedPercent`. An absent weekly window means usage is unknown.
-
-With roughly **25% or more of weekly usage remaining**, prefer the newest
-model the CLI offers. Discover it with `/model` or app-server `model/list`,
-including its supported efforts; set `CODEX_MODEL` and `CODEX_EFFORT` from
-that live menu using the tier mapping in `references/model-tiers.md`:
+Before delegating, verify Codex is installed (`command -v codex`), signed in
+(`codex login status`), and has quota remaining via `/status` or app-server
+[`account/rateLimits/read`](https://developers.openai.com/codex/app-server/);
+unknown or exhausted usage means do not delegate.
+Choose a supported model and effort live with `/model` or `model/list`:
 
 ```bash
 codex exec --model "$CODEX_MODEL" -c "model_reasoning_effort=\"$CODEX_EFFORT\"" "$TASK"
@@ -155,7 +143,9 @@ runnable yes/no check, the last one end-to-end verification.
 1. Confirm this is the orchestrator case (independent pieces exceeding one
    context, or tail insurance on a large routine batch) — otherwise, don't
    use this skill.
-2. Define observable success criteria per piece of work.
+2. Make each delegated task atomic: one outcome, named inputs, a yes/no
+   check, and a report file; keep sibling writes disjoint and sequence
+   dependencies.
 3. Probe the spawn substrate before the first fan-out; on failure, take the
    solo path.
 4. Route checkable labor to the cheapest capable tier, batched per worker.
@@ -163,15 +153,12 @@ runnable yes/no check, the last one end-to-end verification.
 5. Use mid-execution agents for scoped implementation, strong-reasoning
    agents for hard delegated work or risky review.
 6. Require each worker's one-line or schema output (see above).
-7. Verify each worker's output against concrete evidence before merging.
-8. Make the important decision with the premium lead.
-9. Answer the user briefly.
+7. Answer the user briefly.
 
 ## Final Gate
 
-Before answering, confirm: the real request was handled, premium reasoning
-was spent only where it mattered, delegated evidence came in the required
-output format, non-trivial work was verified, and remaining risk is named.
+Before answering, confirm the request was handled, required output formats
+were used, non-trivial work was verified, and remaining risk is named.
 
 ## Related Skills
 
