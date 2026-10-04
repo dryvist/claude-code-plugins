@@ -27,14 +27,14 @@ one model instead. The baseline to beat is always the frontier model at
 
 ## Senior Model Owns
 
-Intent, scope, architecture, decomposition, tradeoffs, resolving
-disagreement between agents, reviewing every worker's output against a
-verification step before merging, and the final answer. Everything else is
-delegatable.
+The flagship keeps judgment on intent, design, tradeoffs, risk, and final
+approval. The lead checks every result against its yes/no check and sends
+failures back with the named shortfall; a delegate's claim isn't evidence.
 
 ## Model Tiers
 
-Five capability roles, lowest to highest: **local/free** (facts and
+Five capability roles, never vendor or model names, lowest to highest:
+**local/free** (facts and
 evidence only) → **small/cheap cloud** (facts, not direction) → **mid
 execution** (scoped implementation, following existing patterns) →
 **strong reasoning** (complex work, risky review, no final authority) →
@@ -49,14 +49,25 @@ regains orchestrator authority. Prefer local/free for checkable, low-skill
 work; discover availability live, never hard-code a physical model ID or a
 static task-to-model table.
 
+## Local Codex CLI executor
+
+Before delegating, verify Codex is installed (`command -v codex`), signed in
+(`codex login status`), and has quota remaining via `/status` or app-server
+[`account/rateLimits/read`](https://developers.openai.com/codex/app-server/);
+unknown or exhausted usage means do not delegate.
+Choose a supported model and effort live with `/model` or `model/list`:
+
+```bash
+codex exec --model "$CODEX_MODEL" -c "model_reasoning_effort=\"$CODEX_EFFORT\"" "$TASK"
+```
+
 ## Concurrency and batching
 
 - **Default cap: 4–6 concurrent workers.** Override explicitly, and say why,
   when a task genuinely needs more or the substrate can't sustain that many.
 - **Batch related lookups into one worker** rather than spawning N workers
-  each paying its own cold start. Every extra worker pays at least the full
-  system-prompt write; a worker that reads five related files is cheaper
-  than five workers that each read one.
+  each paying its own startup overhead. A worker that reads five related
+  files avoids the overhead of five workers that each read one.
 - Probe the spawn substrate before the first fan-out (see Substrate
   Resilience below) — the cap only matters once spawning actually works.
 
@@ -106,10 +117,10 @@ rule (ai-assistant-instructions).
 
 ## Sibling-prefix cache sharing
 
-Parallel workers of the same type only share the cached prefix when it's
-byte-identical: keep SubagentStart hook output static, task-specific text
-**last** in the worker prompt. A varying opener breaks the shared prefix
-and every worker pays its own cold-start write.
+Where the executor supports prefix caching, parallel workers of the same
+type share it only when the prefix is byte-identical: keep startup context
+static, task-specific text **last** in the worker prompt. A varying opener
+breaks the shared prefix and adds cold-start overhead.
 
 ## Ensemble Mode (opt-in, wide solution space only)
 
@@ -132,7 +143,9 @@ runnable yes/no check, the last one end-to-end verification.
 1. Confirm this is the orchestrator case (independent pieces exceeding one
    context, or tail insurance on a large routine batch) — otherwise, don't
    use this skill.
-2. Define observable success criteria per piece of work.
+2. Make each delegated task atomic: one outcome, named inputs, a yes/no
+   check, and a report file; keep sibling writes disjoint and sequence
+   dependencies.
 3. Probe the spawn substrate before the first fan-out; on failure, take the
    solo path.
 4. Route checkable labor to the cheapest capable tier, batched per worker.
@@ -140,15 +153,12 @@ runnable yes/no check, the last one end-to-end verification.
 5. Use mid-execution agents for scoped implementation, strong-reasoning
    agents for hard delegated work or risky review.
 6. Require each worker's one-line or schema output (see above).
-7. Verify each worker's output against concrete evidence before merging.
-8. Make the important decision with the premium lead.
-9. Answer the user briefly.
+7. Answer the user briefly.
 
 ## Final Gate
 
-Before answering, confirm: the real request was handled, premium reasoning
-was spent only where it mattered, delegated evidence came in the required
-output format, non-trivial work was verified, and remaining risk is named.
+Before answering, confirm the request was handled, required output formats
+were used, non-trivial work was verified, and remaining risk is named.
 
 ## Related Skills
 
