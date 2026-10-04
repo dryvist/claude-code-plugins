@@ -200,19 +200,8 @@ Applies **only when the PR's `baseRefName` is `main`** — a trunk-repo PR or a
 `develop`→`main` promotion. A PR into `develop` on a git-flow repo is always
 AI-initiated; skip this step for it.
 
-This is the sanctioned moment to ask for a human (see pr-standards, github-workflows
-→ Human-Review Gate). With CI, CodeQL, and threads clean, judge whether the change
-should still have human eyes before it merges to `main` — you are not confident
-enough, or merging would take an externally-visible action (e.g. cut a release) you
-are not authorized to trigger. If so, request review instead of proceeding:
-
-```bash
-gh pr edit <PR_NUMBER> --add-label "human:review"
-```
-
-Then record the PR as `needs-human` in Phase 5 (reason: `human:review`), not
-`ready`. High confidence plus thorough validation still lets you proceed to Phase 4
-and hand off a mergeable PR — the label is opt-in, never required.
+See github-workflows pr-standards → Human-Review Gate for the application criteria.
+Record labeled PRs as `needs-human` in Phase 5 (reason: `human:review`).
 
 **Multi-PR handling**: If a PR needs human intervention (unresolvable conflict,
 unrecoverable CI failure, etc.), log it with reason and continue to the next PR.
