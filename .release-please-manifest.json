@@ -1,7 +1,7 @@
 {
-  ".": "6.11.1",
+  ".": "6.11.2",
   "ai-cli-harness-better-practices": "4.27.0",
-  "ai-delegation": "6.4.0",
+  "ai-delegation": "6.4.1",
   "code-standards": "6.2.2",
   "codeql-resolver": "6.2.1",
   "content-guards": "6.2.2",
