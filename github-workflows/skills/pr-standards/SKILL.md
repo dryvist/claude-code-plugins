@@ -64,27 +64,17 @@ If empty: no new work. Clean up instead.
 `labels.yml`) is how an AI flow asks for a human before a PR merges. It is the
 human counterpart to the `ai:*` review-state labels.
 
-**Scope — requesting is `main`-only; the prohibition is unconditional.** Only a PR
-targeting `main` can have review *requested*: merges into `develop` on a git-flow
-repo are always AI-initiated, so never apply the label to a `develop`-targeted PR.
-That scope governs where you may *apply* the label — not whether to honor one
-already present. If any PR carries `human:review`, whatever its base, a human put
-it there deliberately: the merge prohibition below applies and the gate fails
-closed.
+**Application criteria (main-targeted PRs only).** Apply `human:review` only if
+at least one criterion applies:
 
-**Requesting review (how AI asks for a human).** When a change targets `main` (a
-trunk-repo PR, or a git-flow `develop`→`main` promotion) and you are not confident
-enough to merge it yourself — or merging would take an externally-visible action
-(e.g. cut a release) you are not authorized to take — apply the label instead of
-merging, and report it:
+- **Risky:** changes auth, secrets, permissions, data deletion or migration,
+  includes a breaking `!` change, or destroys live infrastructure.
+- **Large:** roughly 400+ changed lines or 15+ files.
+- **Complex:** changes behavior across repositories or modules.
 
-```bash
-gh pr edit <PR_NUMBER> --add-label "human:review"
-```
-
-High confidence plus thorough validation still lets you merge to `main` directly;
-the label is for the cases where you genuinely want human eyes first. It is never
-required for `develop` merges.
+A green merge that cuts a release is not a reason to apply the label. Other
+main-targeted PRs that pass CI proceed without it, including promotions. Apply
+the label with `gh pr edit <PR_NUMBER> --add-label "human:review"`.
 
 **Merge prohibition (absolute).** Never merge a PR carrying `human:review` without
 an explicit, same-session user instruction to merge THAT specific PR, in the user's

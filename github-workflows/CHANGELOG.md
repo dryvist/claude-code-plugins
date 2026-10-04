@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.5.1](https://github.com/dryvist/claude-code-plugins/compare/github-workflows-v6.5.0...github-workflows-v6.5.1) (2026-10-04)
+
+
+### Bug Fixes
+
+* **github-workflows:** narrow human:review requests ([22fefcb](https://github.com/dryvist/claude-code-plugins/commit/22fefcb7a78d65d48176cb9169cd4e95df5a05ef))
+
 ## [6.5.0](https://github.com/dryvist/claude-code-plugins/compare/github-workflows-v6.4.0...github-workflows-v6.5.0) (2026-10-03)
 
 

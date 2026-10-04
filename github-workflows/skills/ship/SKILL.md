@@ -176,17 +176,7 @@ internally. Running both causes race conditions on GraphQL mutations and git pus
 
 ### Human-review gate
 
-**Requesting a human — `main`-targeted PRs only.** When a PR targeting `main` needs
-a human before merge — you are not confident enough, or merging would cut a release
-you are not authorized to trigger — apply the label and report it instead of
-merging. This is the sanctioned way to ask for a human:
-
-```bash
-gh pr edit <PR_NUMBER> --add-label "human:review"
-```
-
-Never apply it to a `develop`-targeted PR: merges into `develop` are always
-AI-initiated, so there is nothing to request there.
+See github-workflows pr-standards → Human-Review Gate for the application criteria.
 
 **Never merging a labelled PR — unconditional.** `/ship` never merges a PR carrying
 `human:review`, whatever its base branch, without an explicit same-session user
@@ -256,5 +246,5 @@ PRs in the current repo (including unrelated ones).
 - merge-pr (github-workflows) — merge a PR after ship reports it ready
 - resolve-pr-threads (github-workflows) — invoked internally via finalize-pr to resolve review threads
 - gh-cli-patterns (github-workflows) — canonical gh CLI command shapes, placeholder convention, PR gate, code-scanning query
-- pr-standards (github-workflows) — the Human-Review Gate policy: when to apply `human:review` and the absolute no-merge-without-instruction rule
+- pr-standards (github-workflows) — the canonical label application criteria and merge prohibition
 - git-flow-next (git-workflows) — Dedicated git-flow-next guide, worktree setup, and promotion steps

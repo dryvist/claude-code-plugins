@@ -87,12 +87,10 @@ gate. Do not proceed until `mergeStateStatus` is `CLEAN` or `HAS_HOOKS`.
 
 ## Step 4: Merge Commit Into Main
 
-> **Human-review gate.** A promotion into `main` is exactly the merge the
-> `human:review` label protects (see pr-standards, github-workflows → Human-Review
-> Gate). If the promotion PR carries `human:review`, do NOT merge without an
+> **Human-review gate.** See github-workflows pr-standards → Human-Review Gate for the application criteria.
+> If the promotion PR carries `human:review`, do NOT merge without an
 > explicit same-session user instruction to promote; remove the label first when
-> so instructed. If you want a human to sign off before the release, apply
-> `human:review` and stop here instead of merging.
+> so instructed.
 
 Invoke `/merge-pr <PR_NUMBER>` directly — its default is a merge commit, and
 Step 0 there recognizes this exact base-branch shape as a legitimate
@@ -122,5 +120,5 @@ or tag manually.
 - finalize-pr (github-workflows) — drives the promotion PR to mergeable state, same as any other PR
 - rebase-pr (github-workflows) — refuses and points here when its target is main on a git-flow repo
 - gh-cli-patterns (github-workflows) — canonical gh CLI command shapes, placeholder convention, PR-readiness gate, default-branch detection
-- pr-standards (github-workflows) — the Human-Review Gate: a promotion into main is exactly the merge `human:review` protects
+- pr-standards (github-workflows) — the canonical label application criteria and merge prohibition
 - git-flow-next (git-workflows) — Dedicated git-flow-next guide, worktree setup, and promotion steps

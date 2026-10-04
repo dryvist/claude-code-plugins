@@ -1,5 +1,20 @@
 # Changelog
 
+## [6.11.1](https://github.com/dryvist/claude-code-plugins/compare/v6.11.0...v6.11.1) (2026-10-04)
+
+
+### Bug Fixes
+
+* **github-workflows:** narrow human:review requests ([22fefcb](https://github.com/dryvist/claude-code-plugins/commit/22fefcb7a78d65d48176cb9169cd4e95df5a05ef))
+
+## [6.11.0](https://github.com/dryvist/claude-code-plugins/compare/v6.10.0...v6.11.0) (2026-10-03)
+
+
+### Features
+
+* **ai-delegation:** route coding work to ZCode ([a053d81](https://github.com/dryvist/claude-code-plugins/commit/a053d81e267b3b7e2545a9868008fa0b9724c1ef))
+* **ai-delegation:** route eligible coding work to ZCode ([a65fa45](https://github.com/dryvist/claude-code-plugins/commit/a65fa452e52970c146728327407ca9f2c4012bc1))
+
 ## [6.10.0](https://github.com/dryvist/claude-code-plugins/compare/v6.9.0...v6.10.0) (2026-10-03)
 
 
