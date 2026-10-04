@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "Claude Code plugins and hooks by JacobPEvans",
-    "version": "6.11.0"
+    "version": "6.11.1"
   },
   "plugins": [
     {
@@ -85,7 +85,7 @@
       "name": "github-workflows",
       "source": "./github-workflows",
       "description": "PR management, multi-repo PR finalization, and issue shaping with Shape Up methodology",
-      "version": "6.5.0",
+      "version": "6.5.1",
       "author": {
         "name": "JacobPEvans"
       }
