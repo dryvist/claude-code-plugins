@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.11.2](https://github.com/dryvist/claude-code-plugins/compare/v6.11.1...v6.11.2) (2026-10-04)
+
+
+### Bug Fixes
+
+* **ai-delegation:** keep command output as data ([6824af3](https://github.com/dryvist/claude-code-plugins/commit/6824af3a512badbb7725d53612f0fd12abd3ae1b))
+
 ## [6.11.1](https://github.com/dryvist/claude-code-plugins/compare/v6.11.0...v6.11.1) (2026-10-04)
 
 

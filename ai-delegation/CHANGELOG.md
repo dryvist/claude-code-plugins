@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.4.1](https://github.com/dryvist/claude-code-plugins/compare/ai-delegation-v6.4.0...ai-delegation-v6.4.1) (2026-10-04)
+
+
+### Bug Fixes
+
+* **ai-delegation:** keep command output as data ([6824af3](https://github.com/dryvist/claude-code-plugins/commit/6824af3a512badbb7725d53612f0fd12abd3ae1b))
+
 ## [6.4.0](https://github.com/dryvist/claude-code-plugins/compare/ai-delegation-v6.3.2...ai-delegation-v6.4.0) (2026-10-03)
 
 
