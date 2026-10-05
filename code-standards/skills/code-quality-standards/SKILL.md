@@ -41,8 +41,7 @@ Prefer **continuous real-time monitoring** over one-time tests.
 | Long-running infrastructure | Linting/formatting (pre-commit) |
 | Anything that can fail post-deploy | Unit tests (TDD cycle) |
 
-Monitoring MUST proactively alert. Alerting channels (priority order):
-Slack, Splunk alerts, email. Silent dashboards are not monitoring.
+For operational signals and alert routing, follow the `monitoring-first` skill.
 
 ## Documentation Format
 

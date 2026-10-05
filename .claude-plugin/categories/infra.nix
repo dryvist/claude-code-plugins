@@ -13,12 +13,14 @@
   default = { enabled = true; };
 
   claudePlugins = [
+    "homelab-ops@jacobpevans-cc-plugins"
     "infra-orchestration@jacobpevans-cc-plugins"
     "infra-standards@jacobpevans-cc-plugins"
     "ansible-workflows@lunar-claude"
   ];
 
   skills = [
+    "monitoring-first"
     # jacobpevans infra-orchestration
     "orchestrate-infra"
     "sync-inventory"
