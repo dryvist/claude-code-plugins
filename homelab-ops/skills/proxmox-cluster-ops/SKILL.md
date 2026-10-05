@@ -1,6 +1,6 @@
 ---
 name: proxmox-cluster-ops
-description: Operate a Proxmox VE cluster safely — read-only inspection with pvesh/pct/qm/pvecm instead of hand-editing a live guest, quorum-respecting node updates, joining a new node. Use for cluster/guest inspection, rolling updates, or adding a node.
+description: Operate a Proxmox VE cluster safely — monitoring-first state checks, quorum-respecting node updates, and joining a new node. Use for cluster operations, rolling updates, or adding a node.
 ---
 
 # Proxmox VE cluster operations
@@ -9,39 +9,13 @@ Three recurring operator tasks on a Proxmox VE cluster, generalized from
 real bring-up and maintenance work. Every identifier is a placeholder —
 substitute your own node names, VMIDs, and domain.
 
-## Read-only inspection — never converge a guest by hand
+## Current state
 
-Inspecting cluster or guest state (is a service active, what does a log say,
-is a container running) is safe to do directly. **Changing** anything on a
-live guest by hand is not — config changes belong in configuration
-management (Ansible or equivalent), and shape changes (new guest, resized
-disk) belong in infrastructure-as-code (Terraform/OpenTofu or equivalent). A
-manual fix that seems to need a hand-edit is a gap in that automation to
-close, not a thing to do live.
-
-```bash
-ssh root@<node-ip> 'pvecm status'                 # cluster quorum
-ssh root@<node-ip> 'qm list' 'pct list'            # VMs / containers on a node
-ssh root@<node-ip> 'pvesh get /nodes/<node>/storage'  # structured API query
-```
-
-Or over HTTPS with an API token, no SSH hop at all:
-
-```bash
-curl -sk -H "Authorization: PVEAPIToken=$PVE_API_TOKEN" \
-  "https://<node-ip>:8006/api2/json/nodes/<node>/storage" | jq .
-```
-
-**`pct exec` vs a direct guest SSH** — use `pct exec <vmid> -- <cmd>` from
-the node when the guest is an LXC **container** and either its own SSH isn't
-reachable or you only need a one-off command. Use a direct SSH to the guest
-when you need an interactive shell for extended inspection, or the guest is
-a **VM** (`pct exec` is container-only; use `qm guest exec` or SSH for VMs).
-
-Node addresses that predate DNS bootstrapping (the Proxmox nodes themselves,
-before anything else can resolve) are the one legitimate place to look up a
-current IP from your own inventory rather than relying on a name — everything
-else should be addressed by FQDN.
+For cluster, guest, service, GPU, and storage state, follow the
+`monitoring-first` skill. This runbook covers Proxmox-specific change
+procedures. Keep live guest configuration in configuration management and
+guest shape changes in infrastructure-as-code; do not edit live guests by
+hand.
 
 ## Rolling updates that respect quorum
 
@@ -50,11 +24,12 @@ A cluster needs a strict majority of nodes online to stay quorate (e.g. 2 of
 while the first is still rebooting or rejoining — that's the exact window
 where a second failure loses quorum and makes the cluster read-only.
 
-1. Confirm quorum is healthy (`pvecm status`) before touching anything.
+1. Confirm quorum is healthy in monitoring before touching anything; cite the
+   query or panel used.
 2. Live-migrate or stop any guest on that node that can't tolerate the
    coming reboot.
-3. Update packages, reboot if the kernel changed, confirm the node rejoins
-   quorate before moving to the next.
+3. Update packages, reboot if the kernel changed, and verify through
+   monitoring that the node rejoins quorate before moving to the next.
 4. Repeat, one node at a time. If any node in the cluster has a scheduled
    sleep/power-down window, update it last, and only outside that window, so
    it has time to fully rejoin before its next scheduled power-off.
@@ -65,9 +40,8 @@ The shape that generalizes across a join, regardless of hardware:
 
 1. **Install and configure networking first**, matching the existing
    cluster's Proxmox major version — a joining node must match.
-2. **Verify hardware before trusting it for workloads** — e.g. confirm
-   expected device nodes exist for any passthrough hardware (GPU, NIC) before
-   scheduling anything onto the node that depends on it.
+2. **Verify hardware before trusting it for workloads** through monitoring,
+   citing the query or panel for passthrough devices such as GPUs and NICs.
 3. **Gate the join on DNS resolving**, if the estate is DNS/FQDN-first:
    `dig +short <new-node>.<domain>` must return the expected address before
    any converge step runs against that name.
@@ -77,10 +51,10 @@ The shape that generalizes across a join, regardless of hardware:
    ring reachability, no pre-existing cluster config on the new node) run
    before the actual `pvecm add`. A half-joined node is worse than an
    unjoined one.
-5. **Confirm quorum arithmetic explicitly** after the join — e.g. going from
-   a 3-node to a 4-node cluster changes the number of nodes needed to stay
-   quorate; re-derive the new "N/total, quorate?" table rather than assuming
-   the old threshold still applies.
+5. **Confirm quorum arithmetic explicitly** after the join using monitoring
+   evidence — e.g. going from a 3-node to a 4-node cluster changes the number
+   of nodes needed to stay quorate; re-derive the new "N/total, quorate?"
+   table rather than assuming the old threshold still applies.
 6. **Full converge**, then mark the node commissioned in whatever tracks
    desired state (infra-as-code state file, inventory flag) — only after
    both the cluster and the configuration-management side agree the node is

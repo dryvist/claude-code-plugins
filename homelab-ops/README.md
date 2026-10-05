@@ -10,8 +10,10 @@ operations, and resumable ZFS transfers.
 
 - **`/homelab-runbooks`** - Power-managed DR node wake (Dell PowerEdge/iDRAC),
   DNS ingress-alias record convergence, and OpenBao/Terrakube identity bring-up order
-- **`/proxmox-cluster-ops`** - Read-only Proxmox VE inspection with pvesh/pct/qm/pvecm,
+- **`/proxmox-cluster-ops`** - Monitoring-first Proxmox VE state checks,
   quorum-respecting rolling node updates, and the shape of joining a new node to a cluster
+- **`/monitoring-first`** - Read infrastructure and service state from monitoring,
+  close telemetry gaps, and route critical alerts and issue notifications
 - **`/terrakube-ops`** - Canonical Terrakube login/plan/apply workflow, why a targeted
   apply is dangerous, workspace lock recovery, the offline-mirror gotcha, the
   token-rotation trap, and the refresh-only 0/0/0 gate for importing existing
@@ -42,6 +44,7 @@ claude plugins add jacobpevans-cc-plugins/homelab-ops
 ```text
 /homelab-runbooks
 /proxmox-cluster-ops
+/monitoring-first
 /terrakube-ops
 /pxe-netboot
 /llm-router-ops

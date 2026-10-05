@@ -1,7 +1,7 @@
 {
   "name": "homelab-ops",
   "version": "1.0.0",
-  "description": "High-level operational runbooks for homelab management: DR-node power management, DNS ingress convergence, secrets-engine identity bring-up, Proxmox VE cluster operations, Terrakube operations, PXE netboot installs, LLM router operations, workstation off-box backup, Dell iDRAC BMC operations, and resumable ZFS transfers",
+  "description": "Operational runbooks for infrastructure state, maintenance, and recovery: monitoring-first checks, Proxmox VE cluster operations, DNS ingress convergence, secrets-engine identity bring-up, Terrakube operations, PXE netboot installs, LLM router operations, workstation off-box backup, Dell iDRAC BMC operations, and resumable ZFS transfers",
   "author": {
     "name": "JacobPEvans"
   },
@@ -17,6 +17,7 @@
   "skills": [
     "./skills/homelab-runbooks",
     "./skills/proxmox-cluster-ops",
+    "./skills/monitoring-first",
     "./skills/terrakube-ops",
     "./skills/pxe-netboot",
     "./skills/llm-router-ops",
