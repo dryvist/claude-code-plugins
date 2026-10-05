@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "Claude Code plugins and hooks by JacobPEvans",
-    "version": "6.11.2"
+    "version": "6.12.0"
   },
   "plugins": [
     {
@@ -31,7 +31,7 @@
       "name": "code-standards",
       "source": "./code-standards",
       "description": "Estate-specific code conventions not covered by generic review skills: logging format, monitoring-vs-test philosophy, doc format",
-      "version": "6.2.2",
+      "version": "6.3.0",
       "author": {
         "name": "JacobPEvans"
       }
@@ -94,7 +94,7 @@
       "name": "homelab-ops",
       "source": "./homelab-ops",
       "description": "High-level operational runbooks for homelab management: DR-node power management, DNS ingress convergence, and secrets-engine identity bring-up",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "author": {
         "name": "JacobPEvans"
       }
