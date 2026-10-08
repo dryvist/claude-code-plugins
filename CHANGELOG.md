@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.12.1](https://github.com/dryvist/claude-code-plugins/compare/v6.12.0...v6.12.1) (2026-10-08)
+
+
+### Bug Fixes
+
+* **ci:** grant actions: read to daily run limit callers ([#565](https://github.com/dryvist/claude-code-plugins/issues/565)) ([7715966](https://github.com/dryvist/claude-code-plugins/commit/7715966042077af4eebe7f03d599c26064db158b))
+
 ## [6.12.0](https://github.com/dryvist/claude-code-plugins/compare/v6.11.2...v6.12.0) (2026-10-05)
 
 
