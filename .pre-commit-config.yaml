@@ -113,7 +113,7 @@ repos:
         language: golang
         additional_dependencies:
           # renovate: datasource=github-releases depName=dotcommander/cclint
-          - github.com/dotcommander/cclint@v0.57.0
+          - github.com/dotcommander/cclint@v0.58.0
         entry: >-
           bash -c 'files=$(git diff --cached --name-only --diff-filter=ACMR
           -- "*/skills/*/SKILL.md" "*/.claude-plugin/plugin.json");
