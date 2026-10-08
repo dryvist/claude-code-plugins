@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.12.2](https://github.com/dryvist/claude-code-plugins/compare/v6.12.1...v6.12.2) (2026-10-08)
+
+
+### Bug Fixes
+
+* **github-workflows:** refresh-repo fast-forwards develop and main ([#567](https://github.com/dryvist/claude-code-plugins/issues/567)) ([774488d](https://github.com/dryvist/claude-code-plugins/commit/774488dbdc00ffb573086cb80189f3c2d049c260))
+
 ## [6.12.1](https://github.com/dryvist/claude-code-plugins/compare/v6.12.0...v6.12.1) (2026-10-08)
 
 
