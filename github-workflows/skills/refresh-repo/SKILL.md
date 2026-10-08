@@ -1,6 +1,6 @@
 ---
 name: refresh-repo
-description: Check PR merge readiness and sync the local repo with its default branch. See prune-branches (github-workflows) for stale branch and worktree cleanup.
+description: Check PR merge readiness and fast-forward the local default branch — and on git-flow repos both local develop and main — in any layout (worktree, bare, branch not checked out). Reports divergence, never forces. See prune-branches (github-workflows) for stale branch and worktree cleanup.
 ---
 
 <!-- cspell:words refspec oneline headRefOid mergedAt -->
@@ -8,7 +8,8 @@ description: Check PR merge readiness and sync the local repo with its default b
 # Git Refresh
 
 Check open PR merge-readiness status and sync the local repository with its
-default branch.
+default branch. On git-flow repos (default branch `develop`) both local
+`develop` and local `main` are synced.
 
 > **State warning**: Branch state, remote tracking, and PR status change between
 > invocations. Re-run all git/gh commands from Step 1.
@@ -52,7 +53,9 @@ Replace `<OWNER>`, `<REPO>`, `<PR_NUMBER>` per the placeholder legend in that sk
 1. Record the current branch and worktree path.
 2. Fetch origin with stale remote branch pruning, but without tag updates:
    `git fetch origin --no-tags --prune --force`
-3. Determine the default branch from `origin/HEAD`, falling back to `main` or `master`.
+3. Determine the default branch from `origin/HEAD`, falling back to `main` or
+   `master`. The **sync set** is the default branch, plus `main` when the
+   default is `develop` (git-flow) and `origin/main` exists.
 4. **Restore the default-branch worktree to the default branch.** If a
    worktree is checked out to the default branch, keep it on the default
    branch. After a feature PR merges, that worktree is sometimes left on the
@@ -70,14 +73,22 @@ Replace `<OWNER>`, `<REPO>`, `<PR_NUMBER>` per the placeholder legend in that sk
        and surface the stash reference in the summary so the user can recover.
      - `git -C <path> checkout <default>`.
    - Never use `--force`, never discard uncommitted work, never reset.
-5. Sync the default branch from its dedicated worktree with a fast-forward only merge,
-   using `git -C <path>` so the merge always targets the default worktree regardless
-   of the current shell directory:
-   `git -C <path> merge --ff-only origin/<default>`.
-   If the default worktree is dirty or divergent, report it and skip instead of resetting.
-6. Conclude the operation without switching branches. Because Steps 4 and 5 used
-   `git -C <path>` to operate on the default worktree directly, the current shell's
-   working directory and branch were never changed — each worktree owns its checkout.
+5. Fast-forward every branch `<b>` in the sync set. Pick the command by
+   layout, using `git worktree list --porcelain` (`branch refs/heads/<b>`):
+   - **Checked out in a worktree `<path>`**:
+     `git -C <path> merge --ff-only origin/<b>`. If that worktree is dirty,
+     report it and skip.
+   - **Not checked out anywhere** (including every branch of a bare repo):
+     `git fetch origin <b>:<b>`. Without a leading `+`, fetch refuses a
+     non-fast-forward update, so this is ff-only. It creates `<b>` when no
+     local branch exists yet.
+   - **Either command refuses** (local `<b>` has commits not on
+     `origin/<b>`): report
+     `git rev-list --left-right --count <b>...origin/<b>` and skip. Never
+     force, reset, or rebase.
+6. Conclude the operation without switching branches. Steps 4 and 5 used
+   `git -C <path>` and refspec fetches, so the current shell's working
+   directory and branch were never changed — each worktree owns its checkout.
 
 Do not use `git fetch --tags`, `git fetch --prune-tags`, or `git pull --tags` during the
 normal refresh. Tags are audited separately in Step 4 so local-only non-release tags and
@@ -111,7 +122,8 @@ mismatch and do not force-update it automatically. Never delete or rewrite remot
 
 Report: PRs assessed as merge-ready (if any), tags deleted or reported,
 default-branch worktree restorations (with any stash references created),
-current branch, and sync status.
+current branch, and sync status per synced branch (`develop` and `main` on
+git-flow repos): fast-forwarded, already current, or skipped (with reason).
 
 ## Common Mistake to Avoid
 
