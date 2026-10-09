@@ -34,13 +34,13 @@ Delegate a step when its result can be **checked from concrete evidence**:
 
 | Delegate | Keep |
 | --- | --- |
-| Summarizing a file, log, transcript, or diff | What the user actually wants |
+| Summarizing a file, log, or diff | What the user actually wants |
 | Classifying or triaging a batch | Architecture and design choices |
 | Extracting structured fields into a schema | Tradeoffs, risk, security judgment |
 | A first pass over unfamiliar code ("where is X handled") | Resolving contradictory evidence |
-| Drafting boilerplate, tests, config from a stated pattern | Reviewing anything risky |
+| Drafting boilerplate text from a stated pattern | Reviewing anything risky |
 | Reading and reducing command or test output | The final answer to the user |
-| | Code edits — the main model writes and owns them, even inside a bigger delegated task |
+| | Code edits — the router never writes code; implementation chunks go to Codex or `haiku-high` |
 
 Two rules that keep this honest:
 
@@ -48,11 +48,11 @@ Two rules that keep this honest:
   does not make the task premium work. Delegate the other eight steps.
 - **Capable judges the subtask, not the parent task.** A 9B model summarizing
   a log is the right tool even inside a hard architectural task.
-- **Cheap tiers earn re-checkable lookups, not code.** Delegate to a cheap
-  tier only when the result can be verified against concrete evidence (a
-  grep hit, a test pass, a schema match). Code edits stay on the main model —
-  a misread search or a silently wrong edit from a cheap tier costs more than
-  doing it yourself.
+- **Router tiers earn re-checkable lookups and bulk reads, not code edits.**
+  Delegate to a router tier only when the result can be verified against
+  concrete evidence (a grep hit, a test pass, a schema match). Route code edits
+  to Codex or `haiku-high`. A misread search or a silently wrong edit from a
+  cheap tier costs more than doing it yourself.
 
 ## 1b. Cheap first, escalate on checked failure
 
@@ -155,7 +155,7 @@ curl -fsS --max-time 120 -H "Authorization: Bearer $ROUTER_KEY" \
   size the timeout from the entry's `speed` class, and treat a slow entry as
   slow, not hung.
 - **Send only what the subtask needs.** A delegated call carrying your whole
-  transcript costs more than doing the work yourself and widens what leaves
+  conversation costs more than doing the work yourself and widens what leaves
   the estate.
 - **Write the prompt for a small model**: short imperatives, an explicit
   output schema, a row cap, and a hard STOP. Ask for extraction, never advice.

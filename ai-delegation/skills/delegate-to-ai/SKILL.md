@@ -1,25 +1,27 @@
 ---
 name: delegate-to-ai
-description: Route non-sensitive coding and review to ZCode jobs or live sessions by default; select native agents, Codex, or local models for other work.
+description: Route implementation to Codex (after codex-quota), else haiku-high; ZCode only when the operator names it.
 ---
 
 # Delegate to External AI
 
-Shared procedure for Claude Code and Codex. Prefer ZCode for eligible coding,
-refactoring, tests, docs-from-code, and code review. Its subscription tokens
-are free for coding use, so send token-heavy coding work there first. Keep
-architecture, gates, final verification, and merging with the trusted caller.
+Shared procedure for Claude Code and Codex. Implementation: Codex first after
+`codex-quota` exits 0, else `haiku-high`. ZCode runs only when the operator
+names it, for public, non-sensitive batch work and review. Keep architecture,
+gates, final verification, and merging with the trusted caller.
 
 ## When to Delegate
 
-- **Public or otherwise non-sensitive coding / review** -> ZCode, after the
-  eligibility check below. Batch work uses jobs; interactive work uses the
-  always-on native Web/Server session.
+- **Implementation** -> Codex after `codex-quota` exits 0, else the `haiku-high`
+  subagent.
+- **Public, non-sensitive batch work or review, when the operator names ZCode**
+  -> ZCode, after the eligibility check below. Batch work uses jobs; interactive
+  work uses the always-on native Web/Server session.
 - **Architecture / planning** -> the caller or a native planning agent.
 - **Adversarial review / external second opinion** -> Codex (the `codex` MCP
   tool or CLI). A genuinely different model catches what a Claude subagent won't.
-- **Multiple independent perspectives / consensus** -> dispatch several native
-  subagents in parallel (see the `superpowers:dispatching-parallel-agents`
+- **Multiple independent perspectives / consensus** -> dispatch several `haiku-high` or
+  `opus-high` subagents in parallel (see the `superpowers:dispatching-parallel-agents`
   skill); combine the checked outputs yourself.
 - **Private / offline / cheap / routine local task** -> the **local-subagents**
   skill (ai-delegation). Local MLX is still a real, available option here —
@@ -33,22 +35,24 @@ architecture, gates, final verification, and merging with the trusted caller.
 
 | Task type | Route | Executor |
 | --- | --- | --- |
-| Eligible coding / refactoring / tests / docs-from-code / review | ZCode by default | `zcode-job` or native Web/Server |
+| Implementation / refactoring / tests / docs-from-code | Codex after `codex-quota` exits 0, else `haiku-high` | `codex` MCP or CLI; `haiku-high` subagent |
+| Public, non-sensitive batch work or review, when the operator names ZCode | ZCode | `zcode-job` or native Web/Server |
 | Architecture / planning | native subagent | `Plan` mode / `Plan` subagent |
 | Adversarial review | external model | Codex (`codex` MCP) |
-| Multi-perspective / consensus | parallel subagents | N native subagents (+ Codex) |
-| Private / offline / cheap / routine local | shared router | `local-subagents` skill |
+| Multi-perspective / consensus | parallel subagents | N `haiku-high` or `opus-high` subagents (+ Codex) |
+| Lookups, bulk reads, private / offline / routine local | shared router first, then `haiku-high` | `fast-subagent` / `local-subagents` skill |
 
 ## Workflow
 
 1. **Classify content and authority**, then identify the task type.
-2. **Select route** from the table above; eligible coding goes to ZCode first.
-3. **Execute** the ZCode procedure below, or use the selected harness's native
-   agent tool, Codex MCP/CLI, or the `local-subagents` skill.
+2. **Select route** from the table above; implementation goes to Codex first.
+3. **Execute** the selected route: Codex MCP/CLI, a `haiku-high` or `opus-high`
+   subagent, the `local-subagents` skill, or the ZCode procedure below when the
+   operator names ZCode.
 4. **Synthesize** if you fanned out to multiple executors — you remain
    accountable for the final answer.
 
-## ZCode eligibility
+## External executor eligibility
 
 Run `zcode-job repos` (local JSON: `{"repos":[...]}`) before either route.
 Every repository must be in the client's configured approved subset of the
@@ -66,7 +70,7 @@ the repository. Do not attach caller credentials or request broader access.
 Give ZCode a bounded task, allowed files, acceptance commands, and the target
 base branch; request a draft PR only. ZCode never merges or performs gates.
 
-## ZCode jobs and live sessions
+## ZCode jobs and live sessions (operator opt-in)
 
 Use the installed client; arguments below are literal shell variables you
 set to the eligible repository, reviewed prompt, returned job id, and follow-up:
@@ -116,9 +120,6 @@ claim a live smoke test or deployed service from mock results.
 
 - Cloud fan-out across many providers is not part of this skill — reach for
   Codex (OpenAI) or a dedicated tool when you need a specific external model.
-- ZCode is the default coding route after eligibility checks. Other cheap
-  tiers (`local-subagents`) remain for lookups checked against concrete
-  evidence, not code edits.
 - When a routed batch has a verification command, run it cheap first and
   re-run only the checked failures one tier up (`local-subagents` §1b) —
   do not pick a single tier up front for the whole batch.

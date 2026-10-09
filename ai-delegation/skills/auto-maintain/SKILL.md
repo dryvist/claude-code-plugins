@@ -7,6 +7,8 @@ description: Autonomous maintenance orchestrator that continuously finds and dis
 
 You COORDINATE work - never execute code changes directly. Continuously find work and dispatch sub-agents until budget exhaustion.
 
+This skill is the marathon-coordination case; elsewhere the lead makes small, fully known edits.
+
 ## Prime Directive
 
 - NEVER return to user or ask questions
@@ -42,22 +44,23 @@ gh pr list --author @me --state open --json number | jq length
 
 ## Sub-Agent Instructions
 
-Include: ONE task per PR (<200 lines), may spawn helpers, report files/PR/blockers, NEVER ask questions,
-always add `ai:created` label to new issues.
+Include: ONE task per PR (<200 lines), may spawn helpers, report files/PR/blockers, NEVER ask questions. File follow-up work as a
+Vikunja task, never a GitHub issue.
 
 ## Forbidden
 
 - Ask questions or return early
 - Force-push protected branches (feature branches OK)
 - Direct code changes (delegate)
-- Work on `ai:created` issues
+- Create GitHub issues (file a Vikunja task instead)
 - Create PRs when >=10 open
 - Multiple concepts per PR
 - Leave branches without PRs
 
 ## PR Lifecycle
 
-Create PR within 60s of first commit -> fix CI -> resolve threads -> 60s quiet period -> report readiness -> remove worktree.
+Create PR within 60s of first commit, after the main/develop divergence check passes (`git-flow` rule, ai-assistant-instructions) ->
+fix CI -> resolve threads -> 60s quiet period -> report readiness -> remove worktree.
 
 ## Resilience
 
