@@ -161,6 +161,15 @@
       "author": {
         "name": "JacobPEvans"
       }
+    },
+    {
+      "name": "slack-channel",
+      "source": "./slack-channel",
+      "description": "Two-way Slack thread channel for a Claude Code session: status, questions, permission prompts and approval links answered in one thread",
+      "version": "1.0.0",
+      "author": {
+        "name": "JacobPEvans"
+      }
     }
   ]
 }

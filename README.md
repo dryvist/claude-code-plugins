@@ -101,6 +101,15 @@ Cleanup orphaned MCP server processes on session exit.
 - **Type**: PostToolUse hook
 - **Purpose**: Workaround for upstream MCP orphan-process bug (#1935)
 
+### slack-channel
+
+Two-way Slack thread for one Claude Code session: status, questions, permission prompts
+and approval links, answered in the session's thread by one operator.
+
+- **Type**: Channel (MCP server with Socket Mode) plus hooks
+- **Tools**: `reply`, plus `AskUserQuestion`, `PushNotification`, Notification and Stop hooks
+- **Purpose**: Operate a running session from Slack. See [slack-channel/README.md](slack-channel/README.md)
+
 ### testing
 
 Dispatches browser and UI test work to specialized testing agents.
@@ -133,6 +142,7 @@ claude plugins add jacobpevans-cc-plugins/<plugin-name>
 - `jacobpevans-cc-plugins/infra-orchestration`
 - `jacobpevans-cc-plugins/infra-standards`
 - `jacobpevans-cc-plugins/process-cleanup`
+- `jacobpevans-cc-plugins/slack-channel`
 - `jacobpevans-cc-plugins/project-standards`
 - `jacobpevans-cc-plugins/testing`
 
