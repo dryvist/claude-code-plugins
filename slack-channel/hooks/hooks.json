@@ -1,0 +1,52 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "AskUserQuestion",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}/hooks/ask-user-question.ts\"",
+            "timeout": 3600,
+            "statusMessage": "Waiting for the answer in the Slack thread"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "PushNotification",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}/hooks/post-status.ts\"",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "idle_prompt|auth_success|elicitation_dialog|elicitation_url_dialog|elicitation_complete|agent_needs_input|agent_completed",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}/hooks/post-status.ts\"",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}/hooks/post-status.ts\"",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}
