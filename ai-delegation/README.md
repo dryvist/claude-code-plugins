@@ -4,7 +4,7 @@ Claude Code plugin for delegating tasks to AI models, orchestrating premium-mode
 
 ## Skills
 
-- **`/delegate-to-ai`** - Default non-sensitive coding and review to ZCode jobs or live sessions; route other work by task type
+- **`/delegate-to-ai`** - Route implementation to Codex (after `codex-quota`), else `haiku-high`; ZCode only when the operator names it
 - **`/auto-maintain`** - Autonomous maintenance orchestrator that continuously finds and dispatches work
 - **`/premium-agent-orchestration`** - Preserve top-tier/SOTA model reasoning (any vendor,
   current or future — the session's own model is assumed to be the premium lead)

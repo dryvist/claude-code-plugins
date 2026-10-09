@@ -21,7 +21,7 @@
     {
       "name": "ai-delegation",
       "source": "./ai-delegation",
-      "description": "Delegate tasks to AI models, orchestrate premium-model work, and run autonomous maintenance loops",
+      "description": "Delegate tasks to AI models, run lead-owned work through the subagent roster, and run autonomous maintenance loops",
       "version": "6.4.1",
       "author": {
         "name": "JacobPEvans"

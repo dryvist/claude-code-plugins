@@ -1,21 +1,20 @@
 # Model Tiers detail
 
-Each row is a **capability role**, not a specific model name. Resolve each
-tier against whatever the environment actually offers (native subagent
-model options, configured CLIs, local serving); never hard-code a vendor's
-lineup, including for the premium lead itself.
+Each row is an **executor**, named by agent type. Resolve each executor
+against whatever the environment actually offers (native subagent types,
+configured CLIs, local serving); never hard-code a vendor's lineup, including
+for the premium lead itself.
 
-| Tier | Use for | Boundary |
+| Executor | Use for | Boundary |
 | --- | --- | --- |
-| Local/free | File discovery, log summaries, simple scans, checklist verification, cheap summaries | Report facts and evidence; avoid product or architecture calls |
-| Small/cheap cloud | Repo discovery, large-file summaries, log inspection, simple checks, edge-case scanning | Report facts, not direction |
-| Mid execution | Scoped implementation, tests, medium debugging, local refactors, following existing patterns | Execute the plan; avoid changing architecture or product intent |
-| Strong reasoning | Complex implementation, deep debugging, cross-module reasoning, risky review, security-sensitive reasoning | Reason deeply, but leave final authority with the premium lead |
-| Premium lead | Intent, architecture, decomposition, tradeoffs, risk, disagreement, final review, synthesis | Own final decisions and user communication |
+| Router (`fast-subagent`, `local-subagents`) | File discovery, log and test-output summaries, simple scans, checklist verification, classification, bulk reads | Reports facts and evidence. Never writes code. Avoids product or architecture calls |
+| `haiku-high` subagent | Scoped implementation, tests, medium debugging, local refactors, bulk reads the router cannot take, following existing patterns | Executes the plan. Avoids changing architecture or product intent |
+| `opus-high` subagent | Architecture and security judgment, deep debugging, cross-module reasoning, risky review | Advisory only. The lead decides. Never holds scope or completion |
+| Main session (lead) | Intent, architecture, decomposition, tradeoffs, risk, disagreement, final review, synthesis | Owns final decisions and user communication |
 
 For specified, checkable tasks, a fast model at high effort beats the
-flagship. Set effort explicitly: high for complex reasoning and low for
-scans and checklists.
+flagship. Effort is never below high: `haiku-high` runs at `xhigh` by default,
+and `opus-high` runs at `high`.
 
 ## Model Tier Descent Rule (No Peer Spawning)
 
@@ -23,19 +22,18 @@ scans and checklists.
 subagent on the same model tier doesn't split judgment from labor — it just
 moves the same authority sideways, at the same cost.
 
-- Every delegation targets a model tier below the delegator's own: premium
-  lead → strong reasoning or lower; strong reasoning → mid execution or
-  lower; and so on down to local/free, which executes directly.
+- Every delegation targets an executor below the delegator's own: the lead →
+  `opus-high` or lower; `opus-high` → `haiku-high` or lower; `haiku-high` →
+  the router, which executes directly.
 - Send quick lookups, exploration, research, and web search — token-heavy,
   reasoning-light work — to the **lowest** capable model tier, not just one
   down. These tasks cost volume, not thought; paying a higher tier's rate
   for them is waste.
 - "Same underlying model" means context isolation, not model-tier equality.
-  A strong-reasoning delegate may share weights with the premium lead only
-  as a bounded executor in a fresh context, with no path back to
-  orchestrator authority. It stays one model tier down in role — it never
-  regains scope, architecture, or completion calls; those stay with the
-  premium lead.
+  `opus-high` is a same-weights advisory delegate when the lead is Opus. It
+  runs in a fresh context with no path back to orchestrator authority, and it
+  never holds scope, architecture, or completion calls; those stay with the
+  lead.
 
 ## Local And Free-Tier First
 
@@ -48,14 +46,13 @@ is easy to verify. Good fits include file search summaries, log
 inspection, test-output summaries, checklist verification, mechanical
 comparisons, and other evidence-gathering tasks.
 
-Prefer these routes in order for simple checkable work:
+Prefer these routes in order for lookups and bulk reads:
 
 1. Local LLMs already reachable from the environment.
 2. Absolute cheapest free-tier model access already configured for the
    session.
-3. Cheap small-model agents.
-4. More capable paid/cloud models only when cheaper routes lack context,
-   tool access, reliability, or reasoning quality.
+3. `haiku-high`, only when the router lacks context, tool access,
+   reliability, or reasoning quality for the step.
 
 Discover current model availability live. Do not hard-code physical model
 IDs, provider names, or static task-to-model tables — including for the

@@ -35,6 +35,8 @@ Keep for yourself: intent, architecture, tradeoffs, risk, anything you would
 not accept from a smaller model without checking. Never send secrets, secret
 store context, private topology, or personal data.
 
+The router is not a Claude subagent and never writes code.
+
 ## 2. How — one command
 
 ```sh
