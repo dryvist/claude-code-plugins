@@ -31,6 +31,7 @@ This is a **Claude Code plugins repository** containing production-ready hooks f
 | **project-standards** | Skill | `/claude-skill-authoring`, `/workspace-standards`, `/skills-registry` | Claude skill authoring standards, workspace management, and skills/tools registry lookup |
 | **testing** | Skill | `/test` | Dispatches UI smoke, spec authoring, healing, performance, and exploratory browser testing to specialized agents so Playwright and Browser Use load only inside the chosen agent |
 | **estate-lsp** | LSP (code intelligence) | nixd, terraform-ls, yaml-language-server | Post-edit diagnostics and code navigation for Nix, Terraform/OpenTofu, and YAML. Expects the server binaries on PATH |
+| **slack-channel** | Channel (MCP) + hooks | `reply` tool, `AskUserQuestion`, `PushNotification`, Notification, Stop | Two-way Slack thread per session over Socket Mode: operator-only replies, permission relay, question answers. Tokens from the environment only |
 
 Session token analytics: use the `token-meter` MCP server (replaces the retired `session-analytics` plugin).
 
