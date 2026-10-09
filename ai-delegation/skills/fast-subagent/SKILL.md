@@ -61,7 +61,7 @@ Extract every failing test from the input. Do not explain or fix.
 Output ONLY: test name | file | first error line. At most 40 rows. STOP.
 ```
 
-Send only what the step needs. A call that carries your whole transcript costs
+Send only what the step needs. A call that carries your whole conversation costs
 more than doing the step yourself.
 
 ## 3. What the router decides, not you

@@ -34,7 +34,7 @@ Delegate a step when its result can be **checked from concrete evidence**:
 
 | Delegate | Keep |
 | --- | --- |
-| Summarizing a file, log, transcript, or diff | What the user actually wants |
+| Summarizing a file, log, or diff | What the user actually wants |
 | Classifying or triaging a batch | Architecture and design choices |
 | Extracting structured fields into a schema | Tradeoffs, risk, security judgment |
 | A first pass over unfamiliar code ("where is X handled") | Resolving contradictory evidence |
@@ -155,7 +155,7 @@ curl -fsS --max-time 120 -H "Authorization: Bearer $ROUTER_KEY" \
   size the timeout from the entry's `speed` class, and treat a slow entry as
   slow, not hung.
 - **Send only what the subtask needs.** A delegated call carrying your whole
-  transcript costs more than doing the work yourself and widens what leaves
+  conversation costs more than doing the work yourself and widens what leaves
   the estate.
 - **Write the prompt for a small model**: short imperatives, an explicit
   output schema, a row cap, and a hard STOP. Ask for extraction, never advice.
