@@ -1,16 +1,20 @@
 import { describe, expect, test } from 'bun:test'
 import { escapeSlack, outbound, redact, statusText, truncate, dataDir, threadStatePath, isPendingActive } from '../lib/core.ts'
 
+// Token-shaped fixtures are assembled at runtime, so no literal in this source matches a secret scanner.
+// The joined value has the real shape the redaction rules must catch.
+const joined = (...parts: string[]) => parts.join('')
+
 describe('redact', () => {
   test('masks Slack, GitHub, OpenAI-style, AWS and bearer tokens', () => {
     const samples = [
-      'xoxb-1234567890-abcdefghij',
-      'xapp-1-A0123456789-abcdefghijkl',
-      'github_pat_11ABCDEFG0123456789_abcdefghijklmnop',
-      'ghp_abcdefghijklmnopqrstuvwxyz0123456789',
-      'sk-abcdefghijklmnop1234',
-      'AKIAABCDEFGHIJKLMNOP',
-      'Authorization: Bearer abcdef.ghijkl-mnop',
+      joined('xo', 'xb-1234567890-abcdefghij'),
+      joined('xa', 'pp-1-A0123456789-abcdefghijkl'),
+      joined('github', '_pat_11ABCDEFG0123456789_abcdefghijklmnop'),
+      joined('gh', 'p_abcdefghijklmnopqrstuvwxyz0123456789'),
+      joined('s', 'k-abcdefghijklmnop1234'),
+      joined('AK', 'IAABCDEFGHIJKLMNOP'),
+      joined('Authorization: Bearer ', 'abcdef.ghijkl-mnop'),
     ]
     for (const s of samples) {
       const out = redact(`before ${s} after`)
@@ -21,9 +25,10 @@ describe('redact', () => {
   })
 
   test('masks a private key block, including an unterminated one', () => {
-    const out = redact('-----BEGIN OPENSSH PRIVATE KEY-----\nAAAA\n-----END OPENSSH PRIVATE KEY-----')
-    expect(out).toBe('[REDACTED]')
-    expect(redact('-----BEGIN RSA PRIVATE KEY-----\nAAAA')).toBe('[REDACTED]')
+    const block = joined('-----BEGIN OPENSSH ', 'PRIVATE KEY-----')
+    const end = joined('-----END OPENSSH ', 'PRIVATE KEY-----')
+    expect(redact(`${block}\nAAAA\n${end}`)).toBe('[REDACTED]')
+    expect(redact(joined('-----BEGIN RSA ', 'PRIVATE KEY-----') + '\nAAAA')).toBe('[REDACTED]')
   })
 
   test('masks key=value secrets and keeps the key name', () => {
@@ -44,7 +49,7 @@ describe('outbound text', () => {
   })
 
   test('redacts before it truncates, so a cut never leaves a token prefix', () => {
-    const token = 'xoxb-1234567890-abcdefghij'
+    const token = joined('xo', 'xb-1234567890-abcdefghij')
     const out = outbound(`${'x'.repeat(10)} ${token}`, 20)
     expect(out).not.toContain('xoxb-')
   })
