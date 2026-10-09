@@ -4,9 +4,8 @@
  * session. Socket Mode delivers the operator's replies in that thread to the session,
  * the reply tool posts into it, and tool-permission prompts are relayed there.
  */
-import { Server } from '@modelcontextprotocol/sdk/server/index.js'
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
-import { ListToolsRequestSchema, CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js'
 import { z } from 'zod'
 import { SocketModeClient } from '@slack/socket-mode'
 import { WebClient } from '@slack/web-api'
@@ -46,11 +45,10 @@ threadReady.catch(err => process.stderr.write(`slack-channel: could not post the
 const say = async (text: string) =>
   web.chat.postMessage({ channel: cfg.channelId, thread_ts: await threadReady, text })
 
-const mcp = new Server(
+const mcp = new McpServer(
   { name: 'slack', version: '1.0.0' },
   {
     capabilities: {
-      tools: {},
       experimental: {
         'claude/channel': {},
         // Inbound replies are gated to the operator's user id before they reach the session, so this is declared.
@@ -66,7 +64,7 @@ const mcp = new Server(
   },
 )
 
-mcp.setNotificationHandler(
+mcp.server.setNotificationHandler(
   z.object({
     method: z.literal('notifications/claude/channel/permission_request'),
     params: z.object({
@@ -88,36 +86,24 @@ mcp.setNotificationHandler(
   },
 )
 
-mcp.setRequestHandler(ListToolsRequestSchema, async () => ({
-  tools: [
-    {
-      name: 'reply',
-      description: "Post text into this session's Slack thread. The operator reads Slack, not the terminal.",
-      inputSchema: {
-        type: 'object',
-        properties: {
-          text: { type: 'string', description: 'Message text in Slack mrkdwn.' },
-        },
-        required: ['text'],
-      },
-    },
-  ],
-}))
-
-mcp.setRequestHandler(CallToolRequestSchema, async req => {
-  const args = (req.params.arguments ?? {}) as Record<string, unknown>
-  if (req.params.name !== 'reply') throw new Error(`unknown tool: ${req.params.name}`)
-  const text = typeof args.text === 'string' ? args.text : ''
-  if (!text.trim()) {
-    return { content: [{ type: 'text', text: 'empty text, nothing sent' }], isError: true }
-  }
-  try {
-    await say(core.truncate(core.redact(text), core.REPLY_MAX_CHARS))
-    return { content: [{ type: 'text', text: 'sent' }] }
-  } catch (err) {
-    return { content: [{ type: 'text', text: `send failed: ${(err as Error).message}` }], isError: true }
-  }
-})
+mcp.registerTool(
+  'reply',
+  {
+    description: "Post text into this session's Slack thread. The operator reads Slack, not the terminal.",
+    inputSchema: { text: z.string().describe('Message text in Slack mrkdwn.') },
+  },
+  async ({ text }) => {
+    if (!text.trim()) {
+      return { content: [{ type: 'text', text: 'empty text, nothing sent' }], isError: true }
+    }
+    try {
+      await say(core.truncate(core.redact(text), core.REPLY_MAX_CHARS))
+      return { content: [{ type: 'text', text: 'sent' }] }
+    } catch (err) {
+      return { content: [{ type: 'text', text: `send failed: ${(err as Error).message}` }], isError: true }
+    }
+  },
+)
 
 const socket = new SocketModeClient({ appToken: cfg.appToken })
 
@@ -134,13 +120,13 @@ async function onMessage(msg: core.SlackMessage): Promise<void> {
   if (!ts) return
   const verdict = core.parseVerdict(text)
   if (verdict) {
-    void mcp.notification({ method: 'notifications/claude/channel/permission', params: verdict })
+    void mcp.server.notification({ method: 'notifications/claude/channel/permission', params: verdict })
     void web.reactions
       .add({ channel: cfg.channelId, timestamp: ts, name: verdict.behavior === 'allow' ? 'white_check_mark' : 'x' })
       .catch(() => {})
     return
   }
-  await mcp.notification({
+  await mcp.server.notification({
     method: 'notifications/claude/channel',
     params: { content: text, meta: { message_ts: ts } },
   })
