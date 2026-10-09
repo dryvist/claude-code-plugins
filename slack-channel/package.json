@@ -1,0 +1,17 @@
+{
+  "name": "slack-channel",
+  "version": "1.0.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "start": "bun install --no-summary 1>&2 && bun server.ts",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.1",
+    "@slack/socket-mode": "3.0.1",
+    "@slack/web-api": "8.1.1",
+    "zod": "4.6.5"
+  }
+}
