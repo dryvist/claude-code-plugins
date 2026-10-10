@@ -109,8 +109,8 @@ gh pr view <PR_NUMBER> --json state,mergedAt --jq '{state, mergedAt}'   # expect
 
 Report the merge and note that release-please now owns the next step: it
 watches `main` and opens its own release PR (version bump, CHANGELOG,
-eventual tag) with no further action needed here. Do not create a release PR
-or tag manually.
+eventual tag). A person merges that release PR when the batch is ready; it is
+never auto-merged. Do not create a release PR or tag manually.
 
 ## Related Skills
 
