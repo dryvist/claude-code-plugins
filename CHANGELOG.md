@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.14.2](https://github.com/dryvist/claude-code-plugins/compare/v6.14.1...v6.14.2) (2026-10-10)
+
+
+### Bug Fixes
+
+* **ci:** resolve actionlint findings in workflow scripts ([#582](https://github.com/dryvist/claude-code-plugins/issues/582)) ([771e89b](https://github.com/dryvist/claude-code-plugins/commit/771e89b4a894f2e3016c52cdbd812a8b0dc92572))
+
 ## [6.14.1](https://github.com/dryvist/claude-code-plugins/compare/v6.14.0...v6.14.1) (2026-10-10)
 
 
