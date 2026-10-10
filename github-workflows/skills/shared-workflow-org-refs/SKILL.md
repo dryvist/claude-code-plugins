@@ -32,7 +32,7 @@ Because `uses:` does not follow redirects, reference each workflow by its litera
 | --- | --- | --- |
 | `ai-workflows` reusable workflows | `dryvist/ai-workflows` | canonical |
 | Nix reusable workflows (`_nix-validate.yml`, `_nix-build.yml`) | `dryvist/.github` | canonical |
-| Release-please (`_release-please.yml`) | `dryvist/.github` | canonical — org-native (dryvist release App, major-bump block, auto-merge) |
+| Release-please (`_release-please.yml`) | `dryvist/.github` | canonical — org-native (dryvist release App, major-bump block) |
 | `_markdown-lint`, `_file-size`, `_osv-scan`, `_ci-gate`, … | `JacobPEvans-personal/.github` | **pending relocation to `dryvist/.github`** |
 
 Nix and release-please were deliberately relocated to `dryvist/.github` (the org owns
@@ -44,6 +44,9 @@ moves; do not move any back to the personal account.
 ## Rules
 
 - In `uses:`, always reference the literal current owner above.
+- Pin a dryvist reusable workflow to a full commit SHA, with the release tag as a trailing comment:
+  `uses: dryvist/<repo>/.github/workflows/<file>@<40-hex-sha> # vX.Y.Z`. Never `@main`, `@develop`,
+  or a bare `@vN`.
 - Do NOT replace a reusable-workflow call with a `gh workflow run` / checkout `vars.*` dispatcher
   just to gain a variable: that loses required-check status, inputs/outputs, and `secrets: inherit`.
 
