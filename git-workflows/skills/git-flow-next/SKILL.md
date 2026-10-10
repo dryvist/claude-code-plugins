@@ -86,7 +86,8 @@ Feature PRs squash into `develop` and stop there. To release them:
 
 2. If commits exist, run `/promote-release` to open/reuse a `develop` -> `main` PR and merge it using a **merge commit** (`--merge` flag on `gh pr merge`).
    Never squash or rebase into `main`.
-3. Merging triggers `release-please` on `main`, which automatically cuts the release, version bump, and tag.
+3. Merging triggers `release-please` on `main`, which opens the release PR (version bump,
+   CHANGELOG). A person merges that release PR to cut the tag; it is never auto-merged.
 4. **Planning Reminder**: You must add "Merge develop into main" to your session checklist/to-do list at planning time.
 
 ## Related Skills
