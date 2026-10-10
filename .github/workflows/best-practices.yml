@@ -20,5 +20,5 @@ concurrency:
 
 jobs:
   best-practices:
-    uses: dryvist/ai-workflows/.github/workflows/best-practices.yml@main
+    uses: dryvist/ai-workflows/.github/workflows/best-practices.yml@e77c7f08b2f33f5dd3e1dff25c65056892ece445 # main
     secrets: inherit

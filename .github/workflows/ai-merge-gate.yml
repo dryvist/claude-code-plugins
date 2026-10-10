@@ -5,4 +5,4 @@ jobs:
   gate:
     # No `secrets:` forwarding — _ai-merge-gate.yml declares and consumes no
     # secrets; unconditional inheritance trips zizmor's secrets-inherit audit.
-    uses: dryvist/ai-workflows/.github/workflows/_ai-merge-gate.yml@main
+    uses: dryvist/ai-workflows/.github/workflows/_ai-merge-gate.yml@e77c7f08b2f33f5dd3e1dff25c65056892ece445 # main
