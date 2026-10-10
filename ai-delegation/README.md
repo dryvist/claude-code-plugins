@@ -2,9 +2,40 @@
 
 Claude Code plugin for delegating tasks to AI models, orchestrating premium-model work, and running autonomous maintenance loops.
 
+Install: `/plugin install ai-delegation --marketplace JacobPEvans/claude-code-plugins`.
+
+## Mods
+
+The plugin carries a hooks module (`hooks/register.ts`) that runs in every session it is installed in.
+Decisions append to `~/.claude/ai-delegation.log`.
+
+- **Subagent router** (`tool.call` on `Agent`). A generic spawn (no `subagent_type`, `general-purpose`, `Explore`
+  or `Plan`, with no model, effort or name set) is classified as `standard`, `complex`, `plan` or `deep`, and the
+  lowest tier that fits runs it. When `codex` starts and `codex-quota` exits 0, Codex runs it and answers the call;
+  otherwise the spawn is rewritten to a Claude model.
+
+  | Class | Codex | Claude |
+  | --- | --- | --- |
+  | standard | cheap family, `xhigh` | `haiku`, `xhigh` |
+  | complex | cheap family, `max` | `haiku`, `max` |
+  | plan | deep family, `medium` | `sonnet`, `high` |
+  | deep | deep family, `medium` | `opus`, `medium` |
+
+  Codex classifies at `high`; without Codex, `haiku` at `high` classifies. Codex runs `workspace-write`
+  (`read-only` for `Explore` and `Plan`). A spawn with `isolation` stays on Claude. A named roster agent such as
+  `haiku-xhigh` is an explicit choice and passes through. The families are the `cheapFamily` and `deepFamily`
+  options; the newest listed model of each family comes from Codex's own model cache, so no version is written
+  in the plugin.
+- **Permission judge** (`tool.check` on `Bash`). Claude Code asks about a `bash -c` script that runs `rm` and
+  cannot be checked, even under bypass mode. The judge sends the command to the cheap Codex family at `xhigh`
+  (`read-only`), or to `haiku` at `xhigh` without Codex. A `safe` verdict allows, an `unsafe` verdict denies with
+  the reason, and any failure leaves the permission dialog.
+
+The briefing rule for subagents ships in the `ai-llm-prompts` catalog, not in this plugin.
+
 ## Skills
 
-- **`/delegate-to-ai`** - Route implementation to Codex (after `codex-quota`), else `haiku-high`; ZCode only when the operator names it
+- **`/delegate-to-ai`** - Route implementation to Codex (after `codex-quota`), else `haiku-xhigh`; ZCode only when the operator names it
 - **`/auto-maintain`** - Autonomous maintenance orchestrator that continuously finds and dispatches work
 - **`/premium-agent-orchestration`** - Preserve top-tier/SOTA model reasoning (any vendor,
   current or future — the session's own model is assumed to be the premium lead)
