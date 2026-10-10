@@ -66,7 +66,7 @@ verdict — it composes with any of these.
 | **CLOSE**(fixed \| obsolete \| duplicate-of-open \| wontfix) | The claim is no longer true | Invariant 1. `wontfix` is only ever relayed from a human statement or an escalation answer, never originated. |
 | **FIX** | Real, and small enough to resolve now | Fits one small change; anything larger is PLAN. Delegate it; do not fix inline. |
 | **PLAN** | Real and open | Belongs to a cluster. |
-| **COMMENT** | Verified something worth recording, but not closing | Needs-info, or partially-true with a per-claim table. |
+| **COMMENT** | Verified something worth noting, but not closing | Needs-info, or partially-true with a per-claim table. |
 | **HOLD**(reason) | Cannot proceed or cannot verify here | Tracker-silent; report-only. |
 | **ESCALATE** | The judgment is not the sweep's | One specific question. |
 
