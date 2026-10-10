@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.6.0](https://github.com/dryvist/claude-code-plugins/compare/ai-delegation-v6.5.0...ai-delegation-v6.6.0) (2026-10-10)
+
+
+### Features
+
+* **skills:** Claude project routes and cloud-session skips ([#576](https://github.com/dryvist/claude-code-plugins/issues/576)) ([7c4912a](https://github.com/dryvist/claude-code-plugins/commit/7c4912a5450767fc804595ee2946266225a5f5fb))
+
 ## [6.5.0](https://github.com/dryvist/claude-code-plugins/compare/ai-delegation-v6.4.1...ai-delegation-v6.5.0) (2026-10-10)
 
 
