@@ -43,7 +43,7 @@ modules — the name signals intent to the reader, not behavior.
     nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-25.11-darwin";
     flake-parts.url = "github:hercules-ci/flake-parts";
     nix-devenv = {
-      url = "github:dryvist/nix-devenv";
+      url = "github:dryvist/nix-devenv?ref=vN";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
@@ -74,16 +74,19 @@ Scaffold a new repo with this layout via
 ## Consumer pattern (non-Nix path)
 
 ```bash
+# Read the shared files at the latest release
+shared_ref=$(gh api repos/dryvist/.github/releases/latest --jq .tag_name)
+
 # Pick the matching profile template
-gh api repos/dryvist/.github/contents/precommit/templates/terraform.yaml \
+gh api "repos/dryvist/.github/contents/precommit/templates/terraform.yaml?ref=$shared_ref" \
   -H "Accept: application/vnd.github.raw" > .pre-commit-config.yaml
 
 # Materialize the configs the hooks need
-gh api repos/dryvist/.github/contents/precommit/configs/tflint.hcl \
+gh api "repos/dryvist/.github/contents/precommit/configs/tflint.hcl?ref=$shared_ref" \
   -H "Accept: application/vnd.github.raw" > .tflint.hcl
-gh api repos/dryvist/.github/contents/.markdownlint-cli2.yaml \
+gh api "repos/dryvist/.github/contents/.markdownlint-cli2.yaml?ref=$shared_ref" \
   -H "Accept: application/vnd.github.raw" > .markdownlint-cli2.yaml
-gh api repos/dryvist/.github/contents/zizmor.yml \
+gh api "repos/dryvist/.github/contents/zizmor.yml?ref=$shared_ref" \
   -H "Accept: application/vnd.github.raw" > zizmor.yml
 
 pre-commit install
@@ -94,8 +97,8 @@ pre-commit install
 - Do NOT add hook definitions to consumer-repo `.pre-commit-config.yaml`
   files. If the canonical profile doesn't cover something, add it to
   `nix-devenv`'s base profile (in `lib/pre-commit-hooks.nix`) or the
-  matching profile (in `flake-modules/profiles/<name>.nix`), then pull
-  it through everywhere on the next `nix flake update`.
+  matching profile (in `flake-modules/profiles/<name>.nix`), then bump each consumer's
+  `nix-devenv` input in a pull request.
 - Do NOT duplicate shared lint config files (`.markdownlint`,
   `.tflint.hcl`, `.ansible-lint`, `.yamllint`) into a new repo. Pull
   them via the Nix path (`fetch-shared-configs`) or copy from
