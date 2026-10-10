@@ -16,18 +16,19 @@ Decisions append to `~/.claude/ai-delegation.log`.
 
   | Class | Codex | Claude |
   | --- | --- | --- |
-  | standard | cheap family, `xhigh` | `haiku`, `xhigh` |
-  | complex | cheap family, `max` | `haiku`, `max` |
-  | plan | deep family, `medium` | `sonnet`, `high` |
-  | deep | deep family, `medium` | `opus`, `medium` |
+  | standard | Luna, `xhigh` | `haiku`, `xhigh` |
+  | complex | Luna, `max` | `haiku`, `max` |
+  | plan | never | `sonnet`, `high` |
+  | deep | never | `opus`, `medium` |
 
-  Codex classifies at `high`; without Codex, `haiku` at `high` classifies. Codex runs `workspace-write`
+  Codex is Luna only, at `high`, `xhigh` or `max` only. The code refuses any other Codex model or effort, and
+  refuses to run Codex at all when no Luna model is listed, because `codex` would then use its configured
+  default. Codex classifies at `high`; without Codex, `haiku` at `high` classifies. Codex runs `workspace-write`
   (`read-only` for `Explore` and `Plan`). A spawn with `isolation` stays on Claude. A named roster agent such as
-  `haiku-xhigh` is an explicit choice and passes through. The families are the `cheapFamily` and `deepFamily`
-  options; the newest listed model of each family comes from Codex's own model cache, so no version is written
-  in the plugin.
+  `haiku-xhigh` is an explicit choice and passes through. The newest listed Luna model comes from Codex's own
+  model cache, so no version is written in the plugin.
 - **Permission judge** (`tool.check` on `Bash`). Claude Code asks about a `bash -c` script that runs `rm` and
-  cannot be checked, even under bypass mode. The judge sends the command to the cheap Codex family at `xhigh`
+  cannot be checked, even under bypass mode. The judge sends the command to Luna at `xhigh`
   (`read-only`), or to `haiku` at `xhigh` without Codex. A `safe` verdict allows, an `unsafe` verdict denies with
   the reason, and any failure leaves the permission dialog.
 

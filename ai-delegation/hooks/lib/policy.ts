@@ -6,14 +6,17 @@ export type Sandbox = 'read-only' | 'workspace-write'
 
 export const LABELS: readonly Label[] = ['standard', 'complex', 'plan', 'deep']
 
-// Lowest tier unless the task gives an explicit reason. Codex has quota: cheap family at xhigh/max, deep
-// family at medium for planning and judgment. Otherwise the Claude equivalents.
-export const CODEX = {
-  standard: { family: 'cheapFamily', effort: 'xhigh' },
-  complex: { family: 'cheapFamily', effort: 'max' },
-  plan: { family: 'deepFamily', effort: 'medium' },
-  deep: { family: 'deepFamily', effort: 'medium' },
-} as const
+// Operator rule: Codex runs only the Luna family, and only at high, xhigh or max. `codexArgv` enforces both, so
+// no table entry or caller can reach another Codex model or a lower effort.
+export const CODEX_FAMILY = 'luna'
+export const CODEX_EFFORTS: readonly string[] = ['high', 'xhigh', 'max']
+
+// Lowest tier unless the task gives an explicit reason. Codex has quota: Luna takes standard and complex work.
+// Planning and judgment stay on Claude, so they have no Codex entry.
+export const CODEX: Partial<Record<Label, { effort: string }>> = {
+  standard: { effort: 'xhigh' },
+  complex: { effort: 'max' },
+}
 
 export const CLAUDE = {
   standard: { model: 'haiku', effort: 'xhigh' },
@@ -55,7 +58,7 @@ export const isShellCAsk = (decision: string, reason: string | undefined): boole
 export const isRoutable = (e: { subagent_type?: string; model?: string; effort?: string; name?: string }): boolean =>
   (e.subagent_type === undefined || ['general-purpose', 'Explore', 'Plan'].includes(e.subagent_type)) && !e.model && !e.effort && !e.name
 
-// Newest listed model of a family ("luna", "sol") in Codex's own model cache, so no version is written here.
+// Newest listed model of a family ("luna") in Codex's own model cache, so no version is written here.
 export function newestModel(cacheText: string, family: string): string | undefined {
   const shape = new RegExp(`^gpt-([0-9.]+)-${family}$`)
   const found = (JSON.parse(cacheText).models ?? [])
@@ -71,6 +74,10 @@ export function newestModel(cacheText: string, family: string): string | undefin
   return found[0]?.slug
 }
 
-export const codexArgv = (sandbox: Sandbox, effort: string, model: string | undefined): string[] => [
-  'codex', 'exec', '-s', sandbox, '-c', `model_reasoning_effort="${effort}"`, '--skip-git-repo-check', ...(model ? ['-m', model] : []), '-',
-]
+// The only way to build a `codex exec` command. Throws for any model outside the Luna family or any effort
+// outside CODEX_EFFORTS; a missing model throws too, because `codex` would then fall back to its configured default.
+export function codexArgv(sandbox: Sandbox, effort: string, model: string | undefined): string[] {
+  if (!model || !new RegExp(`^gpt-[0-9.]+-${CODEX_FAMILY}$`).test(model)) throw new Error(`codex model must be the ${CODEX_FAMILY} family, got ${model ?? 'none'}`)
+  if (!CODEX_EFFORTS.includes(effort)) throw new Error(`codex effort must be one of ${CODEX_EFFORTS.join(', ')}, got ${effort}`)
+  return ['codex', 'exec', '-s', sandbox, '-c', `model_reasoning_effort="${effort}"`, '--skip-git-repo-check', '-m', model, '-']
+}
