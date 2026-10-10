@@ -34,12 +34,13 @@ jobs:
       - name: Validate all skills
         run: |
           failed=0
-          for skill_dir in $(find . -name "SKILL.md" -path "*/skills/*" -not -path "./.github/*" -exec dirname {} \;); do
+          while IFS= read -r -d '' skill_file; do
+            skill_dir=$(dirname "$skill_file")
             echo "Validating $skill_dir..."
             if ! agentskills validate "$skill_dir"; then
               failed=1
             fi
-          done
+          done < <(find . -name "SKILL.md" -path "*/skills/*" -not -path "./.github/*" -print0)
           if [ "$failed" -eq 1 ]; then
             echo "::error::One or more skills failed validation"
             exit 1
@@ -49,7 +50,7 @@ jobs:
       - name: Check progressive disclosure limits
         run: |
           failed=0
-          for skill_file in $(find . -name "SKILL.md" -path "*/skills/*" -not -path "./.github/*"); do
+          while IFS= read -r -d '' skill_file; do
             skill_name=$(basename "$(dirname "$skill_file")")
             lines=$(wc -l < "$skill_file")
 
@@ -61,7 +62,7 @@ jobs:
             elif [ "$lines" -gt 400 ]; then
               echo "::warning file=$skill_file::$skill_name approaching 500-line limit ($lines lines)"
             fi
-          done
+          done < <(find . -name "SKILL.md" -path "*/skills/*" -not -path "./.github/*" -print0)
           if [ "$failed" -eq 1 ]; then
             exit 1
           fi

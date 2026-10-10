@@ -28,7 +28,7 @@ jobs:
           # customManager in renovate.json (same pin as .pre-commit-config.yaml).
           # renovate: datasource=github-releases depName=dotcommander/cclint
           go install github.com/dotcommander/cclint@v0.57.0
-          echo "$HOME/go/bin" >> $GITHUB_PATH
+          echo "$HOME/go/bin" >> "$GITHUB_PATH"
 
       - name: Validate plugin structure
         run: |
@@ -44,7 +44,7 @@ jobs:
                 continue
               fi
               echo "Validating $plugin_name plugin..."
-              $HOME/go/bin/cclint "$plugin_name"
+              "$HOME/go/bin/cclint" "$plugin_name"
             fi
           done
 
