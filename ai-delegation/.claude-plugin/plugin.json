@@ -1,7 +1,7 @@
 {
   "name": "ai-delegation",
   "version": "6.4.1",
-  "description": "Delegate tasks to AI models, run lead-owned work through the subagent roster, and run autonomous maintenance loops",
+  "description": "Delegate tasks to AI models, orchestrate premium-model work, route subagent spawns to the cheapest capable tier, and answer the shell -c removal prompt with a judge model",
   "author": {
     "name": "JacobPEvans"
   },
@@ -23,5 +23,19 @@
     "./skills/fast-subagent",
     "./skills/openrouter-models",
     "./skills/multi-model-review"
-  ]
+  ],
+  "userConfig": {
+    "cheapFamily": {
+      "type": "string",
+      "title": "Cheap Codex family",
+      "description": "Codex model family used for classification, judging and standard work; the newest listed model of the family is used.",
+      "default": "luna"
+    },
+    "deepFamily": {
+      "type": "string",
+      "title": "Deep Codex family",
+      "description": "Codex model family used for planning and architecture or security judgment; the newest listed model of the family is used.",
+      "default": "sol"
+    }
+  }
 }
