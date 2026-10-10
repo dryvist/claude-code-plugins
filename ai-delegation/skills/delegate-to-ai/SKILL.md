@@ -42,6 +42,8 @@ gates, final verification, and merging with the trusted caller.
 | Multi-perspective / consensus | parallel subagents | N `haiku-xhigh` or `opus-medium` subagents (+ Codex) |
 | Lookups, bulk reads, private / offline / routine local | shared router first, then `haiku-xhigh` | `fast-subagent` / `local-subagents` skill |
 
+In a cloud session (`CLAUDE_CODE_REMOTE=true`), the Codex and ZCode routes are local-only: report `local-only, skipped` and use native subagents.
+
 ## Workflow
 
 1. **Classify content and authority**, then identify the task type.

@@ -17,7 +17,7 @@
 # only names the role. The answering model id is printed to stderr as
 # `model=<id> fallbacks=<n>` so a caller can report which rung answered.
 #
-# Exit codes: 0 ok · 2 no endpoint · 3 auth refused · 4 still busy after one
+# Exit codes: 0 ok · 2 no endpoint or cloud session · 3 auth refused · 4 still busy after one
 # Retry-After wait · 5 request/transport failure · 6 bad usage · 7 empty answer
 # (the model spent --max-tokens on reasoning or finish_reason=length; raise it).
 set -euo pipefail
@@ -41,6 +41,11 @@ while [ $# -gt 0 ]; do
     *) echo "fast-subagent: unknown option $1" >&2; exit 6 ;;
   esac
 done
+
+if [ "${CLAUDE_CODE_REMOTE:-}" = "true" ]; then
+  echo "fast-subagent: local-only, skipped: model router (cloud session)" >&2
+  exit 2
+fi
 
 if [ -n "${LLM_ROUTER_URL:-}" ] && [ -r "${LLM_ROUTER_TOKEN_FILE:-/nonexistent}" ]; then
   base="${LLM_ROUTER_URL%/}"; key="$(cat "$LLM_ROUTER_TOKEN_FILE")"
