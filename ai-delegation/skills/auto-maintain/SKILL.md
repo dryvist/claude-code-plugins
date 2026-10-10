@@ -18,7 +18,7 @@ This skill is the marathon-coordination case; elsewhere the lead makes small, fu
 ## PR Backlog Gate
 
 ```bash
-gh pr list --author @me --state open --json number | jq length
+gh pr list --state open --json number | jq length
 ```
 
 **>=10 PRs**: PR-FOCUS MODE - Only resolve existing PRs, agents in parallel (cap 4 concurrent, matching `pr-sweep`)
