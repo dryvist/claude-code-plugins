@@ -40,7 +40,7 @@ Delegate a step when its result can be **checked from concrete evidence**:
 | A first pass over unfamiliar code ("where is X handled") | Resolving contradictory evidence |
 | Drafting boilerplate text from a stated pattern | Reviewing anything risky |
 | Reading and reducing command or test output | The final answer to the user |
-| | Code edits — the router never writes code; implementation chunks go to Codex or `haiku-high` |
+| | Code edits — the router never writes code; implementation chunks go to Codex or `haiku-xhigh` |
 
 Two rules that keep this honest:
 
@@ -51,7 +51,7 @@ Two rules that keep this honest:
 - **Router tiers earn re-checkable lookups and bulk reads, not code edits.**
   Delegate to a router tier only when the result can be verified against
   concrete evidence (a grep hit, a test pass, a schema match). Route code edits
-  to Codex or `haiku-high`. A misread search or a silently wrong edit from a
+  to Codex or `haiku-xhigh`. A misread search or a silently wrong edit from a
   cheap tier costs more than doing it yourself.
 
 ## 1b. Cheap first, escalate on checked failure

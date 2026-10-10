@@ -1,18 +1,18 @@
 ---
 name: delegate-to-ai
-description: Route implementation to Codex (after codex-quota), else haiku-high; ZCode only when the operator names it.
+description: Route implementation to Codex (after codex-quota), else haiku-xhigh; ZCode only when the operator names it.
 ---
 
 # Delegate to External AI
 
 Shared procedure for Claude Code and Codex. Implementation: Codex first after
-`codex-quota` exits 0, else `haiku-high`. ZCode runs only when the operator
+`codex-quota` exits 0, else `haiku-xhigh`. ZCode runs only when the operator
 names it, for public, non-sensitive batch work and review. Keep architecture,
 gates, final verification, and merging with the trusted caller.
 
 ## When to Delegate
 
-- **Implementation** -> Codex after `codex-quota` exits 0, else the `haiku-high`
+- **Implementation** -> Codex after `codex-quota` exits 0, else the `haiku-xhigh`
   subagent.
 - **Public, non-sensitive batch work or review, when the operator names ZCode**
   -> ZCode, after the eligibility check below. Batch work uses jobs; interactive
@@ -20,8 +20,8 @@ gates, final verification, and merging with the trusted caller.
 - **Architecture / planning** -> the caller or a native planning agent.
 - **Adversarial review / external second opinion** -> Codex (the `codex` MCP
   tool or CLI). A genuinely different model catches what a Claude subagent won't.
-- **Multiple independent perspectives / consensus** -> dispatch several `haiku-high` or
-  `opus-high` subagents in parallel (see the `superpowers:dispatching-parallel-agents`
+- **Multiple independent perspectives / consensus** -> dispatch several `haiku-xhigh` or
+  `opus-medium` subagents in parallel (see the `superpowers:dispatching-parallel-agents`
   skill); combine the checked outputs yourself.
 - **Private / offline / cheap / routine local task** -> the **local-subagents**
   skill (ai-delegation). Local MLX is still a real, available option here —
@@ -35,18 +35,18 @@ gates, final verification, and merging with the trusted caller.
 
 | Task type | Route | Executor |
 | --- | --- | --- |
-| Implementation / refactoring / tests / docs-from-code | Codex after `codex-quota` exits 0, else `haiku-high` | `codex` MCP or CLI; `haiku-high` subagent |
+| Implementation / refactoring / tests / docs-from-code | Codex after `codex-quota` exits 0, else `haiku-xhigh` | `codex` MCP or CLI; `haiku-xhigh` subagent |
 | Public, non-sensitive batch work or review, when the operator names ZCode | ZCode | `zcode-job` or native Web/Server |
 | Architecture / planning | native subagent | `Plan` mode / `Plan` subagent |
 | Adversarial review | external model | Codex (`codex` MCP) |
-| Multi-perspective / consensus | parallel subagents | N `haiku-high` or `opus-high` subagents (+ Codex) |
-| Lookups, bulk reads, private / offline / routine local | shared router first, then `haiku-high` | `fast-subagent` / `local-subagents` skill |
+| Multi-perspective / consensus | parallel subagents | N `haiku-xhigh` or `opus-medium` subagents (+ Codex) |
+| Lookups, bulk reads, private / offline / routine local | shared router first, then `haiku-xhigh` | `fast-subagent` / `local-subagents` skill |
 
 ## Workflow
 
 1. **Classify content and authority**, then identify the task type.
 2. **Select route** from the table above; implementation goes to Codex first.
-3. **Execute** the selected route: Codex MCP/CLI, a `haiku-high` or `opus-high`
+3. **Execute** the selected route: Codex MCP/CLI, a `haiku-xhigh` or `opus-medium`
    subagent, the `local-subagents` skill, or the ZCode procedure below when the
    operator names ZCode.
 4. **Synthesize** if you fanned out to multiple executors — you remain
