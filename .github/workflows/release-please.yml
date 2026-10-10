@@ -11,7 +11,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-    uses: dryvist/.github/.github/workflows/_release-please.yml@main
+    uses: dryvist/.github/.github/workflows/_release-please.yml@v1
     with:
       include-component-in-tag: true
     secrets:
