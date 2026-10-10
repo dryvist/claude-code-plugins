@@ -87,6 +87,21 @@
         "pattern": "^\\./agents/[a-z0-9-]+\\.md$"
       },
       "uniqueItems": true
+    },
+    "userConfig": {
+      "type": "object",
+      "description": "Options a hooks module reads as register(on, options); each key declares one option",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["type", "title", "description"],
+        "properties": {
+          "type": { "enum": ["string", "number", "boolean"] },
+          "title": { "type": "string" },
+          "description": { "type": "string" },
+          "default": {},
+          "options": { "type": "array", "items": { "type": "string" } }
+        }
+      }
     }
   }
 }
