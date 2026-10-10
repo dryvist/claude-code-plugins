@@ -106,6 +106,9 @@ Probe the spawn substrate, cap workers, bound every poller, and take the solo
 path when spawning fails. See the `subagent-resilience` rule
 (ai-assistant-instructions).
 
+**Claude project route:** run one project thread per repository instead of the
+local fan-out; see [the claude-projects rule](https://github.com/dryvist/ai-assistant-instructions/blob/develop/agentsmd/rules/on-demand/claude-projects.md).
+
 ## Sibling-prefix cache sharing
 
 Where the executor supports prefix caching, parallel workers of the same
