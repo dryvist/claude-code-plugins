@@ -64,17 +64,23 @@ If empty: no new work. Clean up instead.
 `labels.yml`) is how an AI flow asks for a human before a PR merges. It is the
 human counterpart to the `ai:*` review-state labels.
 
-**Application criteria (main-targeted PRs only).** Apply `human:review` only if
-at least one criterion applies:
+**Application criteria.** The label is rare. Apply `human:review` only when
+ALL of these hold:
 
-- **Risky:** changes auth, secrets, permissions, data deletion or migration,
-  includes a breaking `!` change, or destroys live infrastructure.
-- **Large:** roughly 400+ changed lines or 15+ files.
-- **Complex:** changes behavior across repositories or modules.
+1. The PR targets `main`.
+2. It meets at least one of:
+   - **Risky:** changes auth, secrets, permissions, data deletion or migration,
+     includes a breaking `!` change, or destroys live infrastructure.
+   - **Large:** roughly 400+ changed lines or 15+ files.
+   - **Complex:** changes behavior across repositories or modules.
+3. A second-agent review cannot settle it: the question needs a person's
+   judgment, not another reviewer's.
 
-A green merge that cuts a release is not a reason to apply the label. Other
-main-targeted PRs that pass CI proceed without it, including promotions. Apply
-the label with `gh pr edit <PR_NUMBER> --add-label "human:review"`.
+A one-line or routine change never qualifies, and neither does a dependency
+bump short of a major version. A green merge that cuts a release is not a
+reason to apply the label. Other PRs that pass CI proceed without it,
+including promotions. Apply the label with
+`gh pr edit <PR_NUMBER> --add-label "human:review"`.
 
 **Merge prohibition (absolute).** Never merge a PR carrying `human:review` without
 an explicit, same-session user instruction to merge THAT specific PR, in the user's
