@@ -23,19 +23,5 @@
     "./skills/fast-subagent",
     "./skills/openrouter-models",
     "./skills/multi-model-review"
-  ],
-  "userConfig": {
-    "cheapFamily": {
-      "type": "string",
-      "title": "Cheap Codex family",
-      "description": "Codex model family used for classification, judging and standard work; the newest listed model of the family is used.",
-      "default": "luna"
-    },
-    "deepFamily": {
-      "type": "string",
-      "title": "Deep Codex family",
-      "description": "Codex model family used for planning and architecture or security judgment; the newest listed model of the family is used.",
-      "default": "sol"
-    }
-  }
+  ]
 }

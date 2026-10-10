@@ -1,5 +1,5 @@
 import { describe, expect, mock, test } from 'claude-code/testing'
-import { codexArgv, isRoutable, isShellCAsk, newestModel, parseVerdict, pickLabel } from './lib/policy'
+import { CODEX, codexArgv, isRoutable, isShellCAsk, newestModel, parseVerdict, pickLabel } from './lib/policy'
 
 const CORE_ASK = { decision: 'ask', reason: 'This command passes a shell -c script that runs rm, and Claude Code could not check the script for dangerous removals.' }
 const RAN = { exitCode: 0, stdout: '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false }
@@ -17,7 +17,6 @@ const CACHE = JSON.stringify({
   models: [
     { slug: 'gpt-6-luna', visibility: 'list' },
     { slug: 'gpt-5.6-luna', visibility: 'list' },
-    { slug: 'gpt-6-sol', visibility: 'list' },
     { slug: 'gpt-6.1-sol', visibility: 'list' },
     { slug: 'gpt-7-luna', visibility: 'hide' },
   ],
@@ -26,7 +25,6 @@ const CACHE = JSON.stringify({
 describe('policy', () => {
   test('newestModel picks the highest listed version of a family', () => {
     expect(newestModel(CACHE, 'luna')).toBe('gpt-6-luna')
-    expect(newestModel(CACHE, 'sol')).toBe('gpt-6.1-sol')
     expect(newestModel(CACHE, 'astra')).toBeUndefined()
   })
 
@@ -49,17 +47,25 @@ describe('policy', () => {
     expect(isRoutable({ subagent_type: 'haiku-xhigh' })).toBe(false)
     expect(isRoutable({ model: 'opus' })).toBe(false)
     expect(isRoutable({ name: 'worker' })).toBe(false)
-    expect(codexArgv('read-only', 'xhigh', undefined)).not.toContain('-m')
-    expect(codexArgv('read-only', 'xhigh', 'm')).toContain('m')
+    expect(codexArgv('read-only', 'xhigh', 'gpt-6-luna')).toContain('gpt-6-luna')
+  })
+
+  test('Codex is Luna-only at high, xhigh or max, and only standard and complex work reaches it', () => {
+    for (const effort of ['high', 'xhigh', 'max']) expect(codexArgv('read-only', effort, 'gpt-6-luna')).toContain(`model_reasoning_effort="${effort}"`)
+    for (const effort of ['low', 'medium', 'minimal', '']) expect(() => codexArgv('read-only', effort, 'gpt-6-luna')).toThrow()
+    for (const model of ['gpt-6.1-sol', 'gpt-6-sol', 'gpt-6-luna-mini', 'luna', '', undefined]) expect(() => codexArgv('read-only', 'xhigh', model)).toThrow()
+    expect(Object.keys(CODEX)).toEqual(['standard', 'complex'])
+    for (const c of Object.values(CODEX)) expect(['high', 'xhigh', 'max']).toContain(c!.effort)
   })
 })
 
 // A fake world: codex presence and quota, what `codex exec` and the Haiku call answer.
-function world(on: any, w: { codex: boolean; codexSays?: string; haikuSays?: string }) {
+function world(on: any, w: { codex: boolean; codexSays?: string; haikuSays?: string; cache?: boolean }) {
   mock.env(on, { HOME: '/home/test' })
   mock.clock(on)
   const seen: string[][] = []
-  on('fs.exists', () => ({ value: false }))
+  on('fs.exists', () => ({ value: w.cache !== false }))
+  on('fs.read', () => ({ value: CACHE }))
   on('process.run', (_$: any, e: { argv: string[] }) => {
     seen.push([...e.argv])
     if (e.argv[0] === 'codex' && e.argv[1] === '--version') return { value: { ...RAN, exitCode: w.codex ? 0 : 1 } }
@@ -130,6 +136,37 @@ describe('router', () => {
     expect(reached).toBe(false)
     expect(JSON.stringify(r)).toContain('[routed: codex luna xhigh, class standard]')
     expect(seen.some((a) => a[0] === 'codex' && a.includes('workspace-write'))).toBe(true)
+  })
+
+  test('a plan task stays on Claude even when Codex is ready', async ($, on) => {
+    const seen = world(on, { codex: true, codexSays: 'plan' })
+    let routed: { model?: string; effort?: string } = {}
+    on('tool.call', { tool: 'Agent' }, (_$: any, e: any) => ((routed = e), { result: DONE }) as never)
+    await $.tool.call({ tool: 'Agent', description: 'design', prompt: 'Plan the migration of the auth layer.' } as never)
+    expect(routed.model).toBe('sonnet')
+    expect(routed.effort).toBe('high')
+    expect(seen.filter((a) => a[0] === 'codex' && a[1] === 'exec').every((a) => a.includes('read-only') && a.includes('gpt-6-luna'))).toBe(true)
+  })
+
+  test('every codex exec uses the Luna model at an allowed effort', async ($, on) => {
+    const seen = world(on, { codex: true, codexSays: 'standard' })
+    on('tool.call', { tool: 'Agent' }, () => ({ result: DONE }) as never)
+    await $.tool.call({ tool: 'Agent', description: 'read', prompt: 'Summarise README.md' } as never)
+    const runs = seen.filter((a) => a[0] === 'codex' && a[1] === 'exec')
+    expect(runs.length).toBeGreaterThan(0)
+    for (const a of runs) {
+      expect(a[a.indexOf('-m') + 1]).toBe('gpt-6-luna')
+      expect(a.join(' ')).toMatch(/model_reasoning_effort="(high|xhigh|max)"/)
+    }
+  })
+
+  test('with no Luna model listed Codex is not run and Claude takes the work', async ($, on) => {
+    const seen = world(on, { codex: true, codexSays: 'standard', haikuSays: 'standard', cache: false })
+    let routed: { model?: string } = {}
+    on('tool.call', { tool: 'Agent' }, (_$: any, e: any) => ((routed = e), { result: DONE }) as never)
+    await $.tool.call({ tool: 'Agent', description: 'read', prompt: 'Summarise README.md' } as never)
+    expect(seen.some((a) => a[0] === 'codex' && a[1] === 'exec')).toBe(false)
+    expect(routed.model).toBe('haiku')
   })
 
   test('a roster agent passes through untouched', async ($, on) => {
