@@ -159,7 +159,7 @@ prevents API rate limit errors from overlapping finalization cascades.
 For each PR in the list:
 
 1. Invoke `/finalize-pr <PR_NUMBER>` via the Skill tool
-2. Record the result (ready / blocked / needs-human)
+2. Record the result (ready / blocked / held)
 3. Proceed to the next PR
 
 **Claude project route:** run one project thread per repository instead of the
