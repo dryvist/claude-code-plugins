@@ -1,7 +1,7 @@
 # CI Gate — thin wrapper over the dryvist org reusable workflow
 #
 # Delegates markdown lint and file size checks to the org orchestrator
-# `dryvist/.github/.github/workflows/_ci-gate.yml@main`. `file_size` is
+# `dryvist/.github/.github/workflows/_ci-gate.yml@<40-hex commit SHA> # vX.Y.Z`. `file_size` is
 # gated on `nix` OR `markdown` filter outputs; this repo has no `nix` filter,
 # so the `markdown` filter alone is sufficient to drive both checks.
 
@@ -31,6 +31,6 @@ jobs:
       # `actions: write` must be granted here or the run fails at graph
       # validation (startup_failure).
       actions: write
-    uses: dryvist/.github/.github/workflows/_ci-gate.yml@v1
+    uses: dryvist/.github/.github/workflows/_ci-gate.yml@c4501ea67ce4469a5cc95216c9a989516da2adb8 # v1.10.0
     with:
       profile: docs
