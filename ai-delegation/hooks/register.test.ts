@@ -1,5 +1,5 @@
 import { describe, expect, mock, test } from 'claude-code/testing'
-import { CODEX, codexArgv, isRoutable, isShellCAsk, newestModel, parseVerdict, pickLabel } from './lib/policy'
+import { CODEX, DEFAULT_EFFORT, codexArgv, isRoutable, isShellCAsk, newestModel, parseVerdict, pickLabel } from './lib/policy'
 
 const CORE_ASK = { decision: 'ask', reason: 'This command passes a shell -c script that runs rm, and Claude Code could not check the script for dangerous removals.' }
 const RAN = { exitCode: 0, stdout: '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false }
@@ -13,18 +13,19 @@ const DONE = {
   totalTokens: 0,
   usage: { input_tokens: 0, output_tokens: 0, cache_creation_input_tokens: null, cache_read_input_tokens: null, server_tool_use: null, service_tier: null, cache_creation: null },
 }
+// Codex ranks its models by `priority`: the lowest is the newest. Slugs here carry no version on purpose.
 const CACHE = JSON.stringify({
   models: [
-    { slug: 'gpt-6-luna', visibility: 'list' },
-    { slug: 'gpt-5.6-luna', visibility: 'list' },
-    { slug: 'gpt-6.1-sol', visibility: 'list' },
-    { slug: 'gpt-7-luna', visibility: 'hide' },
+    { slug: 'gpt-older-luna', visibility: 'list', priority: 9 },
+    { slug: 'gpt-newer-luna', visibility: 'list', priority: 4 },
+    { slug: 'gpt-newest-sol', visibility: 'list', priority: 1 },
+    { slug: 'gpt-hidden-luna', visibility: 'hide', priority: 0 },
   ],
 })
 
 describe('policy', () => {
-  test('newestModel picks the highest listed version of a family', () => {
-    expect(newestModel(CACHE, 'luna')).toBe('gpt-6-luna')
+  test('newestModel picks the listed model of a family with the lowest priority', () => {
+    expect(newestModel(CACHE, 'luna')).toBe('gpt-newer-luna')
     expect(newestModel(CACHE, 'astra')).toBeUndefined()
   })
 
@@ -47,13 +48,15 @@ describe('policy', () => {
     expect(isRoutable({ subagent_type: 'haiku-xhigh' })).toBe(false)
     expect(isRoutable({ model: 'opus' })).toBe(false)
     expect(isRoutable({ name: 'worker' })).toBe(false)
-    expect(codexArgv('read-only', 'xhigh', 'gpt-6-luna')).toContain('gpt-6-luna')
+    expect(codexArgv('read-only', 'xhigh', 'gpt-newer-luna')).toContain('gpt-newer-luna')
   })
 
   test('Codex is Luna-only at high, xhigh or max, and only standard and complex work reaches it', () => {
-    for (const effort of ['high', 'xhigh', 'max']) expect(codexArgv('read-only', effort, 'gpt-6-luna')).toContain(`model_reasoning_effort="${effort}"`)
-    for (const effort of ['low', 'medium', 'minimal', '']) expect(() => codexArgv('read-only', effort, 'gpt-6-luna')).toThrow()
-    for (const model of ['gpt-6.1-sol', 'gpt-6-sol', 'gpt-6-luna-mini', 'luna', '', undefined]) expect(() => codexArgv('read-only', 'xhigh', model)).toThrow()
+    for (const effort of ['high', 'xhigh', 'max']) expect(codexArgv('read-only', effort, 'gpt-newer-luna')).toContain(`model_reasoning_effort="${effort}"`)
+    for (const effort of ['low', 'medium', 'minimal', '']) expect(() => codexArgv('read-only', effort, 'gpt-newer-luna')).toThrow()
+    for (const model of ['gpt-newest-sol', 'gpt-newer-luna-mini', 'luna', 'latest', '', undefined]) expect(() => codexArgv('read-only', 'xhigh', model)).toThrow()
+    expect(DEFAULT_EFFORT).toBe('xhigh')
+    expect(CODEX.standard!.effort).toBe(DEFAULT_EFFORT)
     expect(Object.keys(CODEX)).toEqual(['standard', 'complex'])
     for (const c of Object.values(CODEX)) expect(['high', 'xhigh', 'max']).toContain(c!.effort)
   })
@@ -145,18 +148,18 @@ describe('router', () => {
     await $.tool.call({ tool: 'Agent', description: 'design', prompt: 'Plan the migration of the auth layer.' } as never)
     expect(routed.model).toBe('sonnet')
     expect(routed.effort).toBe('high')
-    expect(seen.filter((a) => a[0] === 'codex' && a[1] === 'exec').every((a) => a.includes('read-only') && a.includes('gpt-6-luna'))).toBe(true)
+    expect(seen.filter((a) => a[0] === 'codex' && a[1] === 'exec').every((a) => a.includes('read-only') && a.includes('gpt-newer-luna'))).toBe(true)
   })
 
-  test('every codex exec uses the Luna model at an allowed effort', async ($, on) => {
+  test('every codex exec in a standard flow uses the Luna model at xhigh', async ($, on) => {
     const seen = world(on, { codex: true, codexSays: 'standard' })
     on('tool.call', { tool: 'Agent' }, () => ({ result: DONE }) as never)
     await $.tool.call({ tool: 'Agent', description: 'read', prompt: 'Summarise README.md' } as never)
     const runs = seen.filter((a) => a[0] === 'codex' && a[1] === 'exec')
     expect(runs.length).toBeGreaterThan(0)
     for (const a of runs) {
-      expect(a[a.indexOf('-m') + 1]).toBe('gpt-6-luna')
-      expect(a.join(' ')).toMatch(/model_reasoning_effort="(high|xhigh|max)"/)
+      expect(a[a.indexOf('-m') + 1]).toBe('gpt-newer-luna')
+      expect(a.join(' ')).toContain('model_reasoning_effort="xhigh"')
     }
   })
 

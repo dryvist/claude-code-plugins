@@ -21,12 +21,13 @@ Decisions append to `~/.claude/ai-delegation.log`.
   | plan | never | `sonnet`, `high` |
   | deep | never | `opus`, `medium` |
 
-  Codex is Luna only, at `high`, `xhigh` or `max` only. The code refuses any other Codex model or effort, and
-  refuses to run Codex at all when no Luna model is listed, because `codex` would then use its configured
-  default. Codex classifies at `high`; without Codex, `haiku` at `high` classifies. Codex runs `workspace-write`
+  Codex is Luna only, at `high`, `xhigh` or `max` only, and `xhigh` is the default. The code refuses any other
+  Codex model or effort, and refuses to run Codex at all when no Luna model is listed, because `codex` would then
+  use its configured default. Codex and `haiku` both classify at `xhigh`. Codex runs `workspace-write`
   (`read-only` for `Explore` and `Plan`). A spawn with `isolation` stays on Claude. A named roster agent such as
-  `haiku-xhigh` is an explicit choice and passes through. The newest listed Luna model comes from Codex's own
-  model cache, so no version is written in the plugin.
+  `haiku-xhigh` is an explicit choice and passes through. Codex accepts only exact model slugs, so the plugin picks
+  the listed Luna model with the lowest `priority` in Codex's own model cache. No version is written or parsed in
+  the plugin.
 - **Permission judge** (`tool.check` on `Bash`). Claude Code asks about a `bash -c` script that runs `rm` and
   cannot be checked, even under bypass mode. The judge sends the command to Luna at `xhigh`
   (`read-only`), or to `haiku` at `xhigh` without Codex. A `safe` verdict allows, an `unsafe` verdict denies with

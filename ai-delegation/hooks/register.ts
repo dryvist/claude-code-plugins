@@ -1,5 +1,5 @@
 import type { EngineInterface, Register } from 'claude-code'
-import { CLASSIFIER, CLAUDE, CODEX, CODEX_FAMILY, JUDGE, codexArgv, isRoutable, isShellCAsk, newestModel, parseVerdict, pickLabel } from './lib/policy'
+import { CLASSIFIER, CLAUDE, CODEX, CODEX_FAMILY, DEFAULT_EFFORT, JUDGE, codexArgv, isRoutable, isShellCAsk, newestModel, parseVerdict, pickLabel } from './lib/policy'
 import type { Label, Sandbox } from './lib/policy'
 
 type Engine = EngineInterface
@@ -43,10 +43,10 @@ async function logDecision($: Engine, line: string): Promise<void> {
 async function classify($: Engine, e: AgentCall, ready: boolean): Promise<Label> {
   const task = `${e.description ?? ''}\n${e.prompt.slice(0, 4000)}`
   if (ready) {
-    const label = pickLabel(await runCodex($, 'high', 'read-only', `${CLASSIFIER}\n\nTask:\n${task}`, 90_000))
+    const label = pickLabel(await runCodex($, DEFAULT_EFFORT, 'read-only', `${CLASSIFIER}\n\nTask:\n${task}`, 90_000))
     if (label) return label
   }
-  const r = await $.model.complete({ model: 'haiku', effort: 'high', system: CLASSIFIER, prompt: task, maxTokens: 10, timeoutMs: 30_000 })
+  const r = await $.model.complete({ model: 'haiku', effort: DEFAULT_EFFORT, system: CLASSIFIER, prompt: task, maxTokens: 10, timeoutMs: 30_000 })
   return pickLabel(r.isAnswered ? r.text : undefined) ?? 'standard'
 }
 
@@ -91,11 +91,11 @@ async function judge($: Engine, e: { input: unknown }, next: (e: never) => Promi
 
   const command = String((e.input as { command?: unknown })?.command ?? '')
   const ask = `${JUDGE}\n\nCommand:\n\`\`\`\n${command}\n\`\`\``
-  let by = `codex ${CODEX_FAMILY} xhigh`
-  let verdict = (await codexReady($)) ? parseVerdict(await runCodex($, 'xhigh', 'read-only', ask, 120_000)) : undefined
+  let by = `codex ${CODEX_FAMILY} ${DEFAULT_EFFORT}`
+  let verdict = (await codexReady($)) ? parseVerdict(await runCodex($, DEFAULT_EFFORT, 'read-only', ask, 120_000)) : undefined
   if (!verdict) {
-    by = 'haiku xhigh'
-    const r = await $.model.complete({ model: 'haiku', effort: 'xhigh', prompt: ask, maxTokens: 400, timeoutMs: 60_000 })
+    by = `haiku ${DEFAULT_EFFORT}`
+    const r = await $.model.complete({ model: 'haiku', effort: DEFAULT_EFFORT, prompt: ask, maxTokens: 400, timeoutMs: 60_000 })
     verdict = parseVerdict(r.isAnswered ? r.text : undefined)
   }
   if (!verdict) {
