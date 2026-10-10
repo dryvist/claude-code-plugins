@@ -24,8 +24,8 @@ default branch. On git-flow repos (default branch `develop`) both local
 # Check for PR from current branch
 gh pr view --json state,number,title 2>/dev/null
 
-# ALWAYS also check for any open PRs by the user
-gh pr list --author @me --state open --limit 50 --json number,title,headRefName
+# ALWAYS also check for any open PRs
+gh pr list --state open --limit 50 --json number,title,headRefName
 ```
 
 ### 2. Report Merge-Readiness Status
@@ -129,7 +129,7 @@ git-flow repos): fast-forwarded, already current, or skipped (with reason).
 
 **DO NOT** skip the PR check just because you're on main. The user may have multiple open PRs from different branches.
 
-Always run `gh pr list --author @me --state open --limit 50 --json number,title,headRefName` to find work that needs merging.
+Always run `gh pr list --state open --limit 50 --json number,title,headRefName` to find work that needs merging.
 
 Do not use `--prune-tags` as a shortcut for tag cleanup. Git treats tag pruning as an
 explicit refspec prune and can delete local-only tags that are not release artifacts.

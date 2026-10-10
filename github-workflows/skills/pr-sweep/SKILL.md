@@ -54,6 +54,9 @@ point at `/promote-release`.
   types (app installation tokens) carry no user identity, so a self-filter
   silently returns nothing.
 
+**Claude project route:** run one project thread per repository instead of the
+local fan-out; see [the claude-projects rule](https://github.com/dryvist/ai-assistant-instructions/blob/develop/agentsmd/rules/on-demand/claude-projects.md).
+
 Command shapes live in **gh-cli-patterns**. List first, act second, and state
 the count before touching anything.
 

@@ -66,7 +66,7 @@ verdict — it composes with any of these.
 | **CLOSE**(fixed \| obsolete \| duplicate-of-open \| wontfix) | The claim is no longer true | Invariant 1. `wontfix` is only ever relayed from a human statement or an escalation answer, never originated. |
 | **FIX** | Real, and small enough to resolve now | Fits one small change; anything larger is PLAN. Delegate it; do not fix inline. |
 | **PLAN** | Real and open | Belongs to a cluster. |
-| **COMMENT** | Verified something worth recording, but not closing | Needs-info, or partially-true with a per-claim table. |
+| **COMMENT** | Verified something worth noting, but not closing | Needs-info, or partially-true with a per-claim table. |
 | **HOLD**(reason) | Cannot proceed or cannot verify here | Tracker-silent; report-only. |
 | **ESCALATE** | The judgment is not the sweep's | One specific question. |
 
@@ -121,6 +121,8 @@ Issue Sweep — <scope>
 - Per-tracker operations, capability probing, normalization:
   [references/tracker-adapters.md](references/tracker-adapters.md).
 - Multi-tracker or multi-repo runs reuse `/pr-sweep`'s parallel protocol.
+- **Claude project route:** run one project thread per repository instead of the
+  local fan-out; see [the claude-projects rule](https://github.com/dryvist/ai-assistant-instructions/blob/develop/agentsmd/rules/on-demand/claude-projects.md).
 
 ## Related Skills
 

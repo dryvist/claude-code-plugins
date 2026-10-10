@@ -69,6 +69,10 @@ Neither the MCP tools nor this path available for a destination means this skill
 **falls back to listing** those items and says so in one line — it does not
 silently drop them, and it does not guess an identifier, project, or ticket number.
 
+In a cloud session (`CLAUDE_CODE_REMOTE=true`) the tracker and incident system are
+unreachable. List the items under `FOLLOW-UPS` or `INCIDENTS` in the final report
+for a local session to file, and create nothing.
+
 ### 2. Deduplicate before creating
 
 Search the destination for an existing open item covering the same thing.
