@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.6.1](https://github.com/dryvist/claude-code-plugins/compare/github-workflows-v6.6.0...github-workflows-v6.6.1) (2026-10-10)
+
+
+### Bug Fixes
+
+* **github-workflows:** drop the needs-human status word, narrow human:review ([#584](https://github.com/dryvist/claude-code-plugins/issues/584)) ([0ff580d](https://github.com/dryvist/claude-code-plugins/commit/0ff580d1be5b15c0e362d5b4c92b3e26fb935bd3))
+
 ## [6.6.0](https://github.com/dryvist/claude-code-plugins/compare/github-workflows-v6.5.2...github-workflows-v6.6.0) (2026-10-10)
 
 

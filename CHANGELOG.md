@@ -1,5 +1,13 @@
 # Changelog
 
+## [6.14.2](https://github.com/dryvist/claude-code-plugins/compare/v6.14.1...v6.14.2) (2026-10-10)
+
+
+### Bug Fixes
+
+* **ci:** resolve actionlint findings in workflow scripts ([#582](https://github.com/dryvist/claude-code-plugins/issues/582)) ([771e89b](https://github.com/dryvist/claude-code-plugins/commit/771e89b4a894f2e3016c52cdbd812a8b0dc92572))
+* **github-workflows:** drop the needs-human status word, narrow human:review ([#584](https://github.com/dryvist/claude-code-plugins/issues/584)) ([0ff580d](https://github.com/dryvist/claude-code-plugins/commit/0ff580d1be5b15c0e362d5b4c92b3e26fb935bd3))
+
 ## [6.14.1](https://github.com/dryvist/claude-code-plugins/compare/v6.14.0...v6.14.1) (2026-10-10)
 
 
