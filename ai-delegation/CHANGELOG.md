@@ -1,5 +1,13 @@
 # Changelog
 
+## [6.6.1](https://github.com/dryvist/claude-code-plugins/compare/ai-delegation-v6.6.0...ai-delegation-v6.6.1) (2026-10-10)
+
+
+### Bug Fixes
+
+* **ai-delegation:** default every Luna and Haiku effort to xhigh and pick the model without versions ([#581](https://github.com/dryvist/claude-code-plugins/issues/581)) ([4a0b704](https://github.com/dryvist/claude-code-plugins/commit/4a0b704d7cefd8cdbf89d6387c15017f97d31c84))
+* **ai-delegation:** restrict Codex to the Luna family at high, xhigh or max ([#579](https://github.com/dryvist/claude-code-plugins/issues/579)) ([32a2e89](https://github.com/dryvist/claude-code-plugins/commit/32a2e8921b43fd378be94132b399ae3023cd6741))
+
 ## [6.6.0](https://github.com/dryvist/claude-code-plugins/compare/ai-delegation-v6.5.0...ai-delegation-v6.6.0) (2026-10-10)
 
 

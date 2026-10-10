@@ -1,6 +1,6 @@
 {
   "name": "ai-delegation",
-  "version": "6.6.0",
+  "version": "6.6.1",
   "description": "Delegate tasks to AI models, orchestrate premium-model work, route subagent spawns to the cheapest capable tier, and answer the shell -c removal prompt with a judge model",
   "author": {
     "name": "JacobPEvans"
