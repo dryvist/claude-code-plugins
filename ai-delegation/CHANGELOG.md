@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.5.0](https://github.com/dryvist/claude-code-plugins/compare/ai-delegation-v6.4.1...ai-delegation-v6.5.0) (2026-10-10)
+
+
+### Features
+
+* **ai-delegation:** subagent router and permission judge mods ([#574](https://github.com/dryvist/claude-code-plugins/issues/574)) ([c9095f5](https://github.com/dryvist/claude-code-plugins/commit/c9095f593d672924ef44addd16d29f68d73629d7))
+
 ## [6.4.1](https://github.com/dryvist/claude-code-plugins/compare/ai-delegation-v6.4.0...ai-delegation-v6.4.1) (2026-10-04)
 
 
