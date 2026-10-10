@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.6.0](https://github.com/dryvist/claude-code-plugins/compare/github-workflows-v6.5.2...github-workflows-v6.6.0) (2026-10-10)
+
+
+### Features
+
+* **skills:** Claude project routes and cloud-session skips ([#576](https://github.com/dryvist/claude-code-plugins/issues/576)) ([7c4912a](https://github.com/dryvist/claude-code-plugins/commit/7c4912a5450767fc804595ee2946266225a5f5fb))
+
 ## [6.5.2](https://github.com/dryvist/claude-code-plugins/compare/github-workflows-v6.5.1...github-workflows-v6.5.2) (2026-10-08)
 
 

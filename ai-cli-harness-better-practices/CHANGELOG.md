@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.28.0](https://github.com/dryvist/claude-code-plugins/compare/ai-cli-harness-better-practices-v4.27.0...ai-cli-harness-better-practices-v4.28.0) (2026-10-10)
+
+
+### Features
+
+* **skills:** Claude project routes and cloud-session skips ([#576](https://github.com/dryvist/claude-code-plugins/issues/576)) ([7c4912a](https://github.com/dryvist/claude-code-plugins/commit/7c4912a5450767fc804595ee2946266225a5f5fb))
+
 ## [4.27.0](https://github.com/dryvist/claude-code-plugins/compare/ai-cli-harness-better-practices-v4.26.0...ai-cli-harness-better-practices-v4.27.0) (2026-10-03)
 
 
