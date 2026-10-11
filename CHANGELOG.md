@@ -1,5 +1,13 @@
 # Changelog
 
+## [6.15.0](https://github.com/dryvist/claude-code-plugins/compare/v6.14.2...v6.15.0) (2026-10-11)
+
+
+### Features
+
+* **ai-delegation:** route opencode, qwen-code, and cursor-agent by name ([#573](https://github.com/dryvist/claude-code-plugins/issues/573)) ([dfb1cf8](https://github.com/dryvist/claude-code-plugins/commit/dfb1cf8c528abf69cc7c896c29866f12994cb516))
+* **content-guards:** add credential-guard PreToolUse hook ([#595](https://github.com/dryvist/claude-code-plugins/issues/595)) ([f02e9ed](https://github.com/dryvist/claude-code-plugins/commit/f02e9edfdfb4d62b335be3e6a4601a999fc11ddc))
+
 ## [6.14.2](https://github.com/dryvist/claude-code-plugins/compare/v6.14.1...v6.14.2) (2026-10-10)
 
 
