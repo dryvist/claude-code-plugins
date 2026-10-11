@@ -1,13 +1,15 @@
 ---
 name: delegate-to-ai
-description: Route implementation to Codex (after codex-quota), else haiku-xhigh; ZCode only when the operator names it.
+description: Route implementation to Codex (after codex-quota), else haiku-xhigh; ZCode, opencode, qwen-code, and cursor-agent only when the operator names one.
 ---
 
 # Delegate to External AI
 
 Shared procedure for Claude Code and Codex. Implementation: Codex first after
 `codex-quota` exits 0, else `haiku-xhigh`. ZCode runs only when the operator
-names it, for public, non-sensitive batch work and review. Keep architecture,
+names it, for public, non-sensitive batch work and review. The sandbox agents
+(opencode, qwen-code, cursor-agent) and the local agents follow the same rule:
+used only when the operator names them. Keep architecture,
 gates, final verification, and merging with the trusted caller.
 
 ## When to Delegate
@@ -17,6 +19,10 @@ gates, final verification, and merging with the trusted caller.
 - **Public, non-sensitive batch work or review, when the operator names ZCode**
   -> ZCode, after the eligibility check below. Batch work uses jobs; interactive
   work uses the always-on native Web/Server session.
+- **Public batch work or review, when the operator names opencode, qwen-code,
+  or cursor-agent** -> the sandbox agent via `zcode-job start --tool <tool>`.
+- **Private repository, when the operator names opencode or qwen-code** -> the
+  local agent, local only. cursor-agent never runs locally.
 - **Architecture / planning** -> the caller or a native planning agent.
 - **Adversarial review / external second opinion** -> Codex (the `codex` MCP
   tool or CLI). A genuinely different model catches what a Claude subagent won't.
@@ -37,20 +43,23 @@ gates, final verification, and merging with the trusted caller.
 | --- | --- | --- |
 | Implementation / refactoring / tests / docs-from-code | Codex after `codex-quota` exits 0, else `haiku-xhigh` | `codex` MCP or CLI; `haiku-xhigh` subagent |
 | Public, non-sensitive batch work or review, when the operator names ZCode | ZCode | `zcode-job` or native Web/Server |
+| Public batch work or review, when the operator names opencode, qwen-code, or cursor-agent | Sandbox agent | `zcode-job start --tool <tool>` |
+| Private repository, when the operator names opencode or qwen-code | Local agent | `opencode run` or `qwen -p` (see Local coding agents) |
 | Architecture / planning | native subagent | `Plan` mode / `Plan` subagent |
 | Adversarial review | external model | Codex (`codex` MCP) |
 | Multi-perspective / consensus | parallel subagents | N `haiku-xhigh` or `opus-medium` subagents (+ Codex) |
 | Lookups, bulk reads, private / offline / routine local | shared router first, then `haiku-xhigh` | `fast-subagent` / `local-subagents` skill |
 
-In a cloud session (`CLAUDE_CODE_REMOTE=true`), the Codex and ZCode routes are local-only: report `local-only, skipped` and use native subagents.
+In a cloud session (`CLAUDE_CODE_REMOTE=true`), the Codex, ZCode, sandbox agent and local agent routes are
+local-only: report `local-only, skipped` and use native subagents.
 
 ## Workflow
 
 1. **Classify content and authority**, then identify the task type.
 2. **Select route** from the table above; implementation goes to Codex first.
 3. **Execute** the selected route: Codex MCP/CLI, a `haiku-xhigh` or `opus-medium`
-   subagent, the `local-subagents` skill, or the ZCode procedure below when the
-   operator names ZCode.
+   subagent, the `local-subagents` skill, the ZCode procedure below, or the
+   local coding agent section when the operator names one.
 4. **Synthesize** if you fanned out to multiple executors — you remain
    accountable for the final answer.
 
@@ -79,11 +88,15 @@ set to the eligible repository, reviewed prompt, returned job id, and follow-up:
 
 ```sh
 zcode-job start "$repo" "$prompt"
+zcode-job start --tool "$tool" "$repo" "$prompt"
 zcode-job status "$job_id"
 zcode-job result "$job_id"
 zcode-job continue "$job_id" "$message"
 zcode-job cancel "$job_id"
 ```
+
+`--tool` takes `zcode` (the default), `opencode`, `qwen-code`, or
+`cursor-agent`. Set it only when the operator names the tool.
 
 Commands print JSON. Capture the returned id; poll status with a bounded
 deadline and a reasonable interval. Continue only the same authorized scope,
@@ -103,6 +116,26 @@ If the client, service, or permitted repository is unavailable, report the
 failure and either defer or explicitly choose a permitted trusted/local
 executor. Never silently absorb the work, bypass a refusal, expand access,
 or send the same denied content through another external route.
+
+## Local coding agents (operator opt-in)
+
+Use these only when the operator names one. Private repositories run locally
+only; public repositories go to the sandbox (`zcode-job start --tool`).
+cursor-agent is sandbox-only and never runs locally.
+
+- **opencode**: run from a standalone clone, a directory with its own `.git`
+  directory, not a linked worktree, under `~/opencode-work`. The wrapper
+  refuses any other directory.
+
+  ```sh
+  opencode run -m litellm/medium "$task"
+  ```
+
+- **qwen-code**: `qwen -p "$task"`. Runs only where qwen-code is installed.
+- **Model**: pick by capability tier. `medium` is the default; use `small`
+  for simple checks (`-m litellm/small`).
+- Give the agent a bounded task, allowed files, and acceptance commands.
+  Treat its diff as untrusted and run the checks yourself before handoff.
 
 ## Verify before merging
 
