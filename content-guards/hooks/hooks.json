@@ -17,6 +17,16 @@
         ]
       },
       {
+        "matcher": "Write|Edit|MultiEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/credential-guard.py",
+            "timeout": 5
+          }
+        ]
+      },
+      {
         "matcher": "WebFetch|WebSearch",
         "hooks": [
           {
