@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.7.0](https://github.com/dryvist/claude-code-plugins/compare/ai-delegation-v6.6.1...ai-delegation-v6.7.0) (2026-10-11)
+
+
+### Features
+
+* **ai-delegation:** route opencode, qwen-code, and cursor-agent by name ([#573](https://github.com/dryvist/claude-code-plugins/issues/573)) ([dfb1cf8](https://github.com/dryvist/claude-code-plugins/commit/dfb1cf8c528abf69cc7c896c29866f12994cb516))
+
 ## [6.6.1](https://github.com/dryvist/claude-code-plugins/compare/ai-delegation-v6.6.0...ai-delegation-v6.6.1) (2026-10-10)
 
 
