@@ -72,7 +72,7 @@ jobs:
       id-token: write
       issues: write
       pull-requests: write
-    uses: dryvist/ai-workflows/.github/workflows/issue-triage.yml@0562bd5a12e6a0cf0f140d870798b4e9129449a8 # v0.48.4
+    uses: dryvist/ai-workflows/.github/workflows/issue-triage.yml@a5fcd42bd8843822f56f05346f6392ca7d9e0aec # v0.48.6
     secrets: inherit
     with:
       issue_number: ${{ inputs.issue_number }}
@@ -89,7 +89,7 @@ jobs:
       id-token: write
       issues: write
       pull-requests: write
-    uses: dryvist/ai-workflows/.github/workflows/cc-issue-resolver.yml@0562bd5a12e6a0cf0f140d870798b4e9129449a8 # v0.48.4
+    uses: dryvist/ai-workflows/.github/workflows/cc-issue-resolver.yml@a5fcd42bd8843822f56f05346f6392ca7d9e0aec # v0.48.6
     secrets: inherit
     with:
       repo_context: "Claude Code plugins: skills, hooks, and slash commands for Claude Code CLI"
