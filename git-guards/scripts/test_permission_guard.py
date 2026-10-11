@@ -363,8 +363,8 @@ else:
 
 # ---------------------------------------------------------------------------
 # Bulk-ref pushes (--all / --branches / --mirror / wildcard refspec)
-# A bulk push publishes local-only refs (e.g. agent session transcripts under
-# refs/heads/entire/*) that were never meant to leave the machine.
+# A bulk push publishes local-only refs (e.g. agent session bookkeeping
+# branches) that were never meant to leave the machine.
 # ---------------------------------------------------------------------------
 
 # DENY: the literal flag, and with the remote named first
