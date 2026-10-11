@@ -201,7 +201,7 @@ Applies **only when the PR's `baseRefName` is `main`** — a trunk-repo PR or a
 AI-initiated; skip this step for it.
 
 See github-workflows pr-standards → Human-Review Gate for the application criteria.
-Record labeled PRs as `needs-human` in Phase 5 (reason: `human:review`).
+Record labeled PRs as `held` in Phase 5 (reason: `human:review`).
 
 **Multi-PR handling**: If a PR needs human intervention (unresolvable conflict,
 unrecoverable CI failure, etc.), log it with reason and continue to the next PR.
@@ -225,7 +225,7 @@ Proceed to Phase 5.
 this PR, Section 2 = all open PRs in current repo) as defined in /gh-cli-patterns,
 titled `PR Status`.
 
-**Multi-PR mode**: Record the per-PR result (ready / blocked / needs-human). Restore the original
+**Multi-PR mode**: Record the per-PR result (ready / blocked / held). Restore the original
 branch and continue to the next PR. Do NOT emit a ready report — that happens in Phase 6.
 
 ## Stop Condition

@@ -112,7 +112,7 @@ For each thread group:
 
 1. Read the code at the referenced location(s)
 2. Apply the receiving-code-review pattern: evaluate the feedback and decide —
-   implement fix, push back with rationale, or flag as needs-human
+   implement fix, push back with rationale, or flag as escalate
 3. If implementing a fix, make the change and commit (do NOT push yet)
 4. Reply to each thread using the **REST reply pattern** from /gh-cli-patterns.
    Replace `<OWNER>`, `<REPO>`, `<PR_NUMBER>`, `<DATABASE_ID>` before running:
@@ -126,7 +126,7 @@ gh api repos/<OWNER>/<REPO>/pulls/<PR_NUMBER>/comments/<DATABASE_ID>/replies -f 
 Track results per thread:
 
 - `PRRT_xxx: handled [commit:abc1234]`
-- `PRRT_xxx: needs-human [reason]`
+- `PRRT_xxx: escalate [reason]`
 
 #### 3b: Process Comment Groups
 
@@ -146,7 +146,7 @@ Track results per comment:
 
 - `COMMENT({author}, {date}): actionable [commit:abc1234]`
 - `COMMENT({author}, {date}): acknowledged [replied]`
-- `COMMENT({author}, {date}): needs-human [reason]`
+- `COMMENT({author}, {date}): escalate [reason]`
 
 ### Step 4: Resolve Threads Sequentially
 
@@ -154,7 +154,7 @@ After all groups are processed, resolve each `handled` thread **one at a time** 
 to avoid cascade failures. Use the **canonical resolve mutation** from /gh-cli-patterns.
 Replace `<THREAD_ID>` (PRRT_* node ID) before running.
 
-Skip `needs-human` threads; flag for manual attention.
+Skip `escalate` threads; flag for manual attention.
 
 ### Step 5: Verify, Push, and Report
 
