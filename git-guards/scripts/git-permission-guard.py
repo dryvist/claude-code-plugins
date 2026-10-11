@@ -32,7 +32,7 @@ DENY_GIT_ONLY = [
     (r"^config\s+--unset\s+(?:commit|tag)\.gpgsign\b", "unsetting reverts signing to default-off"),
     (r"^push\s+.*(--force|--force-with-lease|-f)\b", "force-pushes overwrite remote history"),
     # Bulk-ref pushes publish every local ref, including local-only bookkeeping
-    # refs (agent session transcripts under refs/heads/entire/*, scratch branches).
+    # refs (agent session bookkeeping branches, scratch branches).
     # git accepts unambiguous long-option prefixes, so match by minimal unique
     # prefix rather than the full spelling:
     #   --all / --branches (synonyms) -> unique at --al and --b
