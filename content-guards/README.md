@@ -13,6 +13,8 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for integration diagrams.
 - **issue-limiter**: Prevents GitHub issue/PR backlog overflow by capping OPEN
   items, and blocks duplicate titles
 - **leakage-guard**: Blocks real private-infra identifiers (host IPs, VMIDs) from being written into a public repo
+- **credential-guard**: Blocks credential-shaped strings, secret redirects into files, and non-private IPs or internal
+  names under a public path; warns on a literal password assignment
 
 ## Usage
 
@@ -23,6 +25,7 @@ No manual invocation required. All hooks activate automatically:
 - **issue-limiter** — caps OPEN issues/PRs and blocks duplicate titles on
   `gh issue create` / `gh pr create` (PreToolUse: Bash)
 - **leakage-guard** — blocks a private host IP or infra VMID in a public-repo write (PreToolUse: Write, Edit)
+- **credential-guard** — one process for four credential rules, no network calls (PreToolUse: Write, Edit, MultiEdit, Bash)
 - **markdown-validator** — runs markdownlint after writes (PostToolUse: Write, Edit)
 - **readme-validator** — checks README required sections after writes (PostToolUse: Write, Edit)
 
