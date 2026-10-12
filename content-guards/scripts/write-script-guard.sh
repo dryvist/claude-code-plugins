@@ -46,14 +46,15 @@ if [[ -f "$file_path" ]]; then
     exit 0
 fi
 
-# Consult local MLX model for nuanced evaluation
+# Consult the small router capability for nuanced evaluation
 # Fail-open: if curl fails or model is unreachable, allow
 response=$(curl -s --max-time 5 http://localhost:11434/v1/chat/completions \
     -H "Content-Type: application/json" \
     -d "$(jq -n \
         --arg fp "$file_path" \
         '{
-            model: "mlx-community/Qwen3.5-27B-4bit",
+            model: "small",
+            chat_template_kwargs: {enable_thinking: false},
             messages: [{
                 role: "user",
                 content: ("You are a script-prevention guardrail. A file is being created at: " + $fp + "\n\nIs this a legitimate committed artifact (CI workflow, plugin hook, test fixture, build tool) or an unnecessary custom script?\n\nRespond with ONLY '\''allow'\'' or '\''deny'\'' followed by a brief reason.")
