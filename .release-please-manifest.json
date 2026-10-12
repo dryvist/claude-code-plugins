@@ -1,10 +1,10 @@
 {
-  ".": "6.16.0",
+  ".": "6.16.1",
   "ai-cli-harness-better-practices": "4.28.0",
   "ai-delegation": "6.8.0",
   "code-standards": "6.3.0",
   "codeql-resolver": "6.2.1",
-  "content-guards": "6.3.0",
+  "content-guards": "6.3.1",
   "git-guards": "6.2.4",
   "git-workflows": "6.3.0",
   "github-workflows": "6.6.1",

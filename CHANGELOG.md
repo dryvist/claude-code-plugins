@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.16.1](https://github.com/dryvist/claude-code-plugins/compare/v6.16.0...v6.16.1) (2026-10-12)
+
+
+### Bug Fixes
+
+* **content-guards:** ask the small router capability with thinking off ([#605](https://github.com/dryvist/claude-code-plugins/issues/605)) ([be1f620](https://github.com/dryvist/claude-code-plugins/commit/be1f6206a786521d4ef6d571fc6fa31b78a73ce8))
+
 ## [6.16.0](https://github.com/dryvist/claude-code-plugins/compare/v6.15.1...v6.16.0) (2026-10-12)
 
 

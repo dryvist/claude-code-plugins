@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "Claude Code plugins and hooks by JacobPEvans",
-    "version": "6.16.0"
+    "version": "6.16.1"
   },
   "plugins": [
     {
@@ -49,7 +49,7 @@
       "name": "content-guards",
       "source": "./content-guards",
       "description": "Combined content validation and guard plugin that merges token-validator, markdown-validator, webfetch-guard, and issue-limiter functionality",
-      "version": "6.3.0",
+      "version": "6.3.1",
       "author": {
         "name": "JacobPEvans"
       }
