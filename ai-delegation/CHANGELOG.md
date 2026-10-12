@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.8.0](https://github.com/dryvist/claude-code-plugins/compare/ai-delegation-v6.7.1...ai-delegation-v6.8.0) (2026-10-12)
+
+
+### Features
+
+* **ai-delegation:** route named roster spawns to Codex first ([#603](https://github.com/dryvist/claude-code-plugins/issues/603)) ([98aa911](https://github.com/dryvist/claude-code-plugins/commit/98aa9117b5cfe2a441cd269828fadc9d1cf09961))
+
 ## [6.7.1](https://github.com/dryvist/claude-code-plugins/compare/ai-delegation-v6.7.0...ai-delegation-v6.7.1) (2026-10-12)
 
 
