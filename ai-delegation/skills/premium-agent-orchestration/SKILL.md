@@ -67,8 +67,11 @@ codex exec --model "$CODEX_MODEL" -c "model_reasoning_effort=\"$CODEX_EFFORT\"" 
 
 ## Concurrency and batching
 
-- **Cap: 4 concurrent workers.** Override explicitly, and say why,
-  when a task genuinely needs more or the substrate can't sustain that many.
+- **Cap: 4 concurrent workers per orchestrating session.** Each session
+  counts only its own workers, never other sessions' workers on the same
+  machine. Override explicitly, and say why, when a task genuinely needs more.
+  Never gate spawning on machine load: spawn failures and quota or rate limits
+  are the signals that matter (see Substrate Resilience below).
 - **Batch related lookups into one worker** rather than spawning N workers
   each paying its own startup overhead. A worker that reads five related
   files avoids the overhead of five workers that each read one.
@@ -136,7 +139,7 @@ runnable yes/no check, the last one end-to-end verification.
 3. Probe the spawn substrate before the first fan-out; on failure, take the
    solo path.
 4. Route lookups and bulk reads to the router, then `haiku-xhigh`. Batch them
-   per worker. Cap concurrency at 4 unless you state an explicit override.
+   per worker. Cap concurrency at 4 per session unless you state an explicit override.
 5. Use `haiku-xhigh` for scoped implementation. Use `opus-medium` for architecture
    and security judgment only.
 6. Require each worker's one-line or schema output (see above).
