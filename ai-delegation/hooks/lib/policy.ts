@@ -56,7 +56,16 @@ export function parseVerdict(text: string | undefined): Verdict | undefined {
 // True for core's bypass-immune ask about a shell -c script that runs rm.
 export const isShellCAsk = (decision: string, reason: string | undefined): boolean => decision === 'ask' && /\bshell -c\b/i.test(reason ?? '')
 
-// Generic spawns are routed; a roster agent, teammate or call that sets a model or effort is an explicit choice.
+export const isRosterSpawn = (e: { subagent_type?: string; model?: string; effort?: string; name?: string }): boolean =>
+  ['haiku-xhigh', 'opus-medium'].includes(e.subagent_type ?? '') && !e.model && !e.effort && !e.name
+
+export const rosterEffort = (subagentType?: string): string | undefined => {
+  if (subagentType === 'haiku-xhigh') return DEFAULT_EFFORT
+  if (subagentType === 'opus-medium') return CODEX.complex!.effort
+  return undefined
+}
+
+// Generic spawns are routed; named roster agents, teammates and calls that set a model or effort keep their choice.
 export const isRoutable = (e: { subagent_type?: string; model?: string; effort?: string; name?: string }): boolean =>
   (e.subagent_type === undefined || ['general-purpose', 'Explore', 'Plan'].includes(e.subagent_type)) && !e.model && !e.effort && !e.name
 

@@ -24,8 +24,9 @@ Decisions append to `~/.claude/ai-delegation.log`.
   Codex is Luna only, at `high`, `xhigh` or `max` only, and `xhigh` is the default. The code refuses any other
   Codex model or effort, and refuses to run Codex at all when no Luna model is listed, because `codex` would then
   use its configured default. Codex and `haiku` both classify at `xhigh`. Codex runs `workspace-write`
-  (`read-only` for `Explore` and `Plan`). A spawn with `isolation` stays on Claude. A named roster agent such as
-  `haiku-xhigh` is an explicit choice and passes through. Codex accepts only exact model slugs, so the plugin picks
+  (`read-only` for `Explore` and `Plan`). Roster spawns named `haiku-xhigh` or `opus-medium` go straight to Codex
+  at `xhigh` or `max`, respectively, when available. Isolation, unavailable Codex, an empty Codex answer, or
+  an explicit model, effort or name preserves the original spawn. Codex accepts only exact model slugs, so the plugin picks
   the listed Luna model with the lowest `priority` in Codex's own model cache. No version is written or parsed in
   the plugin.
 - **Permission judge** (`tool.check` on `Bash`). Claude Code asks about a `bash -c` script that runs `rm` and
