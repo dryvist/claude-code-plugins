@@ -1,5 +1,13 @@
 # Changelog
 
+## [6.15.1](https://github.com/dryvist/claude-code-plugins/compare/v6.15.0...v6.15.1) (2026-10-12)
+
+
+### Bug Fixes
+
+* **ai-delegation:** default fast-subagent to small ([35aa44b](https://github.com/dryvist/claude-code-plugins/commit/35aa44b15a1f92a15c8cef1ddec500f282e8614a))
+* **ai-delegation:** default fast-subagent to small ([#599](https://github.com/dryvist/claude-code-plugins/issues/599)) ([eac5f91](https://github.com/dryvist/claude-code-plugins/commit/eac5f9149203ac81819e6ebceec42990980236bd))
+
 ## [6.15.0](https://github.com/dryvist/claude-code-plugins/compare/v6.14.2...v6.15.0) (2026-10-11)
 
 
