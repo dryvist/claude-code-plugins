@@ -1,5 +1,5 @@
 import type { EngineInterface, Register } from 'claude-code'
-import { CLASSIFIER, CLAUDE, CODEX, CODEX_FAMILY, DEFAULT_EFFORT, JUDGE, codexArgv, isRoutable, isShellCAsk, newestModel, parseVerdict, pickLabel } from './lib/policy'
+import { CLASSIFIER, CLAUDE, CODEX, CODEX_FAMILY, DEFAULT_EFFORT, JUDGE, codexArgv, isRosterSpawn, isRoutable, isShellCAsk, newestModel, parseVerdict, pickLabel, rosterEffort } from './lib/policy'
 import type { Label, Sandbox } from './lib/policy'
 
 type Engine = EngineInterface
@@ -50,7 +50,34 @@ async function classify($: Engine, e: AgentCall, ready: boolean): Promise<Label>
   return pickLabel(r.isAnswered ? r.text : undefined) ?? 'standard'
 }
 
+async function runRoutedCodex($: Engine, e: AgentCall, route: string, effort: string, sandbox: Sandbox, detail: string): Promise<unknown | undefined> {
+  const started = await $.clock.now()
+  const out = await runCodex($, effort, sandbox, e.prompt, 600_000)
+  if (!out) return undefined
+  await logDecision($, `route: ${route} -> codex ${CODEX_FAMILY} ${effort} (${sandbox})`)
+  return {
+    result: {
+      status: 'completed',
+      prompt: e.prompt,
+      agentId: 'ai-delegation-codex',
+      content: [{ type: 'text', text: `${out}\n\n[routed: codex ${CODEX_FAMILY} ${effort}, ${detail}]` }],
+      totalToolUseCount: 0,
+      totalDurationMs: (await $.clock.now()) - started,
+      totalTokens: 0,
+      usage: { input_tokens: 0, output_tokens: 0, cache_creation_input_tokens: null, cache_read_input_tokens: null, server_tool_use: null, service_tier: null, cache_creation: null },
+    },
+  } as never
+}
+
 async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknown>): Promise<unknown> {
+  if (isRosterSpawn(e)) {
+    if (e.isolation || !(await codexReady($))) return next(e as never)
+    const effort = rosterEffort(e.subagent_type)!
+    const result = await runRoutedCodex($, e, e.subagent_type!, effort, 'workspace-write', `roster ${e.subagent_type}`)
+    if (result) return result
+    $.ui.log(`ai-delegation: Codex gave no answer for the ${e.subagent_type} roster spawn, passing it through`)
+    return next(e as never)
+  }
   if (!isRoutable(e)) return next(e as never)
   const ready = await codexReady($)
   const label = await classify($, e, ready)
@@ -59,23 +86,8 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
   // A Codex run has no worktree isolation, so isolated spawns stay on Claude. Plan and deep work never go to Codex.
   const codex = CODEX[label]
   if (ready && codex && !e.isolation) {
-    const started = await $.clock.now()
-    const out = await runCodex($, codex.effort, sandbox, e.prompt, 600_000)
-    if (out) {
-      await logDecision($, `route: ${label} -> codex ${CODEX_FAMILY} ${codex.effort} (${sandbox})`)
-      return {
-        result: {
-          status: 'completed',
-          prompt: e.prompt,
-          agentId: 'ai-delegation-codex',
-          content: [{ type: 'text', text: `${out}\n\n[routed: codex ${CODEX_FAMILY} ${codex.effort}, class ${label}]` }],
-          totalToolUseCount: 0,
-          totalDurationMs: (await $.clock.now()) - started,
-          totalTokens: 0,
-          usage: { input_tokens: 0, output_tokens: 0, cache_creation_input_tokens: null, cache_read_input_tokens: null, server_tool_use: null, service_tier: null, cache_creation: null },
-        },
-      } as never
-    }
+    const result = await runRoutedCodex($, e, label, codex.effort, sandbox, `class ${label}`)
+    if (result) return result
     $.ui.log(`ai-delegation: Codex gave no answer for a ${label} task, using Claude`)
   }
   const c = CLAUDE[label]

@@ -1,5 +1,5 @@
 import { describe, expect, mock, test } from 'claude-code/testing'
-import { CODEX, DEFAULT_EFFORT, codexArgv, isRoutable, isShellCAsk, newestModel, parseVerdict, pickLabel } from './lib/policy'
+import { CODEX, DEFAULT_EFFORT, codexArgv, isRosterSpawn, isRoutable, isShellCAsk, newestModel, parseVerdict, pickLabel, rosterEffort } from './lib/policy'
 
 const CORE_ASK = { decision: 'ask', reason: 'This command passes a shell -c script that runs rm, and Claude Code could not check the script for dangerous removals.' }
 const RAN = { exitCode: 0, stdout: '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false }
@@ -46,6 +46,9 @@ describe('policy', () => {
     expect(isRoutable({})).toBe(true)
     expect(isRoutable({ subagent_type: 'Explore' })).toBe(true)
     expect(isRoutable({ subagent_type: 'haiku-xhigh' })).toBe(false)
+    expect(isRosterSpawn({ subagent_type: 'haiku-xhigh' })).toBe(true)
+    expect(isRosterSpawn({ subagent_type: 'opus-medium' })).toBe(true)
+    expect(isRosterSpawn({ subagent_type: 'haiku-xhigh', model: 'opus' })).toBe(false)
     expect(isRoutable({ model: 'opus' })).toBe(false)
     expect(isRoutable({ name: 'worker' })).toBe(false)
     expect(codexArgv('read-only', 'xhigh', 'gpt-newer-luna')).toContain('gpt-newer-luna')
@@ -56,6 +59,9 @@ describe('policy', () => {
     for (const effort of ['low', 'medium', 'minimal', '']) expect(() => codexArgv('read-only', effort, 'gpt-newer-luna')).toThrow()
     for (const model of ['gpt-newest-sol', 'gpt-newer-luna-mini', 'luna', 'latest', '', undefined]) expect(() => codexArgv('read-only', 'xhigh', model)).toThrow()
     expect(DEFAULT_EFFORT).toBe('xhigh')
+    expect(rosterEffort('haiku-xhigh')).toBe('xhigh')
+    expect(rosterEffort('opus-medium')).toBe(CODEX.complex!.effort)
+    expect(rosterEffort('unknown')).toBeUndefined()
     expect(CODEX.standard!.effort).toBe(DEFAULT_EFFORT)
     expect(Object.keys(CODEX)).toEqual(['standard', 'complex'])
     for (const c of Object.values(CODEX)) expect(['high', 'xhigh', 'max']).toContain(c!.effort)
@@ -172,11 +178,63 @@ describe('router', () => {
     expect(routed.model).toBe('haiku')
   })
 
-  test('a roster agent passes through untouched', async ($, on) => {
-    world(on, { codex: true, codexSays: 'standard' })
-    let seen: { model?: string } = {}
-    on('tool.call', { tool: 'Agent' }, (_$: any, e: any) => ((seen = e), { result: DONE }) as never)
-    await $.tool.call({ tool: 'Agent', description: 'x', prompt: 'y', subagent_type: 'haiku-xhigh' } as never)
-    expect(seen.model).toBeUndefined()
+  test('haiku-xhigh roster spawn runs on Codex at xhigh without classification', async ($, on) => {
+    const seen = world(on, { codex: true, codexSays: 'task result' })
+    let reached = false
+    on('tool.call', { tool: 'Agent' }, () => ((reached = true), { result: DONE }) as never)
+    const r: any = await $.tool.call({ tool: 'Agent', description: 'x', prompt: 'y', subagent_type: 'haiku-xhigh' } as never)
+    expect(reached).toBe(false)
+    expect(JSON.stringify(r)).toContain('[routed: codex luna xhigh, roster haiku-xhigh]')
+    expect(seen.some((a) => a[0] === 'codex' && a[1] === 'exec' && a.includes('workspace-write') && a.includes('model_reasoning_effort="xhigh"'))).toBe(true)
+    expect(seen.some((a) => a[0] === 'codex' && a[1] === 'exec' && a.includes('read-only'))).toBe(false)
+  })
+
+  test('opus-medium roster spawn uses Codex at the hardest class effort', async ($, on) => {
+    const seen = world(on, { codex: true, codexSays: 'task result' })
+    let reached = false
+    on('tool.call', { tool: 'Agent' }, () => ((reached = true), { result: DONE }) as never)
+    const r: any = await $.tool.call({ tool: 'Agent', description: 'x', prompt: 'y', subagent_type: 'opus-medium' } as never)
+    expect(reached).toBe(false)
+    expect(JSON.stringify(r)).toContain(`[routed: codex luna ${CODEX.complex!.effort}, roster opus-medium]`)
+    expect(seen.some((a) => a[0] === 'codex' && a[1] === 'exec' && a.includes('workspace-write') && a.includes(`model_reasoning_effort="${CODEX.complex!.effort}"`))).toBe(true)
+  })
+
+  test('roster spawn passes through the identical object when Codex is unavailable', async ($, on) => {
+    world(on, { codex: false })
+    let seen: unknown
+    on('tool.call', { tool: 'Agent' }, (_$: any, e: unknown) => ((seen = e), { result: DONE }) as never)
+    const spawn = { tool: 'Agent', description: 'x', prompt: 'y', subagent_type: 'haiku-xhigh' }
+    await $.tool.call(spawn as never)
+    expect(seen).toBe(spawn)
+  })
+
+  test('roster spawn with isolation passes through unchanged', async ($, on) => {
+    const seenCalls = world(on, { codex: true, codexSays: 'unused' })
+    let seen: unknown
+    on('tool.call', { tool: 'Agent' }, (_$: any, e: unknown) => ((seen = e), { result: DONE }) as never)
+    const spawn = { tool: 'Agent', description: 'x', prompt: 'y', subagent_type: 'opus-medium', isolation: 'worktree' }
+    await $.tool.call(spawn as never)
+    expect(seen).toBe(spawn)
+    expect(seenCalls).toEqual([])
+  })
+
+  test('roster spawn with no Codex answer passes through unchanged', async ($, on) => {
+    const seenCalls = world(on, { codex: true })
+    let seen: unknown
+    on('tool.call', { tool: 'Agent' }, (_$: any, e: unknown) => ((seen = e), { result: DONE }) as never)
+    const spawn = { tool: 'Agent', description: 'x', prompt: 'y', subagent_type: 'haiku-xhigh' }
+    await $.tool.call(spawn as never)
+    expect(seen).toBe(spawn)
+    expect(seenCalls.some((a) => a[0] === 'codex' && a[1] === 'exec')).toBe(true)
+  })
+
+  test('roster spawn with an explicit model passes through unchanged', async ($, on) => {
+    const seenCalls = world(on, { codex: true, codexSays: 'unused' })
+    let seen: unknown
+    on('tool.call', { tool: 'Agent' }, (_$: any, e: unknown) => ((seen = e), { result: DONE }) as never)
+    const spawn = { tool: 'Agent', description: 'x', prompt: 'y', subagent_type: 'haiku-xhigh', model: 'custom-model' }
+    await $.tool.call(spawn as never)
+    expect(seen).toBe(spawn)
+    expect(seenCalls).toEqual([])
   })
 })
