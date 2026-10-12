@@ -124,9 +124,9 @@ only, no hints — say so if you choose from it. More recipes:
 
 ## 4. Choose
 
-1. **Prefer a role alias over a physical id.** An alias (`cheap`, `judge`,
-   `subagent`, and whatever else the menu shows) is the part promised to keep
-   working when the model behind it changes.
+1. **Prefer a capability name over a physical id.** A capability (`small`, `medium`,
+   `large`, `embed`, `ocr`) is the part promised to keep working when the model
+   behind it changes.
 2. **Match `best_for` to the subtask**, not to the parent task.
 3. **Free before paid, then fastest.** Take the cheapest entry that can
    plausibly do this subtask; among equals prefer the higher `speed` class.
