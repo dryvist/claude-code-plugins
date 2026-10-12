@@ -49,7 +49,7 @@ The briefing rule for subagents ships in the `ai-llm-prompts` catalog, not in th
   context, price) from the router's own contract, how to bound the call, and what to do
   when the router says no
 - **`/fast-subagent`** - One command that sends a routine, checkable step to the
-  router's fast-subagent role (`fast`, alias `subagent`) and keeps sending every such
+  router's fast-subagent role (capabilities `small` and `medium`) and keeps sending every such
   step all session long; the router owns which backend answers and the fallback order,
   so a re-ranking never needs a redeploy
 - **`/openrouter-models`** - Choose among hosted models by current price and context length

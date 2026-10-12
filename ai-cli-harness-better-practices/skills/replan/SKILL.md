@@ -67,7 +67,7 @@ an implicit "nothing there".
 Steps above produce token-heavy, reasoning-light output: the default-branch
 log, merged/open PR listings with their CI state, and the plan file's checkbox
 inventory. Hand that raw material to the **router** via the `local-subagents`
-skill (ai-delegation) at the cheapest capable tier — alias `cheap`, or a
+skill (ai-delegation) at the cheapest capable tier — capability `small`, or a
 subagent carrying an explicit lower `model:` when the input is longer than one
 call holds. Reason over the returned table, never the raw dump.
 

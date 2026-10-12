@@ -24,7 +24,7 @@ Everything this skill reads before it decides is token-heavy and reasoning-light
 the `/session-status` report, the `origin/main..origin/develop` promotion log, the
 open-PR listing, and the remaining plan/TaskList items Path B groups. Hand that
 raw material to the **router** via the `local-subagents` skill (ai-delegation)
-at the cheapest capable tier — alias `cheap`, or a subagent carrying an explicit
+at the cheapest capable tier — capability `small`, or a subagent carrying an explicit
 lower `model:` when the input is longer than one call holds. The premium lead
 makes the Path A/Path B verdict over the returned table, never the raw dump.
 
