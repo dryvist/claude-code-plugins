@@ -40,8 +40,8 @@ FAKE
   printf 'test-key\n' > "$TMP/token"
   export LLM_ROUTER_URL="http://router.invalid/v1" LLM_ROUTER_TOKEN_FILE="$TMP/token"
   unset OPENAI_API_BASE_URL LITELLM_LOCAL_KEY OPENAI_API_KEY FAST_SUBAGENT_MODEL
-  OK_BODY='{"model":"fast","choices":[{"message":{"content":"PONG"}}]}'
-  BUSY_BODY='{"error":{"message":"fast busy: held by codex"}}'
+  OK_BODY='{"model":"small","choices":[{"message":{"content":"PONG"}}]}'
+  BUSY_BODY='{"error":{"message":"small busy: held by codex"}}'
 }
 
 teardown() { rm -rf "$TMP"; }
@@ -61,6 +61,7 @@ teardown() { rm -rf "$TMP"; }
   grep -q '^model=openai/q fallbacks=0$' "$TMP/err"
   grep -q 'Bearer test-key' "$FAKE_CURL_LOG"
   grep -q 'http://router.invalid/v1/chat/completions' "$FAKE_CURL_LOG"
+  grep -q '"model":"small"' "$FAKE_CURL_LOG"
 }
 
 @test "200 with empty content → exit 7, nothing on stdout" {
@@ -77,7 +78,7 @@ teardown() { rm -rf "$TMP"; }
   run bash -c 'echo hi | "$1" 2>"$2"' _ "$SCRIPT" "$TMP/err"
   [ "$status" -eq 0 ]
   [ "$output" = "PONG" ]
-  grep -q 'busy (fast busy: held by codex); retrying once in 1s' "$TMP/err"
+  grep -q 'busy (small busy: held by codex); retrying once in 1s' "$TMP/err"
   [ "$(wc -l < "$FAKE_CURL_LOG")" -eq 2 ]
 }
 
@@ -97,8 +98,8 @@ teardown() { rm -rf "$TMP"; }
 
 @test "--release sends the lock-release header; --model overrides the role" {
   printf '200||%s\n' "$OK_BODY" > "$FAKE_CURL_SCRIPT"
-  run bash -c 'echo hi | "$1" --release --model subagent' _ "$SCRIPT"
+  run bash -c 'echo hi | "$1" --release --model medium' _ "$SCRIPT"
   [ "$status" -eq 0 ]
   grep -q 'x-subagent-release: 1' "$FAKE_CURL_LOG"
-  grep -q '"model":"subagent"' "$FAKE_CURL_LOG"
+  grep -q '"model":"medium"' "$FAKE_CURL_LOG"
 }

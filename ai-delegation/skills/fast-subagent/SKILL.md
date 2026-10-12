@@ -47,10 +47,10 @@ printf '%s\n' "$INSTRUCTION" "$INPUT" | fast-subagent.sh
 relative to this file; it needs only `bash`, `curl`, `jq`). It reads the
 endpoint from the environment — `LLM_ROUTER_URL` + `LLM_ROUTER_TOKEN_FILE`, or
 the local proxy's `OPENAI_API_BASE_URL` + `LITELLM_LOCAL_KEY` — sends one
-bounded request for role `fast`, prints the answer on stdout and
+bounded request for role `small`, prints the answer on stdout and
 `model=<what answered> fallbacks=<n>` on stderr.
 
-Options: `--model subagent` (the alias), `--system TEXT`, `--max-tokens N`,
+Options: `--model medium` (a capability name), `--system TEXT`, `--max-tokens N`,
 `--timeout SEC`, `--raw` (full JSON), `--release` (see §4).
 
 Write the prompt for a small model — short imperatives, an explicit output

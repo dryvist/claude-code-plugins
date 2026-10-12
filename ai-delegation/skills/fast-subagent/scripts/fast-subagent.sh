@@ -3,7 +3,7 @@
 # fast-subagent role, from any harness (Claude Code, Codex, OpenCode, Hermes…).
 #
 # Usage:  fast-subagent.sh [options] < prompt.txt
-#   --model NAME      role alias to request (default: $FAST_SUBAGENT_MODEL, else "fast")
+#   --model NAME      role alias to request (default: $FAST_SUBAGENT_MODEL, else "small")
 #   --system TEXT     system prompt (default: a small-model extraction persona)
 #   --max-tokens N    completion cap (default 1024)
 #   --timeout SEC     per-request wall clock (default 180)
@@ -22,7 +22,7 @@
 # (the model spent --max-tokens on reasoning or finish_reason=length; raise it).
 set -euo pipefail
 
-model="${FAST_SUBAGENT_MODEL:-fast}"
+model="${FAST_SUBAGENT_MODEL:-small}"
 system='You are a fast, literal assistant. Do exactly what the instruction says. Do not explain, advise, or pad. Copy text verbatim; write UNKNOWN rather than guess.'
 max_tokens=1024
 timeout=180
