@@ -3,7 +3,7 @@ name: git-flow-next
 description: >-
   Use git-flow-next with `develop` as the default and `main` as production.
   Branch feature work from `develop`, prepare releases there, promote them to
-  `main` after session PRs merge, and merge hotfix branches into both branches.
+  `main` after session PRs merge, and carry hotfix branches to both branches through PRs.
 ---
 
 # git-flow-next Usage Guide
@@ -27,10 +27,10 @@ gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name'
 | Branch | Role | Gets changes by |
 | --- | --- | --- |
 | `main` | Production. Protected; no direct pushes. | **Merge commits only** — promotions from `develop` and hotfix PRs. |
-| `develop` | Default integration branch. Protected; no direct pushes. | Squash-merged feature PRs, the squash-merged release-please PR, and merge-committed hotfix branches. Never merge `main` into `develop`. |
+| `develop` | Default integration branch. Protected; no direct pushes. | Squash-merged feature PRs, the squash-merged release-please PR, and merge-committed PRs from hotfix branches. Never merge `main` into `develop`. |
 | `feature/<issue>-<sid8>-<slug>` | Topic work | Branched from fresh `develop`. |
 | `release/<version>` | Release preparation | Not used in this release-please flow. On push to `develop`, release-please opens a `release-please--*` PR there for the version, CHANGELOG, and release notes; squash-merge it before promotion. |
-| `hotfix/<slug>` | Production fix | Branch from `main`; PR to `main` with a merge commit; then merge-commit the hotfix branch into `develop`. |
+| `hotfix/<slug>` | Production fix | Branch from `main`; PR to `main` with a merge commit; then open a PR from the hotfix branch to `develop` and merge it with a merge commit. |
 
 ## 3. Dedicated Worktree Setup
 
