@@ -68,10 +68,12 @@ nothing remains to promote.
 ## Step 3: Find Or Create the Promotion PR and Freeze Develop
 
 ```bash
-gh pr list --base main --head develop --state open --json number,url
+gh pr list --base main --head develop --state open --json number,url,isDraft
 ```
 
-Use the open PR if one exists. Otherwise, create it:
+Use the open PR if one exists. The scheduled promotion-drift job opens it as a
+draft; run `gh pr ready <PR_NUMBER>` when `isDraft` is true, and never run
+`gh pr update-branch` on it. Otherwise, create it:
 
 ```bash
 gh pr create --base main --head develop --title "chore: promote develop to main" --body "Promotes the release-prepared commits from develop to production main."
