@@ -20,9 +20,9 @@ Classify the task and content first, then take the first rung that qualifies:
 | `private` | Codex -> OpenCode Go -> Haiku high | Never eligible for ZCode |
 
 Codex qualifies while `codex-quota` exits 0. ZCode qualifies for a public
-repository in the allowlist below; `zcode-agent` refuses anything else with
-exit 2. Treat a Z.ai quota error (exit 3) as exhausted for the rest of the
-session and take the next rung. Do not skip a rung. When no rung qualifies,
+repository in the allowlist below; `zcode-job start` refuses anything else.
+Treat a Z.ai quota or 429 error as exhausted for the rest of the session and
+take the next rung. Do not skip a rung. When no rung qualifies,
 stop and notify the operator.
 
 Treat a missing repository, unknown visibility, absent owner approval, or
@@ -36,29 +36,25 @@ attachments, diffs, logs, and conversation context before submission.
 ## Execute the selected route
 
 - **`codex`**: use the configured Codex CLI or MCP route.
-- **`zcode` or `zcode-flash`**: use `zcode-agent` for the selected task and
-  repository. It checks eligibility before submission, adds the base branch
-  and acceptance criteria, polls to a bounded deadline, and writes the result
-  to the requested output file.
+- **`zcode` or `zcode-flash`**: drive the existing `zcode-job` client (below).
 - **`opencode-go`**: use the configured OpenCode Go route.
 - **`haiku-high`**: use the high effort Haiku subagent.
 - **`stop`**: stop and notify the operator.
 
-For ZCode work, prepare a bounded prompt with the allowed scope and acceptance
-criteria, then run:
+For ZCode work, write a bounded prompt with the allowed scope, the repository
+default branch, and acceptance criteria. Then run:
 
 ```sh
-zcode-agent code <owner/repo> -p <prompt-file> -o <out-file>
-zcode-agent review <owner/repo> -p <prompt-file> -o <out-file>
-zcode-agent triage <owner/repo> -p <prompt-file> -o <out-file>
+zcode-job repos                         # approved repositories
+zcode-job start <owner/repo> "<prompt>" # prints the job id
+zcode-job status <job-id>               # repeat until succeeded, failed, cancelled, or timeout
+zcode-job result <job-id>
+zcode-job cancel <job-id>               # when the deadline passes
 ```
 
-Use `code` for implementation, `review` for an independent assessment, and
-`triage` for bulk classification or summarization. Code requests create a
-draft PR. Review and triage do not request a PR. The wrapper returns 0 on
-completion, 2 when the repository is ineligible, 3 on a quota failure, and 4
-on another job failure. On exit 3, take the next rung.
-Never ask the executor to merge, approve a gate, or use a credential.
+For coding, ask for a draft PR against the default branch. For review and
+triage, ask for findings only. A refusal means the repository does not
+qualify. Never ask the executor to merge, approve a gate, or use a credential.
 
 ## Verify before handoff
 
