@@ -109,6 +109,15 @@
       }
     },
     {
+      "name": "jpe-ai-delegation",
+      "source": "./jpe-ai-delegation",
+      "description": "Specific to the maintainer's own setup and not intended for general use",
+      "version": "1.0.0",
+      "author": {
+        "name": "JacobPEvans"
+      }
+    },
+    {
       "name": "infra-standards",
       "source": "./infra-standards",
       "description": "Infrastructure standards for Proxmox, Terraform, Ansible including deployment pipeline, IP addressing, and secrets management",

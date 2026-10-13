@@ -208,6 +208,21 @@
         }
       ]
     },
+    "jpe-ai-delegation": {
+      "component": "jpe-ai-delegation",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": ".claude-plugin/plugin.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "/.claude-plugin/marketplace.json",
+          "jsonpath": "$.plugins[?(@.name==\"jpe-ai-delegation\")].version"
+        }
+      ]
+    },
     "infra-standards": {
       "component": "infra-standards",
       "extra-files": [

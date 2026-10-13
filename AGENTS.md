@@ -22,6 +22,7 @@ This is a **Claude Code plugins repository** containing production-ready hooks f
 | **git-workflows** | Command/Skill | `/sync-main`, `/git-flow-next`, `/git-workflow-standards`, `/troubleshoot-rebase`, `/troubleshoot-precommit`, `/troubleshoot-worktree`, `/pre-commit-architecture` | Local git sync, branching model, branch hygiene and merge-conflict conventions, and rebase/pre-commit/worktree troubleshooting |
 | **homelab-ops** | Skill | `/homelab-runbooks`, `/proxmox-cluster-ops`, `/monitoring-first`, `/terrakube-ops`, `/pxe-netboot`, `/llm-router-ops`, `/workstation-offbox-backup`, `/dell-idrac-bmc-ops`, `/zfs-resumable-transfers` | Vendor/topology-neutral homelab operational runbooks: DR-node power management, DNS convergence, secrets-engine bring-up, Proxmox VE cluster operations, monitoring-first state checks, Terrakube operations, PXE netboot installs, LLM router operations, workstation off-box backup, Dell iDRAC BMC operations, and resumable ZFS transfers |
 | **github-workflows** | Command/Skill | `/ship`, `/finalize-pr`, `/refresh-repo`, `/prune-branches` (incl. `--sweep` and `--prune-stale` modes), `/rebase-pr`, `/merge-pr` (incl. `--squash`/`-s`), `/pr-stacks`, `/pr-sweep`, `/issue-sweep`, `/resolve-pr-threads`, `/pr-standards`, `/gh-cli-patterns`, `/shape-issues`, `/trigger-ai-reviews`, `/github-actions-silent-failures` | GitHub PR/issue management workflows, staged PR stacks, cross-repo workspace sweep, stale-branch pruning, parallel open-PR sweep-to-zero, issue sweeps that reconcile open issues against reality, PR/issue creation guards and workaround classification, and diagnosing silent GitHub Actions failures |
+| **jpe-ai-delegation** | Skill | `/delegation-ladder` | Maintainer-specific executor ladder; not intended for general use |
 | **infra-orchestration** | Skill | `/orchestrate-infra`, `/sync-inventory`, `/test-e2e` | Cross-repo infrastructure orchestration for Terraform and Ansible |
 | **code-standards** | Skill | `/code-quality-standards` | Estate-specific code conventions: logging format, monitoring-vs-test philosophy, doc format |
 | **infra-standards** | Skill | `/infrastructure-standards` | Infrastructure standards for Proxmox, Terraform, Ansible including deployment pipeline and secrets management |
@@ -36,7 +37,7 @@ Session token analytics: use the `token-meter` MCP server (replaces the retired 
 
 ## Multi-Model Delegation
 
-Use `/delegate-to-ai` to route tasks to external AI models, local LLMs, or native subagents.
+Use `/delegate-to-ai` for generic delegation guidance; use `/delegation-ladder` from `jpe-ai-delegation` only for the maintainer's own setup.
 Use `/premium-agent-orchestration` when a Fable, Opus, or other top-tier model should keep
 senior judgment while cheaper agents or local/free LLMs handle checkable work.
 Useful for research, code review consensus, multi-model validation, and premium-model cost control. See the `ai-delegation` plugin.
