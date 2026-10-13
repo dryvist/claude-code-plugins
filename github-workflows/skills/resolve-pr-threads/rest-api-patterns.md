@@ -1,6 +1,6 @@
-# REST API Patterns — Moved
+# REST API Patterns
 
-<!-- This file has been consolidated into gh-cli-patterns. -->
-
-> **Moved**: REST reply patterns, `databaseId` guidance, and non-thread comment fetching are now
-> in **`gh-cli-patterns` (github-workflows)**. Consult that skill for the canonical commands.
+REST fetch, reply, and marker patterns for all PR feedback are defined in
+[the PR feedback ledger](../gh-cli-patterns/references/pr-feedback-ledger.md).
+Use [gh-cli-patterns](../gh-cli-patterns/SKILL.md) for canonical GitHub CLI
+flags, GraphQL thread queries, and mutations.
