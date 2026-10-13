@@ -17,7 +17,7 @@ metadata:
 
 Processes all PR feedback by grouping related items, implementing fixes or
 giving evidence-backed answers, recording addressed markers, and finally
-resolving each answered thread with the GraphQL API.
+resolving each answered thread with the canonical resolve mutation.
 
 > **State warning**: Thread IDs and resolution status change as reviews arrive.
 > Re-fetch all open threads — cached thread lists from earlier are unreliable.
