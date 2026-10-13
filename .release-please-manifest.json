@@ -1,5 +1,5 @@
 {
-  ".": "6.17.0",
+  ".": "6.17.1",
   "ai-cli-harness-better-practices": "4.28.0",
   "ai-delegation": "6.8.0",
   "code-standards": "6.3.0",
@@ -7,7 +7,7 @@
   "content-guards": "6.3.1",
   "git-guards": "6.2.4",
   "git-workflows": "6.4.0",
-  "github-workflows": "6.7.0",
+  "github-workflows": "6.7.1",
   "homelab-ops": "1.1.0",
   "infra-orchestration": "6.2.1",
   "infra-standards": "6.2.1",
