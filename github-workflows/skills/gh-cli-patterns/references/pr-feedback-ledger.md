@@ -56,11 +56,9 @@ acknowledgment as a substitute for a marker.
 
 The `PR Reviewer Guide` comment (`github-actions[bot]`) can contain findings in
 either layout below. Parse the current comment body each time; the bot edits one
-issue comment in place. Keep the containing issue comment as an
-`issuecomment-...` item as well as extracting each finding. Reply to the comment
-with a summary of finding dispositions and its issue-comment marker; answer each
-finding with its own `agent-finding-...` marker. An edit changes `updated_at` and
-reopens the comment item.
+issue comment in place on every push, so the comment itself is not a ledger item:
+only its findings and its coverage gap are. Answer each finding with its own
+`agent-finding-...` marker, in one reply or several.
 
 1. **Machine block:** parse the JSON in this block:
 

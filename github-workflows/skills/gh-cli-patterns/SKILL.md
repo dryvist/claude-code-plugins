@@ -129,7 +129,7 @@ Required values — abort if any fail:
 | `reviewDecision` | `APPROVED` or `null` | "Review decision: {value}" |
 | `statusCheckRollup.state` | `SUCCESS` | "CI: {state}" |
 | Required status-check contexts | Every required `context` exactly matches a CheckRun `name` or StatusContext `context` in `statusCheckRollup.contexts` | For each absent context, report `required check never reported: <context>` and follow [github-actions-silent-failures](../github-actions-silent-failures/SKILL.md) |
-| `statusCheckRollup.contexts.pageInfo.hasNextPage` | `false` | "Status-check rollup is paginated — fetch every context before comparing" |
+| `statusCheckRollup.contexts.pageInfo.hasNextPage` | `false` | "Status-check rollup is paginated — list every context with `gh pr checks <PR_NUMBER> --json name --jq '.[].name'` before comparing" |
 | PR feedback ledger | Zero unaddressed items | "Unaddressed PR feedback — run `/resolve-pr-threads`" |
 | All `reviewThreads.isResolved` | `true` | "Unresolved threads" |
 | `reviewThreads.pageInfo.hasNextPage` | `false` | ">100 threads — paginate" |

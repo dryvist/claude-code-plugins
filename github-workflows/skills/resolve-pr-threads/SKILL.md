@@ -16,8 +16,8 @@ metadata:
 # Resolve PR Feedback (Orchestrator)
 
 Processes all PR feedback by grouping related items, implementing fixes or
-providing evidence-backed answers, recording addressed markers, then resolving
-threads via GitHub's GraphQL API.
+giving evidence-backed answers, recording addressed markers, and finally
+resolving each answered thread with the GraphQL API.
 
 > **State warning**: Thread IDs and resolution status change as reviews arrive.
 > Re-fetch all open threads — cached thread lists from earlier are unreliable.
