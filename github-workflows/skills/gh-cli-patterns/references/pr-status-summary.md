@@ -1,6 +1,8 @@
 # Canonical PR Status Summary
 
 Reference detail for `gh-cli-patterns`, used by /ship and /finalize-pr for their status output. Loaded on demand.
+Every `Ready to merge` entry must pass the [canonical PR-readiness gate](../SKILL.md#canonical-pr-readiness-gate), including the
+[PR feedback ledger](pr-feedback-ledger.md) and required status-check reporting.
 
 Single authoritative format for all PR status output. Reference this section from any
 skill that emits a summary — do NOT define local output formats in individual skills.
@@ -10,16 +12,16 @@ skill that emits a summary — do NOT define local output formats in individual 
 ```text
 {Title}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  ✅  https://github.com/<OWNER>/<REPO>/pull/42   Ready for review
+  ✅  https://github.com/<OWNER>/<REPO>/pull/42   Ready to merge
   🟡  https://github.com/<OWNER>/<REPO>/pull/43   CI pending
-  🔴  https://github.com/<OWNER>/<REPO>/pull/44   Conflicts | 3 open comments
+  🔴  https://github.com/<OWNER>/<REPO>/pull/44   Conflicts | 3 unanswered feedback items
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 All Open PRs — <OWNER>/<REPO>
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  ✅  https://github.com/<OWNER>/<REPO>/pull/42   Ready for review
+  ✅  https://github.com/<OWNER>/<REPO>/pull/42   Ready to merge
   🟡  https://github.com/<OWNER>/<REPO>/pull/43   CI pending
-  🔴  https://github.com/<OWNER>/<REPO>/pull/44   Conflicts | 3 open comments
+  🔴  https://github.com/<OWNER>/<REPO>/pull/44   Conflicts | 3 unanswered feedback items
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Ready to merge (1):
@@ -27,7 +29,7 @@ Ready to merge (1):
 
 Blocked — needs human (2):
   https://github.com/<OWNER>/<REPO>/pull/43 — CI pending
-  https://github.com/<OWNER>/<REPO>/pull/44 — Conflicts | 3 open comments
+  https://github.com/<OWNER>/<REPO>/pull/44 — Conflicts | 3 unanswered feedback items
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
@@ -41,9 +43,9 @@ Blocked — needs human (2):
 
 | Emoji | Condition |
 |-------|-----------|
-| ✅ | `mergeable == MERGEABLE` AND `mergeStateStatus == CLEAN` or `HAS_HOOKS`, no unresolved threads |
+| ✅ | `mergeable == MERGEABLE` AND `mergeStateStatus == CLEAN` or `HAS_HOOKS`, no unresolved threads, zero unaddressed feedback, and every required check reported |
 | 🟡 | `mergeStateStatus == BEHIND`/`UNKNOWN`/`UNSTABLE`, `reviewDecision == REVIEW_REQUIRED`, or `mergeable == UNKNOWN` (GitHub computing) |
-| 🔴 | `mergeable == CONFLICTING`, `mergeStateStatus == BLOCKED`/`DIRTY`/`DRAFT`, `reviewDecision == CHANGES_REQUESTED`, unresolved threads, `isDraft == true`, or CI failed |
+| 🔴 | `mergeable == CONFLICTING`, `mergeStateStatus == BLOCKED`/`DIRTY`/`DRAFT`, `reviewDecision == CHANGES_REQUESTED`, unresolved threads, unaddressed feedback, a required check never reported, `isDraft == true`, or CI failed |
 
 ## Status tags
 
@@ -54,7 +56,8 @@ Append after the URL, separated by ` | `. Omit when no issues exist ("Ready for 
 | `Needs human review` | `labels` contains `human:review` | `labels` contains `human:review` |
 | `Conflicts` | `mergeable == CONFLICTING` | `mergeable == CONFLICTING` |
 | `Computing` | `mergeable == UNKNOWN` | `mergeable == UNKNOWN` |
-| `N open comments` | Unresolved thread count from Phase 3 gate | _(not available — omit count)_ |
+| `N unanswered feedback` | Unaddressed item count from the PR feedback ledger | Unaddressed items found when the gate is run |
+| `required check never reported: <context>` | Required context absent from the status rollup | Required context absent from the status rollup |
 | `CHANGES_REQUESTED` | `reviewDecision == CHANGES_REQUESTED` | `reviewDecision == CHANGES_REQUESTED` |
 | `Review required` | `reviewDecision == REVIEW_REQUIRED` | `reviewDecision == REVIEW_REQUIRED` |
 | `CI pending` | `statusCheckRollup.state != SUCCESS` | `mergeStateStatus == UNKNOWN`/`UNSTABLE` |
@@ -82,7 +85,10 @@ gh api graphql -f query='
         nodes{
           number url title mergeable reviewDecision mergeStateStatus isDraft
           labels(first:100){nodes{name} pageInfo{hasNextPage}}
-          commits(last:1){nodes{commit{statusCheckRollup{state}}}}
+          commits(last:1){nodes{commit{statusCheckRollup{
+            state
+            contexts(first:100){nodes{... on CheckRun{name} ... on StatusContext{context}} pageInfo{hasNextPage}}
+          }}}}
         }
       }
     }
@@ -90,6 +96,11 @@ gh api graphql -f query='
 ```
 
 For org-wide mode, run once per repo from Phase 1 discovery, replacing `<OWNER>`/`<REPO>`.
+
+For each PR, compare the base branch's required contexts with the complete
+rollup context names using the [canonical PR-readiness gate](../SKILL.md#canonical-pr-readiness-gate).
+Report an absent required context by name as `required check never reported`;
+see [github-actions-silent-failures](../../github-actions-silent-failures/SKILL.md).
 
 ## "Affected repos" definition
 

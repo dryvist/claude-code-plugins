@@ -195,20 +195,18 @@ Wait for all `/finalize-pr` agents to complete.
 **Before printing any PR as "Ready to merge": re-verify live state.**
 
 Subagent self-reports from Step 2 are snapshots — not current truth. For each PR
-that Step 2 reported as ready, run both gates from /gh-cli-patterns
-against `<PR_NUMBER>`:
+that Step 2 reported as ready, run both gates from /gh-cli-patterns. For gate 1,
+use the [canonical PR-readiness gate](../gh-cli-patterns/SKILL.md#canonical-pr-readiness-gate)
+and [PR feedback ledger](../gh-cli-patterns/references/pr-feedback-ledger.md),
+including zero unaddressed feedback items and every required status context reported.
+If a context is absent, report `required check never reported: <context>` and
+follow [github-actions-silent-failures](../github-actions-silent-failures/SKILL.md).
+Run gate 2 separately because CodeQL is not included in `statusCheckRollup`.
 
 - **Gate 1**: Canonical PR-readiness gate (`mergeStateStatus` MUST be `CLEAN` or `HAS_HOOKS`)
 - **Gate 2**: Canonical code-scanning alert count (must be `0` — NOT included in `statusCheckRollup`)
 
-Abort conditions: `state` ≠ `OPEN`, `mergeable` ≠ `MERGEABLE`,
-`mergeStateStatus` ≠ `CLEAN`/`HAS_HOOKS`, `isDraft` = `true`,
-any `reviewThreads.isResolved` = `false`,
-`reviewThreads.pageInfo.hasNextPage` = `true` (>100 threads — paginate manually),
-`reviewDecision` = `CHANGES_REQUESTED`/`REVIEW_REQUIRED`,
-`statusCheckRollup.state` ≠ `SUCCESS`, or CodeQL count > 0.
-
-If any abort condition hits: re-invoke `/finalize-pr <PR_NUMBER>`, wait for completion,
+If either gate fails, re-invoke `/finalize-pr <PR_NUMBER>`, wait for completion,
 then re-run both gates. Only list a PR as "Ready to merge" after both gates pass.
 
 ### Post validation evidence (agent-validated)

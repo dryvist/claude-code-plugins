@@ -32,7 +32,11 @@ gh pr list --state open --limit 50 --json number,title,headRefName
 
 For each open PR, check and report.
 
-Run the **canonical PR-readiness gate** from /gh-cli-patterns.
+Run the [canonical PR-readiness gate](../gh-cli-patterns/SKILL.md#canonical-pr-readiness-gate).
+It requires zero unaddressed items in the [PR feedback ledger](../gh-cli-patterns/references/pr-feedback-ledger.md)
+and every required status context reported. Name any absent context as
+`required check never reported: <context>` and see
+[github-actions-silent-failures](../github-actions-silent-failures/SKILL.md).
 Replace `<OWNER>`, `<REPO>`, `<PR_NUMBER>` per the placeholder legend in that skill.
 
 **Merge-ready criteria** — all of the following must hold:
@@ -41,10 +45,12 @@ Replace `<OWNER>`, `<REPO>`, `<PR_NUMBER>` per the placeholder legend in that sk
 |---|---|---|
 | `state` | `OPEN` | Not ready |
 | `mergeable` | `MERGEABLE` | Not ready |
-| `mergeStateStatus` | `CLEAN` or `HAS_HOOKS` | Not ready (`BEHIND`, `BLOCKED`, `DIRTY`, `UNSTABLE`, `UNKNOWN`, `DRAFT`) |
+| `mergeStateStatus` | `CLEAN` or `HAS_HOOKS` | Not ready (`BEHIND` — update the branch through `/finalize-pr`; `BLOCKED`, `DIRTY`, `UNSTABLE`, `UNKNOWN`, `DRAFT`) |
 | `isDraft` | `false` | Not ready |
 | `reviewDecision` | `APPROVED` or `null` | Not ready |
 | `statusCheckRollup.state` | `SUCCESS` | Not ready |
+| PR feedback ledger | Zero unaddressed feedback items | Not ready — run `/resolve-pr-threads` |
+| Required status-check contexts | Every required context is reported | Not ready — name any `required check never reported: <context>` |
 | All `reviewThreads.isResolved` | `true` | Not ready — unresolved threads |
 | `reviewThreads.pageInfo.hasNextPage` | `false` | Not ready — >100 threads, paginate |
 

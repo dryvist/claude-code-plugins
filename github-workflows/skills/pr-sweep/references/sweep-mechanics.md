@@ -21,15 +21,13 @@ They are different problems and want different responses.
 | --- | --- | --- |
 | `CLEAN` | Nothing outstanding | MERGE candidate |
 | `UNSTABLE` | A non-required check is red; the merge is still permitted | Judgment: is the red check meaningful to this change? |
-| `BLOCKED` | A branch rule is unsatisfied | Read the branch ruleset to learn *which* rule |
+| `BLOCKED` | A branch rule is unsatisfied | Use the [canonical PR-readiness gate](../../gh-cli-patterns/SKILL.md#canonical-pr-readiness-gate); report any required check that never reported by name |
 | `DIRTY` | Conflicts | FIX or HOLD |
 
-The most common false hold: a repo with zero required approvals but
-thread-resolution required, `BLOCKED` purely by unresolved review threads —
-frequently opened by a review bot. That is a **FIX**, not a HOLD. Check thread
-authorship first: many repos run automation that resolves bot threads on the
-next push, so triggering that is cheaper and safer than resolving by hand.
-Resolve a thread because you addressed it, never to clear a gate.
+An unresolved review thread or any other unaddressed item in the
+[PR feedback ledger](../../gh-cli-patterns/references/pr-feedback-ledger.md)
+is a **FIX**, not a HOLD. Process the feedback through `/resolve-pr-threads`;
+resolve a thread only after its feedback is answered, never to clear a gate.
 
 ### Status rollups go stale
 
