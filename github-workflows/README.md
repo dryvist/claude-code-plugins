@@ -13,7 +13,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for integration diagrams and the master s
 - **`/rebase-pr`** - Merge a PR using local git rebase + signed commits + a direct push to its base branch (main on trunk repos, develop on git-flow repos)
 - **`/merge-pr`** - Validate PR readiness and merge into its base branch. Merge commit by default,
   `--squash`/`-s` to squash instead. Refuses squash/rebase into main on git-flow repos
-- **`/promote-release`** - Merge-commit a develop → main promotion PR on a git-flow repo; release-please takes over from there
+- **`/promote-release`** - Prepare the release on `develop`, then merge-commit its promotion to `main`, where release-please tags it
 - **`/pr-stacks`** - Split a large change into an ordered chain of dependent PRs with `gh stack`: layering, cascading rebase, and stack-aware merge
 - **`/resolve-pr-threads`** - Orchestrate resolution of PR review threads (requires superpowers plugin)
 - **`/gh-cli-patterns`** - Canonical reference for gh CLI command shapes used by other skills in this plugin, including trunk-vs-git-flow default-branch detection

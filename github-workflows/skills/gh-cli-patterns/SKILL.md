@@ -44,7 +44,7 @@ gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name'
 | `<DEFAULT_BRANCH>` | Model | What it means for skills in this plugin |
 |---|---|---|
 | `main` | Trunk | `main` is both the default branch and production. `/merge-pr` merges into it with its normal default (merge commit) or `--squash`/`-s`. |
-| `develop` | git-flow (see [git-flow rule](https://github.com/dryvist/ai-assistant-instructions/blob/main/agentsmd/rules/git-flow.md)) | `develop` is the default integration branch — feature PRs target it, `/merge-pr`'s default (merge commit) or `--squash` both apply. `main` is production only: **merge commits only**, no direct pushes, every merge triggers release-please. |
+| `develop` | git-flow (see [git-flow rule](https://github.com/dryvist/ai-assistant-instructions/blob/main/agentsmd/rules/git-flow.md)) | `develop` is the default integration branch — feature PRs target it, `/merge-pr`'s default (merge commit) or `--squash` both apply. `main` is production only: **merge commits only**, no direct pushes. Release-please opens the release PR on `develop` and tags its commit after promotion to `main`. |
 
 **Never infer the model from the current local branch name** — always read
 `defaultBranchRef` (or `origin/HEAD`) fresh, since it can differ per repo and
