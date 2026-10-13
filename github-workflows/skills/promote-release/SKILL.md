@@ -2,8 +2,9 @@
 name: promote-release
 description: >-
   Prepare a release on develop and promote it to main on a git-flow repo.
-  Merge the release-please PR on develop, validate the promotion, and merge
-  develop to main with a merge commit; release-please tags on promotion.
+  Confirm the auto-merging release-please PR landed on develop, validate the
+  promotion, and merge develop to main with a merge commit; release-please
+  tags on promotion.
   Refuses on trunk repos (default branch main) — use /merge-pr instead.
 ---
 
@@ -11,9 +12,10 @@ description: >-
 
 On pushes to `develop`, release-please keeps one `release-please--*` PR open
 against `develop` for the version, CHANGELOG, and release notes; it does not
-tag at that point. This skill merges that PR, validates the release commit,
-then promotes `develop` to `main` with a merge commit. Release-please tags and
-releases the commit after promotion to `main`.
+tag at that point. That PR is set to auto-merge and merges itself when its
+checks pass. This skill confirms it merged, validates `develop`, then promotes
+`develop` to `main` with a merge commit. Release-please tags and releases the
+release commit after promotion to `main`.
 
 > **State warning**: PR status, CI, and branch state change between
 > invocations. Re-run every git/gh command from Step 0.
@@ -84,10 +86,14 @@ release PR and `hotfix/*` heads are exempt.
 ## Step 4: Finish Release-Please on Develop
 
 If the repository uses release-please, wait until the workflow run for
-`develop`'s current HEAD has finished and its `release-please--*` PR is up to
-date. If the repository has that PR, squash-merge it as the **final commit on
-`develop`** with `/merge-pr <RELEASE_PR_NUMBER> --squash`. Repositories
-without release-please skip this step.
+`develop`'s current HEAD has finished. The `release-please--*` PR is set to
+auto-merge: wait for it to merge. If it is open, green and unmerged after the
+checks finish, merge it with `/merge-pr <RELEASE_PR_NUMBER> --squash`. The
+freeze from Step 3 keeps every other PR out, so this release commit is the last
+commit on `develop` before the promotion. A release commit that merged before
+the freeze may sit below later commits; those ship in the promotion and are
+versioned by the next release. Repositories without release-please skip this
+step.
 
 ## Step 5: Validate Develop
 
