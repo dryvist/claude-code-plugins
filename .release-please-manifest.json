@@ -10,6 +10,7 @@
   "github-workflows": "6.7.1",
   "homelab-ops": "1.1.0",
   "infra-orchestration": "6.2.1",
+  "jpe-ai-delegation": "1.0.0",
   "infra-standards": "6.2.1",
   "openbao": "4.22.0",
   "attention-notify": "1.1.0",

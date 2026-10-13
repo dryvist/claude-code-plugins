@@ -4,41 +4,14 @@ Claude Code plugin for delegating tasks to AI models, orchestrating premium-mode
 
 Install: `/plugin install ai-delegation --marketplace JacobPEvans/claude-code-plugins`.
 
-## Mods
+## Maintainer-specific route
 
-The plugin carries a hooks module (`hooks/register.ts`) that runs in every session it is installed in.
-Decisions append to `~/.claude/ai-delegation.log`.
-
-- **Subagent router** (`tool.call` on `Agent`). A generic spawn (no `subagent_type`, `general-purpose`, `Explore`
-  or `Plan`, with no model, effort or name set) is classified as `standard`, `complex`, `plan` or `deep`, and the
-  lowest tier that fits runs it. When `codex` starts and `codex-quota` exits 0, Codex runs it and answers the call;
-  otherwise the spawn is rewritten to a Claude model.
-
-  | Class | Codex | Claude |
-  | --- | --- | --- |
-  | standard | Luna, `xhigh` | `haiku`, `xhigh` |
-  | complex | Luna, `max` | `haiku`, `max` |
-  | plan | never | `sonnet`, `high` |
-  | deep | never | `opus`, `medium` |
-
-  Codex is Luna only, at `high`, `xhigh` or `max` only, and `xhigh` is the default. The code refuses any other
-  Codex model or effort, and refuses to run Codex at all when no Luna model is listed, because `codex` would then
-  use its configured default. Codex and `haiku` both classify at `xhigh`. Codex runs `workspace-write`
-  (`read-only` for `Explore` and `Plan`). Roster spawns named `haiku-xhigh` or `opus-medium` go straight to Codex
-  at `xhigh` or `max`, respectively, when available. Isolation, unavailable Codex, an empty Codex answer, or
-  an explicit model, effort or name preserves the original spawn. Codex accepts only exact model slugs, so the plugin picks
-  the listed Luna model with the lowest `priority` in Codex's own model cache. No version is written or parsed in
-  the plugin.
-- **Permission judge** (`tool.check` on `Bash`). Claude Code asks about a `bash -c` script that runs `rm` and
-  cannot be checked, even under bypass mode. The judge sends the command to Luna at `xhigh`
-  (`read-only`), or to `haiku` at `xhigh` without Codex. A `safe` verdict allows, an `unsafe` verdict denies with
-  the reason, and any failure leaves the permission dialog.
-
-The briefing rule for subagents ships in the `ai-llm-prompts` catalog, not in this plugin.
+The executor route, eligibility rules, and routing hook for the maintainer's own setup ship in
+`/delegation-ladder` from `jpe-ai-delegation`.
 
 ## Skills
 
-- **`/delegate-to-ai`** - Route implementation to Codex (after `codex-quota`), else `haiku-xhigh`; ZCode only when the operator names it
+- **`/delegate-to-ai`** - Classify and bound delegated tasks, protect sensitive content, and verify the exact result before handoff
 - **`/auto-maintain`** - Autonomous maintenance orchestrator that continuously finds and dispatches work
 - **`/premium-agent-orchestration`** - Preserve top-tier/SOTA model reasoning (any vendor,
   current or future — the session's own model is assumed to be the premium lead)
@@ -59,7 +32,6 @@ The briefing rule for subagents ships in the `ai-llm-prompts` catalog, not in th
   (a cloud coding-agent CLI, a cloud reasoning-agent CLI, a local model server) for
   adversarial review, plus the gotcha each invocation type hits
 
-`delegate-to-ai` is shared by Claude Code and Codex, with one ZCode eligibility and verification procedure.
 `local-subagents`, `fast-subagent` and `openrouter-models` are written to be harness-agnostic: they
 use only shell, `curl`, and `jq`, name no model ids, and read their endpoint from the
 environment. Non-Claude harnesses consume them straight from this repository rather than

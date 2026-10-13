@@ -15,11 +15,19 @@ Session continuity for AI CLI agents. No git repository required.
 
 ### ai-delegation
 
-Delegate tasks to AI models, orchestrate premium-model work, and run autonomous maintenance loops.
+Generic delegation guidance, model review, and autonomous maintenance workflows.
 
 - **Type**: Skill-based plugin
 - **Skills**: `/delegate-to-ai`, `/auto-maintain`, `/premium-agent-orchestration`
-- **Purpose**: Route tasks to available models and preserve premium reasoning for judgment while cheaper agents or local/free LLMs handle checkable work
+- **Purpose**: Classify delegation work, verify delegated results, and preserve premium reasoning for judgment while cheaper agents handle checkable work
+
+### jpe-ai-delegation
+
+This plugin is specific to the maintainer's own setup and is not intended for general use.
+
+- **Type**: Skill-based plugin
+- **Skills**: `/delegation-ladder`
+- **Purpose**: Apply the maintainer-specific executor ladder, eligibility rules, and verification steps
 
 ### codeql-resolver
 
@@ -132,6 +140,7 @@ claude plugins add jacobpevans-cc-plugins/<plugin-name>
 - `jacobpevans-cc-plugins/homelab-ops`
 - `jacobpevans-cc-plugins/infra-orchestration`
 - `jacobpevans-cc-plugins/infra-standards`
+- `jacobpevans-cc-plugins/jpe-ai-delegation`
 - `jacobpevans-cc-plugins/process-cleanup`
 - `jacobpevans-cc-plugins/project-standards`
 - `jacobpevans-cc-plugins/testing`
@@ -154,6 +163,7 @@ claude plugins link ./github-workflows
 claude plugins link ./homelab-ops
 claude plugins link ./infra-orchestration
 claude plugins link ./infra-standards
+claude plugins link ./jpe-ai-delegation
 claude plugins link ./process-cleanup
 claude plugins link ./project-standards
 claude plugins link ./testing
@@ -173,7 +183,8 @@ invocation. Skill-based plugins provide slash commands:
 /prune-branches           # Delete dead branches and worktrees
 /wrap-up                  # Session-completion verdict + forward artifact
 /resolve-codeql           # Fix CodeQL security alerts
-/delegate-to-ai           # Route tasks to available AI models
+/delegate-to-ai           # Generic delegation guidance
+/delegation-ladder        # Maintainer-specific executor ladder
 /premium-agent-orchestration # Preserve premium reasoning and delegate checkable work
 ```
 

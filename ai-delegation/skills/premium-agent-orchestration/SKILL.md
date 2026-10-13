@@ -1,6 +1,6 @@
 ---
 name: premium-agent-orchestration
-description: Use when the session runs a premium top-tier/SOTA model AND the work is independent pieces exceeding one context window, or a marathon multi-workstream coordination session. Fans work to haiku-xhigh or the local router while the lead keeps judgment, merging, and verification. Not for serial work with a few decisions or a single chain fitting one context — tune effort on one model instead.
+description: Use when the session runs a premium top-tier/SOTA model AND the work is independent pieces exceeding one context window, or a marathon multi-workstream coordination session. Fans work to scoped worker subagents or the local router while the lead keeps judgment, merging, and verification. Not for serial work with a few decisions or a single chain fitting one context — tune effort on one model instead.
 ---
 
 # Premium Agent Orchestration
@@ -30,40 +30,12 @@ The flagship keeps judgment on intent, design, tradeoffs, risk, and final
 approval. The lead checks every result against its yes/no check and sends
 failures back with the named shortfall; a delegate's claim isn't evidence.
 
-## Roster
-
-Delegates come from this roster. The main session is the lead.
-
-| Executor | Use for | Boundary |
-| --- | --- | --- |
-| Router (`fast-subagent`, `local-subagents`) | Lookups, bulk reads, classification, output reduction | Reports facts and evidence. Never writes code. |
-| `haiku-xhigh` subagent | Scoped implementation, tests, bulk reads the router cannot take | Executes the plan. Does not change architecture or product intent. |
-| `opus-medium` subagent | Architecture and security judgment, risky review | Advisory only. Never holds scope or completion. The lead decides. |
-| Main session (lead) | Intent, architecture, decomposition, tradeoffs, risk, final review | Owns final decisions and user communication. |
-
-Haiku effort is never below `high`; `opus-medium` defaults to `medium`. Full boundaries:
-`references/model-tiers.md`.
-
 **Delegate strictly downward — never spawn a peer at your own tier.** Send
 quick lookups, exploration, and search to the **lowest** capable executor,
-not just one down — that work costs volume, not thought. Roster: `haiku-xhigh`
-and `opus-medium` only. Forks run on the lead's model; never fork from a Fable
-session. Prefer the router for checkable, low-skill work; discover
+not just one down — that work costs volume, not thought. Forks run on the
+lead's model. Prefer the router for checkable, low-skill work; discover
 availability live, never hard-code a physical model ID or a static
 task-to-model table.
-
-## Local Codex CLI executor
-
-Before delegating, verify Codex is installed (`command -v codex`), signed in
-(`codex login status`), and has quota: run `codex-quota`. Proceed only when it
-exits 0, which means every window is under 95% used or has reset. Exit 1 means
-quota is exhausted. Any other result means do not delegate.
-Choose a supported model live with `/model` or `model/list`. For the cheap
-family, effort is never below `high`:
-
-```bash
-codex exec --model "$CODEX_MODEL" -c "model_reasoning_effort=\"$CODEX_EFFORT\"" "$TASK"
-```
 
 ## Concurrency and batching
 
@@ -99,18 +71,15 @@ Delegate searching, reading, editing, testing, verifying. Keep intent,
 design, tradeoffs, risk, disagreement, and final approval with the lead.
 High-risk (auth, billing, permissions, security, migrations, data loss,
 shared state, caching, concurrency, cross-module behavior, public APIs,
-user-visible workflows): the lead decides. `opus-medium` gives advisory
-architecture and security judgment. `haiku-xhigh` does the execution; the
+user-visible workflows): the lead decides. An advisory worker gives
+architecture and security judgment. A scoped worker does the execution; the
 router gathers evidence only.
 
 ## Substrate Resilience
 
 Probe the spawn substrate, cap workers, bound every poller, and take the solo
 path when spawning fails. See the `subagent-resilience` rule
-(ai-assistant-instructions).
-
-**Claude project route:** run one project thread per repository instead of the
-local fan-out; see [the claude-projects rule](https://github.com/dryvist/ai-assistant-instructions/blob/develop/agentsmd/rules/on-demand/claude-projects.md).
+from your project's agent instructions.
 
 ## Sibling-prefix cache sharing
 
@@ -138,9 +107,9 @@ runnable yes/no check, the last one end-to-end verification.
    dependencies.
 3. Probe the spawn substrate before the first fan-out; on failure, take the
    solo path.
-4. Route lookups and bulk reads to the router, then `haiku-xhigh`. Batch them
+4. Route lookups and bulk reads to the router, then a scoped worker subagent. Batch them
    per worker. Cap concurrency at 4 per session unless you state an explicit override.
-5. Use `haiku-xhigh` for scoped implementation. Use `opus-medium` for architecture
+5. Use a scoped worker subagent for implementation. Use an advisory worker for architecture
    and security judgment only.
 6. Require each worker's one-line or schema output (see above).
 7. Answer the user briefly.
@@ -152,7 +121,7 @@ were used, non-trivial work was verified, and remaining risk is named.
 
 ## Related Skills
 
-- delegate-to-ai (ai-delegation)
+- delegate-to-ai (ai-delegation) for generic safeguards; delegation-ladder (jpe-ai-delegation) for the maintainer's own route
 - auto-maintain (ai-delegation)
 - local-subagents (ai-delegation) — cheap-first-escalate loop for a single
   chain of checkable work; this skill is the multi-worker fan-out case.

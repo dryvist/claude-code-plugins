@@ -8,13 +8,13 @@ for the premium lead itself.
 | Executor | Use for | Boundary |
 | --- | --- | --- |
 | Router (`fast-subagent`, `local-subagents`) | File discovery, log and test-output summaries, simple scans, checklist verification, classification, bulk reads | Reports facts and evidence. Never writes code. Avoids product or architecture calls |
-| `haiku-xhigh` subagent | Scoped implementation, tests, medium debugging, local refactors, bulk reads the router cannot take, following existing patterns | Executes the plan. Avoids changing architecture or product intent |
-| `opus-medium` subagent | Architecture and security judgment, deep debugging, cross-module reasoning, risky review | Advisory only. The lead decides. Never holds scope or completion |
+| Scoped implementation subagent | Scoped implementation, tests, medium debugging, local refactors, bulk reads the router cannot take, following existing patterns | Executes the plan. Avoids changing architecture or product intent |
+| Advisory judgment subagent | Architecture and security judgment, deep debugging, cross-module reasoning, risky review | Advisory only. The lead decides. Never holds scope or completion |
 | Main session (lead) | Intent, architecture, decomposition, tradeoffs, risk, disagreement, final review, synthesis | Owns final decisions and user communication |
 
 For specified, checkable tasks, a fast model at high effort beats the
-flagship. `haiku-xhigh` runs at `xhigh` and is never set below `high`;
-`opus-medium` runs at `medium`.
+flagship. A scoped implementation subagent runs at high effort or above;
+an advisory judgment subagent runs at medium effort.
 
 ## Model Tier Descent Rule (No Peer Spawning)
 
@@ -23,17 +23,17 @@ subagent on the same model tier doesn't split judgment from labor — it just
 moves the same authority sideways, at the same cost.
 
 - Every delegation targets an executor below the delegator's own: the lead →
-  `opus-medium` or lower; `opus-medium` → `haiku-xhigh` or lower; `haiku-xhigh` →
+  an advisory judgment subagent or lower; an advisory judgment subagent → a
+  scoped implementation subagent or lower; a scoped implementation subagent →
   the router, which executes directly.
 - Send quick lookups, exploration, research, and web search — token-heavy,
   reasoning-light work — to the **lowest** capable model tier, not just one
   down. These tasks cost volume, not thought; paying a higher tier's rate
   for them is waste.
 - "Same underlying model" means context isolation, not model-tier equality.
-  `opus-medium` is a same-weights advisory delegate when the lead is Opus. It
-  runs in a fresh context with no path back to orchestrator authority, and it
-  never holds scope, architecture, or completion calls; those stay with the
-  lead.
+  An advisory delegate may share the lead's model weights while running in a
+  fresh context with no path back to orchestrator authority, and it never
+  holds scope, architecture, or completion calls; those stay with the lead.
 
 ## Local And Free-Tier First
 
@@ -51,7 +51,7 @@ Prefer these routes in order for lookups and bulk reads:
 1. Local LLMs already reachable from the environment.
 2. Absolute cheapest free-tier model access already configured for the
    session.
-3. `haiku-xhigh`, only when the router lacks context, tool access,
+3. A scoped implementation subagent, only when the router lacks context, tool access,
    reliability, or reasoning quality for the step.
 
 Discover current model availability live. Do not hard-code physical model

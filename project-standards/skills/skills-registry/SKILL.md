@@ -25,7 +25,8 @@ description: Use when looking up available tools, skills, commands, agents, or p
 | Resolve PR threads | `/resolve-pr-threads` | `github-workflows` | Thread resolution |
 | Resolve CodeQL alerts | `/resolve-codeql` | `codeql-resolver` | Fix alerts |
 | Autonomous maintenance | `/auto-maintain` | `ai-delegation` | Finds work |
-| Delegate to AI models | `/delegate-to-ai` | `ai-delegation` | External AI |
+| Delegate to AI models | `/delegate-to-ai` | `ai-delegation` | Generic task and result safeguards |
+| Use the maintainer's delegation route | `/delegation-ladder` | `jpe-ai-delegation` | Maintainer-specific; not intended for general use |
 | Orchestrate premium agents | `/premium-agent-orchestration` | `ai-delegation` | Preserve senior judgment |
 | Offload to a local or cheap model | `/local-subagents` | `ai-delegation` | Live model menu with speed/quality hints |
 | Pick a hosted model, watch spend | `/openrouter-models` | `ai-delegation` | Budget & egress |
