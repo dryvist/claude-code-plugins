@@ -1,5 +1,24 @@
 # Changelog
 
+## [6.7.0](https://github.com/dryvist/claude-code-plugins/compare/github-workflows-v6.6.1...github-workflows-v6.7.0) (2026-10-13)
+
+
+### Features
+
+* **github-workflows:** finalize-pr handles feedback, BEHIND branches and unreported checks ([b663c23](https://github.com/dryvist/claude-code-plugins/commit/b663c23af3b90f41ebe91d7ff3e851f4eaf2acd5))
+* **github-workflows:** promote-release prepares the release on develop ([42fd643](https://github.com/dryvist/claude-code-plugins/commit/42fd64313de394eb01e4b3d8ed1e68c6b5e228bb))
+* **github-workflows:** promote-release prepares the release on develop ([#610](https://github.com/dryvist/claude-code-plugins/issues/610)) ([bbfa48c](https://github.com/dryvist/claude-code-plugins/commit/bbfa48c7b6c9af766e3ef7a8497de0e66e37930d))
+* **github-workflows:** readiness gate requires answered feedback and reported required checks ([93463bc](https://github.com/dryvist/claude-code-plugins/commit/93463bc265a43bec180854f37fa8ca29b93e8716))
+* **github-workflows:** resolve-pr-threads treats all PR feedback as review ([7f28d39](https://github.com/dryvist/claude-code-plugins/commit/7f28d393fa94c6312368dd66327fb8952f6016f5))
+* **github-workflows:** treat all PR feedback as review ([#609](https://github.com/dryvist/claude-code-plugins/issues/609)) ([7954eae](https://github.com/dryvist/claude-code-plugins/commit/7954eaecd4d894a742dafaf22837858fdecee6ba))
+
+
+### Bug Fixes
+
+* **github-workflows:** ledger tracks review-bot findings, not the bot comment; list every check context ([fcf62ad](https://github.com/dryvist/claude-code-plugins/commit/fcf62ad752cd4d6420585a21109541aa9ec8295b))
+* **github-workflows:** name the resolve mutation in the resolver summary ([d90d686](https://github.com/dryvist/claude-code-plugins/commit/d90d68654f7c8f940f7152d1931974dad469e4df))
+* **github-workflows:** reword the resolver summary ([9942e22](https://github.com/dryvist/claude-code-plugins/commit/9942e2248583e5d14fd478f457ff5c42f99d2aea))
+
 ## [6.6.1](https://github.com/dryvist/claude-code-plugins/compare/github-workflows-v6.6.0...github-workflows-v6.6.1) (2026-10-10)
 
 

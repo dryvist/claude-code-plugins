@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "Claude Code plugins and hooks by JacobPEvans",
-    "version": "6.16.1"
+    "version": "6.17.0"
   },
   "plugins": [
     {
@@ -76,7 +76,7 @@
       "name": "git-workflows",
       "source": "./git-workflows",
       "description": "Git worktree initialization, main branch sync, and troubleshooting workflows",
-      "version": "6.3.0",
+      "version": "6.4.0",
       "author": {
         "name": "JacobPEvans"
       }
@@ -85,7 +85,7 @@
       "name": "github-workflows",
       "source": "./github-workflows",
       "description": "PR management, multi-repo PR finalization, and issue shaping with Shape Up methodology",
-      "version": "6.6.1",
+      "version": "6.7.0",
       "author": {
         "name": "JacobPEvans"
       }
