@@ -1,7 +1,9 @@
 ---
 name: git-flow-next
 description: >-
-  Work with repositories using the git-flow-next branching model (default branch is `develop`, production branch is `main`). Covers branch creation, worktree setup, atomic commits, PR targeting, validation on `develop`, and mandatory end-of-session promotion to `main`.
+  Use git-flow-next with `develop` as the default and `main` as production.
+  Branch feature work from `develop`, prepare releases there, promote them to
+  `main` after session PRs merge, and merge hotfix branches into both branches.
 ---
 
 # git-flow-next Usage Guide
@@ -24,11 +26,11 @@ gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name'
 
 | Branch | Role | Gets changes by |
 | --- | --- | --- |
-| `main` | Production. Protected; no direct pushes. | **Merge commits only** — squash and rebase are banned. |
-| `develop` | Default integration branch. Protected; no direct pushes. | Squash-merged feature PRs (default); merge commits for back-merges. |
+| `main` | Production. Protected; no direct pushes. | **Merge commits only** — promotions from `develop` and hotfix PRs. |
+| `develop` | Default integration branch. Protected; no direct pushes. | Squash-merged feature PRs, the squash-merged release-please PR, and merge-committed hotfix branches. Never merge `main` into `develop`. |
 | `feature/<issue>-<sid8>-<slug>` | Topic work | Branched from fresh `develop`. |
-| `release/<version>` | Release stabilization | Branched from `develop`; merge-committed to `main`; back-merged to `develop`. |
-| `hotfix/<slug>` | Production fix | Branched from `main`; PR to `main` (merge commit); back-merged to `develop`. |
+| `release/<version>` | Release preparation | Not used in this release-please flow. On push to `develop`, release-please opens a `release-please--*` PR there for the version, CHANGELOG, and release notes; squash-merge it before promotion. |
+| `hotfix/<slug>` | Production fix | Branch from `main`; PR to `main` with a merge commit; then merge-commit the hotfix branch into `develop`. |
 
 ## 3. Dedicated Worktree Setup
 
@@ -74,21 +76,23 @@ To prevent wrong nesting:
 
 ## 5. Mandatory Promotion to Production
 
-"Promotion is a step you take, not an event that happens."
+The session that opened the work owns its production promotion. After that
+session's PRs merge into `develop`, run `/promote-release` immediately. A
+background PR-shepherd agent may run it. Before finishing a session, verify
+`develop` has no unpromoted commits:
 
-Feature PRs squash into `develop` and stop there. To release them:
+```bash
+git fetch origin --force develop main && git log origin/main..origin/develop
+```
 
-1. Before finishing a session, fetch the latest remote state and verify if `develop` has unpromoted commits:
+**Planning Reminder**: Add "Merge develop into main" to the session checklist
+at planning time.
 
-   ```bash
-   git fetch origin --force develop main && git log origin/main..origin/develop
-   ```
-
-2. If commits exist, run `/promote-release` to open/reuse a `develop` -> `main` PR and merge it using a **merge commit** (`--merge` flag on `gh pr merge`).
-   Never squash or rebase into `main`.
-3. Merging triggers `release-please` on `main`, which opens the release PR (version bump,
-   CHANGELOG). A person merges that release PR to cut the tag; it is never auto-merged.
-4. **Planning Reminder**: You must add "Merge develop into main" to your session checklist/to-do list at planning time.
+`/promote-release` syncs `develop` and `main`, completes the release-please PR
+on `develop`, validates the new `develop` head, and merges the promotion PR to
+`main` with a merge commit. Never merge `main` into `develop`. Release-please
+tags the release commit after it reaches `main`; do not create a release PR or
+tag by hand.
 
 ## Related Skills
 
