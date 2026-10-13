@@ -20,7 +20,7 @@ draft, unresolvable conflicts, unrecoverable CI, or more than 100 review threads
 
 ## Critical Rules
 
-- Run the GraphQL readiness gate on every invocation before merging
+- Run the [canonical PR-readiness gate](../gh-cli-patterns/SKILL.md#canonical-pr-readiness-gate) on every invocation before merging
 - PR metadata updates are `/finalize-pr`'s responsibility
 - Invoke `/finalize-pr` for soft blocks; abort on hard stops with reason
 - Merge commit is the default; `--squash`/`-s` opts into a squash merge
@@ -77,8 +77,10 @@ Carry the resolved method (`merge` or `squash`) into Step 2 and Step 3.
 
 ## Step 1: Validate PR Ready
 
-Run the **canonical PR-readiness gate** and **canonical code-scanning alert count**
-from /gh-cli-patterns. Replace `<OWNER>`, `<REPO>`, `<PR_NUMBER>` per the
+Run the [canonical PR-readiness gate](../gh-cli-patterns/SKILL.md#canonical-pr-readiness-gate)
+and **canonical code-scanning alert count** from /gh-cli-patterns. The readiness
+gate includes all items in the [PR feedback ledger](../gh-cli-patterns/references/pr-feedback-ledger.md).
+Replace `<OWNER>`, `<REPO>`, `<PR_NUMBER>` per the
 placeholder convention. CodeQL is separate from CI — check both.
 
 ### 1.1 Hard stops (abort immediately, no finalize)
@@ -101,6 +103,8 @@ full gate. If the gate still fails after finalization, abort with the specific r
 | `mergeStateStatus` | `CLEAN` or `HAS_HOOKS` | "PR merge state is {value} — still blocked after finalize" |
 | `reviewDecision` | `APPROVED` or `null` | "Review decision is {value}" |
 | `statusCheckRollup.state` | `SUCCESS` | "CI is {state} — unrecoverable" |
+| PR feedback ledger | Zero unaddressed feedback items | "Unaddressed PR feedback remains" |
+| Required status-check contexts | Every required context was reported in `statusCheckRollup.contexts` | "required check never reported: `<context>` — see [github-actions-silent-failures](../github-actions-silent-failures/SKILL.md)" |
 | All `reviewThreads.isResolved` | `true` | "Unresolved review threads remain" |
 | CodeQL alert count | `0` | "Open CodeQL alerts remain — run /resolve-codeql manually" |
 

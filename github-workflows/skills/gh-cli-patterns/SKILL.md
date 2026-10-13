@@ -4,9 +4,10 @@ description: >-
   Canonical reference for all gh CLI command shapes used by skills in this
   plugin. Defines the placeholder convention, default-branch (trunk vs
   git-flow) detection, allowed --json fields, GraphQL fallback rules,
-  -f/-F/--raw-field flag semantics, the PR-readiness gate, code-scanning
-  alert query, review-thread fetch/count/resolve mutations, and heredoc
-  bodies. Prevents Unknown JSON field errors and divergent query shapes.
+  -f/-F/--raw-field flag semantics, the PR-readiness gate, required status
+  contexts, the feedback ledger, code-scanning alert query, review-thread
+  fetch/count/resolve mutations, and heredoc bodies. Prevents Unknown JSON field
+  errors and divergent query shapes.
 ---
 
 # gh CLI Canonical Patterns — github-workflows
@@ -28,6 +29,7 @@ Standard replacements:
 <PR_NUMBER>      → $(gh pr view  --json number --jq '.number')  (integer)
 <THREAD_ID>      → PRRT_* node ID from the fetch-threads query (string)
 <DATABASE_ID>    → numeric comment ID from the fetch-threads query
+<BASE>           → PR base branch name from `gh pr view --json baseRefName --jq '.baseRefName'`
 <DEFAULT_BRANCH> → see Canonical Default-Branch Detection below
 ```
 
@@ -100,7 +102,10 @@ gh api graphql -f query='
       pullRequest(number:$prNumber){
         state mergeable mergeStateStatus isDraft reviewDecision
         labels(first:100){nodes{name} pageInfo{hasNextPage}}
-        commits(last:1){nodes{commit{statusCheckRollup{state}}}}
+        commits(last:1){nodes{commit{statusCheckRollup{
+          state
+          contexts(first:100){nodes{... on CheckRun{name} ... on StatusContext{context}} pageInfo{hasNextPage}}
+        }}}}
         reviewThreads(first:100){nodes{isResolved} pageInfo{hasNextPage}}
       }
     }
@@ -123,8 +128,23 @@ Required values — abort if any fail:
 | `labels.pageInfo.hasNextPage` | `false` | ">100 labels — paginate before trusting the gate. Never read a truncated label list as "`human:review` absent": this gate must fail closed" |
 | `reviewDecision` | `APPROVED` or `null` | "Review decision: {value}" |
 | `statusCheckRollup.state` | `SUCCESS` | "CI: {state}" |
+| Required status-check contexts | Every required `context` exactly matches a CheckRun `name` or StatusContext `context` in `statusCheckRollup.contexts` | For each absent context, report `required check never reported: <context>` and follow [github-actions-silent-failures](../github-actions-silent-failures/SKILL.md) |
+| `statusCheckRollup.contexts.pageInfo.hasNextPage` | `false` | "Status-check rollup is paginated — list every context with `gh pr checks <PR_NUMBER> --json name --jq '.[].name'` before comparing" |
+| PR feedback ledger | Zero unaddressed items | "Unaddressed PR feedback — run `/resolve-pr-threads`" |
 | All `reviewThreads.isResolved` | `true` | "Unresolved threads" |
 | `reviewThreads.pageInfo.hasNextPage` | `false` | ">100 threads — paginate" |
+
+Read the required contexts from the base branch rules and compare them with
+the rollup context names (`.name // .context`) before declaring the gate ready:
+
+```bash
+gh api repos/<OWNER>/<REPO>/rules/branches/<BASE> \
+  --jq '[.[]|select(.type=="required_status_checks")|.parameters.required_status_checks[].context]'
+```
+
+Fetch and evaluate the complete [PR feedback ledger](references/pr-feedback-ledger.md).
+An absent required context is reported by name as `required check never reported`,
+never as a bare `BLOCKED` result.
 
 > NOT-ready `mergeStateStatus` values: `BEHIND`, `BLOCKED`, `DIRTY`, `DRAFT`, `UNKNOWN`, `UNSTABLE`.
 

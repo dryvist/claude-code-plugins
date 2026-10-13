@@ -58,7 +58,11 @@ point at `/promote-release`.
 local fan-out; see [the claude-projects rule](https://github.com/dryvist/ai-assistant-instructions/blob/develop/agentsmd/rules/on-demand/claude-projects.md).
 
 Command shapes live in **gh-cli-patterns**. List first, act second, and state
-the count before touching anything.
+the count before touching anything. Every `MERGE` verdict must pass the
+[canonical PR-readiness gate](../gh-cli-patterns/SKILL.md#canonical-pr-readiness-gate),
+including zero unaddressed feedback items and all required checks reported.
+Use the [PR feedback ledger](../gh-cli-patterns/references/pr-feedback-ledger.md)
+for comment, review-body, inline, and review-agent findings.
 
 ## Phases
 
@@ -92,8 +96,8 @@ Every PR gets exactly one verdict.
 
 | Verdict | Meaning |
 | --- | --- |
-| **MERGE** | Mergeable, checks green, not draft, no unresolved threads, and either low blast radius or an approved escalation. |
-| **FIX** | One delegated `/finalize-pr` away from mergeable — unresolved review threads, a stale rollup, a repairable check. Re-triage after. |
+| **MERGE** | Passes the canonical PR-readiness gate, and either low blast radius or an approved escalation. |
+| **FIX** | One delegated `/finalize-pr` away from passing the canonical gate — unaddressed feedback, a stale rollup, a repairable check, or a `BEHIND` branch. Re-triage after. |
 | **HOLD** | Cannot proceed without a decision or new work. Always carries a reason. |
 | **ESCALATE** | Mergeable but the *judgment* is not the sweep's to make. Goes to Phase 2 as a question, never as an assumption. |
 
@@ -139,7 +143,7 @@ and order schemas: see [references/sweep-mechanics.md](references/sweep-mechanic
 
 - **merge-pr** (github-workflows) — performs each merge and owns method resolution.
 - **finalize-pr** (github-workflows) — drives one PR to mergeable; the `FIX` delegate.
-- **resolve-pr-threads** (github-workflows) — review-thread resolution.
+- **resolve-pr-threads** (github-workflows) — resolves all PR feedback using the [feedback ledger](../gh-cli-patterns/references/pr-feedback-ledger.md).
 - **gh-cli-patterns** (github-workflows) — canonical command shapes and queries.
 - **promote-release** (github-workflows) — the held-promotion path.
 - **git-flow-next** (git-workflows) — the branching model that decides merge method.
