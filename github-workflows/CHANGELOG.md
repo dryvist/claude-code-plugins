@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.8.0](https://github.com/dryvist/claude-code-plugins/compare/github-workflows-v6.7.1...github-workflows-v6.8.0) (2026-10-13)
+
+
+### Features
+
+* **jpe-ai-delegation:** add maintainer-specific delegation ladder plugin ([#613](https://github.com/dryvist/claude-code-plugins/issues/613)) ([0569795](https://github.com/dryvist/claude-code-plugins/commit/05697952f1808478b0b1de7dc67b6fb3bb46603b))
+
 ## [6.7.1](https://github.com/dryvist/claude-code-plugins/compare/github-workflows-v6.7.0...github-workflows-v6.7.1) (2026-10-13)
 
 
