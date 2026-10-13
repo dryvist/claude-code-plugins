@@ -68,4 +68,4 @@ Failed sub-agent: log, emit blocked event, continue. Rate limited: wait 30s, ret
 
 ## Related Skills
 
-- delegate-to-ai (ai-delegation)
+- delegate-to-ai (ai-delegation) for generic safeguards; delegation-ladder (jpe-ai-delegation) for the maintainer's own route

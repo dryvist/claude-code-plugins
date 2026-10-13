@@ -87,15 +87,14 @@ If the review comment includes
 `⚠️ Review coverage: The following files were not included in this review because of the token budget:`,
 use exactly the following file list as the required second-review scope.
 
-- If the repository is public and `zcode-job repos` lists it, follow the
-  [delegate-to-ai skill](../../../../ai-delegation/skills/delegate-to-ai/SKILL.md)
-  to submit a bounded ZCode review of those files. The operator has opted in
-  for this route. ZCode must return review findings only; it does not edit files
-  or post to GitHub.
-- If the repository is private, is not listed, or ZCode is unavailable, use the
+- For the maintainer's own setup, follow the
+  [delegation-ladder skill](../../../../jpe-ai-delegation/skills/delegation-ladder/SKILL.md)
+  to check eligibility and submit a bounded independent review of those files.
+  The executor must return findings only; it does not edit files or post to GitHub.
+- If the repository is private, is not eligible, or that executor is unavailable, use the
   router `review-private` role through the
   [fast-subagent skill](../../../../ai-delegation/skills/fast-subagent/SKILL.md).
-  Never send private-repository content to ZCode.
+  Never send private-repository content to an ineligible executor.
 
 Post the second-review result as one PR comment. Treat that designated report
 as feedback even though the current session authored it: the independent

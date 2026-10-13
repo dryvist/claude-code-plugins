@@ -115,4 +115,4 @@ separate processes.
   model menu, the fast-subagent tier contract.
 - **premium-agent-orchestration** (ai-delegation) — which decisions a premium
   session keeps.
-- **delegate-to-ai** (ai-delegation) — routing to another harness or CLI.
+- **delegate-to-ai** (ai-delegation) — generic delegation safeguards; the maintainer-specific executor ladder is in `jpe-ai-delegation`.

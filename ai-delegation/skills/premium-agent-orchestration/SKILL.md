@@ -152,7 +152,7 @@ were used, non-trivial work was verified, and remaining risk is named.
 
 ## Related Skills
 
-- delegate-to-ai (ai-delegation)
+- delegate-to-ai (ai-delegation) for generic safeguards; delegation-ladder (jpe-ai-delegation) for the maintainer's own route
 - auto-maintain (ai-delegation)
 - local-subagents (ai-delegation) — cheap-first-escalate loop for a single
   chain of checkable work; this skill is the multi-worker fan-out case.

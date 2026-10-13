@@ -232,5 +232,6 @@ relying on it.
   the router does not serve.
 - **premium-agent-orchestration** (ai-delegation) — which decisions a premium
   session keeps; this skill is how its delegations are placed.
-- **delegate-to-ai** (ai-delegation) — routing to another harness or CLI
-  rather than to a model behind the router.
+- **delegate-to-ai** (ai-delegation) — generic delegation safeguards for routing
+  work to another harness or CLI rather than to a model behind the router; the
+  maintainer-specific executor ladder is in `jpe-ai-delegation`.

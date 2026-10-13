@@ -38,7 +38,7 @@ The briefing rule for subagents ships in the `ai-llm-prompts` catalog, not in th
 
 ## Skills
 
-- **`/delegate-to-ai`** - Route implementation to Codex (after `codex-quota`), else `haiku-xhigh`; ZCode only when the operator names it
+- **`/delegate-to-ai`** - Classify and bound delegated tasks, protect sensitive content, and verify the exact result before handoff
 - **`/auto-maintain`** - Autonomous maintenance orchestrator that continuously finds and dispatches work
 - **`/premium-agent-orchestration`** - Preserve top-tier/SOTA model reasoning (any vendor,
   current or future — the session's own model is assumed to be the premium lead)
@@ -59,7 +59,8 @@ The briefing rule for subagents ships in the `ai-llm-prompts` catalog, not in th
   (a cloud coding-agent CLI, a cloud reasoning-agent CLI, a local model server) for
   adversarial review, plus the gotcha each invocation type hits
 
-`delegate-to-ai` is shared by Claude Code and Codex, with one ZCode eligibility and verification procedure.
+`delegate-to-ai` provides generic delegation safeguards. For the maintainer's own executor route and eligibility rules,
+use `/delegation-ladder` from `jpe-ai-delegation`.
 `local-subagents`, `fast-subagent` and `openrouter-models` are written to be harness-agnostic: they
 use only shell, `curl`, and `jq`, name no model ids, and read their endpoint from the
 environment. Non-Claude harnesses consume them straight from this repository rather than
