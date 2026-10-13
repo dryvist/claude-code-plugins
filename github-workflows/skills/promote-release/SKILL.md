@@ -1,33 +1,34 @@
 ---
 name: promote-release
 description: >-
-  Open and merge a develop-to-main promotion PR on a git-flow repo. Merge
-  commit only, never squash or rebase — main accepts merge commits only.
-  Every merge to main triggers release-please, which takes over tagging and
-  release notes from there. Refuses on trunk repos (default branch main) —
-  use /merge-pr instead.
+  Prepare a release on develop and promote it to main on a git-flow repo.
+  Merge the release-please PR on develop, validate the promotion, and merge
+  develop to main with a merge commit; release-please tags on promotion.
+  Refuses on trunk repos (default branch main) — use /merge-pr instead.
 ---
 
 # Promote Release
 
-Promotes `develop` to `main` on a git-flow repo: opens (or reuses) a
-`develop` → `main` PR, waits for it to go green, then merges it with a merge
-commit. This is the **only** sanctioned way to move code into `main` on a
-git-flow repo outside a `hotfix/*` PR.
+On pushes to `develop`, release-please keeps one `release-please--*` PR open
+against `develop` for the version, CHANGELOG, and release notes; it does not
+tag at that point. This skill merges that PR, validates the release commit,
+then promotes `develop` to `main` with a merge commit. Release-please tags and
+releases the commit after promotion to `main`.
 
 > **State warning**: PR status, CI, and branch state change between
 > invocations. Re-run every git/gh command from Step 0.
 
 ## Critical Rules
 
-- **Merge commit only.** Never `--squash`, never `--rebase`. `main`'s ruleset
-  bans both — see /gh-cli-patterns Canonical Default-Branch Detection.
+- **Merge commit only** for `develop` → `main`. Never squash or rebase the
+  promotion PR — `main`'s ruleset bans both. See /gh-cli-patterns Canonical
+  Default-Branch Detection.
 - This skill does **not** run on trunk repos. Step 0 refuses immediately if
   the repo's default branch is `main`.
-- Never invent a version number or write CHANGELOG entries yourself —
-  release-please owns both once this PR lands on `main`.
-- `release/*` stabilization branches are out of scope here — use this skill
-  only for the ordinary `develop` → `main` promotion.
+- Never invent a version, write CHANGELOG entries, create a release PR, or tag
+  by hand. Release-please prepares the release on `develop` and tags the
+  promoted commit on `main`.
+- `release/*` stabilization branches are out of scope for this workflow.
 
 ## Step 0: Confirm Git-Flow Repo
 
@@ -51,74 +52,92 @@ git log --oneline origin/main..origin/develop   # commits this promotion will ca
 If the list is empty, **stop** and report: "`develop` has no commits ahead of
 `main` — nothing to promote."
 
-## Step 2: Find Or Create the Promotion PR
+## Step 2: Merge In-Flight Develop PRs
+
+Drive in-flight PRs targeting `develop` to merged before starting the freeze.
+Use `/finalize-pr <PR_NUMBER>` followed by `/merge-pr <PR_NUMBER>`; use
+`/pr-sweep` when there are many. Do not start the freeze while PRs owned by
+this session are mid-flight.
+
+After those PRs merge, refresh `develop` and confirm it still has commits ahead
+of `main` before creating or reusing the promotion PR. If it is empty, stop;
+nothing remains to promote.
+
+## Step 3: Find Or Create the Promotion PR and Freeze Develop
 
 ```bash
 gh pr list --base main --head develop --state open --json number,url
 ```
 
-**If one exists**: use it for the remaining steps.
-
-**If none exists**, create it:
+Use the open PR if one exists. Otherwise, create it:
 
 ```bash
-gh pr create --base main --head develop --title "chore: promote develop to main" --body "$(cat <<'EOF'
-## Summary
-Promotes the current state of `develop` to `main`.
-
-## Notes
-- Merge commit only — `main`'s ruleset bans squash and rebase.
-- Merging this PR triggers release-please on `main`, which opens its own
-  release PR (version bump + CHANGELOG) automatically. This PR does not
-  touch versioning itself.
-EOF
-)"
+gh pr create --base main --head develop --title "chore: promote develop to main" --body "Promotes the release-prepared commits from develop to production main."
 ```
 
-## Step 3: Wait For CI
+Add the `release:in-progress` label to the promotion PR
+(`gh pr edit <PR_NUMBER> --add-label release:in-progress`). That label enables
+the required `release-freeze` commit status, which fails every other open PR
+targeting `develop` until the promotion PR closes. The `release-please--*`
+release PR and `hotfix/*` heads are exempt.
+
+## Step 4: Finish Release-Please on Develop
+
+If the repository uses release-please, wait until the workflow run for
+`develop`'s current HEAD has finished and its `release-please--*` PR is up to
+date. If the repository has that PR, squash-merge it as the **final commit on
+`develop`** with `/merge-pr <RELEASE_PR_NUMBER> --squash`. Repositories
+without release-please skip this step.
+
+## Step 5: Validate Develop
+
+Check every check run and commit status on `develop`'s new HEAD. All must be
+green. Use either:
+
+```bash
+gh api repos/<OWNER>/<REPO>/commits/<SHA>/check-runs
+gh api repos/<OWNER>/<REPO>/commits/<SHA>/status
+```
+
+or `gh pr checks` for the develop PRs. If any check or status fails, remove
+`release:in-progress`, fix the failure through a PR, and restart at Step 2.
+The release-please and hotfix exemptions do not apply to fixes.
+
+## Step 6: Check Promotion Readiness
 
 Run the **canonical PR-readiness gate** from /gh-cli-patterns against the
-promotion PR's number. Replace `<OWNER>`, `<REPO>`, `<PR_NUMBER>` per the
-placeholder convention in that skill.
+promotion PR. Replace `<OWNER>`, `<REPO>`, and `<PR_NUMBER>` per that skill.
+If a soft block remains, use `/finalize-pr <PR_NUMBER>` and rerun the gate;
+stop on any hard block.
 
-If blocked (CI red, conflicts, unresolved threads), invoke `/finalize-pr
-<PR_NUMBER>` — it works the same regardless of base branch — then re-run the
-gate. Do not proceed until `mergeStateStatus` is `CLEAN` or `HAS_HOOKS`.
+> **Human-review gate.** Read github-workflows pr-standards → Human-Review
+> Gate. If the promotion PR carries `human:review`, stop unless the user
+> explicitly instructs in their own words in this session to merge this exact
+> PR. On that instruction, remove the label before proceeding.
 
-## Step 4: Merge Commit Into Main
+## Step 7: Merge Commit Into Main
 
-> **Human-review gate.** See github-workflows pr-standards → Human-Review Gate for the application criteria.
-> If the promotion PR carries `human:review`, do NOT merge without an
-> explicit same-session user instruction to promote; remove the label first when
-> so instructed.
+Invoke `/merge-pr <PR_NUMBER>` to merge the promotion PR. Use a merge commit;
+never squash or rebase into `main`.
 
-Invoke `/merge-pr <PR_NUMBER>` directly — its default is a merge commit, and
-Step 0 there recognizes this exact base-branch shape as a legitimate
-promotion and lets it through.
+## Step 8: Report
 
-**Never** pass `--squash` or `-s` to `/merge-pr` here — both are banned by
-`main`'s ruleset on a git-flow repo (its Step 0 aborts a `--squash` attempt
-against `main` on a git-flow repo), and squashing would silently strip the
-multi-commit history the promotion exists to preserve.
-
-## Step 5: Report
-
-```bash
-gh pr view <PR_NUMBER> --json state,mergedAt --jq '{state, mergedAt}'   # expect: MERGED
-```
-
-Report the merge and note that release-please now owns the next step: it
-watches `main` and opens its own release PR (version bump, CHANGELOG,
-eventual tag). A person merges that release PR when the batch is ready; it is
-never auto-merged. Do not create a release PR or tag manually.
+Report the promotion and verify the tag or GitHub Release with
+`git ls-remote --tags origin` or `gh release view`. The push to `main` makes
+release-please create the tag and GitHub Release for the release-please PR's
+commit, which is already an ancestor of `main`. Do not open a PR to merge
+`main` into `develop`, manually create another release PR, or tag by hand.
 
 ## Related Skills
 
-- merge-pr (github-workflows) — invoked directly by Step 4 above to perform the
-  merge commit; the feature-PR-into-develop path too, and refuses `--squash`
-  into main on a git-flow repo
-- finalize-pr (github-workflows) — drives the promotion PR to mergeable state, same as any other PR
-- rebase-pr (github-workflows) — refuses and points here when its target is main on a git-flow repo
-- gh-cli-patterns (github-workflows) — canonical gh CLI command shapes, placeholder convention, PR-readiness gate, default-branch detection
-- pr-standards (github-workflows) — the canonical label application criteria and merge prohibition
-- git-flow-next (git-workflows) — Dedicated git-flow-next guide, worktree setup, and promotion steps
+- merge-pr (github-workflows) — invoked to merge the release-please PR and the
+  promotion PR with their required merge methods
+- finalize-pr (github-workflows) — drives in-flight PRs and the promotion PR
+  to merge-ready state
+- pr-sweep (github-workflows) — handles many in-flight PRs
+- rebase-pr (github-workflows) — refuses and points here when its target is
+  `main` on a git-flow repo
+- gh-cli-patterns (github-workflows) — canonical gh CLI command shapes,
+  placeholder convention, PR-readiness gate, and default-branch detection
+- pr-standards (github-workflows) — human-review label criteria and merge gate
+- git-flow-next (git-workflows) — git-flow guide and promotion planning
