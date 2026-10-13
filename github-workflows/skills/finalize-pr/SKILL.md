@@ -2,7 +2,7 @@
 name: finalize-pr
 description: >-
   Automatically finalize pull requests for merge by resolving CodeQL violations,
-  review threads, merge conflicts, and CI failures. Handles single PR (current
+  PR feedback, merge conflicts, and CI failures. Handles single PR (current
   branch or by number), all open PRs in the repo, or all open PRs across the org.
   Includes bot-authored PRs in all modes.
 metadata:
@@ -21,8 +21,8 @@ No manual intervention required. For manual review-focused workflows, use `/revi
 ## Goal and done-criteria
 
 Goal: drive every targeted PR (single, `all` in-repo, or `org`) to
-merge-ready without manual intervention — CI green, CodeQL clean, review
-threads resolved, no conflicts, code simplified, metadata current — by
+merge-ready without manual intervention — CI green, CodeQL clean, all PR
+feedback answered, no conflicts, code simplified, metadata current — by
 taking direct action on whatever blocks it, never by reporting the blocker
 back.
 
@@ -109,12 +109,33 @@ Replace `<OWNER>` and `<REPO>` per the placeholder convention in that skill.
 
 **If violations found**: Invoke `/resolve-codeql fix`, validate locally.
 
-#### Review Threads
+#### Review Feedback
 
-Invoke `/resolve-pr-threads`. It exits cleanly when no threads exist.
+Invoke `/resolve-pr-threads` to process all review feedback. It exits cleanly
+when no unaddressed feedback items exist. See the [PR feedback ledger](../gh-cli-patterns/references/pr-feedback-ledger.md).
 After completion, validate locally.
 
-#### Merge Conflicts
+#### Merge State and Conflicts
+
+If `mergeStateStatus` is `BEHIND`, update the PR branch before continuing.
+Never do this (or the local merge fallback below) on a `develop` → `main`
+promotion PR (head `develop`, base `main`): it would merge `main` into
+`develop`. Leave a promotion PR's branch as is.
+
+```bash
+gh pr update-branch <PR_NUMBER>
+```
+
+If that command fails, fetch the PR's base branch and merge it locally into the
+PR branch. Resolve conflicts if possible, then validate, commit, and push. If
+conflicts cannot be resolved, report them for user action. Re-fetch live PR
+state after the branch update; do not loop on `BEHIND` without updating it.
+
+```bash
+BASE_BRANCH=$(gh pr view <PR_NUMBER> --json baseRefName --jq '.baseRefName')
+git fetch origin "$BASE_BRANCH"
+git merge "origin/$BASE_BRANCH"
+```
 
 Check if the PR has git conflicts (`mergeable` field). **`mergeable: MERGEABLE` means no git
 conflicts only** — it does NOT mean the PR is fully ready to merge. **If conflicts**: Fetch the
@@ -156,7 +177,7 @@ Verify final PR state, mergeability, and check status. If fixes introduced new i
 
 ### 3.1 PR State Gate (GraphQL — re-run now)
 
-Run the **canonical PR-readiness gate** from /gh-cli-patterns against
+Run the [**canonical PR-readiness gate**](../gh-cli-patterns/SKILL.md#canonical-pr-readiness-gate) against
 `<PR_NUMBER>`. Replace `<OWNER>`, `<REPO>`, `<PR_NUMBER>` per the placeholder convention in
 that skill.
 
@@ -166,14 +187,16 @@ that skill.
 |-------|---------|---------------|
 | `state` | `OPEN` | "PR is not open" |
 | `mergeable` | `MERGEABLE` | "PR has git conflicts — rebase/merge in Phase 2" |
-| `mergeStateStatus` | `CLEAN` or `HAS_HOOKS` | "PR merge state is `{value}` — blocked, return to Phase 2" |
+| `mergeStateStatus` | `CLEAN` or `HAS_HOOKS` | "PR merge state is `{value}` — update a `BEHIND` branch in Phase 2; repair other blockers" |
 | `isDraft` | `false` | "PR is a draft — mark ready for review first" |
 | `reviewDecision` | `APPROVED` or `null` | "Review decision is `{value}` — changes requested or required" |
 | `statusCheckRollup.state` | `SUCCESS` | "CI rollup is `{state}` — fix failures in Phase 2" |
+| PR feedback ledger | Zero unaddressed feedback items | "Unaddressed PR feedback — run `/resolve-pr-threads`" |
+| Required status-check contexts | Every required context was reported in `statusCheckRollup.contexts` | "required check never reported: `<context>` — see [github-actions-silent-failures](../github-actions-silent-failures/SKILL.md)" |
 | All `reviewThreads.isResolved` | `true` | "Unresolved threads — run `/resolve-pr-threads`" |
 | `reviewThreads.pageInfo.hasNextPage` | `false` | "More than 100 threads — paginate manually and re-verify" |
 
-> **`mergeStateStatus` values that are NOT ready:** `BEHIND` (needs rebase),
+> **`mergeStateStatus` values that are NOT ready:** `BEHIND` (run `gh pr update-branch <PR_NUMBER>` in Phase 2),
 > `BLOCKED` (branch protection — could be required review, CodeQL, or required
 > status check), `DIRTY` (conflicts), `DRAFT`, `UNKNOWN` (GitHub computing),
 > `UNSTABLE` (checks failed or pending). Any of these = return to Phase 2.
