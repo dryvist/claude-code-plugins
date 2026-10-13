@@ -15,9 +15,10 @@ metadata:
 
 # Resolve PR Feedback (Orchestrator)
 
-Processes all PR feedback by grouping related items, implementing fixes or
-giving evidence-backed answers, recording addressed markers, and finally
-resolving each answered thread with the canonical resolve mutation.
+Processes all PR feedback by grouping related items, fixing each issue or
+replying with command output as proof, tagging every reply with its ledger
+marker, and finally resolving each finished thread with the canonical resolve
+mutation.
 
 > **State warning**: Thread IDs and resolution status change as reviews arrive.
 > Re-fetch all open threads — cached thread lists from earlier are unreliable.
