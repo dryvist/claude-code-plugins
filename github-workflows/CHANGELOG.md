@@ -1,5 +1,13 @@
 # Changelog
 
+## [6.7.1](https://github.com/dryvist/claude-code-plugins/compare/github-workflows-v6.7.0...github-workflows-v6.7.1) (2026-10-13)
+
+
+### Bug Fixes
+
+* **github-workflows:** mark a draft promotion PR ready in promote-release ([a0791c7](https://github.com/dryvist/claude-code-plugins/commit/a0791c71fc4f7a7bc7c32760b50f189af90ae7ee))
+* **github-workflows:** mark a draft promotion PR ready in promote-release ([#614](https://github.com/dryvist/claude-code-plugins/issues/614)) ([1beb1b1](https://github.com/dryvist/claude-code-plugins/commit/1beb1b1d194a53d010199e91bf99757042ba93f3))
+
 ## [6.7.0](https://github.com/dryvist/claude-code-plugins/compare/github-workflows-v6.6.1...github-workflows-v6.7.0) (2026-10-13)
 
 
