@@ -4,7 +4,7 @@ description: Use for bulk reading, summarizing, classifying, extracting, draftin
 license: MIT
 metadata:
   version: 1.0.0
-  author: dryvist homelab
+  author: ai-delegation maintainers
   hermes:
     category: research
     tags:
@@ -20,13 +20,13 @@ metadata:
 
 # local-subagents
 
-Doctrine: `prompt://dryvist/auto-ai-agent/model-delegation`. This skill is how
+Doctrine: the project's delegation guidance. This skill is how
 you act on it — when to hand work out, how to find out what is serving right
 now, and how to place the call.
 
 Your own inference is the scarcest and most expensive thing in the session.
-The estate runs models that cost nothing per token and sit idle most of the
-day. Anything they can do, they should do.
+Local models may cost nothing per token and sit idle; use them when they can
+do the work.
 
 ## 1. When to delegate — the default is yes
 
@@ -40,7 +40,7 @@ Delegate a step when its result can be **checked from concrete evidence**:
 | A first pass over unfamiliar code ("where is X handled") | Resolving contradictory evidence |
 | Drafting boilerplate text from a stated pattern | Reviewing anything risky |
 | Reading and reducing command or test output | The final answer to the user |
-| | Code edits — the router never writes code; implementation chunks go to Codex or `haiku-xhigh` |
+| | Code edits — the router never writes code; implementation chunks go to Codex or a scoped worker subagent |
 
 Two rules that keep this honest:
 
@@ -51,7 +51,7 @@ Two rules that keep this honest:
 - **Router tiers earn re-checkable lookups and bulk reads, not code edits.**
   Delegate to a router tier only when the result can be verified against
   concrete evidence (a grep hit, a test pass, a schema match). Route code edits
-  to Codex or `haiku-xhigh`. A misread search or a silently wrong edit from a
+  to Codex or a scoped worker subagent. A misread search or a silently wrong edit from a
   cheap tier costs more than doing it yourself.
 
 ## 1b. Cheap first, escalate on checked failure
@@ -156,7 +156,7 @@ curl -fsS --max-time 120 -H "Authorization: Bearer $ROUTER_KEY" \
   slow, not hung.
 - **Send only what the subtask needs.** A delegated call carrying your whole
   conversation costs more than doing the work yourself and widens what leaves
-  the estate.
+  your environment.
 - **Write the prompt for a small model**: short imperatives, an explicit
   output schema, a row cap, and a hard STOP. Ask for extraction, never advice.
 
@@ -221,9 +221,9 @@ relying on it.
   work here (§1) — menial, routine, checkable — no matter which of these
   roles answers.
 - **Never a silent default.** You reach any of these roles only by
-  deliberately selecting one from the menu, same as any other entry. Hermes
-  is the one caller with one wired as an automatic fallback, configured on
-  its own side — that does not extend to this skill's callers.
+  deliberately selecting one from the menu, same as any other entry. A caller
+  may configure one as an automatic fallback on its own side — that does not
+  extend to this skill's callers.
 
 ## Related skills
 

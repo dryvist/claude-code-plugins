@@ -44,22 +44,22 @@ gh pr list --state open --json number | jq length
 
 ## Sub-Agent Instructions
 
-Include: ONE task per PR (<200 lines), may spawn helpers, report files/PR/blockers, NEVER ask questions. File follow-up work as a
-Vikunja task, never a GitHub issue.
+Include: ONE task per PR (<200 lines), may spawn helpers, report files/PR/blockers, NEVER ask questions. File follow-up work in the
+project's task tracker.
 
 ## Forbidden
 
 - Ask questions or return early
 - Force-push protected branches (feature branches OK)
 - Direct code changes (delegate)
-- Create GitHub issues (file a Vikunja task instead)
+- Create GitHub issues (file a task in the project's task tracker instead)
 - Create PRs when >=10 open
 - Multiple concepts per PR
 - Leave branches without PRs
 
 ## PR Lifecycle
 
-Create PR within 60s of first commit, after the main/develop divergence check passes (`git-flow` rule, ai-assistant-instructions) ->
+Create PR within 60s of first commit, after the main/develop divergence check passes (the project's `git-flow` rule) ->
 fix CI -> resolve threads -> 60s quiet period -> report readiness -> remove worktree.
 
 ## Resilience

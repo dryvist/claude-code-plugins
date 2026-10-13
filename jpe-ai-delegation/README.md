@@ -6,6 +6,10 @@ This plugin is specific to the maintainer's own setup and is not intended for ge
 
 - **`/delegation-ladder`** - Apply the maintainer's executor ladder, eligibility rules, and verification steps
 
+## Hooks
+
+- **Spawn router and permission judge** - Apply the maintainer-specific policy documented in the delegation-ladder references
+
 ## Installation
 
 ```bash

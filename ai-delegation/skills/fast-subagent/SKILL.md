@@ -4,7 +4,7 @@ description: Use for any routine/checkable step — summarize, extract, classify
 license: MIT
 metadata:
   version: 1.0.0
-  author: dryvist homelab
+  author: ai-delegation maintainers
   hermes:
     category: research
     tags:

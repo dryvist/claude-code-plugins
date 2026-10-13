@@ -69,3 +69,4 @@ to the trusted caller's normal workflow.
 - **delegate-to-ai** (ai-delegation) — generic guidance for delegating work.
 - **local-subagents** (ai-delegation) — local model menu and call contract.
 - **multi-model-review** (ai-delegation) — independent review and synthesis.
+- [Maintainer-specific routing and roster details](references/estate-routing.md).

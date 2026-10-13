@@ -4,7 +4,7 @@ description: Choose among the router's hosted models — discover current ids/pr
 license: MIT
 metadata:
   version: 1.0.0
-  author: dryvist homelab
+  author: ai-delegation maintainers
   hermes:
     category: research
     tags:
