@@ -135,7 +135,7 @@ happen rather than being discouraged.
 
 ### Concurrency
 
-- One worker per repo; cap concurrent workers (default 4).
+- One worker per repo; launch all independent, ready repos in parallel.
 - Within a repo, merges are strictly serial.
 - A global merge budget (default 2–3) caps concurrent merge-triggered CI
   across all repos.

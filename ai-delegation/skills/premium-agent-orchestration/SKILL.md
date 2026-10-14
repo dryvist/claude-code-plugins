@@ -39,16 +39,12 @@ task-to-model table.
 
 ## Concurrency and batching
 
-- **Cap: 4 concurrent workers per orchestrating session.** Each session
-  counts only its own workers, never other sessions' workers on the same
-  machine. Override explicitly, and say why, when a task genuinely needs more.
+- **Parallelize ready work.** Launch all independent, ready work in parallel;
+  sequence only for real dependencies or same-file conflicts. Group related
+  lookups within a worker when they form one task. Probe the spawn substrate
+  before the first fan-out; if spawning fails, take the solo path.
   Never gate spawning on machine load: spawn failures and quota or rate limits
   are the signals that matter (see Substrate Resilience below).
-- **Batch related lookups into one worker** rather than spawning N workers
-  each paying its own startup overhead. A worker that reads five related
-  files avoids the overhead of five workers that each read one.
-- Probe the spawn substrate before the first fan-out (see Substrate
-  Resilience below) — the cap only matters once spawning actually works.
 
 ## Worker output format
 
@@ -77,8 +73,8 @@ router gathers evidence only.
 
 ## Substrate Resilience
 
-Probe the spawn substrate, cap workers, bound every poller, and take the solo
-path when spawning fails. See the `subagent-resilience` rule
+Probe the spawn substrate, bound every poller, and take the solo path when
+spawning fails. See the `subagent-resilience` rule
 from your project's agent instructions.
 
 ## Sibling-prefix cache sharing
@@ -107,8 +103,9 @@ runnable yes/no check, the last one end-to-end verification.
    dependencies.
 3. Probe the spawn substrate before the first fan-out; on failure, take the
    solo path.
-4. Route lookups and bulk reads to the router, then a scoped worker subagent. Batch them
-   per worker. Cap concurrency at 4 per session unless you state an explicit override.
+4. Route lookups and bulk reads to the router, then a scoped worker subagent.
+   Launch all independent, ready tasks in parallel; sequence real dependencies
+   or same-file conflicts.
 5. Use a scoped worker subagent for implementation. Use an advisory worker for architecture
    and security judgment only.
 6. Require each worker's one-line or schema output (see above).
