@@ -92,23 +92,6 @@ courtesy: the timeout is what guarantees release, so never depend on it.
 Name the role and, when the reader needs it, the `model=` line, for each
 delegated result. Say when you fell back to doing the step yourself.
 
-## 6. Local agent routes
-
-Use these routes for bounded, routine work on the local GPU server. The lead
-keeps judgment, design, and review.
-
-- Codex: `codex exec --profile local "<task>"` targets router capability
-  `medium` with low reasoning effort. Provide `AGENT_ROUTER_LOCAL_KEY`; the
-  profile uses the existing router endpoint option.
-- OpenCode: choose the `local` subagent for capability `medium`. Provide
-  `AGENT_ROUTER_BASE_URL` and `AGENT_ROUTER_LOCAL_KEY`.
-- Prefer these separate processes for tasks that need an agent loop with file
-  tools. For a single-shot text task, use the shell helper above.
-
-These routes consume no Claude or ChatGPT subscription quota. Claude Code's
-sub-agent model field accepts only Claude models, so launch local routes as
-separate processes.
-
 ## Related skills
 
 - **local-subagents** (ai-delegation) — the full delegation doctrine, the live
