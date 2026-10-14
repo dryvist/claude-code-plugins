@@ -69,7 +69,8 @@ for comment, review-body, inline, and review-agent findings.
 Run all five in order. Phases 1 and 3 fan out; 0, 2, and 4 are the lead's.
 
 - **Phase 0 — Manifest (lead).** Enumerate repos × open PRs in one pass.
-  Report the count. Spawn one worker per repo, capped (default 4 concurrent).
+  Report the count. Probe the spawn substrate, then launch one worker per
+  independent, ready repo in parallel; if spawning fails, run the sweep solo.
 - **Phase 1 — Triage (workers, parallel, read-only).** Each worker classifies
   every PR in its repo and detects repo-level conditions (broken base,
   repo-wide gate). Output: the one-line-per-PR report schema below, never
