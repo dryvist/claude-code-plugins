@@ -69,16 +69,20 @@ describe('policy', () => {
 })
 
 // A fake world: codex presence and quota, what `codex exec` and the Haiku call answer.
-function world(on: any, w: { codex: boolean; codexSays?: string; haikuSays?: string; cache?: boolean }) {
+function world(on: any, w: { codex: boolean; quotaExitCode?: number; quotaMissing?: boolean; codexSays?: string; haikuSays?: string; cache?: boolean }) {
   mock.env(on, { HOME: '/home/test' })
   mock.clock(on)
   const seen: string[][] = []
   on('fs.exists', () => ({ value: w.cache !== false }))
   on('fs.read', () => ({ value: CACHE }))
+  on('ui.log', () => ({ value: undefined }))
   on('process.run', (_$: any, e: { argv: string[] }) => {
     seen.push([...e.argv])
     if (e.argv[0] === 'codex' && e.argv[1] === '--version') return { value: { ...RAN, exitCode: w.codex ? 0 : 1 } }
-    if (e.argv[0] === 'codex-quota') return { value: { ...RAN, exitCode: w.codex ? 0 : 1 } }
+    if (e.argv[0] === 'codex-quota') {
+      if (w.quotaMissing) throw new Error('command not found')
+      return { value: { ...RAN, exitCode: w.quotaExitCode ?? (w.codex ? 0 : 1) } }
+    }
     if (e.argv[0] === 'codex') return { value: { ...RAN, stdout: w.codexSays ?? '' } }
     return { value: RAN }
   })
@@ -199,13 +203,15 @@ describe('router', () => {
     expect(seen.some((a) => a[0] === 'codex' && a[1] === 'exec' && a.includes('workspace-write') && a.includes(`model_reasoning_effort="${CODEX.complex!.effort}"`))).toBe(true)
   })
 
-  test('roster spawn passes through the identical object when Codex is unavailable', async ($, on) => {
+  test('roster spawn passes through unchanged when Codex is unavailable', async ($, on) => {
     world(on, { codex: false })
     let seen: unknown
     on('tool.call', { tool: 'Agent' }, (_$: any, e: unknown) => ((seen = e), { result: DONE }) as never)
     const spawn = { tool: 'Agent', description: 'x', prompt: 'y', subagent_type: 'haiku-xhigh' }
     await $.tool.call(spawn as never)
-    expect(seen).toBe(spawn)
+    expect(seen).toMatchObject(spawn)
+    expect((seen as any).model).toBe(spawn.model)
+    expect((seen as any).effort).toBe(spawn.effort)
   })
 
   test('roster spawn with isolation passes through unchanged', async ($, on) => {
@@ -214,7 +220,9 @@ describe('router', () => {
     on('tool.call', { tool: 'Agent' }, (_$: any, e: unknown) => ((seen = e), { result: DONE }) as never)
     const spawn = { tool: 'Agent', description: 'x', prompt: 'y', subagent_type: 'opus-medium', isolation: 'worktree' }
     await $.tool.call(spawn as never)
-    expect(seen).toBe(spawn)
+    expect(seen).toMatchObject(spawn)
+    expect((seen as any).model).toBe(spawn.model)
+    expect((seen as any).effort).toBe(spawn.effort)
     expect(seenCalls).toEqual([])
   })
 
@@ -224,7 +232,9 @@ describe('router', () => {
     on('tool.call', { tool: 'Agent' }, (_$: any, e: unknown) => ((seen = e), { result: DONE }) as never)
     const spawn = { tool: 'Agent', description: 'x', prompt: 'y', subagent_type: 'haiku-xhigh' }
     await $.tool.call(spawn as never)
-    expect(seen).toBe(spawn)
+    expect(seen).toMatchObject(spawn)
+    expect((seen as any).model).toBe(spawn.model)
+    expect((seen as any).effort).toBe(spawn.effort)
     expect(seenCalls.some((a) => a[0] === 'codex' && a[1] === 'exec')).toBe(true)
   })
 
@@ -234,7 +244,39 @@ describe('router', () => {
     on('tool.call', { tool: 'Agent' }, (_$: any, e: unknown) => ((seen = e), { result: DONE }) as never)
     const spawn = { tool: 'Agent', description: 'x', prompt: 'y', subagent_type: 'haiku-xhigh', model: 'custom-model' }
     await $.tool.call(spawn as never)
-    expect(seen).toBe(spawn)
+    expect(seen).toMatchObject(spawn)
+    expect((seen as any).model).toBe(spawn.model)
+    expect((seen as any).effort).toBe(spawn.effort)
     expect(seenCalls).toEqual([])
+  })
+
+  test('Codex quota exit 1 routes a generic spawn to Claude', async ($, on) => {
+    const seenCalls = world(on, { codex: true, quotaExitCode: 1, haikuSays: 'standard' })
+    let routed: { model?: string; effort?: string } = {}
+    on('tool.call', { tool: 'Agent' }, (_$: any, e: any) => ((routed = e), { result: DONE }) as never)
+    await $.tool.call({ tool: 'Agent', description: 'read', prompt: 'Summarise README.md' } as never)
+    expect(routed.model).toBe('haiku')
+    expect(routed.effort).toBe('xhigh')
+    expect(seenCalls.some((a) => a[0] === 'codex' && a[1] === 'exec')).toBe(false)
+  })
+
+  test('a missing codex-quota command routes a generic spawn to Claude', async ($, on) => {
+    const seenCalls = world(on, { codex: true, quotaMissing: true, haikuSays: 'standard' })
+    let routed: { model?: string; effort?: string } = {}
+    on('tool.call', { tool: 'Agent' }, (_$: any, e: any) => ((routed = e), { result: DONE }) as never)
+    await $.tool.call({ tool: 'Agent', description: 'read', prompt: 'Summarise README.md' } as never)
+    expect(routed.model).toBe('haiku')
+    expect(routed.effort).toBe('xhigh')
+    expect(seenCalls.some((a) => a[0] === 'codex' && a[1] === 'exec')).toBe(false)
+  })
+
+  test('a nonzero codex-quota error exit routes a generic spawn to Claude', async ($, on) => {
+    const seenCalls = world(on, { codex: true, quotaExitCode: 2, haikuSays: 'standard' })
+    let routed: { model?: string; effort?: string } = {}
+    on('tool.call', { tool: 'Agent' }, (_$: any, e: any) => ((routed = e), { result: DONE }) as never)
+    await $.tool.call({ tool: 'Agent', description: 'read', prompt: 'Summarise README.md' } as never)
+    expect(routed.model).toBe('haiku')
+    expect(routed.effort).toBe('xhigh')
+    expect(seenCalls.some((a) => a[0] === 'codex' && a[1] === 'exec')).toBe(false)
   })
 })
