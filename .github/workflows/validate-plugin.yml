@@ -114,6 +114,14 @@ jobs:
       - name: Install bats-core and markdownlint-cli2
         run: sudo npm install -g bats markdownlint-cli2
 
+      - name: Install Claude Code for hook tests
+        run: |
+          curl -fsSL https://claude.ai/install.sh | bash -s 2.1.299
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Run jpe-ai-delegation hook tests
+        run: claude plugin test ./jpe-ai-delegation
+
       - name: Run tests
         run: |
           echo "Running bats tests..."
