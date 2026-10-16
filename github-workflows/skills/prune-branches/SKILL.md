@@ -105,7 +105,7 @@ resolve that repo's own default branch first (`main` on trunk repos,
    diff (a) modifies 1 of N files sharing a common shape with no written
    rationale for the asymmetry, or (b) names a "sync mechanism" /
    "auto-update" that `grep -r <name> .` finds zero matches for.
-3. Only branches passing both checks become draft PRs.
+3. Only branches passing both checks become ready PRs.
 4. Per-repo summary: branches deleted as content-equivalent, branches
    surfaced for review, branches PR-ified, branches unchanged.
 

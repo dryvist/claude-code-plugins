@@ -52,7 +52,7 @@ lowest layer; consumers and UI above. One focused, reviewable change per layer.
 gh stack init                 # start a stack; trunk defaults to the default branch
 gh stack add <branch-name>    # add the next layer on top (or -Am "msg" to commit + add)
 gh stack push                 # push the layers
-gh stack submit               # create the PRs; --open marks them ready (default: draft)
+gh stack submit --open        # create the PRs ready for review; never leave them as drafts
 gh stack view                 # inspect layers, PR links, and status
 ```
 
