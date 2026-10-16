@@ -79,7 +79,10 @@ git status --porcelain
    Skip this step if no lint command is discoverable.
 6. Push: `git push -u origin HEAD`
 7. Create PR: `gh pr create --fill` (or with title/body derived from commit).
-   Include the session id (`<runtime>-<host>-<8hex>`) in the PR body.
+   Never pass `--draft`. Include the session id (`<runtime>-<host>-<8hex>`) in
+   the PR body. Unless the PR needs `human:review` or is a promotion into a
+   production branch, enable auto-merge: `gh pr merge <PR_NUMBER> --auto --squash`.
+   An open PR does not merge by itself without it — never assume it merged.
 8. **Pacing**: Run `sleep 2` after `gh pr create` to allow GitHub to index the PR
 9. Capture PR number from output (look for `pull/NUMBER` pattern)
 10. Add it to the PR list
