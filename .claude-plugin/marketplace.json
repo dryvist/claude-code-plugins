@@ -136,6 +136,33 @@
       }
     },
     {
+      "name": "ansible",
+      "source": "./ansible",
+      "description": "Ansible repository conventions for layout, linting, tests, shared dependencies, releases, and secret handling",
+      "version": "1.0.0",
+      "author": {
+        "name": "JacobPEvans"
+      }
+    },
+    {
+      "name": "cribl",
+      "source": "./cribl",
+      "description": "Cribl pack conventions for structure, validation, tests, releases, and secret handling",
+      "version": "1.0.0",
+      "author": {
+        "name": "JacobPEvans"
+      }
+    },
+    {
+      "name": "splunk",
+      "source": "./splunk",
+      "description": "Splunk app and deployment conventions for layout, validation, releases, and secret handling",
+      "version": "1.0.0",
+      "author": {
+        "name": "JacobPEvans"
+      }
+    },
+    {
       "name": "attention-notify",
       "source": "./attention-notify",
       "description": "Raise a local macOS banner for every PushNotification call and every attention-needed Notification event",

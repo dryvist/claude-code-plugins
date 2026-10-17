@@ -253,6 +253,51 @@
         }
       ]
     },
+    "ansible": {
+      "component": "ansible",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": ".claude-plugin/plugin.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "/.claude-plugin/marketplace.json",
+          "jsonpath": "$.plugins[?(@.name==\"ansible\")].version"
+        }
+      ]
+    },
+    "cribl": {
+      "component": "cribl",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": ".claude-plugin/plugin.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "/.claude-plugin/marketplace.json",
+          "jsonpath": "$.plugins[?(@.name==\"cribl\")].version"
+        }
+      ]
+    },
+    "splunk": {
+      "component": "splunk",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": ".claude-plugin/plugin.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "/.claude-plugin/marketplace.json",
+          "jsonpath": "$.plugins[?(@.name==\"splunk\")].version"
+        }
+      ]
+    },
     "attention-notify": {
       "component": "attention-notify",
       "extra-files": [

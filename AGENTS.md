@@ -26,6 +26,9 @@ This is a **Claude Code plugins repository** containing production-ready hooks f
 | **infra-orchestration** | Skill | `/orchestrate-infra`, `/sync-inventory`, `/test-e2e` | Cross-repo infrastructure orchestration for Terraform and Ansible |
 | **code-standards** | Skill | `/code-quality-standards` | Estate-specific code conventions: logging format, monitoring-vs-test philosophy, doc format |
 | **infra-standards** | Skill | `/infrastructure-standards` | Infrastructure standards for Proxmox, Terraform, Ansible including deployment pipeline and secrets management |
+| **ansible** | Skill | `/ansible-conventions` | Ansible repository layout, linting, testing, shared dependencies, releases, and secret handling |
+| **cribl** | Skill | `/cribl-pack-conventions` | Cribl pack structure, validation, tests, releases, and secret handling |
+| **splunk** | Skill | `/splunk-app-conventions` | Splunk app and deployment layout, validation, releases, and secret handling |
 | **openbao** | Skill | `/openbao-secrets`, `/openbao-dynamic-aws-creds` | OpenBao secrets access model: mint ephemeral credentials from engines instead of storing static ones; reads pre-authorized, writes human-gated; includes a concrete dynamic-AWS-STS pattern |
 | **attention-notify** | PostToolUse/Notification | PushNotification, permission/question prompts | Local macOS banner ("claude · session name") for every operator-attention event; `scripts/notify-macos.sh "<body>"` is callable directly |
 | **process-cleanup** | PostToolUse | — | Cleanup orphaned MCP server processes on session exit |
