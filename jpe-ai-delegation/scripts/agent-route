@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+fail() {
+  local status=$1
+  shift
+  printf 'agent-route: %s\n' "$*" >&2
+  exit "$status"
+}
+
+if (($# == 0)); then
+  fail 2 'usage: agent-route <kind> [--zcode available|exhausted]'
+fi
+
+kind=$1
+shift
+zcode_quota=exhausted
+
+if (($# > 0)); then
+  if (($# != 2)) || [[ $1 != --zcode ]]; then
+    fail 2 'usage: agent-route <kind> [--zcode available|exhausted]'
+  fi
+  zcode_quota=$2
+fi
+
+case "$zcode_quota" in
+  available|exhausted) ;;
+  *) fail 2 'ZCode availability must be available or exhausted' ;;
+esac
+
+command -v jq >/dev/null 2>&1 || fail 1 'jq is required'
+
+plugin_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+ladder_file="$plugin_dir/skills/delegation-ladder/ladder.json"
+[[ -r $ladder_file ]] || fail 1 'ladder data is not readable'
+
+if ! jq -e --arg kind "$kind" '.kinds | has($kind)' "$ladder_file" >/dev/null 2>&1; then
+  kind_display=${kind//$'\n'/ }
+  kind_display=${kind_display//$'\r'/ }
+  fail 2 "unknown kind: $kind_display"
+fi
+
+if ! jq -e --arg kind "$kind" '.kinds[$kind] | (.visibility == "public" or .visibility == "private") and (.rungs | type == "array" and length > 0)' "$ladder_file" >/dev/null 2>&1; then
+  fail 1 'invalid ladder data'
+fi
+
+if [[ ${AGENT_ROUTE_CODEX_QUOTA+x} ]]; then
+  codex_quota=$AGENT_ROUTE_CODEX_QUOTA
+  case "$codex_quota" in
+    available|exhausted) ;;
+    *) fail 2 'AGENT_ROUTE_CODEX_QUOTA must be available or exhausted' ;;
+  esac
+elif codex-quota >/dev/null 2>&1; then
+  codex_quota=available
+else
+  codex_quota=exhausted
+fi
+
+visibility="$(jq -r --arg kind "$kind" '.kinds[$kind].visibility' "$ladder_file")"
+while IFS=$'\t' read -r executor gate; do
+  case "$gate" in
+    codex)
+      [[ $codex_quota == available ]] || continue
+      ;;
+    zcode)
+      [[ $zcode_quota == available && $visibility == public ]] || continue
+      ;;
+    always) ;;
+    *) fail 1 'invalid ladder gate' ;;
+  esac
+
+  printf '%s\n' "$executor"
+  exit 0
+done < <(jq -r --arg kind "$kind" '.kinds[$kind].rungs[] | [.name, .gate] | @tsv' "$ladder_file")
+
+fail 1 'no eligible executor'
