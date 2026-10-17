@@ -85,6 +85,9 @@ On-demand skill-based plugins that load specific standards as context.
 |--------|--------|----------|
 | **code-standards** | `/code-quality-standards` | Estate-specific code conventions: logging format, monitoring-vs-test philosophy, doc format |
 | **infra-standards** | `/infrastructure-standards` | Proxmox, Terraform, Ansible deployment |
+| **ansible** | `/ansible-conventions` | Ansible repository layout, linting, testing, dependencies, releases, and secrets |
+| **cribl** | `/cribl-pack-conventions` | Cribl pack structure, validation, tests, releases, and secrets |
+| **splunk** | `/splunk-app-conventions` | Splunk app and deployment layout, validation, releases, and secrets |
 | **project-standards** | `/claude-skill-authoring`, `/workspace-standards`, `/skills-registry`, `/nix-tool-policy` | Claude skill authoring, workspace, skills registry, Nix tool policy |
 
 ### homelab-ops

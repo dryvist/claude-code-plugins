@@ -1,0 +1,20 @@
+{
+  "name": "splunk",
+  "version": "1.0.0",
+  "description": "Splunk app and deployment conventions for layout, validation, releases, and secret handling",
+  "author": {
+    "name": "JacobPEvans"
+  },
+  "license": "Apache-2.0",
+  "repository": "https://github.com/JacobPEvans/claude-code-plugins",
+  "keywords": [
+    "splunk",
+    "apps",
+    "validation",
+    "deployment",
+    "secrets"
+  ],
+  "skills": [
+    "./skills/splunk-app-conventions"
+  ]
+}
