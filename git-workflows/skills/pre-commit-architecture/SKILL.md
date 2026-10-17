@@ -11,9 +11,9 @@ definitions or shared lint configs.
 | Artifact | Canonical home | How consumers pull it |
 | --- | --- | --- |
 | Pre-commit hook definitions (Nix consumers) | [`dryvist/nix-devenv`](https://github.com/dryvist/nix-devenv) — `lib/pre-commit-hooks.nix` + `flake-modules/profiles/<name>.nix` | `imports = [ inputs.nix-devenv.flakeModules.<profile> ]` in the consumer's `flake.nix` |
-| Pre-commit hook definitions (non-Nix consumers) | [`dryvist/.github`](https://github.com/dryvist/.github) `precommit/templates/<profile>.yaml` | Copy at scaffold; Renovate keeps `rev:` pins fresh |
-| Shared lint configs (`.markdownlint-cli2.yaml`, `.tflint.hcl`, `.ansible-lint`, `.yamllint.yml`) | `dryvist/.github` — `.markdownlint-cli2.yaml` at root for backward compat; the rest in `precommit/configs/` | Nix path: `nix-devenv.lib.fetch-shared-configs` materializes nix-store paths; non-Nix path: copy at scaffold |
-| `zizmor.yml` workflow-security policy | `dryvist/.github` at the root | Same as above — passed as `--config` by the base profile's zizmor hook |
+| Pre-commit hook definitions (non-Nix consumers) | [`JacobPEvans/.github`](https://github.com/JacobPEvans/.github) `precommit/templates/<profile>.yaml` | Copy at scaffold; Renovate keeps `rev:` pins fresh |
+| Shared lint configs (`.markdownlint-cli2.yaml`, `.tflint.hcl`, `.ansible-lint`, `.yamllint.yml`) | `JacobPEvans/.github` — `.markdownlint-cli2.yaml` at root for backward compat; the rest in `precommit/configs/` | Nix path: `nix-devenv.lib.fetch-shared-configs` materializes nix-store paths; non-Nix path: copy at scaffold |
+| `zizmor.yml` workflow-security policy | `JacobPEvans/.github` at the root | Same as above — passed as `--config` by the base profile's zizmor hook |
 
 ## Profiles
 
@@ -75,18 +75,18 @@ Scaffold a new repo with this layout via
 
 ```bash
 # Read the shared files at the latest release
-shared_ref=$(gh api repos/dryvist/.github/releases/latest --jq .tag_name)
+shared_ref=$(gh api repos/JacobPEvans/.github/releases/latest --jq .tag_name)
 
 # Pick the matching profile template
-gh api "repos/dryvist/.github/contents/precommit/templates/terraform.yaml?ref=$shared_ref" \
+gh api "repos/JacobPEvans/.github/contents/precommit/templates/terraform.yaml?ref=$shared_ref" \
   -H "Accept: application/vnd.github.raw" > .pre-commit-config.yaml
 
 # Materialize the configs the hooks need
-gh api "repos/dryvist/.github/contents/precommit/configs/tflint.hcl?ref=$shared_ref" \
+gh api "repos/JacobPEvans/.github/contents/precommit/configs/tflint.hcl?ref=$shared_ref" \
   -H "Accept: application/vnd.github.raw" > .tflint.hcl
-gh api "repos/dryvist/.github/contents/.markdownlint-cli2.yaml?ref=$shared_ref" \
+gh api "repos/JacobPEvans/.github/contents/.markdownlint-cli2.yaml?ref=$shared_ref" \
   -H "Accept: application/vnd.github.raw" > .markdownlint-cli2.yaml
-gh api "repos/dryvist/.github/contents/zizmor.yml?ref=$shared_ref" \
+gh api "repos/JacobPEvans/.github/contents/zizmor.yml?ref=$shared_ref" \
   -H "Accept: application/vnd.github.raw" > zizmor.yml
 
 pre-commit install
@@ -102,7 +102,7 @@ pre-commit install
 - Do NOT duplicate shared lint config files (`.markdownlint`,
   `.tflint.hcl`, `.ansible-lint`, `.yamllint`) into a new repo. Pull
   them via the Nix path (`fetch-shared-configs`) or copy from
-  `dryvist/.github` at scaffold (non-Nix path).
+  `JacobPEvans/.github` at scaffold (non-Nix path).
 - When opening a PR that adopts the architecture in a new consumer
   repo, the diff is approximately: add `flake.nix` + `flake.lock`,
   modify `.envrc`, delete `.pre-commit-config.yaml`, delete the
@@ -110,7 +110,7 @@ pre-commit install
 - Hook versions are pinned via `flake.lock` (Nix path) or `rev:`
   strings in the static template (non-Nix path). Do NOT pin versions
   per-repo unless overriding a specific consumer.
-- See [`precommit/README.md` in `dryvist/.github`](https://github.com/dryvist/.github/blob/main/precommit/README.md)
+- See [`precommit/README.md` in `JacobPEvans/.github`](https://github.com/JacobPEvans/.github/blob/main/precommit/README.md)
   for the architecture rationale, canonical-config choices, and the
   trade-offs behind why certain hooks (checkov, bandit, detect-secrets)
   stay opt-in per repo.

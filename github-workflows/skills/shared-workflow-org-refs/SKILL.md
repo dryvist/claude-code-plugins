@@ -1,12 +1,13 @@
 ---
 name: shared-workflow-org-refs
-description: "Use when creating or editing GitHub Actions workflows that call reusable workflows (uses: OWNER/repo/.github/workflows/...) — org owner references must be the literal current org, and shared-CI homes are under dryvist."
+description: "Use when creating or editing GitHub Actions workflows that call reusable workflows (uses: OWNER/repo/.github/workflows/...) — refs must name the literal current home, and shared-CI homes are under JacobPEvans."
 ---
 
 # Shared Workflow Org References
 
-GitHub Actions reusable-workflow and action `uses:` clauses are the one place the
-"don't rewrite `JacobPEvans/*` on sight — the redirect holds" rule does NOT apply.
+GitHub Actions reusable-workflow and action `uses:` clauses must name the literal
+current repository and path. References to transferred workflow homes need an
+explicit update; Actions does not follow redirects.
 
 Two hard GitHub constraints:
 
@@ -17,29 +18,18 @@ Two hard GitHub constraints:
 Consequence: when a shared-CI repo changes orgs, every consumer's `uses:` fails at parse time
 (the run shows zero jobs and "workflow was not found"). There is no runtime variable that prevents this.
 
-## Canonical home: dryvist
+## Canonical workflow homes: JacobPEvans
 
-**dryvist is the canonical home for everything dryvist uses.** Anything a dryvist
-repo consumes — reusable workflows, presets, policies — belongs under `dryvist/*`.
-`JacobPEvans-personal/*` may depend on `dryvist/*`; `dryvist/*` must **never** depend
-on `JacobPEvans-personal/*`. When a shared workflow is used by dryvist, its home is
-`dryvist/.github` (or the relevant `dryvist/*` repo), not the personal account.
+Shared generic CI, release, lint, and Renovate configuration lives in
+`JacobPEvans/.github`. AI review and agent workflows live in
+`JacobPEvans/.github-ai`. Consumers use the mapped workflow path at `@v1`;
+`uses:` references do not follow repository redirects.
 
-Because `uses:` does not follow redirects, reference each workflow by its literal
-**current** owner from the table below until a pending relocation actually lands.
-
-| Shared-CI workflow set | Current home | Status |
-| --- | --- | --- |
-| `ai-workflows` reusable workflows | `dryvist/ai-workflows` | canonical |
-| Nix reusable workflows (`_nix-validate.yml`, `_nix-build.yml`) | `dryvist/.github` | canonical |
-| Release-please (`_release-please.yml`) | `dryvist/.github` | canonical — org-native (dryvist release App, major-bump block) |
-| `_markdown-lint`, `_file-size`, `_osv-scan`, `_ci-gate`, … | `JacobPEvans-personal/.github` | **pending relocation to `dryvist/.github`** |
-
-Nix and release-please were deliberately relocated to `dryvist/.github` (the org owns
-its own CI). The remaining non-Nix `.github` workflows are still in
-`JacobPEvans-personal/.github` **only until they are moved the same way** — that is a
-transitional home, not a permanent one. Repoint consumers via the sweep below as each
-moves; do not move any back to the personal account.
+| Shared workflow set | Current home |
+| --- | --- |
+| Generic CI, Nix, release, lint, and Renovate presets | `JacobPEvans/.github` |
+| AI review and agent workflows | `JacobPEvans/.github-ai` |
+| Release entry point (`_release.yml`) | `JacobPEvans/.github` |
 
 ## Rules
 

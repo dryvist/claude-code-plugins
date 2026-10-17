@@ -1,0 +1,21 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions: {}
+
+jobs:
+  release:
+    uses: JacobPEvans/.github/.github/workflows/_release.yml@v1
+    with:
+      include-component-in-tag: true
+    secrets:
+      GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY: ${{ secrets.GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY }}
+    permissions:
+      contents: write
+      pull-requests: write
+      statuses: write
+      checks: read

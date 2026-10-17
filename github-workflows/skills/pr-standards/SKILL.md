@@ -60,7 +60,7 @@ If empty: no new work. Clean up instead.
 
 ## Human-Review Gate (`human:review` label)
 
-`human:review` (org label, neon lime, synced to every repo from `dryvist/.github`
+`human:review` (org label, neon lime, synced to every repo from `JacobPEvans/.github`
 `labels.yml`) is how an AI flow asks for a human before a PR merges. It is the
 human counterpart to the `ai:*` review-state labels.
 
