@@ -1,6 +1,6 @@
 {
   "name": "ansible",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Ansible repository conventions for layout, linting, tests, shared dependencies, releases, and secret handling",
   "author": {
     "name": "JacobPEvans"
