@@ -22,6 +22,12 @@ claude plugins add jacobpevans-cc-plugins/jpe-ai-delegation
 /delegation-ladder
 ```
 
+Run `scripts/agent-route <kind> [--zcode available|exhausted]` from the
+plugin root to print the first eligible executor. Add `scripts/` to `PATH`
+to invoke it as `agent-route`; ZCode defaults to exhausted.
+`AGENT_ROUTE_CODEX_QUOTA=available|exhausted` replaces the Codex quota check
+for tests.
+
 ## License
 
 MIT

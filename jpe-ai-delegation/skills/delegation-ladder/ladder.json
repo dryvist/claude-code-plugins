@@ -1,0 +1,29 @@
+{
+  "kinds": {
+    "code-review": {
+      "visibility": "public",
+      "rungs": [
+        { "name": "Codex", "gate": "codex" },
+        { "name": "ZCode", "gate": "zcode" },
+        { "name": "OpenCode Go", "gate": "always" },
+        { "name": "Haiku high", "gate": "always" }
+      ]
+    },
+    "triage": {
+      "visibility": "public",
+      "rungs": [
+        { "name": "ZCode Flash", "gate": "zcode" },
+        { "name": "Codex", "gate": "codex" },
+        { "name": "Haiku high", "gate": "always" }
+      ]
+    },
+    "private": {
+      "visibility": "private",
+      "rungs": [
+        { "name": "Codex", "gate": "codex" },
+        { "name": "OpenCode Go", "gate": "always" },
+        { "name": "Haiku high", "gate": "always" }
+      ]
+    }
+  }
+}

@@ -19,6 +19,8 @@ Classify the task and content first, then take the first rung that qualifies:
 | `triage` | ZCode Flash -> Codex -> Haiku high | Bulk reading and triage of public material |
 | `private` | Codex -> OpenCode Go -> Haiku high | Never eligible for ZCode |
 
+Run `scripts/agent-route <kind>` from the plugin root to print the first eligible rung. ZCode defaults to exhausted unless `--zcode available` is passed.
+
 Codex qualifies while `codex-quota` exits 0. ZCode qualifies for a public
 repository in the allowlist below; `zcode-job start` refuses anything else.
 Treat a Z.ai quota or 429 error as exhausted for the rest of the session and
