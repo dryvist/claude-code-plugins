@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.19.0](https://github.com/dryvist/claude-code-plugins/compare/v6.18.0...v6.19.0) (2026-10-17)
+
+
+### Features
+
+* **jpe-ai-delegation:** add the agent-route command and a machine-readable ladder ([#626](https://github.com/dryvist/claude-code-plugins/issues/626)) ([f3e09f6](https://github.com/dryvist/claude-code-plugins/commit/f3e09f6446b541aa99cfc1e1a84725c6ba6ca746))
+
 ## [6.18.0](https://github.com/dryvist/claude-code-plugins/compare/v6.17.1...v6.18.0) (2026-10-13)
 
 
