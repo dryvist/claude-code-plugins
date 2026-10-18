@@ -31,7 +31,7 @@ every invocation — "mergeable" means git-conflict-free only, not fully
 unblocked); `/resolve-pr-threads` and `/resolve-codeql` found nothing left
 to fix; `/simplify` ran once after all other fixes (Step 2.3.5 — pre-push
 simplification is `/ship`'s job, not this skill's); local linters and tests
-pass; title/description/linked-issues were regenerated via a haiku subagent
+pass; title/description/linked-issues were regenerated via a delegate (routing per core AGENTS.md)
 before reporting ready; bot-authored PRs (dependabot, release-please,
 claude, github-actions, etc.) were never filtered out; org mode never
 crossed the org boundary the current repo implies; and, on a Git Flow repo,
@@ -232,7 +232,7 @@ Do not stop the batch for one blocked PR.
 
 ## Phase 4: Update PR Metadata
 
-Delegate to a **haiku subagent** to keep full diff out of main context:
+Delegate to a delegate (routing per core AGENTS.md) to keep full diff out of main context:
 regenerate title (conventional commit format, <70 chars) and description
 (Summary/Changes/Test Plan sections), link related issues/PRs (`Closes #X`
 or `Related: #X`, carrying forward any existing Zammad reference verbatim),

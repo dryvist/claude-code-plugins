@@ -18,25 +18,25 @@ assert_route() {
 }
 
 @test "Codex exhaustion with ZCode exhausted follows each kind's fallback" {
-  assert_route 'OpenCode Go' exhausted code-review --zcode exhausted
-  assert_route 'Haiku high' exhausted triage --zcode exhausted
+  assert_route 'OpenCode Go' exhausted code --zcode exhausted
+  assert_route 'Haiku high' exhausted other --zcode exhausted
   assert_route 'OpenCode Go' exhausted private --zcode exhausted
 }
 
-@test "Codex availability selects Codex for each kind when ZCode is exhausted" {
-  assert_route 'Codex' available code-review --zcode exhausted
-  assert_route 'Codex' available triage --zcode exhausted
+@test "Codex availability selects Codex for every kind" {
+  assert_route 'Codex' available code --zcode exhausted
+  assert_route 'Codex' available other --zcode exhausted
   assert_route 'Codex' available private --zcode exhausted
 }
 
-@test "ZCode availability selects its rung only for public kinds" {
-  assert_route 'ZCode' exhausted code-review --zcode available
-  assert_route 'ZCode Flash' exhausted triage --zcode available
+@test "ZCode availability selects its rung only for public code" {
+  assert_route 'ZCode' exhausted code --zcode available
+  assert_route 'Haiku high' exhausted other --zcode available
   assert_route 'OpenCode Go' exhausted private --zcode available
 }
 
 @test "ZCode availability defaults to exhausted" {
-  assert_route 'Haiku high' exhausted triage
+  assert_route 'OpenCode Go' exhausted code
 }
 
 @test "without an override the command uses codex-quota's exit status" {
@@ -47,11 +47,11 @@ exit "$CODEX_QUOTA_EXIT"
 EOF
   chmod +x "$BATS_TEST_TMPDIR/bin/codex-quota"
 
-  run env -u AGENT_ROUTE_CODEX_QUOTA CODEX_QUOTA_EXIT=0 PATH="$BATS_TEST_TMPDIR/bin:$PATH" agent-route code-review --zcode exhausted
+  run env -u AGENT_ROUTE_CODEX_QUOTA CODEX_QUOTA_EXIT=0 PATH="$BATS_TEST_TMPDIR/bin:$PATH" agent-route code --zcode exhausted
   [ "$status" -eq 0 ]
   [ "$output" = 'Codex' ]
 
-  run env -u AGENT_ROUTE_CODEX_QUOTA CODEX_QUOTA_EXIT=1 PATH="$BATS_TEST_TMPDIR/bin:$PATH" agent-route code-review --zcode exhausted
+  run env -u AGENT_ROUTE_CODEX_QUOTA CODEX_QUOTA_EXIT=1 PATH="$BATS_TEST_TMPDIR/bin:$PATH" agent-route code --zcode exhausted
   [ "$status" -eq 0 ]
   [ "$output" = 'OpenCode Go' ]
 }

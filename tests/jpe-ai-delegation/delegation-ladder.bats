@@ -21,3 +21,7 @@ setup() {
 
   [ "$markdown_ladders" = "$data_ladders" ]
 }
+
+@test "ladder has only code, private, and other kinds" {
+  [ "$(jq -r '.kinds | keys | sort | join("|")' "$LADDER")" = 'code|other|private' ]
+}

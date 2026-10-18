@@ -2,7 +2,7 @@
 
 Reference detail for `finalize-pr`. Loaded on demand once Phase 3 passes.
 
-Delegate to a **haiku subagent** to keep full diff out of main context.
+Delegate to a delegate (routing per core AGENTS.md) to keep full diff out of main context.
 Steps 4.1 and 4.2 run sequentially within the agent. Step 4.3 runs after both.
 
 ## 4.1 Update PR Title and Description

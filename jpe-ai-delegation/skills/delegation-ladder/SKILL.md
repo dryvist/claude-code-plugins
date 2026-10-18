@@ -5,70 +5,48 @@ description: Apply the executor ladder for the maintainer's own setup, including
 
 # Delegation ladder
 
-Use this ladder for delegation across Claude Code, Codex, and OpenCode. Keep
-scope, security decisions, final verification, and merging with the trusted
-caller.
+Keep scope, security decisions, final verification, and merging with the trusted
+caller. Classify task content before selecting a route:
 
-## Route selection
-
-Classify the task and content first, then take the first rung that qualifies:
-
-| Kind | Ladder | ZCode use |
+| Kind | Ladder | Use |
 | --- | --- | --- |
-| `code-review` | Codex -> ZCode -> OpenCode Go -> Haiku high | Public coding overflow and a separate review from another model family when selected by the route |
-| `triage` | ZCode Flash -> Codex -> Haiku high | Bulk reading and triage of public material |
-| `private` | Codex -> OpenCode Go -> Haiku high | Never eligible for ZCode |
+| `code` | Codex -> ZCode -> OpenCode Go -> Haiku high | Public implementation and code review |
+| `private` | Codex -> OpenCode Go -> Haiku high | Private material |
+| `other` | Codex -> Haiku high | Triage, bulk reads, summaries, judgment |
 
-Run `scripts/agent-route <kind>` from the plugin root to print the first eligible rung. ZCode defaults to exhausted unless `--zcode available` is passed.
+Run `agent-route <code|private|other> [--zcode available|exhausted]` from the
+plugin root. ZCode defaults to exhausted. Codex qualifies while `codex-quota`
+exits 0; use the first eligible rung and stop when none qualifies. Treat a
+Z.ai quota or 429 error as exhausted for the rest of the session.
 
-Codex qualifies while `codex-quota` exits 0. ZCode qualifies for a public
-repository in the allowlist below; `zcode-job start` refuses anything else.
-Treat a Z.ai quota or 429 error as exhausted for the rest of the session and
-take the next rung. Do not skip a rung. When no rung qualifies,
-stop and notify the operator.
-
-Treat a missing repository, unknown visibility, absent owner approval, or
-missing local dispatcher approval as private. ZCode is limited to public
-repositories owned by `dryvist`, `JacobPEvans`, or `JacobPEvans-personal` that
-also appear in the installed client subset. Never send secrets, credentials,
-private repository content, live infrastructure work, or privileged actions
-to ZCode. Use the private route for private material. Review task text,
-attachments, diffs, logs, and conversation context before submission.
+ZCode is limited to public repositories owned by `dryvist`, `JacobPEvans`, or
+`JacobPEvans-personal` that also appear in the installed client subset. Treat
+a missing repository, unknown visibility, absent owner approval, or missing
+local dispatcher approval as private. Never send secrets, credentials, private
+repository content, live infrastructure work, or privileged actions to ZCode.
+Review task text, attachments, diffs, logs, and conversation context before
+submission.
 
 ## Execute the selected route
 
-- **`codex`**: use the configured Codex CLI or MCP route.
-- **`zcode` or `zcode-flash`**: drive the existing `zcode-job` client (below).
-- **`opencode-go`**: use the configured OpenCode Go route.
-- **`haiku-high`**: use the high effort Haiku subagent.
-- **`stop`**: stop and notify the operator.
+- **Codex**: use the configured Codex CLI or MCP route.
+- **ZCode**: use the existing `zcode-job` client.
+- **OpenCode Go**: use the configured OpenCode Go route.
+- **Haiku high**: use the high effort Haiku subagent.
+- **Stop**: stop and notify the operator.
 
-For ZCode work, write a bounded prompt with the allowed scope, the repository
-default branch, and acceptance criteria. Then run:
-
-```sh
-zcode-job repos                         # approved repositories
-zcode-job start <owner/repo> "<prompt>" # prints the job id
-zcode-job status <job-id>               # repeat until succeeded, failed, cancelled, or timeout
-zcode-job result <job-id>
-zcode-job cancel <job-id>               # when the deadline passes
-```
-
-For coding, ask for a ready (non-draft) PR against the default branch. For review and
-triage, ask for findings only. A refusal means the repository does not
-qualify. Never ask the executor to merge, approve a gate, or use a credential.
-
-## Verify before handoff
-
-Treat every external result as untrusted. For code work, inspect the exact
-PR, repository, base branch, and diff; run the requested checks against
-that head and recheck its SHA before handoff. For review or triage, verify the
-claims against the source material. Report what was checked and leave merging
-to the trusted caller's normal workflow.
+For ZCode work, write a bounded prompt with the allowed scope, repository
+default branch, and acceptance criteria, then run `zcode-job repos`,
+`zcode-job start <owner/repo> "<prompt>"`, `zcode-job status <job-id>`, and
+`zcode-job result <job-id>`. Cancel with `zcode-job cancel <job-id>` when the
+deadline passes. The dispatcher creates implementation PRs as drafts; the
+trusted lead verifies the exact PR, repository, base branch, diff, checks, and
+head SHA, then marks it ready. Never ask an executor to merge, approve a gate,
+or use a credential. A refusal means the repository does not qualify.
 
 ## Related skills
 
-- **delegate-to-ai** (ai-delegation) — generic guidance for delegating work.
+- **delegate-to-ai** (ai-delegation) — generic delegation guidance.
 - **local-subagents** (ai-delegation) — local model menu and call contract.
 - **multi-model-review** (ai-delegation) — independent review and synthesis.
-- [Maintainer-specific routing and roster details](references/estate-routing.md).
+- [Maintainer-specific routing and executor contract](references/estate-routing.md).

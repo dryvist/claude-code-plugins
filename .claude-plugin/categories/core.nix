@@ -28,6 +28,7 @@
     "process-cleanup@jacobpevans-cc-plugins"
     "attention-notify@jacobpevans-cc-plugins"
     "ai-delegation@jacobpevans-cc-plugins"
+    "jpe-ai-delegation@jacobpevans-cc-plugins"
     "codeql-resolver@jacobpevans-cc-plugins"
     # claude-plugins-official — owns commit-commands, whose synthesized
     # skill names appear in claudeCommands below

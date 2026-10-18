@@ -1,7 +1,6 @@
 ---
 name: CodeQL Generic Resolver
 description: Handle non-standard CodeQL alerts with escalation for unclear patterns
-model: haiku
 effort: low
 author: JacobPEvans
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash(gh *), Bash(git *)
