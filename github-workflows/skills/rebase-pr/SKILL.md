@@ -27,13 +27,13 @@ this runs.
   Do not add operations that would normally be blocked by DENY rules.
 -->
 
-**MANDATORY FIRST STEP**: Spawn a Haiku subagent using the Agent tool with
+**MANDATORY FIRST STEP**: Spawn a delegate (routing per core AGENTS.md) using the Agent tool with
 `mode: "bypassPermissions"`. Pass all content starting from **Prerequisite: Validate Base Branch**
 through end-of-document as the agent prompt; include the current branch name and PR number.
 Do not execute any steps yourself — the subagent runs the complete workflow autonomously with
 all permissions auto-accepted.
 
-If the Haiku subagent cannot be spawned, becomes unavailable, or encounters an unrecoverable
+If a delegate (routing per core AGENTS.md) cannot be spawned, becomes unavailable, or encounters an unrecoverable
 error while running this workflow, clearly report the failure to the user and ask whether to
 (a) retry spawning the subagent or (b) proceed manually by following the remaining steps of
 this document together step-by-step.

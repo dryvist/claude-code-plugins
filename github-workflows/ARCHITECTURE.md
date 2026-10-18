@@ -120,7 +120,7 @@ flowchart TD
             F235["Phase 2.3.5: /simplify\nfinal pass"]:::external
             F24["Phase 2.4: Health check"]:::ai
             F3["Phase 3: Pre-handoff verification\nCodeQL, threads, conflicts,\nsimplified, CI, local lint"]:::ai
-            F4["Phase 4: Update PR metadata\n(haiku subagent)"]:::ai
+            F4["Phase 4: Update PR metadata\n(a delegate (routing per core AGENTS.md))"]:::ai
             F5["Phase 5: Report ready"]:::ai
         end
 

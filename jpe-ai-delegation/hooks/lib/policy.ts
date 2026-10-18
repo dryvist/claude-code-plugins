@@ -6,9 +6,7 @@ export type Sandbox = 'read-only' | 'workspace-write'
 
 export const LABELS: readonly Label[] = ['standard', 'complex', 'plan', 'deep']
 
-// Operator rule: Codex runs only the Luna family, and only at high, xhigh or max; xhigh is the default and high or
-// max are used only where the table below asks for them. `codexArgv` enforces the family and the efforts, so no
-// table entry or caller can reach another Codex model or a lower effort.
+// Operator rule: Codex runs only the Luna family at xhigh. `codexArgv` enforces the family and efforts.
 export const CODEX_FAMILY = 'luna'
 export const CODEX_EFFORTS: readonly string[] = ['high', 'xhigh', 'max']
 export const DEFAULT_EFFORT = 'xhigh'
@@ -17,14 +15,14 @@ export const DEFAULT_EFFORT = 'xhigh'
 // Planning and judgment stay on Claude, so they have no Codex entry.
 export const CODEX: Partial<Record<Label, { effort: string }>> = {
   standard: { effort: 'xhigh' },
-  complex: { effort: 'max' },
+  complex: { effort: 'xhigh' },
 }
 
 export const CLAUDE = {
   standard: { model: 'haiku', effort: 'xhigh' },
-  complex: { model: 'haiku', effort: 'max' },
+  complex: { model: 'haiku', effort: 'xhigh' },
   plan: { model: 'sonnet', effort: 'high' },
-  deep: { model: 'opus', effort: 'medium' },
+  deep: { model: 'sonnet', effort: 'high' },
 } as const
 
 export const CLASSIFIER = `Classify the delegated task into one word. Default to standard unless there is an explicit reason for another.
@@ -56,18 +54,13 @@ export function parseVerdict(text: string | undefined): Verdict | undefined {
 // True for core's bypass-immune ask about a shell -c script that runs rm.
 export const isShellCAsk = (decision: string, reason: string | undefined): boolean => decision === 'ask' && /\bshell -c\b/i.test(reason ?? '')
 
-export const isRosterSpawn = (e: { subagent_type?: string; model?: string; effort?: string; name?: string }): boolean =>
-  ['haiku-xhigh', 'opus-medium'].includes(e.subagent_type ?? '') && !e.model && !e.effort && !e.name
+// Generic spawns are routed; specialized agents and calls that set a model, effort or name keep their choice.
+type Spawn = { subagent_type?: string; model?: string; effort?: string; name?: string }
+const isGenericType = (e: Spawn): boolean => e.subagent_type === undefined || ['general-purpose', 'executor', 'Explore', 'Plan'].includes(e.subagent_type)
+export const isRoutable = (e: Spawn): boolean => isGenericType(e) && !e.model && !e.effort && !e.name
 
-export const rosterEffort = (subagentType?: string): string | undefined => {
-  if (subagentType === 'haiku-xhigh') return DEFAULT_EFFORT
-  if (subagentType === 'opus-medium') return CODEX.complex!.effort
-  return undefined
-}
-
-// Generic spawns are routed; named roster agents, teammates and calls that set a model or effort keep their choice.
-export const isRoutable = (e: { subagent_type?: string; model?: string; effort?: string; name?: string }): boolean =>
-  (e.subagent_type === undefined || ['general-purpose', 'Explore', 'Plan'].includes(e.subagent_type)) && !e.model && !e.effort && !e.name
+// An explicit Haiku on a generic spawn is rerouted to Codex while it has quota; teammates and specialized agents keep their definition.
+export const isHaikuRoutable = (e: Spawn): boolean => e.model === 'haiku' && isGenericType(e) && !e.name
 
 // Preferred listed model of a family ("luna") in Codex's own model cache. The cache ranks models by `priority`
 // (lowest is newest), so no version is parsed or written here and a new release is picked up with no change.

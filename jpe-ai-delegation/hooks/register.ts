@@ -1,9 +1,14 @@
 import type { EngineInterface, Register } from 'claude-code'
-import { CLASSIFIER, CLAUDE, CODEX, CODEX_FAMILY, DEFAULT_EFFORT, JUDGE, codexArgv, isRosterSpawn, isRoutable, isShellCAsk, newestModel, parseVerdict, pickLabel, rosterEffort } from './lib/policy'
+import { CLASSIFIER, CLAUDE, CODEX, CODEX_FAMILY, DEFAULT_EFFORT, JUDGE, codexArgv, isHaikuRoutable, isRoutable, isShellCAsk, newestModel, parseVerdict, pickLabel } from './lib/policy'
 import type { Label, Sandbox } from './lib/policy'
 
 type Engine = EngineInterface
 type AgentCall = { description?: string; prompt: string; subagent_type?: string; model?: string; effort?: string; name?: string; isolation?: string }
+type QuotaLine = 'codex-quota: available' | 'codex-quota: exhausted' | 'codex-quota: unavailable'
+const UNAVAILABLE: QuotaLine = 'codex-quota: unavailable'
+// shortcut: the startup line lives in the module, so a hot reload recomputes it on the next prompt.compose.
+let startupQuota: QuotaLine | undefined
+const PROMPT_POLICY = 'Delegates run on Codex Luna xhigh while available; never Haiku then.'
 
 // Codex is usable when the CLI starts and `codex-quota` reports at least 5% free in every window.
 async function codexReady($: Engine): Promise<boolean> {
@@ -13,6 +18,16 @@ async function codexReady($: Engine): Promise<boolean> {
     return (await $.process.run(['codex-quota'], { timeoutMs: 20_000 })).exitCode === 0
   } catch {
     return false
+  }
+}
+
+async function codexQuotaStatus($: Engine): Promise<QuotaLine> {
+  try {
+    const result = await $.process.run(['codex-quota'], { timeoutMs: 20_000 })
+    if (result.exitCode === 0) return 'codex-quota: available'
+    return result.exitCode === 1 ? 'codex-quota: exhausted' : UNAVAILABLE
+  } catch {
+    return UNAVAILABLE
   }
 }
 
@@ -45,6 +60,7 @@ async function classify($: Engine, e: AgentCall, ready: boolean): Promise<Label>
   if (ready) {
     const label = pickLabel(await runCodex($, DEFAULT_EFFORT, 'read-only', `${CLASSIFIER}\n\nTask:\n${task}`, 90_000))
     if (label) return label
+    return 'standard'
   }
   const r = await $.model.complete({ model: 'haiku', effort: DEFAULT_EFFORT, system: CLASSIFIER, prompt: task, maxTokens: 10, timeoutMs: 30_000 })
   return pickLabel(r.isAnswered ? r.text : undefined) ?? 'standard'
@@ -70,25 +86,26 @@ async function runRoutedCodex($: Engine, e: AgentCall, route: string, effort: st
 }
 
 async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknown>): Promise<unknown> {
-  if (isRosterSpawn(e)) {
+  if (isHaikuRoutable(e)) {
     if (e.isolation || !(await codexReady($))) return next(e as never)
-    const effort = rosterEffort(e.subagent_type)!
-    const result = await runRoutedCodex($, e, e.subagent_type!, effort, 'workspace-write', `roster ${e.subagent_type}`)
+    const result = await runRoutedCodex($, e, 'standard', CODEX.standard!.effort, 'workspace-write', 'explicit haiku')
     if (result) return result
-    $.ui.log(`ai-delegation: Codex gave no answer for the ${e.subagent_type} roster spawn, passing it through`)
+    $.ui.log('ai-delegation: Codex gave no answer for an explicit haiku spawn, passing it through')
     return next(e as never)
   }
+
   if (!isRoutable(e)) return next(e as never)
   const ready = await codexReady($)
   const label = await classify($, e, ready)
   const sandbox: Sandbox = e.subagent_type === 'Explore' || e.subagent_type === 'Plan' ? 'read-only' : 'workspace-write'
 
-  // A Codex run has no worktree isolation, so isolated spawns stay on Claude. Plan and deep work never go to Codex.
+  // Plan and deep work stay on Claude; an unavailable Codex answer leaves the original spawn untouched.
   const codex = CODEX[label]
   if (ready && codex && !e.isolation) {
     const result = await runRoutedCodex($, e, label, codex.effort, sandbox, `class ${label}`)
     if (result) return result
-    $.ui.log(`ai-delegation: Codex gave no answer for a ${label} task, using Claude`)
+    $.ui.log(`ai-delegation: Codex gave no answer for a ${label} task, passing it through`)
+    return next(e as never)
   }
   const c = CLAUDE[label]
   await logDecision($, `route: ${label} -> claude ${c.model} ${c.effort}`)
@@ -103,9 +120,10 @@ async function judge($: Engine, e: { input: unknown }, next: (e: never) => Promi
 
   const command = String((e.input as { command?: unknown })?.command ?? '')
   const ask = `${JUDGE}\n\nCommand:\n\`\`\`\n${command}\n\`\`\``
+  const ready = await codexReady($)
   let by = `codex ${CODEX_FAMILY} ${DEFAULT_EFFORT}`
-  let verdict = (await codexReady($)) ? parseVerdict(await runCodex($, DEFAULT_EFFORT, 'read-only', ask, 120_000)) : undefined
-  if (!verdict) {
+  let verdict = ready ? parseVerdict(await runCodex($, DEFAULT_EFFORT, 'read-only', ask, 120_000)) : undefined
+  if (!ready) {
     by = `haiku ${DEFAULT_EFFORT}`
     const r = await $.model.complete({ model: 'haiku', effort: DEFAULT_EFFORT, prompt: ask, maxTokens: 400, timeoutMs: 60_000 })
     verdict = parseVerdict(r.isAnswered ? r.text : undefined)
@@ -120,6 +138,18 @@ async function judge($: Engine, e: { input: unknown }, next: (e: never) => Promi
 }
 
 export const register: Register = (on) => {
+  on('session.start', async ($, e, next) => {
+    startupQuota = await codexQuotaStatus($)
+    return next(e)
+  }).catch(($, e, next) => next(e))
+
+  on('prompt.compose', async ($, e, next) => {
+    startupQuota ??= await codexQuotaStatus($)
+    const result = await next(e)
+    return { sections: [...result.sections, { id: 'jpe-ai-delegation:codex-quota', text: `${startupQuota}
+${PROMPT_POLICY}`, scope: 'session' }] }
+  }).catch(($, e, next) => next(e))
+
   // Subagent router: the cheapest tier the task justifies, Codex first when it has quota. A failing hook
   // leaves the spawn exactly as the model asked for it.
   on('tool.call', { tool: 'Agent' }, ($, e, next) => route($, e as never, next as never) as never).catch(($, e, next) => next(e))
