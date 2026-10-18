@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.9.1](https://github.com/dryvist/claude-code-plugins/compare/ai-delegation-v6.9.0...ai-delegation-v6.9.1) (2026-10-18)
+
+
+### Bug Fixes
+
+* **delegation:** gate large fan-outs on machine load, not a worker cap ([#633](https://github.com/dryvist/claude-code-plugins/issues/633)) ([25e8326](https://github.com/dryvist/claude-code-plugins/commit/25e8326b385e24d8309c9b7d6ef4924a3343e558))
+
 ## [6.9.0](https://github.com/dryvist/claude-code-plugins/compare/ai-delegation-v6.8.0...ai-delegation-v6.9.0) (2026-10-13)
 
 
