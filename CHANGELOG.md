@@ -1,5 +1,13 @@
 # Changelog
 
+## [6.21.0](https://github.com/dryvist/claude-code-plugins/compare/v6.20.0...v6.21.0) (2026-10-18)
+
+
+### Features
+
+* **github-workflows:** pr-sweep runs rounds until no stale PR remains ([f9405a1](https://github.com/dryvist/claude-code-plugins/commit/f9405a160a03501f485397c058cd35ed819915e9))
+* **github-workflows:** pr-sweep runs rounds until no stale PR remains ([#630](https://github.com/dryvist/claude-code-plugins/issues/630)) ([9952987](https://github.com/dryvist/claude-code-plugins/commit/9952987bc464627b4adf0a0e8dd46952352a8952))
+
 ## [6.20.0](https://github.com/dryvist/claude-code-plugins/compare/v6.19.0...v6.20.0) (2026-10-17)
 
 
