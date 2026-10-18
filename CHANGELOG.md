@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.23.0](https://github.com/dryvist/claude-code-plugins/compare/v6.22.0...v6.23.0) (2026-10-18)
+
+
+### Features
+
+* **track-followups:** add a tracker API traps reference ([#635](https://github.com/dryvist/claude-code-plugins/issues/635)) ([bc3ee29](https://github.com/dryvist/claude-code-plugins/commit/bc3ee29c25359aad835d1963e0a353dd38bd9ad5))
+
 ## [6.22.0](https://github.com/dryvist/claude-code-plugins/compare/v6.21.0...v6.22.0) (2026-10-18)
 
 
