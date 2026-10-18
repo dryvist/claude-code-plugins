@@ -43,8 +43,10 @@ task-to-model table.
   sequence only for real dependencies or same-file conflicts. Group related
   lookups within a worker when they form one task. Probe the spawn substrate
   before the first fan-out; if spawning fails, take the solo path.
-  Never gate spawning on machine load: spawn failures and quota or rate limits
-  are the signals that matter (see Substrate Resilience below).
+  Never cap the number of workers. Gate a large fan-out only on measured machine
+  load (CPU and memory under 80% of capacity); spawn failures and quota or rate
+  limits are the other signals (see Substrate Resilience below). Batch many
+  small related tasks into one Codex session as a task list.
 
 ## Worker output format
 
