@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.29.0](https://github.com/dryvist/claude-code-plugins/compare/ai-cli-harness-better-practices-v4.28.0...ai-cli-harness-better-practices-v4.29.0) (2026-10-18)
+
+
+### Features
+
+* **track-followups:** add a tracker API traps reference ([#635](https://github.com/dryvist/claude-code-plugins/issues/635)) ([bc3ee29](https://github.com/dryvist/claude-code-plugins/commit/bc3ee29c25359aad835d1963e0a353dd38bd9ad5))
+
 ## [4.28.0](https://github.com/dryvist/claude-code-plugins/compare/ai-cli-harness-better-practices-v4.27.0...ai-cli-harness-better-practices-v4.28.0) (2026-10-10)
 
 
