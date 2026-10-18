@@ -1,5 +1,17 @@
 # Changelog
 
+## [6.22.0](https://github.com/dryvist/claude-code-plugins/compare/v6.21.0...v6.22.0) (2026-10-18)
+
+
+### Features
+
+* **delegation:** Codex-first router, three-kind ladder, startup quota line ([#632](https://github.com/dryvist/claude-code-plugins/issues/632)) ([98530d2](https://github.com/dryvist/claude-code-plugins/commit/98530d2a27478974e515466eed5f42daa61a88e8))
+
+
+### Bug Fixes
+
+* **delegation:** gate large fan-outs on machine load, not a worker cap ([#633](https://github.com/dryvist/claude-code-plugins/issues/633)) ([25e8326](https://github.com/dryvist/claude-code-plugins/commit/25e8326b385e24d8309c9b7d6ef4924a3343e558))
+
 ## [6.21.0](https://github.com/dryvist/claude-code-plugins/compare/v6.20.0...v6.21.0) (2026-10-18)
 
 
