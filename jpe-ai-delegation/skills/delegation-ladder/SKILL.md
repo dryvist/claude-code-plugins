@@ -39,9 +39,9 @@ For ZCode work, write a bounded prompt with the allowed scope, repository
 default branch, and acceptance criteria, then run `zcode-job repos`,
 `zcode-job start <owner/repo> "<prompt>"`, `zcode-job status <job-id>`, and
 `zcode-job result <job-id>`. Cancel with `zcode-job cancel <job-id>` when the
-deadline passes. The dispatcher creates implementation PRs as drafts; the
+deadline passes. The dispatcher opens a ready PR labeled `human:review`; the
 trusted lead verifies the exact PR, repository, base branch, diff, checks, and
-head SHA, then marks it ready. Never ask an executor to merge, approve a gate,
+head SHA before any merge. Never ask an executor to merge, approve a gate,
 or use a credential. A refusal means the repository does not qualify.
 
 ## Related skills

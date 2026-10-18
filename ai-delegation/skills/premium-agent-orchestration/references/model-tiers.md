@@ -37,6 +37,4 @@ moves the same authority sideways, at the same cost.
 
 ## Backend choice
 
-Choose the backend by the Delegation block in the core `AGENTS.md` (Codex first, then the ladder). Discover current
-model availability live; never hard-code physical model IDs, provider names, or static task-to-model tables,
-including for the premium lead itself.
+Choose the backend by the Delegation block in the core `AGENTS.md` (Codex first, then the ladder).
