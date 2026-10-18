@@ -35,26 +35,8 @@ moves the same authority sideways, at the same cost.
   fresh context with no path back to orchestrator authority, and it never
   holds scope, architecture, or completion calls; those stay with the lead.
 
-## Local And Free-Tier First
+## Backend choice
 
-Before delegating routine labor to paid cloud models, look for local LLMs
-and absolute cheapest free-tier model access available in the current
-environment.
-
-Use local or free execution first for the lowest-skill tier when the task
-is easy to verify. Good fits include file search summaries, log
-inspection, test-output summaries, checklist verification, mechanical
-comparisons, and other evidence-gathering tasks.
-
-Prefer these routes in order for lookups and bulk reads:
-
-1. Local LLMs already reachable from the environment.
-2. Absolute cheapest free-tier model access already configured for the
-   session.
-3. A scoped implementation subagent, only when the router lacks context, tool access,
-   reliability, or reasoning quality for the step.
-
-Discover current model availability live. Do not hard-code physical model
-IDs, provider names, or static task-to-model tables — including for the
-premium lead itself. Use capability roles, local registry data, or live
-model listing when available.
+Choose the backend by the Delegation block in the core `AGENTS.md` (Codex first, then the ladder). Discover current
+model availability live; never hard-code physical model IDs, provider names, or static task-to-model tables,
+including for the premium lead itself.
