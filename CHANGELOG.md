@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.23.2](https://github.com/dryvist/claude-code-plugins/compare/v6.23.1...v6.23.2) (2026-10-18)
+
+
+### Bug Fixes
+
+* **jpe-ai-delegation:** state ZCode PRs open ready with human:review ([#639](https://github.com/dryvist/claude-code-plugins/issues/639)) ([a266820](https://github.com/dryvist/claude-code-plugins/commit/a26682049e56602657addf1d70b8574ad9849e08))
+
 ## [6.23.1](https://github.com/dryvist/claude-code-plugins/compare/v6.23.0...v6.23.1) (2026-10-18)
 
 

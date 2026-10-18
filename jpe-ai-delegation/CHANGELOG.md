@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.1](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.3.0...jpe-ai-delegation-v1.3.1) (2026-10-18)
+
+
+### Bug Fixes
+
+* **jpe-ai-delegation:** state ZCode PRs open ready with human:review ([#639](https://github.com/dryvist/claude-code-plugins/issues/639)) ([a266820](https://github.com/dryvist/claude-code-plugins/commit/a26682049e56602657addf1d70b8574ad9849e08))
+
 ## [1.3.0](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.2.0...jpe-ai-delegation-v1.3.0) (2026-10-18)
 
 
