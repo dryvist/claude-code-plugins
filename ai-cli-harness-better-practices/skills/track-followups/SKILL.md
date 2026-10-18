@@ -65,6 +65,8 @@ zammad_api /tickets -X POST -d '<the step 4b ticket as JSON>'              # cre
 zammad_api /tickets/<id> -X PUT -d '<fields>'                              # update / close
 ```
 
+See [tracker API traps](references/tracker-api-traps.md) before making tracker API calls.
+
 Neither the MCP tools nor this path available for a destination means this skill
 **falls back to listing** those items and says so in one line — it does not
 silently drop them, and it does not guess an identifier, project, or ticket number.
