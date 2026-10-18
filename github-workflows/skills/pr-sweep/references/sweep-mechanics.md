@@ -22,11 +22,11 @@ They are different problems and want different responses.
 | `CLEAN` | Nothing outstanding | MERGE candidate |
 | `UNSTABLE` | A non-required check is red; the merge is still permitted | Judgment: is the red check meaningful to this change? |
 | `BLOCKED` | A branch rule is unsatisfied | Use the [canonical PR-readiness gate](../../gh-cli-patterns/SKILL.md#canonical-pr-readiness-gate); report any required check that never reported by name |
-| `DIRTY` | Conflicts | FIX or HOLD |
+| `DIRTY` | Conflicts | FIX or ESCALATE |
 
 An unresolved review thread or any other unaddressed item in the
 [PR feedback ledger](../../gh-cli-patterns/references/pr-feedback-ledger.md)
-is a **FIX**, not a HOLD. Process the feedback through `/resolve-pr-threads`;
+is a **FIX**, not an ESCALATE. Process the feedback through `/resolve-pr-threads`;
 resolve a thread only after its feedback is answered, never to clear a gate.
 
 ### Status rollups go stale
@@ -46,7 +46,7 @@ base branch, not the PRs.
    files do not touch the failing area is usually still safe.
 3. Verify afterwards by comparing failing **sets**, not red-versus-green. The
    question is "did the set shrink from 7 to 6", never "is it green".
-4. Emit **one repo-level finding**, not N identical per-PR holds.
+4. Emit **one repo-level finding**, not N identical per-PR escalations.
 
 ### Repo-wide gates block their own fix
 
@@ -83,7 +83,7 @@ That is a lost or killed runner. Re-run the failed jobs. Corroborate
 mechanically first: do the failing jobs even touch the changed code? If they
 do not, and the one job that *does* exercise it passed, the case is strong.
 Never merge around a red check on a hunch — either it re-runs green, or it
-holds.
+goes to ESCALATE.
 
 Capacity is finite: launching many merges at once can itself take runners
 down. That is what the global merge budget prevents.
@@ -106,13 +106,14 @@ Per repo, one block:
 ```text
 repo: <name>   default-branch: <name>   open: <count>
 PRs:
-  <#N> <verdict> — <title> | <state> | +<a>/-<d> f=<files> | <reason or question>
+  <#N> <verdict> — <title> | <state> | age=<hours>h owner=<session|none> | +<a>/-<d> f=<files> | <reason or question>
 repo-findings:
   <broken base | repo-wide gate + required order | infra failure | none>
 ```
 
-Verdicts are `MERGE` / `FIX` / `HOLD(reason)` / `ESCALATE(question)`. Nothing
-in this block authorizes a write.
+Verdicts are `MERGE` / `FIX` / `REVIVE(branch)` / `CLOSE(evidence)` /
+`HANDOFF(session)` / `ESCALATE(question)`. Nothing in this block authorizes a
+write.
 
 ### Execution order schema (Phase 2 → workers)
 
@@ -120,7 +121,10 @@ in this block authorizes a write.
 repo: <name>
   merge: <#N> head=<OID> [after:<#M>]
   fix:   <#N> head=<OID>
-  hold:  <#N> — <reason>
+  revive: <#N> head=<OID> branch=<local-branch>
+  close: <#N> head=<OID> — <evidence>
+  handoff: <#N> → <session>
+  escalate: <#N> — <question>
 ```
 
 The `head` OID is the safety mechanism. At merge time the worker re-reads the
