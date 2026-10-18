@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.9.2](https://github.com/dryvist/claude-code-plugins/compare/ai-delegation-v6.9.1...ai-delegation-v6.9.2) (2026-10-18)
+
+
+### Bug Fixes
+
+* **ai-delegation:** point model-tiers backend choice at the core Delegation block ([#636](https://github.com/dryvist/claude-code-plugins/issues/636)) ([7e5b4d8](https://github.com/dryvist/claude-code-plugins/commit/7e5b4d8430f36b7dd4885509874f505a626c5c5c))
+
 ## [6.9.1](https://github.com/dryvist/claude-code-plugins/compare/ai-delegation-v6.9.0...ai-delegation-v6.9.1) (2026-10-18)
 
 
