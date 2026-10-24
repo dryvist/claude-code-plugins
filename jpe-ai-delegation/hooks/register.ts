@@ -12,13 +12,23 @@ const PROMPT_POLICY = 'Delegates run on Codex Luna while available (xhigh standa
 
 // Codex is usable when the CLI starts and `codex-quota` reports at least 5% free in every window.
 async function codexReady($: Engine): Promise<boolean> {
+  let reason: string
   try {
-    const cli = await $.process.run(['codex', '--version'], { timeoutMs: 10_000 })
-    if (cli.exitCode !== 0) return false
-    return (await $.process.run(['codex-quota'], { timeoutMs: 20_000 })).exitCode === 0
+    const cli = await $.process.run(['codex', '--version'], { timeoutMs: 30_000 })
+    if (cli.exitCode === 0) {
+      const quota = await $.process.run(['codex-quota'], { timeoutMs: 20_000 })
+      if (quota.exitCode === 0) return true
+      reason = `codex-quota exited ${quota.exitCode}`
+    } else {
+      reason = `codex --version exited ${cli.exitCode}`
+    }
   } catch {
-    return false
+    reason = 'codex readiness probe failed or timed out'
   }
+  // A silent not-ready reads as a Haiku route with no cause; name it.
+  $.ui.log(`ai-delegation: Codex not ready: ${reason}`)
+  await logDecision($, `codex not ready: ${reason}`)
+  return false
 }
 
 async function codexQuotaStatus($: Engine): Promise<QuotaLine> {

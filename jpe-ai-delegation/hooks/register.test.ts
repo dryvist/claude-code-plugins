@@ -281,6 +281,14 @@ describe('router', () => {
     expect(seen.filter((a) => a[0] === 'codex' && a[1] === 'exec')).toHaveLength(2)
   })
 
+  test('a failed Codex readiness probe is logged with its reason', async ($, on) => {
+    const seen = world(on, { codex: false, haikuSays: 'standard' })
+    on('tool.call', { tool: 'Agent' }, () => ({ result: DONE }) as never)
+    await $.tool.call({ tool: 'Agent', description: 'read', prompt: 'Summarise README.md' } as never)
+    expect((seen as any).uiLogs.join('\n')).toContain('Codex not ready: codex --version exited 1')
+    expect((seen as any).calls.some((call: { argv: string[]; stdin?: string }) => call.argv[0] === 'tee' && call.stdin?.includes('codex not ready: codex --version exited 1'))).toBe(true)
+  })
+
   test('empty final messages are logged with a reason before falling back to Haiku', async ($, on) => {
     const seen = world(on, { codex: true, codexSays: '', haikuSays: 'standard' })
     let routed: unknown
