@@ -10,8 +10,8 @@ caller. Classify task content before selecting a route:
 
 | Kind | Ladder | Use |
 | --- | --- | --- |
-| `code` | Codex -> OpenCode Go -> Haiku xhigh | Implementation and code review |
-| `private` | Codex -> OpenCode Go -> Haiku xhigh | Private material |
+| `code` | Codex -> Z.ai GLM -> OpenCode Go -> Haiku xhigh | Implementation and code review |
+| `private` | Codex -> Z.ai GLM -> OpenCode Go -> Haiku xhigh | Private material |
 | `other` | Codex -> Haiku xhigh | Triage, bulk reads, summaries, judgment |
 
 Run `agent-route <code|private|other>` from the plugin root. Codex qualifies
@@ -23,13 +23,14 @@ xhigh is the last resort. ZCode is not on any ladder.
 
 - **Codex**: newest Luna model only; effort `xhigh` for standard work, `max`
   for complex, plan and deep work. Plan and deep run as read-only advisory
-  workers.
+  workers. Call contract: [model-delegation.md](https://github.com/dryvist/ai-llm-prompts/blob/main/auto-ai-agent/instructions/agentsmd/rules/on-demand/model-delegation.md).
+- **Z.ai GLM**: run the task through `codex-zai`.
 - **OpenCode Go**: use the configured OpenCode Go route.
 - **Haiku xhigh**: use the xhigh effort Haiku subagent.
 - **Stop**: stop and notify the operator.
 
 The spawn router in `hooks/register.ts` runs the Codex and Haiku rungs itself.
-It does not run OpenCode Go; follow the selected route by hand for that rung.
+It does not run Z.ai GLM or OpenCode Go; follow the selected route by hand for those rungs.
 
 Never ask an executor to merge, approve a gate, or use a credential. The trusted
 lead verifies the exact PR, repository, base branch, diff, checks, and head SHA

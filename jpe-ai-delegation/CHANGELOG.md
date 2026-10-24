@@ -1,5 +1,33 @@
 # Changelog
 
+## [1.6.2](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.6.1...jpe-ai-delegation-v1.6.2) (2026-10-24)
+
+
+### Bug Fixes
+
+* **jpe-ai-delegation:** route custom agents defined as Haiku to Codex ([#651](https://github.com/dryvist/claude-code-plugins/issues/651)) ([36504db](https://github.com/dryvist/claude-code-plugins/commit/36504db4737643da40fc8b5e901d736207ebdff0))
+
+## [1.6.1](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.6.0...jpe-ai-delegation-v1.6.1) (2026-10-24)
+
+
+### Bug Fixes
+
+* **jpe-ai-delegation:** log why Codex is not ready and allow a slower version probe ([#648](https://github.com/dryvist/claude-code-plugins/issues/648)) ([6fd4291](https://github.com/dryvist/claude-code-plugins/commit/6fd4291d4fc0f39beb84b47cb70f48ff04e1c28f))
+
+## [1.6.0](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.5.0...jpe-ai-delegation-v1.6.0) (2026-10-24)
+
+
+### Features
+
+* **jpe-ai-delegation:** read Codex results from -o and log every failure reason ([#646](https://github.com/dryvist/claude-code-plugins/issues/646)) ([aaf0455](https://github.com/dryvist/claude-code-plugins/commit/aaf0455886e5d45df57e05114ebc166a12bcc07b))
+
+## [1.5.0](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.4.0...jpe-ai-delegation-v1.5.0) (2026-10-24)
+
+
+### Features
+
+* **jpe-ai-delegation:** add the Z.ai GLM rung to the code and private ladders ([#644](https://github.com/dryvist/claude-code-plugins/issues/644)) ([ff9b5c5](https://github.com/dryvist/claude-code-plugins/commit/ff9b5c5d6dcf3c30e277a737d7486b36889dad7f))
+
 ## [1.4.0](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.3.1...jpe-ai-delegation-v1.4.0) (2026-10-24)
 
 

@@ -4,6 +4,7 @@
       "visibility": "public",
       "rungs": [
         { "name": "Codex", "gate": "codex" },
+        { "name": "Z.ai GLM", "gate": "always" },
         { "name": "OpenCode Go", "gate": "always" },
         { "name": "Haiku xhigh", "gate": "always" }
       ]
@@ -12,6 +13,7 @@
       "visibility": "private",
       "rungs": [
         { "name": "Codex", "gate": "codex" },
+        { "name": "Z.ai GLM", "gate": "always" },
         { "name": "OpenCode Go", "gate": "always" },
         { "name": "Haiku xhigh", "gate": "always" }
       ]

@@ -55,12 +55,12 @@ export function parseVerdict(text: string | undefined): Verdict | undefined {
 // True for core's bypass-immune ask about a shell -c script that runs rm.
 export const isShellCAsk = (decision: string, reason: string | undefined): boolean => decision === 'ask' && /\bshell -c\b/i.test(reason ?? '')
 
-// Generic spawns are routed; specialized agents and calls that set a model, effort or name keep their choice.
+// Generic spawns are routable; custom-agent Haiku definitions are handled separately by the router.
 type Spawn = { subagent_type?: string; model?: string; effort?: string; name?: string }
-const isGenericType = (e: Spawn): boolean => e.subagent_type === undefined || ['general-purpose', 'executor', 'Explore', 'Plan'].includes(e.subagent_type)
+export const isGenericType = (e: Spawn): boolean => e.subagent_type === undefined || ['general-purpose', 'executor', 'Explore', 'Plan'].includes(e.subagent_type)
 export const isRoutable = (e: Spawn): boolean => isGenericType(e) && !e.model && !e.effort && !e.name
 
-// An explicit Haiku on a generic spawn is rerouted to Codex while it has quota; teammates and specialized agents keep their definition.
+// Explicit Haiku is rerouted only for generic, unnamed spawns; custom-agent definitions are checked by the router.
 export const isHaikuRoutable = (e: Spawn): boolean => e.model === 'haiku' && isGenericType(e) && !e.name
 
 // Preferred listed model of a family ("luna") in Codex's own model cache. The cache ranks models by `priority`
@@ -75,8 +75,9 @@ export function newestModel(cacheText: string, family: string): string | undefin
 
 // The only way to build a `codex exec` command. Throws for any model outside the Luna family or any effort
 // outside CODEX_EFFORTS; a missing model throws too, because `codex` would then fall back to its configured default.
-export function codexArgv(sandbox: Sandbox, effort: string, model: string | undefined): string[] {
+export function codexArgv(sandbox: Sandbox, effort: string, model: string | undefined, outputFile: string): string[] {
   if (!model || !model.endsWith(`-${CODEX_FAMILY}`)) throw new Error(`codex model must be the ${CODEX_FAMILY} family, got ${model ?? 'none'}`)
   if (!CODEX_EFFORTS.includes(effort)) throw new Error(`codex effort must be one of ${CODEX_EFFORTS.join(', ')}, got ${effort}`)
-  return ['codex', 'exec', '-s', sandbox, '-c', `model_reasoning_effort="${effort}"`, '--skip-git-repo-check', '-m', model, '-']
+  if (!outputFile) throw new Error('codex final-message output file is required')
+  return ['codex', 'exec', '-s', sandbox, '-c', `model_reasoning_effort="${effort}"`, '--skip-git-repo-check', '-m', model, '-o', outputFile, '-']
 }

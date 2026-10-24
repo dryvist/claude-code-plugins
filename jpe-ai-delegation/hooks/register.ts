@@ -1,5 +1,5 @@
 import type { EngineInterface, Register } from 'claude-code'
-import { CLASSIFIER, CODEX, CODEX_FAMILY, DEFAULT_EFFORT, JUDGE, LAST_RESORT, codexArgv, isAdvisory, isHaikuRoutable, isRoutable, isShellCAsk, newestModel, parseVerdict, pickLabel } from './lib/policy'
+import { CLASSIFIER, CODEX, CODEX_FAMILY, DEFAULT_EFFORT, JUDGE, LAST_RESORT, codexArgv, isAdvisory, isGenericType, isHaikuRoutable, isRoutable, isShellCAsk, newestModel, parseVerdict, pickLabel } from './lib/policy'
 import type { Label, Sandbox } from './lib/policy'
 
 type Engine = EngineInterface
@@ -12,13 +12,23 @@ const PROMPT_POLICY = 'Delegates run on Codex Luna while available (xhigh standa
 
 // Codex is usable when the CLI starts and `codex-quota` reports at least 5% free in every window.
 async function codexReady($: Engine): Promise<boolean> {
+  let reason: string
   try {
-    const cli = await $.process.run(['codex', '--version'], { timeoutMs: 10_000 })
-    if (cli.exitCode !== 0) return false
-    return (await $.process.run(['codex-quota'], { timeoutMs: 20_000 })).exitCode === 0
+    const cli = await $.process.run(['codex', '--version'], { timeoutMs: 30_000 })
+    if (cli.exitCode === 0) {
+      const quota = await $.process.run(['codex-quota'], { timeoutMs: 20_000 })
+      if (quota.exitCode === 0) return true
+      reason = `codex-quota exited ${quota.exitCode}`
+    } else {
+      reason = `codex --version exited ${cli.exitCode}`
+    }
   } catch {
-    return false
+    reason = 'codex readiness probe failed or timed out'
   }
+  // A silent not-ready reads as a Haiku route with no cause; name it.
+  $.ui.log(`ai-delegation: Codex not ready: ${reason}`)
+  await logDecision($, `codex not ready: ${reason}`)
+  return false
 }
 
 async function codexQuotaStatus($: Engine): Promise<QuotaLine> {
@@ -31,19 +41,44 @@ async function codexQuotaStatus($: Engine): Promise<QuotaLine> {
   }
 }
 
-// One `codex exec`: the final message is stdout. Undefined on any failure or an empty answer, and when no Luna
-// model is listed: without `-m`, codex would use its configured default, which may not be Luna.
+// One `codex exec`; its final message is read from a temporary output file. The finite stdin string is closed by process.run.
 async function runCodex($: Engine, effort: string, sandbox: Sandbox, prompt: string, timeoutMs: number): Promise<string | undefined> {
+  let outputFile: string | undefined
+  let failure: string | undefined
   try {
-    const home = (await $.env.get('CODEX_HOME')) ?? `${await $.env.get('HOME')}/.codex`
-    const cache = `${home}/models_cache.json`
-    const model = (await $.fs.exists(cache)) ? newestModel((await $.fs.read(cache)) as string, CODEX_FAMILY) : undefined
-    const r = await $.process.run(codexArgv(sandbox, effort, model), { stdin: prompt, timeoutMs })
-    const text = r.stdout.trim()
-    return r.exitCode === 0 && text ? text : undefined
+    const temporary = await $.process.run(['mktemp'], { timeoutMs: 5_000 })
+    const temporaryPath = temporary.stdout.trim()
+    if (temporary.exitCode !== 0 || !temporaryPath.startsWith('/')) {
+      failure = `could not create final-message file (exit ${temporary.exitCode})`
+    } else {
+      outputFile = temporaryPath
+      const home = (await $.env.get('CODEX_HOME')) ?? `${await $.env.get('HOME')}/.codex`
+      const cache = `${home}/models_cache.json`
+      const model = (await $.fs.exists(cache)) ? newestModel((await $.fs.read(cache)) as string, CODEX_FAMILY) : undefined
+      const r = await $.process.run(codexArgv(sandbox, effort, model, outputFile), { stdin: prompt, timeoutMs })
+      if (r.exitCode !== 0) {
+        failure = `codex exec exited with code ${r.exitCode}`
+      } else {
+        const text = ((await $.fs.read(outputFile)) as string).trim()
+        if (text) return text
+        failure = 'codex exec returned an empty final message'
+      }
+    }
   } catch {
-    return undefined
+    failure = 'codex exec invocation or output read failed'
+  } finally {
+    if (outputFile) {
+      try {
+        await $.process.run(['rm', '-f', outputFile], { timeoutMs: 5_000 })
+      } catch {
+        // A cleanup failure must not replace the Codex result.
+      }
+    }
   }
+  const reason = failure ?? 'unknown failure'
+  $.ui.log(`ai-delegation: Codex failed: ${reason}`)
+  await logDecision($, `codex failure: ${reason}`)
+  return undefined
 }
 
 // Append-only decision log; `tee -a` keeps parallel hooks from dropping each other's lines.
@@ -80,7 +115,36 @@ async function runRoutedCodex($: Engine, e: AgentCall, route: string, effort: st
   } as never
 }
 
+async function customAgentDefinition($: Engine, type: string): Promise<{ model?: string; prompt: string } | undefined> {
+  if (!/^[\w:.-]+$/.test(type)) return undefined
+  const cwd = await $.session.cwd()
+  const home = await $.env.get('HOME')
+  const paths = [`${cwd}/.claude/agents/${type}.md`, ...(home ? [`${home}/.claude/agents/${type}.md`] : [])]
+
+  for (const path of paths) {
+    if (!(await $.fs.exists(path))) continue
+    const text = (await $.fs.read(path)) as string
+    const frontmatter = text.match(/^---\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/)
+    const model = frontmatter?.[1].match(/^model:\s*(?:"([^"]*)"|'([^']*)'|([^\s#]+))(?:\s+#.*)?$/m)
+    return { model: model?.[1] ?? model?.[2] ?? model?.[3], prompt: frontmatter ? text.slice(frontmatter[0].length).trim() : '' }
+  }
+
+  return undefined
+}
+
 async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknown>): Promise<unknown> {
+  if (e.subagent_type && !isGenericType(e) && !e.model) {
+    const definition = await customAgentDefinition($, e.subagent_type)
+    if (definition?.model === 'haiku') {
+      if (e.isolation || !(await codexReady($))) return next(e as never)
+      const prompt = definition.prompt ? `Custom agent instructions:\n${definition.prompt}\n\nTask:\n${e.prompt}` : e.prompt
+      const result = await runRoutedCodex($, { ...e, prompt }, `custom ${e.subagent_type} haiku`, CODEX.standard.effort, 'workspace-write', 'custom haiku agent')
+      if (result) return result
+      $.ui.log(`ai-delegation: Codex gave no answer for custom ${e.subagent_type} haiku, passing it through`)
+      return next(e as never)
+    }
+  }
+
   if (isHaikuRoutable(e)) {
     if (e.isolation || !(await codexReady($))) return next(e as never)
     const result = await runRoutedCodex($, e, 'standard', CODEX.standard.effort, 'workspace-write', 'explicit haiku')
