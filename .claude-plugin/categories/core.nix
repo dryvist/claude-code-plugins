@@ -55,11 +55,9 @@
     "ship"
     "trigger-ai-reviews"
     # jacobpevans git-workflows
-    "sync-main"
     "troubleshoot-precommit"
     "troubleshoot-rebase"
     "troubleshoot-worktree"
-    "git-flow-next"
     "pre-commit-architecture"
     # jacobpevans ai-cli-harness-better-practices
     "goal"

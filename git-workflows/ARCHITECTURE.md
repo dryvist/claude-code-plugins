@@ -1,7 +1,8 @@
 # git-workflows — Architecture
 
-Local git operations: branch sync and troubleshooting.
+Local Git standards and troubleshooting.
 
+For branch creation and PR-branch sync, follow the [Git Town rule](https://github.com/dryvist/ai-llm-prompts/blob/main/auto-ai-agent/instructions/agentsmd/rules/on-demand/git-flow.md).
 For PR-related operations (refresh, rebase-merge, finalize, merge), see
 [github-workflows/ARCHITECTURE.md](../github-workflows/ARCHITECTURE.md).
 
@@ -19,8 +20,6 @@ flowchart TD
     classDef external fill:#f3e5f5,stroke:#6a1b9a,color:#4a148c
 
     subgraph maintenance["Maintenance"]
-        sync_main["/sync-main"]
-        git_flow["/git-flow-next"]
         precommit_arch["/pre-commit-architecture"]
     end
 
@@ -36,10 +35,7 @@ flowchart TD
     end
 
     ts_worktree -.->|"worktree guidance"| superpowers
-    harness -.->|"branching model facts"| git_flow
-    harness -.->|"optional, in a repo"| sync_main
-
-    class sync_main,git_flow,precommit_arch,ts_rebase,ts_precommit,ts_worktree ai
+    class precommit_arch,ts_rebase,ts_precommit,ts_worktree ai
 ```
 
 ## Plugin Boundary: Session vs Local vs GitHub
@@ -54,11 +50,9 @@ flowchart LR
         cont["/goal, /session-status\n/resume, /replan, /wrap-up"]:::external
     end
 
-    subgraph local["git-workflows — LOCAL git operations"]
+    subgraph local["git-workflows — LOCAL git troubleshooting"]
         direction TB
-        sync_main["/sync-main\ngit pull, branch sync"]:::ai
         ts["/troubleshoot-*\nrebase, precommit, worktree"]:::ai
-        git_flow["/git-flow-next\nbranching model"]:::ai
     end
 
     subgraph remote["github-workflows — GITHUB API operations"]

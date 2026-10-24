@@ -30,7 +30,7 @@ gh pr list --state open --json number | jq length
 0. CHECK PR COUNT -> set mode
 1. SCAN - Gather state (PR-focus: only PRs; Normal: all)
 2. PRIORITIZE:
-   1. PRs behind main (/sync-main)
+   1. PRs needing branch sync (follow the [Git Town rule](https://github.com/dryvist/ai-llm-prompts/blob/main/auto-ai-agent/instructions/agentsmd/rules/on-demand/git-flow.md))
    2. Failing CI (/finalize-pr)
    3. Review comments (/resolve-pr-threads)
    4. PRs ready to merge (/refresh-repo)

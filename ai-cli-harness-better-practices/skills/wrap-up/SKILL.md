@@ -236,5 +236,5 @@ in one operation. Sequence and command shapes:
   opens a GitHub issue
 - **troubleshoot-worktree** (git-workflows) — Worktree-removal command shape reused by `purge-pr` mode
 - **pr-standards** (github-workflows) — Workaround Classification rubric used to decide when `purge-pr` is the right action
-- **git-flow-next** (git-workflows) — Dedicated git-flow-next guide, worktree setup, and promotion steps
+- For branch creation and PR-branch sync, follow the [Git Town rule](https://github.com/dryvist/ai-llm-prompts/blob/main/auto-ai-agent/instructions/agentsmd/rules/on-demand/git-flow.md).
 - **local-subagents** (ai-delegation) — the router mechanics used by "Delegate the bulk read": live model menu, tier choice, and the fallback rule.

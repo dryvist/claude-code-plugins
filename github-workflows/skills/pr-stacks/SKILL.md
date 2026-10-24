@@ -1,11 +1,6 @@
 ---
 name: pr-stacks
-description: >-
-  Use when a change is too large for one PR, when the next unit of work depends
-  on an unmerged PR, or when GitHub stacked pull requests / `gh stack` come up.
-  The single source of truth for the PR-stack concept and the local pre-GitHub
-  workflow: layering branches, keeping layers rebased, and landing a stack
-  without fighting branch protection.
+description: Use to submit and track dependent stacked pull requests.
 ---
 
 # PR Stacks
@@ -21,14 +16,9 @@ feat/auth            → PR #1   (base: main)     ← bottom
 main / develop                                  ← trunk
 ```
 
-The bottom PR targets the **trunk**; each PR above targets the branch below it.
-GitHub evaluates branch protection, required checks, and CI against the **trunk**
-for *every* layer, not the PR's direct base — so a mid-stack PR is held to the
-same standard as the bottom one.
-
-Trunk is the repository's **default branch**: `main` on a trunk repo, `develop`
-on a git-flow repo (detect it per `gh-cli-patterns` — never assume). Promotion of
-`develop` → `main` is unchanged: `/promote-release`.
+For branch creation, PR targets, and PR-branch sync, follow the
+[Git Town rule](https://github.com/dryvist/ai-llm-prompts/blob/main/auto-ai-agent/instructions/agentsmd/rules/on-demand/git-flow.md).
+For Git-flow promotion, use `/promote-release`.
 
 > [!IMPORTANT]
 > All branches must live in the same repository — cross-fork stacks are not
@@ -47,10 +37,10 @@ repository, not an install command here.
 
 Build **bottom-up**: foundational changes (types, schema, shared helpers) in the
 lowest layer; consumers and UI above. One focused, reviewable change per layer.
+Create and sync branches according to the Git Town rule above. Once the branches
+exist, manage the stack with:
 
 ```bash
-gh stack init                 # start a stack; trunk defaults to the default branch
-gh stack add <branch-name>    # add the next layer on top (or -Am "msg" to commit + add)
 gh stack push                 # push the layers
 gh stack submit --open        # create the PRs ready for review; never leave them as drafts
 gh stack view                 # inspect layers, PR links, and status
@@ -61,14 +51,8 @@ requests CLI commands* docs; the upstream `gh-stack` skill covers it in depth.
 
 ## Rules that matter
 
-- **Branch-from-feature is the sanctioned exception here.** `git-workflow-standards` (git-workflows)
-  says never branch from a feature branch; a stack layers each branch on the one
-  below, and that is the one exception — through `gh stack` only. Never retarget a
-  layer with `gh pr edit --base`; let `gh stack` own the bases.
-- **Keep layers linear.** No merges between stack branches. When a lower layer
-  changes, propagate with a **cascading rebase** (`gh stack` rebases the layers
-  above, or trigger GitHub's server-side rebase) — never hand-rebase each layer.
-  Layer updates are force-pushes.
+- **Keep layers linear.** Do not merge one PR branch into another. Follow the
+  Git Town rule above for branch and target conventions.
 - **Merging is stack-aware.** Landing any PR lands every unmerged layer below it
   atomically (merge commit, squash, and rebase all supported; merge-queue aware).
   A partial merge auto-retargets the layers above — those branches are **not**
@@ -83,7 +67,7 @@ requests CLI commands* docs; the upstream `gh-stack` skill covers it in depth.
 
 - gh-cli-patterns (github-workflows) — default-branch (trunk vs git-flow) detection
 - pr-standards (github-workflows) — PR creation guards, issue linking, human-review gate
-- git-workflow-standards (git-workflows) — branch/worktree conventions this skill exceptions
+- git-workflow-standards (git-workflows) — branch hygiene and worktree cleanup
 - merge-pr (github-workflows) — merges the stack-aware way
-- rebase-pr (github-workflows) — does not apply to stacked PRs; use cascading rebase
+- rebase-pr (github-workflows) — local rebase-merge for individual PRs
 - prune-branches (github-workflows) — protects `--base` refs, so stack layers are safe

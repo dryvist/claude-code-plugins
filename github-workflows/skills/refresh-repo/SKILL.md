@@ -1,149 +1,76 @@
 ---
 name: refresh-repo
-description: Check PR merge readiness and fast-forward the local default branch — and on git-flow repos both local develop and main — in any layout (worktree, bare, branch not checked out). Reports divergence, never forces. See prune-branches (github-workflows) for stale branch and worktree cleanup.
+description: Check PR readiness and fast-forward the local default branch.
 ---
 
-<!-- cspell:words refspec oneline headRefOid mergedAt -->
+<!-- cspell:words headRefOid -->
 
 # Git Refresh
 
-Check open PR merge-readiness status and sync the local repository with its
-default branch. On git-flow repos (default branch `develop`) both local
-`develop` and local `main` are synced.
+Check open PR merge-readiness and fast-forward the local default branch.
+For branch creation and PR-branch sync, follow the [Git Town rule](https://github.com/dryvist/ai-llm-prompts/blob/main/auto-ai-agent/instructions/agentsmd/rules/on-demand/git-flow.md).
 
 > **State warning**: Branch state, remote tracking, and PR status change between
-> invocations. Re-run all git/gh commands from Step 1.
+> invocations. Re-run all git and gh commands before reporting.
 
 ## Steps
 
-### 1. Identify Open PRs
+### 1. Identify open PRs
 
-**CRITICAL**: Always check for open PRs, regardless of current branch.
+Always check for open PRs, regardless of the current branch.
 
 ```bash
-# Check for PR from current branch
 gh pr view --json state,number,title 2>/dev/null
-
-# ALWAYS also check for any open PRs
 gh pr list --state open --limit 50 --json number,title,headRefName
 ```
 
-### 2. Report Merge-Readiness Status
+### 2. Check merge readiness
 
-For each open PR, check and report.
-
-Run the [canonical PR-readiness gate](../gh-cli-patterns/SKILL.md#canonical-pr-readiness-gate).
+For each open PR, run the [canonical PR-readiness gate](../gh-cli-patterns/SKILL.md#canonical-pr-readiness-gate).
 It requires zero unaddressed items in the [PR feedback ledger](../gh-cli-patterns/references/pr-feedback-ledger.md)
-and every required status context reported. Name any absent context as
+and every required status context reported. Name an absent context as
 `required check never reported: <context>` and see
 [github-actions-silent-failures](../github-actions-silent-failures/SKILL.md).
-Replace `<OWNER>`, `<REPO>`, `<PR_NUMBER>` per the placeholder legend in that skill.
+Replace `<OWNER>`, `<REPO>`, and `<PR_NUMBER>` per the placeholder legend in
+that skill.
 
-**Merge-ready criteria** — all of the following must hold:
+A PR is ready only when all of these conditions pass:
 
-| Field | Required | Status |
-|---|---|---|
-| `state` | `OPEN` | Not ready |
-| `mergeable` | `MERGEABLE` | Not ready |
-| `mergeStateStatus` | `CLEAN` or `HAS_HOOKS` | Not ready (`BEHIND` — update the branch through `/finalize-pr`; `BLOCKED`, `DIRTY`, `UNSTABLE`, `UNKNOWN`, `DRAFT`) |
-| `isDraft` | `false` | Not ready |
-| `reviewDecision` | `APPROVED` or `null` | Not ready |
-| `statusCheckRollup.state` | `SUCCESS` | Not ready |
-| PR feedback ledger | Zero unaddressed feedback items | Not ready — run `/resolve-pr-threads` |
-| Required status-check contexts | Every required context is reported | Not ready — name any `required check never reported: <context>` |
-| All `reviewThreads.isResolved` | `true` | Not ready — unresolved threads |
-| `reviewThreads.pageInfo.hasNextPage` | `false` | Not ready — >100 threads, paginate |
+| Field | Required |
+|---|---|
+| `state` | `OPEN` |
+| `mergeable` | `MERGEABLE` |
+| `mergeStateStatus` | `CLEAN` or `HAS_HOOKS` |
+| `isDraft` | `false` |
+| `reviewDecision` | `APPROVED` or `null` |
+| `statusCheckRollup.state` | `SUCCESS` |
+| PR feedback ledger | Zero unaddressed items |
+| Required status-check contexts | Every context reported |
+| `reviewThreads.isResolved` | `true` for every thread |
+| `reviewThreads.pageInfo.hasNextPage` | `false` |
 
-### 3. Sync Workflow
+### 3. Fast-forward the local default branch
 
-1. Record the current branch and worktree path.
-2. Fetch origin with stale remote branch pruning, but without tag updates:
-   `git fetch origin --no-tags --prune --force`
-3. Determine the default branch from `origin/HEAD`, falling back to `main` or
-   `master`. The **sync set** is the default branch, plus `main` when the
-   default is `develop` (git-flow) and `origin/main` exists.
-4. **Restore the default-branch worktree to the default branch.** If a
-   worktree is checked out to the default branch, keep it on the default
-   branch. After a feature PR merges, that worktree is sometimes left on the
-   now-`[gone]` feature branch. Detect and fix:
-   - Resolve the default worktree path from `git worktree list --porcelain`,
-     matching on the `branch refs/heads/<default>` entry — do not rely on
-     basename matching of paths, since a feature branch named
-     `feature/<default>` would also produce a path basename of `<default>`.
-   - If that path exists and `git -C <path> rev-parse --abbrev-ref HEAD` does not equal
-     `<default>` (this is safer than `symbolic-ref --short HEAD`, which errors on
-     detached HEAD during a rebase or commit-checkout):
-     - If the worktree has uncommitted changes
-       (`git -C <path> status --porcelain` is non-empty), stash them first with
-       `git -C <path> stash push -u -m "refresh-repo: auto-stash before <default> restore"`
-       and surface the stash reference in the summary so the user can recover.
-     - `git -C <path> checkout <default>`.
-   - Never use `--force`, never discard uncommitted work, never reset.
-5. Fast-forward every branch `<b>` in the sync set. Pick the command by
-   layout, using `git worktree list --porcelain` (`branch refs/heads/<b>`):
-   - **Checked out in a worktree `<path>`**:
-     `git -C <path> merge --ff-only origin/<b>`. If that worktree is dirty,
-     report it and skip.
-   - **Not checked out anywhere** (including every branch of a bare repo):
-     `git fetch origin <b>:<b>`. Without a leading `+`, fetch refuses a
-     non-fast-forward update, so this is ff-only. It creates `<b>` when no
-     local branch exists yet.
-   - **Either command refuses** (local `<b>` has commits not on
-     `origin/<b>`): report
-     `git rev-list --left-right --count <b>...origin/<b>` and skip. Never
-     force, reset, or rebase.
-6. Conclude the operation without switching branches. Steps 4 and 5 used
-   `git -C <path>` and refspec fetches, so the current shell's working
-   directory and branch were never changed — each worktree owns its checkout.
+1. Fetch origin without updating tags: `git fetch origin --no-tags`.
+2. Resolve the default branch from `origin/HEAD`; use
+   [gh-cli-patterns](../gh-cli-patterns/SKILL.md) if it is not set.
+3. Find the worktree checked out to the local default branch with
+   `git worktree list --porcelain`.
+4. If that worktree is clean, fast-forward it with
+   `git -C <path> merge --ff-only origin/<default>`. If it is dirty, report
+   that and skip it.
+5. If the local default branch is not checked out in any worktree, run
+   `git fetch origin <default>:<default>`. This creates the local branch if
+   needed and refuses non-fast-forward updates.
+6. If an update refuses, report
+   `git rev-list --left-right --count <default>...origin/<default>` and skip.
+   Do not force, reset, or rebase the local default branch.
 
-Do not use `git fetch --tags`, `git fetch --prune-tags`, or `git pull --tags` during the
-normal refresh. Tags are audited separately in Step 4 so local-only non-release tags and
-tag rewrites are not deleted by a broad fetch refspec.
+## Report
 
-Branch and worktree cleanup — local, remote, and bare-local — is
-`prune-branches` (github-workflows), run separately after this sync.
-
-### 4. Tag Audit And Cleanup
-
-Treat `origin` as authoritative for release tags only.
-
-Use native Git commands to compare local tags to remote tags:
-
-```bash
-git for-each-ref '--format=%(refname:short)' refs/tags
-git show-ref --tags
-git ls-remote --tags --refs origin
-```
-
-For local-only tags:
-
-1. If the tag name matches the release tag pattern `v[0-9]*`, delete it with
-   `git tag -d <tag>`.
-2. If the tag name does not match the release tag pattern, report it and do not delete it.
-
-For tags that exist both locally and on origin but point at different objects, report the
-mismatch and do not force-update it automatically. Never delete or rewrite remote tags.
-
-### 5. Summary
-
-Report: PRs assessed as merge-ready (if any), tags deleted or reported,
-default-branch worktree restorations (with any stash references created),
-current branch, and sync status per synced branch (`develop` and `main` on
-git-flow repos): fast-forwarded, already current, or skipped (with reason).
-
-## Common Mistake to Avoid
-
-**DO NOT** skip the PR check just because you're on main. The user may have multiple open PRs from different branches.
-
-Always run `gh pr list --state open --limit 50 --json number,title,headRefName` to find work that needs merging.
-
-Do not use `--prune-tags` as a shortcut for tag cleanup. Git treats tag pruning as an
-explicit refspec prune and can delete local-only tags that are not release artifacts.
+Report each PR's readiness status and the local default branch as
+fast-forwarded, already current, or skipped with its reason.
 
 ## Related Skills
 
-- **prune-branches** (github-workflows) — stale branch and worktree cleanup, run after this sync
-- **sync-main** (git-workflows) — Syncs the default branch and merges into current or all PR branches
-- **rebase-pr** (github-workflows) — Rebase-merge workflow for merging individual PRs
-- **git-workflow-standards** (git-workflows) — Worktree structure and branch hygiene conventions
-- **gh-cli-patterns** (github-workflows) — Canonical gh CLI command shapes, placeholder convention, PR-readiness gate, default-branch detection
+- **gh-cli-patterns** (github-workflows) — PR-readiness gate and default-branch detection

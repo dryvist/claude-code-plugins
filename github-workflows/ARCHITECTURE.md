@@ -191,8 +191,7 @@ See [git-guards/ARCHITECTURE.md](../git-guards/ARCHITECTURE.md) and
 
 - [codeql-resolver/ARCHITECTURE.md](../codeql-resolver/ARCHITECTURE.md) — 3-tier
   architecture (invoked by `/finalize-pr` Phase 2.2)
-- [git-workflows/ARCHITECTURE.md](../git-workflows/ARCHITECTURE.md) — `/sync-main`,
-  `/git-flow-next`, `/troubleshoot-*`
+- [git-workflows/ARCHITECTURE.md](../git-workflows/ARCHITECTURE.md) — `/troubleshoot-*`
 - [ai-cli-harness-better-practices/ARCHITECTURE.md](../ai-cli-harness-better-practices/ARCHITECTURE.md)
   — `/goal`, `/resume`, `/replan`, `/session-status`, `/wrap-up`
   bridging `gh pr create` to `/finalize-pr`
