@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.26.2](https://github.com/dryvist/claude-code-plugins/compare/v6.26.1...v6.26.2) (2026-10-24)
+
+
+### Bug Fixes
+
+* **jpe-ai-delegation:** route custom agents defined as Haiku to Codex ([#651](https://github.com/dryvist/claude-code-plugins/issues/651)) ([36504db](https://github.com/dryvist/claude-code-plugins/commit/36504db4737643da40fc8b5e901d736207ebdff0))
+
 ## [6.26.1](https://github.com/dryvist/claude-code-plugins/compare/v6.26.0...v6.26.1) (2026-10-24)
 
 
