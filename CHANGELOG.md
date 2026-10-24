@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.26.1](https://github.com/dryvist/claude-code-plugins/compare/v6.26.0...v6.26.1) (2026-10-24)
+
+
+### Bug Fixes
+
+* **jpe-ai-delegation:** log why Codex is not ready and allow a slower version probe ([#648](https://github.com/dryvist/claude-code-plugins/issues/648)) ([6fd4291](https://github.com/dryvist/claude-code-plugins/commit/6fd4291d4fc0f39beb84b47cb70f48ff04e1c28f))
+
 ## [6.26.0](https://github.com/dryvist/claude-code-plugins/compare/v6.25.0...v6.26.0) (2026-10-24)
 
 
