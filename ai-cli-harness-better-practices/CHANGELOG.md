@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.30.0](https://github.com/dryvist/claude-code-plugins/compare/ai-cli-harness-better-practices-v4.29.0...ai-cli-harness-better-practices-v4.30.0) (2026-10-24)
+
+
+### Features
+
+* **git-workflows:** retire sync-main and git-flow-next in favor of Git Town ([#653](https://github.com/dryvist/claude-code-plugins/issues/653)) ([3930fda](https://github.com/dryvist/claude-code-plugins/commit/3930fda284cbd998b2cedff739c6c5b8e38e4dfd))
+
 ## [4.29.0](https://github.com/dryvist/claude-code-plugins/compare/ai-cli-harness-better-practices-v4.28.0...ai-cli-harness-better-practices-v4.29.0) (2026-10-18)
 
 

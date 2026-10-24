@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.5.0](https://github.com/dryvist/claude-code-plugins/compare/git-workflows-v6.4.0...git-workflows-v6.5.0) (2026-10-24)
+
+
+### Features
+
+* **git-workflows:** retire sync-main and git-flow-next in favor of Git Town ([#653](https://github.com/dryvist/claude-code-plugins/issues/653)) ([3930fda](https://github.com/dryvist/claude-code-plugins/commit/3930fda284cbd998b2cedff739c6c5b8e38e4dfd))
+
 ## [6.4.0](https://github.com/dryvist/claude-code-plugins/compare/git-workflows-v6.3.0...git-workflows-v6.4.0) (2026-10-13)
 
 
