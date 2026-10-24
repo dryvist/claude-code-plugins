@@ -50,13 +50,16 @@ describe('policy', () => {
     expect(isRoutable({ model: 'haiku' })).toBe(false)
     expect(isRoutable({ name: 'worker' })).toBe(false)
     expect(isRoutable({ effort: 'high' })).toBe(false)
-    expect(codexArgv('read-only', 'xhigh', 'gpt-newer-luna')).toContain('gpt-newer-luna')
+    const argv = codexArgv('read-only', 'xhigh', 'gpt-newer-luna', '/tmp/final-message')
+    expect(argv).toContain('gpt-newer-luna')
+    expect(argv.slice(-3)).toEqual(['-o', '/tmp/final-message', '-'])
+    expect(() => codexArgv('read-only', 'xhigh', 'gpt-newer-luna', '')).toThrow()
   })
 
   test('Codex uses Luna at xhigh for standard and max for complex, plan and deep; Claude is Haiku xhigh only', () => {
-    for (const effort of ['high', 'xhigh', 'max']) expect(codexArgv('read-only', effort, 'gpt-newer-luna')).toContain(`model_reasoning_effort="${effort}"`)
-    for (const effort of ['low', 'medium', 'minimal', '']) expect(() => codexArgv('read-only', effort, 'gpt-newer-luna')).toThrow()
-    for (const model of ['gpt-newest-sol', 'gpt-newer-luna-mini', 'luna', 'latest', '', undefined]) expect(() => codexArgv('read-only', 'xhigh', model)).toThrow()
+    for (const effort of ['high', 'xhigh', 'max']) expect(codexArgv('read-only', effort, 'gpt-newer-luna', '/tmp/final-message')).toContain(`model_reasoning_effort="${effort}"`)
+    for (const effort of ['low', 'medium', 'minimal', '']) expect(() => codexArgv('read-only', effort, 'gpt-newer-luna', '/tmp/final-message')).toThrow()
+    for (const model of ['gpt-newest-sol', 'gpt-newer-luna-mini', 'luna', 'latest', '', undefined]) expect(() => codexArgv('read-only', 'xhigh', model, '/tmp/final-message')).toThrow()
     expect(DEFAULT_EFFORT).toBe('xhigh')
     expect(CODEX).toEqual({ standard: { effort: 'xhigh' }, complex: { effort: 'max' }, plan: { effort: 'max' }, deep: { effort: 'max' } })
     expect(['standard', 'complex', 'plan', 'deep'].filter((l) => isAdvisory(l as never))).toEqual(['plan', 'deep'])
@@ -64,23 +67,34 @@ describe('policy', () => {
   })
 })
 
-function world(on: any, w: { codex: boolean; quotaExitCode?: number; quotaMissing?: boolean; codexSays?: string; haikuSays?: string; cache?: boolean }) {
+function world(on: any, w: { codex: boolean; quotaExitCode?: number; quotaMissing?: boolean; codexSays?: string; codexExitCode?: number; mktempExitCode?: number; mktempStdout?: string; haikuSays?: string; cache?: boolean }) {
   mock.env(on, { HOME: '/home/test' })
   mock.clock(on)
   const seen: string[][] = []
+  const calls: { argv: string[]; stdin?: string }[] = []
+  const uiLogs: string[] = []
   const modelCalls: string[] = []
+  ;(seen as any).calls = calls
+  ;(seen as any).uiLogs = uiLogs
   ;(seen as any).modelCalls = modelCalls
   on('fs.exists', () => ({ value: w.cache !== false }))
-  on('fs.read', () => ({ value: CACHE }))
-  on('ui.log', () => ({ value: undefined }))
-  on('process.run', (_$: any, e: { argv: string[] }) => {
-    seen.push([...e.argv])
+  on('fs.read', (_$: any, e: { path: string }) => ({ value: e.path === '/tmp/ai-delegation-final-message' ? w.codexSays ?? '' : CACHE }))
+  on('ui.log', (...args: any[]) => {
+    uiLogs.push(args.map((value) => typeof value === 'string' ? value : JSON.stringify(value)).join(' '))
+    return { value: undefined }
+  })
+  on('process.run', (_$: any, e: { argv: string[]; init?: { stdin?: string } }) => {
+    const argv = [...e.argv]
+    seen.push(argv)
+    calls.push({ argv, stdin: e.init?.stdin })
+    if (argv[0] === 'mktemp') return { value: { ...RAN, exitCode: w.mktempExitCode ?? 0, stdout: w.mktempStdout ?? '/tmp/ai-delegation-final-message' } }
+    if (argv[0] === 'rm') return { value: RAN }
     if (e.argv[0] === 'codex' && e.argv[1] === '--version') return { value: { ...RAN, exitCode: w.codex ? 0 : 1 } }
-    if (e.argv[0] === 'codex-quota') {
+    if (argv[0] === 'codex-quota') {
       if (w.quotaMissing) return { value: { ...RAN, exitCode: 127 } }
       return { value: { ...RAN, exitCode: w.quotaExitCode ?? (w.codex ? 0 : 1) } }
     }
-    if (e.argv[0] === 'codex') return { value: { ...RAN, stdout: w.codexSays ?? '' } }
+    if (argv[0] === 'codex') return { value: { ...RAN, exitCode: w.codexExitCode ?? 0 } }
     return { value: RAN }
   })
   on('model.complete', (_$: any, e: { model: string }) => {
@@ -152,6 +166,10 @@ describe('router', () => {
     expect(reached).toBe(false)
     expect(JSON.stringify(r)).toContain('[routed: codex luna xhigh, class standard]')
     expect(seen.some((a) => a[0] === 'codex' && a.includes('workspace-write'))).toBe(true)
+    const calls = (seen as any).calls.filter((call: { argv: string[] }) => call.argv[0] === 'codex' && call.argv[1] === 'exec')
+    expect(calls).toHaveLength(2)
+    for (const call of calls) expect(call.argv.slice(-3)).toEqual(['-o', '/tmp/ai-delegation-final-message', '-'])
+    expect(calls[1].stdin).toBe('Summarise README.md')
     expect((seen as any).modelCalls).toEqual([])
   })
 
@@ -261,6 +279,37 @@ describe('router', () => {
     expect(routed).toMatchObject({ ...spawn, model: 'haiku', effort: 'xhigh' })
     expect((seen as any).modelCalls).toEqual([])
     expect(seen.filter((a) => a[0] === 'codex' && a[1] === 'exec')).toHaveLength(2)
+  })
+
+  test('empty final messages are logged with a reason before falling back to Haiku', async ($, on) => {
+    const seen = world(on, { codex: true, codexSays: '', haikuSays: 'standard' })
+    let routed: unknown
+    on('tool.call', { tool: 'Agent' }, (_$: any, e: unknown) => ((routed = e), { result: DONE }) as never)
+    await $.tool.call({ tool: 'Agent', description: 'read', prompt: 'Summarise README.md' } as never)
+    expect(routed).toMatchObject({ model: 'haiku', effort: 'xhigh' })
+    expect((seen as any).uiLogs.join('\n')).toContain('codex exec returned an empty final message')
+    expect((seen as any).calls.some((call: { argv: string[]; stdin?: string }) => call.argv[0] === 'tee' && call.stdin?.includes('codex failure: codex exec returned an empty final message'))).toBe(true)
+  })
+
+  test('nonzero Codex exits are logged with a reason before falling back to Haiku', async ($, on) => {
+    const seen = world(on, { codex: true, codexExitCode: 7, codexSays: 'unused', haikuSays: 'standard' })
+    let routed: unknown
+    on('tool.call', { tool: 'Agent' }, (_$: any, e: unknown) => ((routed = e), { result: DONE }) as never)
+    await $.tool.call({ tool: 'Agent', description: 'read', prompt: 'Summarise README.md' } as never)
+    expect(routed).toMatchObject({ model: 'haiku', effort: 'xhigh' })
+    expect((seen as any).uiLogs.join('\n')).toContain('codex exec exited with code 7')
+    expect((seen as any).calls.some((call: { argv: string[]; stdin?: string }) => call.argv[0] === 'tee' && call.stdin?.includes('codex failure: codex exec exited with code 7'))).toBe(true)
+  })
+
+  test('a failed temporary-file creation is logged without invoking Codex', async ($, on) => {
+    const seen = world(on, { codex: true, mktempExitCode: 1, mktempStdout: 'not-a-path', haikuSays: 'standard' })
+    let routed: unknown
+    on('tool.call', { tool: 'Agent' }, (_$: any, e: unknown) => ((routed = e), { result: DONE }) as never)
+    await $.tool.call({ tool: 'Agent', description: 'read', prompt: 'Summarise README.md' } as never)
+    expect(routed).toMatchObject({ model: 'haiku', effort: 'xhigh' })
+    expect(seen.some((a) => a[0] === 'codex' && a[1] === 'exec')).toBe(false)
+    expect((seen as any).uiLogs.join('\n')).toContain('could not create final-message file')
+    expect((seen as any).calls.some((call: { argv: string[] }) => call.argv[0] === 'rm')).toBe(false)
   })
 
   test('without a listed Luna model the spawn goes to Haiku xhigh, never the lead model', async ($, on) => {

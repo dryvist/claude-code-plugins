@@ -13,8 +13,9 @@ read-only sandbox as advisory workers, as do `Explore` and `Plan` spawns. When
 Codex is capped, unavailable or gives no answer, routable work goes to Haiku at
 `xhigh`, the last resort; no class resolves to Sonnet or Opus. Explicit `opus`
 and `sonnet` choices are preserved; explicit `haiku` is routed to Codex when
-ready. Worktree-isolated spawns go to Haiku because `codex exec` cannot run in
-the worktree.
+ready. Worktree-isolated spawns go to Haiku.
+
+Codex call contract: [model-delegation.md](https://github.com/dryvist/ai-llm-prompts/blob/main/auto-ai-agent/instructions/agentsmd/rules/on-demand/model-delegation.md).
 
 | Class | Codex | Last resort |
 | --- | --- | --- |
@@ -35,12 +36,6 @@ architecture, final verification, and user communication. Delegates execute
 bounded work and return evidence; they do not change product intent or claim
 completion on the lead's behalf. Keep private content and privileged actions on
 approved local routes. Shared model-tier guidance is in [model-tiers.md](../../../../ai-delegation/skills/premium-agent-orchestration/references/model-tiers.md).
-
-## Local Codex CLI
-
-Before a direct CLI run, check `command -v codex`, `codex login status`, and
-`codex-quota`; proceed only when quota exits 0. Use the configured route and
-Luna model at `xhigh` (standard) or `max` (complex, plan, deep).
 
 ## Repository and follow-up routing
 

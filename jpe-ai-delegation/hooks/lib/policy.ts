@@ -75,8 +75,9 @@ export function newestModel(cacheText: string, family: string): string | undefin
 
 // The only way to build a `codex exec` command. Throws for any model outside the Luna family or any effort
 // outside CODEX_EFFORTS; a missing model throws too, because `codex` would then fall back to its configured default.
-export function codexArgv(sandbox: Sandbox, effort: string, model: string | undefined): string[] {
+export function codexArgv(sandbox: Sandbox, effort: string, model: string | undefined, outputFile: string): string[] {
   if (!model || !model.endsWith(`-${CODEX_FAMILY}`)) throw new Error(`codex model must be the ${CODEX_FAMILY} family, got ${model ?? 'none'}`)
   if (!CODEX_EFFORTS.includes(effort)) throw new Error(`codex effort must be one of ${CODEX_EFFORTS.join(', ')}, got ${effort}`)
-  return ['codex', 'exec', '-s', sandbox, '-c', `model_reasoning_effort="${effort}"`, '--skip-git-repo-check', '-m', model, '-']
+  if (!outputFile) throw new Error('codex final-message output file is required')
+  return ['codex', 'exec', '-s', sandbox, '-c', `model_reasoning_effort="${effort}"`, '--skip-git-repo-check', '-m', model, '-o', outputFile, '-']
 }

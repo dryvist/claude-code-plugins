@@ -46,22 +46,9 @@ task-to-model table.
   Never cap the number of workers. Gate a large fan-out only on measured machine
   load (CPU and memory under 80% of capacity); spawn failures and quota or rate
   limits are the other signals (see Substrate Resilience below). Batch many
-  small related tasks into one Codex session as a task list.
+  small related tasks into one routed Agent call as a task list.
 
-## Worker output format
-
-Workers return **one line or a schema**, never a prose report:
-
-```text
-STATUS | ITEM | REASON(<15 words)
-```
-
-`STATUS` is a short fixed vocabulary (`DONE`/`FAIL`/`BLOCKED`), `ITEM`
-names what the line is about, `REASON` stays under 15 words. Use a JSON
-schema instead when the lead needs structured fields to merge
-programmatically. This measurably cuts output tokens with no accuracy loss
-— a memo-style report costs several times as much for the same
-information.
+Codex delegation call and result contract: [model-delegation.md](https://github.com/dryvist/ai-llm-prompts/blob/main/auto-ai-agent/instructions/agentsmd/rules/on-demand/model-delegation.md).
 
 ## Boundary and High-Risk Work
 
@@ -100,9 +87,8 @@ runnable yes/no check, the last one end-to-end verification.
 1. Confirm this is the orchestrator case (independent pieces exceeding one
    context, or a marathon multi-workstream coordination session) — otherwise,
    don't use this skill.
-2. Make each delegated task atomic: one outcome, named inputs, a yes/no
-   check, and a report file; keep sibling writes disjoint and sequence
-   dependencies.
+2. Make each delegated task atomic: one outcome, named inputs, and a yes/no
+   check; keep sibling writes disjoint and sequence dependencies.
 3. Probe the spawn substrate before the first fan-out; on failure, take the
    solo path.
 4. Route lookups and bulk reads to the router, then a scoped worker subagent.
