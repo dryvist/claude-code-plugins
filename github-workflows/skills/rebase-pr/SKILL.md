@@ -58,9 +58,8 @@ Otherwise continue — `BASE_BRANCH` is either a trunk repo's `main` or a git-fl
 repo's `develop`, both of which allow this workflow's direct push. Use
 `<BASE_BRANCH>` in every step below.
 
-> If the PR belongs to a stack, this workflow does not apply — rebasing and
-> force-pushing individual layers breaks stack sync. Use `gh stack`'s cascading
-> rebase instead; see `/pr-stacks`.
+> If the PR belongs to a stack, this workflow does not apply. Use
+> `/pr-stacks` to manage the stack.
 
 ## Prerequisite: Validate Rulesets
 
@@ -102,30 +101,14 @@ that skill.
 | All `reviewThreads.isResolved` | `true` | "Unresolved review threads — run `/finalize-pr` to fix" |
 | `reviewThreads.pageInfo.hasNextPage` | `false` | ">100 threads — paginate and re-verify" |
 
-## Step 2: Sync Base Branch
+## Step 2: Sync the PR Branch
 
-Replace `<BASE_BRANCH>` (from the Prerequisite) before running:
-
-```bash
-git fetch origin --force <BASE_BRANCH>
-git pull origin <BASE_BRANCH>
-```
-
-## Step 3: Fetch Branch, Create Worktree, Rebase
-
-For remote-only branches (Renovate, Dependabot, etc.):
+Use the existing PR worktree. For branch setup and PR-branch sync, follow the
+[Git Town rule](https://github.com/dryvist/ai-llm-prompts/blob/main/auto-ai-agent/instructions/agentsmd/rules/on-demand/git-flow.md).
+Then verify that the PR commits are ahead of `<BASE_BRANCH>`:
 
 ```bash
-# NEVER use FETCH_HEAD — always create from origin/{branch}
-git fetch origin --force {branch}
-git branch {branch} origin/{branch}
-```
-
-Work in the PR branch's worktree and rebase. Replace `<BASE_BRANCH>` before running:
-
-```bash
-git rebase origin/<BASE_BRANCH>
-git log --oneline origin/<BASE_BRANCH>..HEAD   # verify commits are ahead
+git log --oneline origin/<BASE_BRANCH>..HEAD
 ```
 
 ## Step 4: Force-Push and Wait for CI
@@ -220,9 +203,8 @@ Wait for CI with `gh pr checks <PR_NUMBER> --watch --interval 15`, then retry pu
 Skip Steps 1–6. Go directly to Step 7 cleanup.
 
 **merge-base --is-ancestor exits non-zero:**
-The base branch moved while you were waiting for CI. Return to Step 2, re-sync
-the base branch, re-fetch branch, re-rebase, force-push again, wait for CI,
-then retry merge.
+The base branch moved while you were waiting for CI. Follow the Git Town rule
+to sync the PR branch, then repeat the checks before retrying.
 
 ### Pre-Push Hook Auto-Fixes Files
 
@@ -243,7 +225,7 @@ This commonly occurs with release-please CHANGELOG.md entries that don't conform
 - **merge-pr** (github-workflows) — Merge after rebase-pr prepares the branch
 - **finalize-pr** (github-workflows) — Full PR finalization pipeline that may invoke rebase-pr
 - **promote-release** (github-workflows) — The develop → main merge-commit path this skill refuses to substitute for
-- **pr-stacks** (github-workflows) — stacked PRs use `gh stack` cascading rebase, not this per-branch rebase
-- **sync-main** (git-workflows) — Syncs the default branch, often needed before rebasing
+- **pr-stacks** (github-workflows) — stack submission and merge tracking
+- For branch creation and PR-branch sync, follow the [Git Town rule](https://github.com/dryvist/ai-llm-prompts/blob/main/auto-ai-agent/instructions/agentsmd/rules/on-demand/git-flow.md).
 - **pr-standards** (github-workflows) — PR creation and review standards
 - **gh-cli-patterns** (github-workflows) — Canonical gh CLI command shapes, placeholder convention, PR-readiness gate, default-branch detection

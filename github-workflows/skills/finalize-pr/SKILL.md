@@ -117,31 +117,14 @@ After completion, validate locally.
 
 #### Merge State and Conflicts
 
-If `mergeStateStatus` is `BEHIND`, update the PR branch before continuing.
-Never do this (or the local merge fallback below) on a `develop` → `main`
-promotion PR (head `develop`, base `main`): it would merge `main` into
-`develop`. Leave a promotion PR's branch as is.
-
-```bash
-gh pr update-branch <PR_NUMBER>
-```
-
-If that command fails, fetch the PR's base branch and merge it locally into the
-PR branch. Resolve conflicts if possible, then validate, commit, and push. If
-conflicts cannot be resolved, report them for user action. Re-fetch live PR
-state after the branch update; do not loop on `BEHIND` without updating it.
-
-```bash
-BASE_BRANCH=$(gh pr view <PR_NUMBER> --json baseRefName --jq '.baseRefName')
-git fetch origin "$BASE_BRANCH"
-git merge "origin/$BASE_BRANCH"
-```
+If `mergeStateStatus` is `BEHIND`, follow the
+[Git Town rule](https://github.com/dryvist/ai-llm-prompts/blob/main/auto-ai-agent/instructions/agentsmd/rules/on-demand/git-flow.md)
+to sync the PR branch before continuing. For a `develop` → `main` promotion PR, use `/promote-release`.
 
 Check if the PR has git conflicts (`mergeable` field). **`mergeable: MERGEABLE` means no git
-conflicts only** — it does NOT mean the PR is fully ready to merge. **If conflicts**: Fetch the
-PR's base branch (`gh pr view <PR_NUMBER> --json baseRefName --jq '.baseRefName'` — `develop` on
-git-flow repos, `main` on trunk repos or promotion PRs), attempt merge, report unresolvable
-conflicts for user. After resolution, validate locally. Full
+conflicts only** — it does NOT mean the PR is fully ready to merge. **If conflicts**: sync the
+PR branch using the Git Town rule above, resolve conflicts locally, and report any that remain.
+After resolution, validate locally. Full
 readiness verification (including `mergeStateStatus`, CI, CodeQL, review decision, threads) happens
 in Phase 3.
 
@@ -196,7 +179,7 @@ that skill.
 | All `reviewThreads.isResolved` | `true` | "Unresolved threads — run `/resolve-pr-threads`" |
 | `reviewThreads.pageInfo.hasNextPage` | `false` | "More than 100 threads — paginate manually and re-verify" |
 
-> **`mergeStateStatus` values that are NOT ready:** `BEHIND` (run `gh pr update-branch <PR_NUMBER>` in Phase 2),
+> **`mergeStateStatus` values that are NOT ready:** `BEHIND` (follow the Git Town rule from Phase 2),
 > `BLOCKED` (branch protection — could be required review, CodeQL, or required
 > status check), `DIRTY` (conflicts), `DRAFT`, `UNKNOWN` (GitHub computing),
 > `UNSTABLE` (checks failed or pending). Any of these = return to Phase 2.
@@ -279,4 +262,4 @@ For `all`/`org` modes: Phases 2-5 loop per PR, Phase 6 aggregates results.
 - pr-standards (github-workflows) — PR authoring and review standards
 - code-quality-standards (code-standards) — code quality guidelines applied during fixes
 - gh-cli-patterns (github-workflows) — canonical gh CLI command shapes, placeholder convention, PR gate, code-scanning query
-- git-flow-next (git-workflows) — Dedicated git-flow-next guide, worktree setup, and promotion steps
+- For branch creation and PR-branch sync, follow the [Git Town rule](https://github.com/dryvist/ai-llm-prompts/blob/main/auto-ai-agent/instructions/agentsmd/rules/on-demand/git-flow.md).

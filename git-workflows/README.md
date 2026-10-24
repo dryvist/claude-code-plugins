@@ -1,11 +1,10 @@
 # git-workflows
 
-Claude Code plugin for local git operations: default-branch synchronization,
-branching model, and troubleshooting.
+Claude Code plugin for local Git standards and troubleshooting.
 
-For worktree creation, use `superpowers:using-git-worktrees` guided by
-`.claude/rules/worktree-conventions.md`. For PR refresh and rebase-merge workflows, see the
-`github-workflows` plugin (`/refresh-repo`, `/rebase-pr`).
+For branch creation and PR-branch sync, follow the [Git Town rule](https://github.com/dryvist/ai-llm-prompts/blob/main/auto-ai-agent/instructions/agentsmd/rules/on-demand/git-flow.md).
+For PR readiness and rebase-merge workflows, see the `github-workflows` plugin
+(`/refresh-repo`, `/rebase-pr`).
 
 Session-continuity skills (`/wrap-up`, `/resume`, `/replan`,
 `/session-status`) are **not** in this plugin. They live in
@@ -16,8 +15,6 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for integration diagrams.
 
 ## Skills
 
-- **`/sync-main`** - Update the repo's default branch from remote (main, or develop on git-flow repos) and merge into current or all open PR branches (`all`)
-- **`/git-flow-next`** - Work with repositories using the git-flow-next branching model
 - **`/troubleshoot-rebase`** - Diagnose and recover from git rebase failures
 - **`/troubleshoot-precommit`** - Troubleshoot pre-commit hook failures and auto-fixes
 - **`/troubleshoot-worktree`** - Troubleshoot git worktree, branch, and refname issues
@@ -32,17 +29,14 @@ claude plugins add jacobpevans-cc-plugins/git-workflows
 ## Usage
 
 ```text
-/sync-main
-/sync-main all
 /troubleshoot-rebase
 ```
 
 ## Dependencies
 
 No plugin is invoked programmatically; every skill here uses `git` directly.
-Two cross-references are advisory only: `/troubleshoot-worktree` defers to
-`superpowers:using-git-worktrees`, and `/git-flow-next` points at
-`github-workflows:promote-release`.
+One cross-reference is advisory: `/troubleshoot-worktree` defers to
+`superpowers:using-git-worktrees`.
 
 Skills that *did* orchestrate across plugins — including the `/wrap-up` that
 used to live here — moved to `ai-cli-harness-better-practices`, and their

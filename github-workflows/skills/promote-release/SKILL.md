@@ -148,4 +148,4 @@ commit, which is already an ancestor of `main`. Do not open a PR to merge
 - gh-cli-patterns (github-workflows) — canonical gh CLI command shapes,
   placeholder convention, PR-readiness gate, and default-branch detection
 - pr-standards (github-workflows) — human-review label criteria and merge gate
-- git-flow-next (git-workflows) — git-flow guide and promotion planning
+- For branch creation and PR-branch sync, follow the [Git Town rule](https://github.com/dryvist/ai-llm-prompts/blob/main/auto-ai-agent/instructions/agentsmd/rules/on-demand/git-flow.md).

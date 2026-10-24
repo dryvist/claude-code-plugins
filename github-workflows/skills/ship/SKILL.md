@@ -66,9 +66,9 @@ git status --porcelain
    If one exists, do NOT create a duplicate: stop, report the competing PR,
    and offer consolidation (comment with your session id; earliest claim
    wins). Otherwise continue.
-1. Create branch if on the default branch (see /gh-cli-patterns Canonical
-   Default-Branch Detection): `git checkout -b {type}/{sid8}-{description}`
-   (derive from changes; `{sid8}` = session id per session-coordination)
+1. If on the default branch, follow the
+   [Git Town rule](https://github.com/dryvist/ai-llm-prompts/blob/main/auto-ai-agent/instructions/agentsmd/rules/on-demand/git-flow.md)
+   to create `{type}/{sid8}-{description}` (derive from changes; `{sid8}` = session id per session-coordination).
 2. Stage changes: `git add <relevant files>` (no `-A` — be selective)
 3. Commit with conventional commit message: `git commit -m "type: description"`
 4. **Simplify**: Invoke /simplify on all changes in the commit. If /simplify produces
@@ -251,4 +251,4 @@ PRs in the current repo (including unrelated ones).
 - resolve-pr-threads (github-workflows) — invoked internally via finalize-pr to resolve review threads
 - gh-cli-patterns (github-workflows) — canonical gh CLI command shapes, placeholder convention, PR gate, code-scanning query
 - pr-standards (github-workflows) — the canonical label application criteria and merge prohibition
-- git-flow-next (git-workflows) — Dedicated git-flow-next guide, worktree setup, and promotion steps
+- For branch creation and PR-branch sync, follow the [Git Town rule](https://github.com/dryvist/ai-llm-prompts/blob/main/auto-ai-agent/instructions/agentsmd/rules/on-demand/git-flow.md).

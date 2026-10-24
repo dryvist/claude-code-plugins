@@ -1,7 +1,7 @@
 {
   "name": "git-workflows",
   "version": "6.4.0",
-  "description": "Git main branch synchronization, troubleshooting, and post-merge cleanup workflows",
+  "description": "Local Git standards and troubleshooting",
   "author": {
     "name": "JacobPEvans"
   },
@@ -15,12 +15,10 @@
     "workflow"
   ],
   "skills": [
-    "./skills/sync-main",
     "./skills/troubleshoot-rebase",
     "./skills/troubleshoot-precommit",
     "./skills/troubleshoot-worktree",
     "./skills/pre-commit-architecture",
-    "./skills/git-flow-next",
     "./skills/git-workflow-standards"
   ]
 }

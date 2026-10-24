@@ -1,16 +1,11 @@
 ---
 name: git-workflow-standards
-description: >-
-  Use when managing branches, resolving merge conflicts, syncing with the
-  default branch, or working with worktrees. Covers both trunk repos (main)
-  and git-flow repos (develop) — see gh-cli-patterns (github-workflows) for
-  default-branch detection.
+description: Use for branch hygiene, merge conflict resolution, and worktree cleanup.
 ---
 
 # Git Workflow Standards
 
-Worktree setup and structure: see `superpowers:using-git-worktrees`. This
-skill covers what comes after the worktree exists.
+For branch creation and PR-branch sync, follow the [Git Town rule](https://github.com/dryvist/ai-llm-prompts/blob/main/auto-ai-agent/instructions/agentsmd/rules/on-demand/git-flow.md).
 
 Every branch with commits MUST have an associated PR.
 Orphaned branches must get a PR or be deleted.
@@ -27,37 +22,7 @@ worktree-paired branches — Git blocks removal of dirty worktrees — and
 
 ## Branch Hygiene
 
-- Sync the default branch daily: `git pull`
-- Long-running branches: rebase from the default branch weekly
-- Before PRs: ensure branch is on the latest default branch
-- Never branch from feature branches — always from the default branch fresh
-  (git-flow repos: `git flow feature start` branches from `develop`).
-  The one exception is layering a PR stack, and only via `gh stack`; see
-  `pr-stacks` (github-workflows).
-- Commit messages: conventional-commit prefixes only, no emoji (see `pr-standards`)
-
-### Git Flow Repositories
-
-For repositories using the Git Flow model (where the default branch is `develop`):
-
-1. **Target Branch**: All feature and bugfix branches must target and merge into `develop`.
-2. **Validation**: Once changes are merged into `develop`, they must be thoroughly validated against production/tested on `develop`.
-3. **End-of-Session Promotion**: At the end of every session, all changes on `develop` MUST be merged into `main` via `/promote-release`.
-   This promotion is a **mandatory, non-optional step**.
-4. **Planning Checklist**: You must explicitly add "Merge develop into main (promote release)" to your session to-do / plan checklist at the start of work.
-
-| Method | When |
-| --- | --- |
-| `git merge origin/<default>` | Default — preserves history, safer |
-| `git rebase origin/<default>` | Only if branch has NOT been pushed yet |
-
-Sync workflow (replace `<default>` with the repo's actual default branch — see
-`gh-cli-patterns`, github-workflows):
-
-```bash
-git pull origin <default>                                   # in the <default> worktree
-git merge origin/<default> --no-edit                       # in the feature worktree
-```
+- Use conventional-commit prefixes without emoji (see `pr-standards`).
 
 ## Merge Conflict Resolution
 
@@ -90,10 +55,8 @@ contradictions, or security-sensitive code.
 
 ## Related Skills
 
-- **sync-main** (git-workflows) — Syncs the repo's default branch and merges into current or all PR branches
-- **refresh-repo** (github-workflows) — PR status and default-branch sync
+- **refresh-repo** (github-workflows) — PR readiness and local default-branch fast-forward
 - **prune-branches** (github-workflows) — Stale branch and worktree cleanup
-- **pr-stacks** (github-workflows) — the sanctioned exception to "never branch from feature branches": layering a PR stack
+- **pr-stacks** (github-workflows) — PR stack submission and merge tracking
 - **gh-cli-patterns** (github-workflows) — Canonical default-branch detection (trunk vs git-flow)
 - **pr-standards** (github-workflows) — PR creation guards, issue linking, and review standards
-- **git-flow-next** (git-workflows) — Dedicated git-flow-next guide, worktree setup, and promotion steps

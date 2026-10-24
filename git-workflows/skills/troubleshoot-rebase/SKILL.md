@@ -11,32 +11,20 @@ Diagnose and recover from rebase failures. Invoke when standard rebase error han
 
 Check: `pwd`, `git status`, `git branch --show-current`, `git worktree list`, `gh pr view`.
 
-Resolve the repo's default branch before any rebase — it is the correct rebase
-target, not necessarily `main`:
-
-```bash
-DEFAULT_BRANCH=$(gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name')
-```
-
-`main` on a git-flow repo (default branch `develop`, see /gh-cli-patterns
-Canonical Default-Branch Detection in github-workflows) is never a rebase
-target — it takes merge commits only. Feature branches there rebase onto
-`develop`, and only a `hotfix/*` branch legitimately rebases onto `main`.
+For PR-branch sync, follow the [Git Town rule](https://github.com/dryvist/ai-llm-prompts/blob/main/auto-ai-agent/instructions/agentsmd/rules/on-demand/git-flow.md).
+Use `/refresh-repo` to fast-forward a local default branch.
 
 ## Error: Push Rejected (Non-Fast-Forward)
 
 Branches have diverged. First, confirm your current branch: `git branch --show-current`.
 
-- If this is a **feature branch** (for example `feature/foo`) and the push was rejected:
-  - Rebase onto the latest default branch: `git fetch origin --force && git rebase origin/<DEFAULT_BRANCH>`
-  - Then push your feature branch: `git push --force-with-lease origin HEAD`
+- If this is a PR branch and the push was rejected, sync it using the rule above,
+  then retry: `git push --force-with-lease origin HEAD`.
 
-- If you are on `<DEFAULT_BRANCH>` and are behind `origin/<DEFAULT_BRANCH>`, do
-  **not** rebase it:
-  - Update it: `git fetch origin --force && git reset --hard origin/<DEFAULT_BRANCH>`
-  - Then retry your original operation (for example, rebase your feature branch onto `<DEFAULT_BRANCH>` and push the feature branch).
+- If you are on the default branch and it is behind origin, run `/refresh-repo`
+  to fast-forward it, then retry your operation.
 
-If the rebase fails because `origin/<DEFAULT_BRANCH>` moved again, repeat: fetch, rebase your feature branch, then push with `--force-with-lease`.
+If the rebase fails because its parent moved, follow the Git Town rule above.
 
 ## Error: Repository Rule Violations
 
@@ -44,7 +32,8 @@ GH013 error about PR/status checks. This is NOT a block if commits are from appr
 
 **Causes**: CI not passing, reviews not approved, merge conflict.
 
-**Fix order**: Rebase feature -> push (triggers CI) -> wait for checks -> merge to `<DEFAULT_BRANCH>` -> push.
+**Fix order**: Follow the Git Town rule above for PR-branch sync, wait for checks,
+then continue through the canonical PR-readiness gate.
 
 Check: `gh pr view <branch> --json checks,reviews,statusCheckRollup`
 
@@ -60,8 +49,8 @@ Resolve: edit files, `git add <file>`, then `git rebase --continue` (or `--abort
 
 ## Error: Fast-Forward Merge Failed
 
-The default branch was updated between rebase and merge. Run
-`git fetch origin --force && git reset --hard origin/<DEFAULT_BRANCH>`, then retry.
+The default branch moved between operations. Run `/refresh-repo` to fast-forward
+the local default branch, then retry.
 
 ## Error: Feature Branch Push Failed
 
@@ -75,7 +64,6 @@ Fix: `git push --force-with-lease origin <branch>`
 
 Before retrying:
 
-- Default branch synced: `git diff origin/<DEFAULT_BRANCH> --stat` (should be empty)
 - Branch clean: `git status`
 - No rebase in progress: check `.git/rebase-{merge,apply}` doesn't exist
 - PR state: `gh pr view <branch> --json state`

@@ -54,9 +54,10 @@ repair it or route it to ESCALATE or HANDOFF.
 ## Merge method is not this skill's business
 
 `/merge-pr` resolves the merge method from the repo's capabilities and the
-branching model — see **git-flow-next** (git-workflows) for which method each
-target branch requires. This skill passes no method flag and states no
-default. A promotion PR into a production branch goes to `/promote-release`.
+target branch. For branch and PR-target conventions, follow the
+[Git Town rule](https://github.com/dryvist/ai-llm-prompts/blob/main/auto-ai-agent/instructions/agentsmd/rules/on-demand/git-flow.md).
+This skill passes no method flag and states no default. A promotion PR into a
+production branch goes to `/promote-release`.
 
 ## Scope
 
@@ -193,5 +194,4 @@ and [references/dispositions.md](references/dispositions.md).
 - **resolve-pr-threads** (github-workflows) — resolves all PR feedback using the [feedback ledger](../gh-cli-patterns/references/pr-feedback-ledger.md).
 - **gh-cli-patterns** (github-workflows) — canonical command shapes and queries.
 - **promote-release** (github-workflows) — the promotion path.
-- **git-flow-next** (git-workflows) — the branching model that decides merge method.
 - **prune-branches**, **refresh-repo** (github-workflows) — complementary cleanup.

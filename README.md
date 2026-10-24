@@ -55,11 +55,11 @@ Combined git security and workflow protection via PreToolUse hooks.
 
 ### git-workflows
 
-Git branch sync and local troubleshooting.
+Local Git standards and troubleshooting.
 
 - **Type**: Command/Skill-based plugin
-- **Skills**: `/sync-main`, `/git-flow-next`, `/git-workflow-standards`, `/troubleshoot-rebase`, `/troubleshoot-precommit`, `/troubleshoot-worktree`, `/pre-commit-architecture`
-- **Purpose**: Maintain linear git history and keep branches in sync
+- **Skills**: `/git-workflow-standards`, `/troubleshoot-rebase`, `/troubleshoot-precommit`, `/troubleshoot-worktree`, `/pre-commit-architecture`
+- **Purpose**: Local Git standards and troubleshooting. For branch creation and PR-branch sync, follow the [Git Town rule](https://github.com/dryvist/ai-llm-prompts/blob/main/auto-ai-agent/instructions/agentsmd/rules/on-demand/git-flow.md).
 
 ### github-workflows
 
@@ -232,7 +232,9 @@ plugin-name/
 See individual plugin READMEs for specific details. General contribution guidelines:
 
 1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/your-feature`
+2. Follow the
+   [Git Town rule](https://github.com/dryvist/ai-llm-prompts/blob/main/auto-ai-agent/instructions/agentsmd/rules/on-demand/git-flow.md)
+   to create a feature branch.
 3. Follow conventional commits: `feat(plugin): description`
 4. Sign your commits (GPG required)
 5. Submit a pull request

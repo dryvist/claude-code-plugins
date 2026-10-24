@@ -233,6 +233,6 @@ Every issue MUST have explicit, checkbox-format acceptance criteria.
 - **rebase-pr** (git-workflows) — Rebase-merge workflow for merging approved PRs
 - **finalize-pr** (github-workflows) — Finalize PR state before merging
 - **git-workflow-standards** (git-workflows) — Branch and worktree conventions that feed into PRs
-- **pr-stacks** (github-workflows) — stacked PRs: layering, cascading rebase, and stack-aware merge
+- **pr-stacks** (github-workflows) — stack submission and merge tracking
 - **gh-cli-patterns** (github-workflows) — Canonical default-branch detection (trunk vs git-flow)
-- **git-flow-next** (git-workflows) — Dedicated git-flow-next guide, worktree setup, and promotion steps
+- For branch creation and PR-branch sync, follow the [Git Town rule](https://github.com/dryvist/ai-llm-prompts/blob/main/auto-ai-agent/instructions/agentsmd/rules/on-demand/git-flow.md).
