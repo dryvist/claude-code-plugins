@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.10.0](https://github.com/dryvist/claude-code-plugins/compare/ai-delegation-v6.9.3...ai-delegation-v6.10.0) (2026-10-24)
+
+
+### Features
+
+* **jpe-ai-delegation:** read Codex results from -o and log every failure reason ([#646](https://github.com/dryvist/claude-code-plugins/issues/646)) ([aaf0455](https://github.com/dryvist/claude-code-plugins/commit/aaf0455886e5d45df57e05114ebc166a12bcc07b))
+
 ## [6.9.3](https://github.com/dryvist/claude-code-plugins/compare/ai-delegation-v6.9.2...ai-delegation-v6.9.3) (2026-10-18)
 
 
