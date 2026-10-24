@@ -1,5 +1,5 @@
 import type { EngineInterface, Register } from 'claude-code'
-import { CLASSIFIER, CODEX, CODEX_FAMILY, DEFAULT_EFFORT, JUDGE, LAST_RESORT, codexArgv, isAdvisory, isHaikuRoutable, isRoutable, isShellCAsk, newestModel, parseVerdict, pickLabel } from './lib/policy'
+import { CLASSIFIER, CODEX, CODEX_FAMILY, DEFAULT_EFFORT, JUDGE, LAST_RESORT, codexArgv, isAdvisory, isGenericType, isHaikuRoutable, isRoutable, isShellCAsk, newestModel, parseVerdict, pickLabel } from './lib/policy'
 import type { Label, Sandbox } from './lib/policy'
 
 type Engine = EngineInterface
@@ -115,7 +115,36 @@ async function runRoutedCodex($: Engine, e: AgentCall, route: string, effort: st
   } as never
 }
 
+async function customAgentDefinition($: Engine, type: string): Promise<{ model?: string; prompt: string } | undefined> {
+  if (!/^[\w:.-]+$/.test(type)) return undefined
+  const cwd = await $.session.cwd()
+  const home = await $.env.get('HOME')
+  const paths = [`${cwd}/.claude/agents/${type}.md`, ...(home ? [`${home}/.claude/agents/${type}.md`] : [])]
+
+  for (const path of paths) {
+    if (!(await $.fs.exists(path))) continue
+    const text = (await $.fs.read(path)) as string
+    const frontmatter = text.match(/^---\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/)
+    const model = frontmatter?.[1].match(/^model:\s*(?:"([^"]*)"|'([^']*)'|([^\s#]+))(?:\s+#.*)?$/m)
+    return { model: model?.[1] ?? model?.[2] ?? model?.[3], prompt: frontmatter ? text.slice(frontmatter[0].length).trim() : '' }
+  }
+
+  return undefined
+}
+
 async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknown>): Promise<unknown> {
+  if (e.subagent_type && !isGenericType(e) && !e.model) {
+    const definition = await customAgentDefinition($, e.subagent_type)
+    if (definition?.model === 'haiku') {
+      if (e.isolation || !(await codexReady($))) return next(e as never)
+      const prompt = definition.prompt ? `Custom agent instructions:\n${definition.prompt}\n\nTask:\n${e.prompt}` : e.prompt
+      const result = await runRoutedCodex($, { ...e, prompt }, `custom ${e.subagent_type} haiku`, CODEX.standard.effort, 'workspace-write', 'custom haiku agent')
+      if (result) return result
+      $.ui.log(`ai-delegation: Codex gave no answer for custom ${e.subagent_type} haiku, passing it through`)
+      return next(e as never)
+    }
+  }
+
   if (isHaikuRoutable(e)) {
     if (e.isolation || !(await codexReady($))) return next(e as never)
     const result = await runRoutedCodex($, e, 'standard', CODEX.standard.effort, 'workspace-write', 'explicit haiku')

@@ -67,7 +67,7 @@ describe('policy', () => {
   })
 })
 
-function world(on: any, w: { codex: boolean; quotaExitCode?: number; quotaMissing?: boolean; codexSays?: string; codexExitCode?: number; mktempExitCode?: number; mktempStdout?: string; haikuSays?: string; cache?: boolean }) {
+function world(on: any, w: { codex: boolean; quotaExitCode?: number; quotaMissing?: boolean; codexSays?: string; codexExitCode?: number; mktempExitCode?: number; mktempStdout?: string; haikuSays?: string; cache?: boolean; agentFiles?: Record<string, string> }) {
   mock.env(on, { HOME: '/home/test' })
   mock.clock(on)
   const seen: string[][] = []
@@ -77,8 +77,10 @@ function world(on: any, w: { codex: boolean; quotaExitCode?: number; quotaMissin
   ;(seen as any).calls = calls
   ;(seen as any).uiLogs = uiLogs
   ;(seen as any).modelCalls = modelCalls
-  on('fs.exists', () => ({ value: w.cache !== false }))
-  on('fs.read', (_$: any, e: { path: string }) => ({ value: e.path === '/tmp/ai-delegation-final-message' ? w.codexSays ?? '' : CACHE }))
+  on('session.cwd', () => ({ value: '/workspace' }))
+  const agentFile = (path: string) => Object.entries(w.agentFiles ?? {}).find(([name]) => path.endsWith(`/.claude/agents/${name}.md`))?.[1]
+  on('fs.exists', (_$: any, e: { path: string }) => ({ value: e.path.endsWith('/models_cache.json') ? w.cache !== false : agentFile(e.path) !== undefined }))
+  on('fs.read', (_$: any, e: { path: string }) => ({ value: e.path === '/tmp/ai-delegation-final-message' ? w.codexSays ?? '' : e.path.endsWith('/models_cache.json') ? CACHE : agentFile(e.path) ?? '' }))
   on('ui.log', (...args: any[]) => {
     uiLogs.push(args.map((value) => typeof value === 'string' ? value : JSON.stringify(value)).join(' '))
     return { value: undefined }
@@ -341,6 +343,45 @@ describe('router', () => {
     expect((routed as any).model).toBeUndefined()
     expect((routed as any).effort).toBeUndefined()
     expect(seen).toEqual([])
+  })
+
+  test('a custom Haiku agent routes to Codex with its instructions', async ($, on) => {
+    const seen = world(on, {
+      codex: true,
+      codexSays: 'task result',
+      agentFiles: { 'pr-shepherd': '---\nname: pr-shepherd\nmodel: haiku\n---\nFollow the pull request review rubric.' },
+    })
+    let reached = false
+    on('tool.call', { tool: 'Agent' }, () => ((reached = true), { result: DONE }) as never)
+    const r: any = await $.tool.call({ tool: 'Agent', description: 'review', prompt: 'Review the change.', subagent_type: 'pr-shepherd' } as never)
+    const calls = (seen as any).calls as { argv: string[]; stdin?: string }[]
+    const codex = calls.find((call) => call.argv[0] === 'codex' && call.argv[1] === 'exec')
+    expect(reached).toBe(false)
+    expect(JSON.stringify(r)).toContain('[routed: codex luna xhigh, custom haiku agent]')
+    expect(codex?.argv).toContain('workspace-write')
+    expect(codex?.stdin).toContain('Follow the pull request review rubric.')
+    expect(codex?.stdin).toContain('Review the change.')
+    expect(calls.some((call) => call.argv[0] === 'tee' && call.stdin?.includes('route: custom pr-shepherd haiku -> codex luna xhigh (workspace-write)'))).toBe(true)
+  })
+
+  test('a custom Opus agent passes through untouched while Codex is ready', async ($, on) => {
+    const seen = world(on, { codex: true, agentFiles: { 'pr-shepherd': '---\nmodel: opus\n---\nKeep the review focused.' } })
+    let routed: unknown
+    on('tool.call', { tool: 'Agent' }, (_$: any, e: unknown) => ((routed = e), { result: DONE }) as never)
+    const spawn = { tool: 'Agent', description: 'review', prompt: 'Review the change.', subagent_type: 'pr-shepherd' }
+    await $.tool.call(spawn as never)
+    expect(routed).toMatchObject(spawn)
+    expect(seen.some((a) => a[0] === 'codex' && a[1] === 'exec')).toBe(false)
+  })
+
+  test('a custom agent with no definition passes through untouched while Codex is ready', async ($, on) => {
+    const seen = world(on, { codex: true })
+    let routed: unknown
+    on('tool.call', { tool: 'Agent' }, (_$: any, e: unknown) => ((routed = e), { result: DONE }) as never)
+    const spawn = { tool: 'Agent', description: 'review', prompt: 'Review the change.', subagent_type: 'pr-shepherd' }
+    await $.tool.call(spawn as never)
+    expect(routed).toMatchObject(spawn)
+    expect(seen.some((a) => a[0] === 'codex' && a[1] === 'exec')).toBe(false)
   })
 
   test('worktree isolation goes to Haiku xhigh without running Codex', async ($, on) => {
