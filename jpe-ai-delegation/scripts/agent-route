@@ -9,24 +9,13 @@ fail() {
 }
 
 if (($# == 0)); then
-  fail 2 'usage: agent-route <code|private|other> [--zcode available|exhausted]'
+  fail 2 'usage: agent-route <code|private|other>'
 fi
 
 kind=$1
 shift
-zcode_quota=exhausted
 
-if (($# > 0)); then
-  if (($# != 2)) || [[ $1 != --zcode ]]; then
-    fail 2 'usage: agent-route <code|private|other> [--zcode available|exhausted]'
-  fi
-  zcode_quota=$2
-fi
-
-case "$zcode_quota" in
-  available|exhausted) ;;
-  *) fail 2 'ZCode availability must be available or exhausted' ;;
-esac
+(($# == 0)) || fail 2 'usage: agent-route <code|private|other>'
 
 command -v jq >/dev/null 2>&1 || fail 1 'jq is required'
 
@@ -56,14 +45,10 @@ else
   codex_quota=exhausted
 fi
 
-visibility="$(jq -r --arg kind "$kind" '.kinds[$kind].visibility' "$ladder_file")"
 while IFS=$'\t' read -r executor gate; do
   case "$gate" in
     codex)
       [[ $codex_quota == available ]] || continue
-      ;;
-    zcode)
-      [[ $zcode_quota == available && $visibility == public ]] || continue
       ;;
     always) ;;
     *) fail 1 'invalid ladder gate' ;;

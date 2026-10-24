@@ -4,9 +4,8 @@
       "visibility": "public",
       "rungs": [
         { "name": "Codex", "gate": "codex" },
-        { "name": "ZCode", "gate": "zcode" },
         { "name": "OpenCode Go", "gate": "always" },
-        { "name": "Haiku high", "gate": "always" }
+        { "name": "Haiku xhigh", "gate": "always" }
       ]
     },
     "private": {
@@ -14,14 +13,14 @@
       "rungs": [
         { "name": "Codex", "gate": "codex" },
         { "name": "OpenCode Go", "gate": "always" },
-        { "name": "Haiku high", "gate": "always" }
+        { "name": "Haiku xhigh", "gate": "always" }
       ]
     },
     "other": {
       "visibility": "private",
       "rungs": [
         { "name": "Codex", "gate": "codex" },
-        { "name": "Haiku high", "gate": "always" }
+        { "name": "Haiku xhigh", "gate": "always" }
       ]
     }
   }

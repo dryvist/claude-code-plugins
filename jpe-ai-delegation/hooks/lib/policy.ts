@@ -6,24 +6,25 @@ export type Sandbox = 'read-only' | 'workspace-write'
 
 export const LABELS: readonly Label[] = ['standard', 'complex', 'plan', 'deep']
 
-// Operator rule: Codex runs only the Luna family at xhigh. `codexArgv` enforces the family and efforts.
+// Operator rule: Codex runs only the Luna family at high, xhigh or max. `codexArgv` enforces the family and efforts.
 export const CODEX_FAMILY = 'luna'
 export const CODEX_EFFORTS: readonly string[] = ['high', 'xhigh', 'max']
 export const DEFAULT_EFFORT = 'xhigh'
 
-// Lowest tier unless the task gives an explicit reason. Codex has quota: Luna takes standard and complex work.
-// Planning and judgment stay on Claude, so they have no Codex entry.
-export const CODEX: Partial<Record<Label, { effort: string }>> = {
+// Codex Luna takes every class: xhigh for standard work, max for complex, plan and deep work. Plan and deep run as
+// advisory workers (read-only sandbox), so no class resolves to a Claude subagent while Codex has quota.
+export const CODEX: Record<Label, { effort: string }> = {
   standard: { effort: 'xhigh' },
-  complex: { effort: 'xhigh' },
+  complex: { effort: 'max' },
+  plan: { effort: 'max' },
+  deep: { effort: 'max' },
 }
 
-export const CLAUDE = {
-  standard: { model: 'haiku', effort: 'xhigh' },
-  complex: { model: 'haiku', effort: 'xhigh' },
-  plan: { model: 'sonnet', effort: 'high' },
-  deep: { model: 'sonnet', effort: 'high' },
-} as const
+// Plan and deep judgment is advice: it never writes.
+export const isAdvisory = (label: Label): boolean => label === 'plan' || label === 'deep'
+
+// Claude is the last resort only: Haiku, never Sonnet or Opus.
+export const LAST_RESORT = { model: 'haiku', effort: 'xhigh' } as const
 
 export const CLASSIFIER = `Classify the delegated task into one word. Default to standard unless there is an explicit reason for another.
 standard: bounded, mechanical or well-specified work, including most implementation, reads and triage.

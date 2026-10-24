@@ -1,5 +1,5 @@
 import { describe, expect, mock, test } from 'claude-code/testing'
-import { CLAUDE, CODEX, DEFAULT_EFFORT, codexArgv, isRoutable, isShellCAsk, newestModel, parseVerdict, pickLabel } from './lib/policy'
+import { CODEX, DEFAULT_EFFORT, LAST_RESORT, codexArgv, isAdvisory, isRoutable, isShellCAsk, newestModel, parseVerdict, pickLabel } from './lib/policy'
 
 const CORE_ASK = { decision: 'ask', reason: 'This command passes a shell -c script that runs rm, and Claude Code could not check the script for dangerous removals.' }
 const RAN = { exitCode: 0, stdout: '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false }
@@ -53,18 +53,14 @@ describe('policy', () => {
     expect(codexArgv('read-only', 'xhigh', 'gpt-newer-luna')).toContain('gpt-newer-luna')
   })
 
-  test('Codex uses Luna at xhigh for standard and complex; Claude fallbacks match policy', () => {
+  test('Codex uses Luna at xhigh for standard and max for complex, plan and deep; Claude is Haiku xhigh only', () => {
     for (const effort of ['high', 'xhigh', 'max']) expect(codexArgv('read-only', effort, 'gpt-newer-luna')).toContain(`model_reasoning_effort="${effort}"`)
     for (const effort of ['low', 'medium', 'minimal', '']) expect(() => codexArgv('read-only', effort, 'gpt-newer-luna')).toThrow()
     for (const model of ['gpt-newest-sol', 'gpt-newer-luna-mini', 'luna', 'latest', '', undefined]) expect(() => codexArgv('read-only', 'xhigh', model)).toThrow()
     expect(DEFAULT_EFFORT).toBe('xhigh')
-    expect(CODEX.standard!.effort).toBe('xhigh')
-    expect(CODEX.complex!.effort).toBe('xhigh')
-    expect(Object.keys(CODEX)).toEqual(['standard', 'complex'])
-    expect(CLAUDE.standard).toEqual({ model: 'haiku', effort: 'xhigh' })
-    expect(CLAUDE.complex).toEqual({ model: 'haiku', effort: 'xhigh' })
-    expect(CLAUDE.plan).toEqual({ model: 'sonnet', effort: 'high' })
-    expect(CLAUDE.deep).toEqual({ model: 'sonnet', effort: 'high' })
+    expect(CODEX).toEqual({ standard: { effort: 'xhigh' }, complex: { effort: 'max' }, plan: { effort: 'max' }, deep: { effort: 'max' } })
+    expect(['standard', 'complex', 'plan', 'deep'].filter((l) => isAdvisory(l as never))).toEqual(['plan', 'deep'])
+    expect(LAST_RESORT).toEqual({ model: 'haiku', effort: 'xhigh' })
   })
 })
 
@@ -135,23 +131,18 @@ describe('permission judge', () => {
 })
 
 describe('router', () => {
-  test('without Codex a plan task goes to Sonnet at high effort', async ($, on) => {
-    world(on, { codex: false, haikuSays: 'plan' })
-    let routed: { model?: string; effort?: string } = {}
-    on('tool.call', { tool: 'Agent' }, (_$: any, e: any) => ((routed = e), { result: DONE }) as never)
-    await $.tool.call({ tool: 'Agent', description: 'design', prompt: 'Plan the migration of the auth layer.' } as never)
-    expect(routed.model).toBe('sonnet')
-    expect(routed.effort).toBe('high')
-  })
-
-  test('an unclear classification defaults to Haiku xhigh when Codex is unavailable', async ($, on) => {
-    world(on, { codex: false, haikuSays: 'hmm' })
-    let routed: { model?: string; effort?: string } = {}
-    on('tool.call', { tool: 'Agent' }, (_$: any, e: any) => ((routed = e), { result: DONE }) as never)
-    await $.tool.call({ tool: 'Agent', description: 'read', prompt: 'Summarise README.md' } as never)
-    expect(routed.model).toBe('haiku')
-    expect(routed.effort).toBe('xhigh')
-  })
+  for (const [label, prompt] of [['standard', 'Summarise README.md'], ['complex', 'Implement the coordinated update.'], ['plan', 'Plan the migration of the auth layer.'], ['deep', 'Assess the trust boundaries.']]) {
+    test(`without Codex a ${label} task goes to Haiku xhigh with no classifier call, never Sonnet or Opus`, async ($, on) => {
+      const seen = world(on, { codex: false, haikuSays: label })
+      let routed: { model?: string; effort?: string } = {}
+      on('tool.call', { tool: 'Agent' }, (_$: any, e: any) => ((routed = e), { result: DONE }) as never)
+      await $.tool.call({ tool: 'Agent', description: label, prompt } as never)
+      expect(routed.model).toBe('haiku')
+      expect(routed.effort).toBe('xhigh')
+      expect((seen as any).modelCalls).toEqual([])
+      expect(seen.some((a) => a[0] === 'codex' && a[1] === 'exec')).toBe(false)
+    })
+  }
 
   test('Codex-ready standard work runs on Codex Luna xhigh', async ($, on) => {
     const seen = world(on, { codex: true, codexSays: 'standard' })
@@ -164,33 +155,34 @@ describe('router', () => {
     expect((seen as any).modelCalls).toEqual([])
   })
 
-  test('complex Codex work uses xhigh', async ($, on) => {
+  test('complex Codex work uses max after an xhigh classification', async ($, on) => {
     const seen = world(on, { codex: true, codexSays: 'complex' })
     on('tool.call', { tool: 'Agent' }, () => ({ result: DONE }) as never)
-    await $.tool.call({ tool: 'Agent', description: 'multi-file change', prompt: 'Implement the coordinated update.' } as never)
+    const r: any = await $.tool.call({ tool: 'Agent', description: 'multi-file change', prompt: 'Implement the coordinated update.' } as never)
+    expect(JSON.stringify(r)).toContain('[routed: codex luna max, class complex]')
     const runs = seen.filter((a) => a[0] === 'codex' && a[1] === 'exec')
-    expect(runs.length).toBe(2)
-    for (const argv of runs) expect(argv.join(' ')).toContain('model_reasoning_effort="xhigh"')
+    expect(runs.map((a) => a.join(' ').match(/model_reasoning_effort="(\w+)"/)?.[1])).toEqual(['xhigh', 'max'])
+    expect(runs[1]).toContain('workspace-write')
   })
 
-  test('plan stays on Sonnet when Codex is ready and classifier is read-only', async ($, on) => {
-    const seen = world(on, { codex: true, codexSays: 'plan' })
-    let routed: { model?: string; effort?: string } = {}
-    on('tool.call', { tool: 'Agent' }, (_$: any, e: any) => ((routed = e), { result: DONE }) as never)
-    await $.tool.call({ tool: 'Agent', description: 'design', prompt: 'Plan the migration of the auth layer.' } as never)
-    expect(routed.model).toBe('sonnet')
-    expect(routed.effort).toBe('high')
-    expect(seen.filter((a) => a[0] === 'codex' && a[1] === 'exec').every((a) => a.includes('read-only') && a.includes('gpt-newer-luna'))).toBe(true)
-  })
-
-  test('deep work uses Sonnet at high effort', async ($, on) => {
-    const seen = world(on, { codex: true, codexSays: 'deep' })
-    let routed: { model?: string; effort?: string } = {}
-    on('tool.call', { tool: 'Agent' }, (_$: any, e: any) => ((routed = e), { result: DONE }) as never)
-    await $.tool.call({ tool: 'Agent', description: 'security review', prompt: 'Assess the trust boundaries.' } as never)
-    expect(routed.model).toBe('sonnet')
-    expect(routed.effort).toBe('high')
-  })
+  for (const label of ['plan', 'deep']) {
+    test(`${label} work runs on Codex Luna max as a read-only advisory worker`, async ($, on) => {
+      const seen = world(on, { codex: true, codexSays: label })
+      let reached = false
+      on('tool.call', { tool: 'Agent' }, () => ((reached = true), { result: DONE }) as never)
+      const r: any = await $.tool.call({ tool: 'Agent', description: label, prompt: 'Assess the trust boundaries.' } as never)
+      expect(reached).toBe(false)
+      expect(JSON.stringify(r)).toContain(`[routed: codex luna max, class ${label}]`)
+      const runs = seen.filter((a) => a[0] === 'codex' && a[1] === 'exec')
+      expect(runs).toHaveLength(2)
+      for (const argv of runs) {
+        expect(argv).toContain('read-only')
+        expect(argv).toContain('gpt-newer-luna')
+      }
+      expect(runs[1].join(' ')).toContain('model_reasoning_effort="max"')
+      expect((seen as any).modelCalls).toEqual([])
+    })
+  }
 
   test('executor is routable like general-purpose', async ($, on) => {
     const seen = world(on, { codex: true, codexSays: 'task result' })
@@ -260,38 +252,47 @@ describe('router', () => {
     expect(seen).toEqual([])
   })
 
-  test('ready Codex classification no-answer defaults to standard without Haiku and passes failed work through', async ($, on) => {
+  test('Codex with no answer falls back to Haiku xhigh without a classifier call', async ($, on) => {
     const seen = world(on, { codex: true, haikuSays: 'plan' })
     let routed: unknown
     on('tool.call', { tool: 'Agent' }, (_$: any, e: unknown) => ((routed = e), { result: DONE }) as never)
     const spawn = { tool: 'Agent', description: 'read', prompt: 'Summarise README.md' }
     await $.tool.call(spawn as never)
-    expect(routed).toMatchObject(spawn)
-    expect((routed as any).model).toBeUndefined()
+    expect(routed).toMatchObject({ ...spawn, model: 'haiku', effort: 'xhigh' })
     expect((seen as any).modelCalls).toEqual([])
     expect(seen.filter((a) => a[0] === 'codex' && a[1] === 'exec')).toHaveLength(2)
   })
 
-  test('without a listed Luna model the original spawn passes through without Haiku', async ($, on) => {
+  test('without a listed Luna model the spawn goes to Haiku xhigh, never the lead model', async ($, on) => {
     const seen = world(on, { codex: true, codexSays: 'standard', haikuSays: 'standard', cache: false })
     let routed: unknown
     on('tool.call', { tool: 'Agent' }, (_$: any, e: unknown) => ((routed = e), { result: DONE }) as never)
     const spawn = { tool: 'Agent', description: 'read', prompt: 'Summarise README.md' }
     await $.tool.call(spawn as never)
-    expect(routed).toMatchObject(spawn)
+    expect(routed).toMatchObject({ ...spawn, model: 'haiku', effort: 'xhigh' })
     expect(seen.some((a) => a[0] === 'codex' && a[1] === 'exec')).toBe(false)
     expect((seen as any).modelCalls).toEqual([])
   })
 
-  test('worktree isolation stays on Claude while classification uses a read-only sandbox', async ($, on) => {
+  test('a named roster agent with no model passes through untouched while Codex is ready', async ($, on) => {
+    const seen = world(on, { codex: true, codexSays: 'standard' })
+    let routed: unknown
+    on('tool.call', { tool: 'Agent' }, (_$: any, e: unknown) => ((routed = e), { result: DONE }) as never)
+    const spawn = { tool: 'Agent', description: 'review', prompt: 'Review the diff.', subagent_type: 'pr-shepherd' }
+    await $.tool.call(spawn as never)
+    expect(routed).toMatchObject(spawn)
+    expect((routed as any).model).toBeUndefined()
+    expect((routed as any).effort).toBeUndefined()
+    expect(seen).toEqual([])
+  })
+
+  test('worktree isolation goes to Haiku xhigh without running Codex', async ($, on) => {
     const seen = world(on, { codex: true, codexSays: 'complex' })
     let routed: { model?: string; effort?: string; isolation?: string } = {}
     on('tool.call', { tool: 'Agent' }, (_$: any, e: any) => ((routed = e), { result: DONE }) as never)
     await $.tool.call({ tool: 'Agent', description: 'isolated edit', prompt: 'Change the isolated worktree.', isolation: 'worktree' } as never)
     expect(routed).toMatchObject({ model: 'haiku', effort: 'xhigh', isolation: 'worktree' })
-    const runs = seen.filter((a) => a[0] === 'codex' && a[1] === 'exec')
-    expect(runs).toHaveLength(1)
-    expect(runs[0]).toContain('read-only')
+    expect(seen.some((a) => a[0] === 'codex' && a[1] === 'exec')).toBe(false)
   })
 
   test('Codex quota exhaustion routes standard work to Haiku xhigh', async ($, on) => {
@@ -321,7 +322,7 @@ describe('session startup', () => {
     const matches = sections.filter((section: { id: string }) => section.id === 'jpe-ai-delegation:codex-quota')
     expect(matches).toHaveLength(1)
     expect(matches[0].scope).toBe('session')
-    expect(matches[0].text).toBe(`${status}\nDelegates run on Codex Luna xhigh while available; never Haiku then.`)
+    expect(matches[0].text).toBe(`${status}\nDelegates run on Codex Luna while available (xhigh standard, max complex, plan, deep); when capped, Haiku xhigh. Never Sonnet or Opus.`)
     expect(matches[0].text.length).toBeLessThan(200)
   }
 
