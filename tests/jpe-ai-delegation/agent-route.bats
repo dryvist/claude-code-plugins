@@ -17,26 +17,30 @@ assert_route() {
   [ "$output" = "$expected" ]
 }
 
-@test "Codex exhaustion with ZCode exhausted follows each kind's fallback" {
-  assert_route 'OpenCode Go' exhausted code --zcode exhausted
-  assert_route 'Haiku high' exhausted other --zcode exhausted
-  assert_route 'OpenCode Go' exhausted private --zcode exhausted
+@test "Codex exhaustion follows each kind's fallback" {
+  assert_route 'OpenCode Go' exhausted code
+  assert_route 'OpenCode Go' exhausted private
+  assert_route 'Haiku xhigh' exhausted other
 }
 
 @test "Codex availability selects Codex for every kind" {
-  assert_route 'Codex' available code --zcode exhausted
-  assert_route 'Codex' available other --zcode exhausted
-  assert_route 'Codex' available private --zcode exhausted
+  assert_route 'Codex' available code
+  assert_route 'Codex' available other
+  assert_route 'Codex' available private
 }
 
-@test "ZCode availability selects its rung only for public code" {
-  assert_route 'ZCode' exhausted code --zcode available
-  assert_route 'Haiku high' exhausted other --zcode available
-  assert_route 'OpenCode Go' exhausted private --zcode available
+@test "ZCode is not a rung and its flag is rejected" {
+  run grep -ri zcode "$REPO_ROOT/jpe-ai-delegation/skills/delegation-ladder/ladder.json"
+  [ "$status" -eq 1 ]
+
+  run env AGENT_ROUTE_CODEX_QUOTA=exhausted agent-route code --zcode available
+  [ "$status" -eq 2 ]
+  [ "$output" = 'agent-route: usage: agent-route <code|private|other>' ]
 }
 
-@test "ZCode availability defaults to exhausted" {
-  assert_route 'OpenCode Go' exhausted code
+@test "no ladder names Sonnet or Opus" {
+  run grep -riE 'sonnet|opus' "$REPO_ROOT/jpe-ai-delegation/skills/delegation-ladder/ladder.json"
+  [ "$status" -eq 1 ]
 }
 
 @test "without an override the command uses codex-quota's exit status" {
@@ -47,11 +51,11 @@ exit "$CODEX_QUOTA_EXIT"
 EOF
   chmod +x "$BATS_TEST_TMPDIR/bin/codex-quota"
 
-  run env -u AGENT_ROUTE_CODEX_QUOTA CODEX_QUOTA_EXIT=0 PATH="$BATS_TEST_TMPDIR/bin:$PATH" agent-route code --zcode exhausted
+  run env -u AGENT_ROUTE_CODEX_QUOTA CODEX_QUOTA_EXIT=0 PATH="$BATS_TEST_TMPDIR/bin:$PATH" agent-route code
   [ "$status" -eq 0 ]
   [ "$output" = 'Codex' ]
 
-  run env -u AGENT_ROUTE_CODEX_QUOTA CODEX_QUOTA_EXIT=1 PATH="$BATS_TEST_TMPDIR/bin:$PATH" agent-route code --zcode exhausted
+  run env -u AGENT_ROUTE_CODEX_QUOTA CODEX_QUOTA_EXIT=1 PATH="$BATS_TEST_TMPDIR/bin:$PATH" agent-route code
   [ "$status" -eq 0 ]
   [ "$output" = 'OpenCode Go' ]
 }

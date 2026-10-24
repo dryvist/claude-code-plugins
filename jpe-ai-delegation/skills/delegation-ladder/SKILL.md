@@ -10,39 +10,33 @@ caller. Classify task content before selecting a route:
 
 | Kind | Ladder | Use |
 | --- | --- | --- |
-| `code` | Codex -> ZCode -> OpenCode Go -> Haiku high | Public implementation and code review |
-| `private` | Codex -> OpenCode Go -> Haiku high | Private material |
-| `other` | Codex -> Haiku high | Triage, bulk reads, summaries, judgment |
+| `code` | Codex -> OpenCode Go -> Haiku xhigh | Implementation and code review |
+| `private` | Codex -> OpenCode Go -> Haiku xhigh | Private material |
+| `other` | Codex -> Haiku xhigh | Triage, bulk reads, summaries, judgment |
 
-Run `agent-route <code|private|other> [--zcode available|exhausted]` from the
-plugin root. ZCode defaults to exhausted. Codex qualifies while `codex-quota`
-exits 0; use the first eligible rung and stop when none qualifies. Treat a
-Z.ai quota or 429 error as exhausted for the rest of the session.
-
-ZCode is limited to public repositories owned by `dryvist`, `JacobPEvans`, or
-`JacobPEvans-personal` that also appear in the installed client subset. Treat
-a missing repository, unknown visibility, absent owner approval, or missing
-local dispatcher approval as private. Never send secrets, credentials, private
-repository content, live infrastructure work, or privileged actions to ZCode.
-Review task text, attachments, diffs, logs, and conversation context before
-submission.
+Run `agent-route <code|private|other>` from the plugin root. Codex qualifies
+while `codex-quota` exits 0; use the first eligible rung and stop when none
+qualifies. Claude orchestrates only: no Sonnet or Opus subagent, and Haiku
+xhigh is the last resort. ZCode is not on any ladder.
 
 ## Execute the selected route
 
-- **Codex**: use the configured Codex CLI or MCP route.
-- **ZCode**: use the existing `zcode-job` client.
+- **Codex**: newest Luna model only; effort `xhigh` for standard work, `max`
+  for complex, plan and deep work. Plan and deep run as read-only advisory
+  workers.
 - **OpenCode Go**: use the configured OpenCode Go route.
-- **Haiku high**: use the high effort Haiku subagent.
+- **Haiku xhigh**: use the xhigh effort Haiku subagent.
 - **Stop**: stop and notify the operator.
 
-For ZCode work, write a bounded prompt with the allowed scope, repository
-default branch, and acceptance criteria, then run `zcode-job repos`,
-`zcode-job start <owner/repo> "<prompt>"`, `zcode-job status <job-id>`, and
-`zcode-job result <job-id>`. Cancel with `zcode-job cancel <job-id>` when the
-deadline passes. The dispatcher opens a ready PR labeled `human:review`; the
-trusted lead verifies the exact PR, repository, base branch, diff, checks, and
-head SHA before any merge. Never ask an executor to merge, approve a gate,
-or use a credential. A refusal means the repository does not qualify.
+The spawn router in `hooks/register.ts` runs the Codex and Haiku rungs itself.
+It does not run OpenCode Go; follow the selected route by hand for that rung.
+
+Never ask an executor to merge, approve a gate, or use a credential. The trusted
+lead verifies the exact PR, repository, base branch, diff, checks, and head SHA
+before any merge. Review task text, attachments, diffs, logs, and conversation
+context before submission, and never send secrets, credentials, private
+repository content, live infrastructure work, or privileged actions to an
+external executor.
 
 ## Related skills
 

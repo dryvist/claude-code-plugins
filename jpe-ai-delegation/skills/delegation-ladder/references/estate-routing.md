@@ -6,24 +6,27 @@ put the session's `codex-quota` status in the system prompt.
 
 ## Session routing
 
-Codex is ready when `codex` starts and `codex-quota` exits 0. Every Codex class
-runs Luna at `xhigh`; the latest listed Luna slug comes from Codex's cache.
-When Codex is unavailable, routable work uses the Claude column. Plan and deep
-work stay on Sonnet. Explicit `opus` and `sonnet` choices are preserved;
-explicit `haiku` is routed to Codex when ready. Worktree-isolated spawns stay
-on Claude. `Explore` and `Plan` use read-only sandboxes.
+Codex is ready when `codex` starts and `codex-quota` exits 0. Every class runs
+on Codex Luna, the latest listed Luna slug from Codex's cache: `xhigh` for
+standard work, `max` for complex, plan and deep work. Plan and deep run in a
+read-only sandbox as advisory workers, as do `Explore` and `Plan` spawns. When
+Codex is capped, unavailable or gives no answer, routable work goes to Haiku at
+`xhigh`, the last resort; no class resolves to Sonnet or Opus. Explicit `opus`
+and `sonnet` choices are preserved; explicit `haiku` is routed to Codex when
+ready. Worktree-isolated spawns go to Haiku because `codex exec` cannot run in
+the worktree.
 
-| Class | Codex | Claude fallback |
+| Class | Codex | Last resort |
 | --- | --- | --- |
 | standard | Luna, `xhigh` | Haiku, `xhigh` |
-| complex | Luna, `xhigh` | Haiku, `xhigh` |
-| plan | — | Sonnet, `high` |
-| deep | — | Sonnet, `high` |
+| complex | Luna, `max` | Haiku, `xhigh` |
+| plan | Luna, `max` (read-only) | Haiku, `xhigh` |
+| deep | Luna, `max` (read-only) | Haiku, `xhigh` |
 
-The classifier defaults to `standard` if ready Codex gives no answer and never
-falls back to Haiku while Codex is ready. A task Codex cannot answer passes
-through unchanged. The permission judge uses Luna at `xhigh` when ready, Haiku
-at `xhigh` otherwise, and leaves the core dialog when it gets no verdict.
+Codex classifies the task read-only at `xhigh` and defaults to `standard` when
+it gives no answer; nothing classifies when Codex is not ready. The permission judge uses Luna at
+`xhigh` when ready, Haiku at `xhigh` otherwise, and leaves the core dialog when
+it gets no verdict.
 
 ## Executor contract
 
@@ -37,7 +40,7 @@ approved local routes. Shared model-tier guidance is in [model-tiers.md](../../.
 
 Before a direct CLI run, check `command -v codex`, `codex login status`, and
 `codex-quota`; proceed only when quota exits 0. Use the configured route and
-Luna model at `xhigh`.
+Luna model at `xhigh` (standard) or `max` (complex, plan, deep).
 
 ## Repository and follow-up routing
 

@@ -1,5 +1,5 @@
 import type { EngineInterface, Register } from 'claude-code'
-import { CLASSIFIER, CLAUDE, CODEX, CODEX_FAMILY, DEFAULT_EFFORT, JUDGE, codexArgv, isHaikuRoutable, isRoutable, isShellCAsk, newestModel, parseVerdict, pickLabel } from './lib/policy'
+import { CLASSIFIER, CODEX, CODEX_FAMILY, DEFAULT_EFFORT, JUDGE, LAST_RESORT, codexArgv, isAdvisory, isHaikuRoutable, isRoutable, isShellCAsk, newestModel, parseVerdict, pickLabel } from './lib/policy'
 import type { Label, Sandbox } from './lib/policy'
 
 type Engine = EngineInterface
@@ -8,7 +8,7 @@ type QuotaLine = 'codex-quota: available' | 'codex-quota: exhausted' | 'codex-qu
 const UNAVAILABLE: QuotaLine = 'codex-quota: unavailable'
 // shortcut: the startup line lives in the module, so a hot reload recomputes it on the next prompt.compose.
 let startupQuota: QuotaLine | undefined
-const PROMPT_POLICY = 'Delegates run on Codex Luna xhigh while available; never Haiku then.'
+const PROMPT_POLICY = 'Delegates run on Codex Luna while available (xhigh standard, max complex, plan, deep); when capped, Haiku xhigh. Never Sonnet or Opus.'
 
 // Codex is usable when the CLI starts and `codex-quota` reports at least 5% free in every window.
 async function codexReady($: Engine): Promise<boolean> {
@@ -55,15 +55,10 @@ async function logDecision($: Engine, line: string): Promise<void> {
   }
 }
 
-async function classify($: Engine, e: AgentCall, ready: boolean): Promise<Label> {
+// Only called while Codex is ready: the label picks the Codex effort, and Claude has one fallback for every class.
+async function classify($: Engine, e: AgentCall): Promise<Label> {
   const task = `${e.description ?? ''}\n${e.prompt.slice(0, 4000)}`
-  if (ready) {
-    const label = pickLabel(await runCodex($, DEFAULT_EFFORT, 'read-only', `${CLASSIFIER}\n\nTask:\n${task}`, 90_000))
-    if (label) return label
-    return 'standard'
-  }
-  const r = await $.model.complete({ model: 'haiku', effort: DEFAULT_EFFORT, system: CLASSIFIER, prompt: task, maxTokens: 10, timeoutMs: 30_000 })
-  return pickLabel(r.isAnswered ? r.text : undefined) ?? 'standard'
+  return pickLabel(await runCodex($, DEFAULT_EFFORT, 'read-only', `${CLASSIFIER}\n\nTask:\n${task}`, 90_000)) ?? 'standard'
 }
 
 async function runRoutedCodex($: Engine, e: AgentCall, route: string, effort: string, sandbox: Sandbox, detail: string): Promise<unknown | undefined> {
@@ -88,28 +83,27 @@ async function runRoutedCodex($: Engine, e: AgentCall, route: string, effort: st
 async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknown>): Promise<unknown> {
   if (isHaikuRoutable(e)) {
     if (e.isolation || !(await codexReady($))) return next(e as never)
-    const result = await runRoutedCodex($, e, 'standard', CODEX.standard!.effort, 'workspace-write', 'explicit haiku')
+    const result = await runRoutedCodex($, e, 'standard', CODEX.standard.effort, 'workspace-write', 'explicit haiku')
     if (result) return result
     $.ui.log('ai-delegation: Codex gave no answer for an explicit haiku spawn, passing it through')
     return next(e as never)
   }
 
   if (!isRoutable(e)) return next(e as never)
-  const ready = await codexReady($)
-  const label = await classify($, e, ready)
-  const sandbox: Sandbox = e.subagent_type === 'Explore' || e.subagent_type === 'Plan' ? 'read-only' : 'workspace-write'
-
-  // Plan and deep work stay on Claude; an unavailable Codex answer leaves the original spawn untouched.
-  const codex = CODEX[label]
-  if (ready && codex && !e.isolation) {
-    const result = await runRoutedCodex($, e, label, codex.effort, sandbox, `class ${label}`)
-    if (result) return result
-    $.ui.log(`ai-delegation: Codex gave no answer for a ${label} task, passing it through`)
-    return next(e as never)
+  const lastResort = async (why: string): Promise<unknown> => {
+    await logDecision($, `route: ${why} -> claude ${LAST_RESORT.model} ${LAST_RESORT.effort}`)
+    return next({ ...e, ...LAST_RESORT } as never)
   }
-  const c = CLAUDE[label]
-  await logDecision($, `route: ${label} -> claude ${c.model} ${c.effort}`)
-  return next({ ...e, model: c.model, effort: c.effort } as never)
+  // Codex capped or missing: the only executor this module can run besides Codex is the Haiku last resort.
+  if (!(await codexReady($))) return lastResort('codex unavailable')
+  // Worktree isolation cannot run through `codex exec`, which works in the session's directory.
+  if (e.isolation) return lastResort('isolated')
+  const label = await classify($, e)
+  const sandbox: Sandbox = isAdvisory(label) || e.subagent_type === 'Explore' || e.subagent_type === 'Plan' ? 'read-only' : 'workspace-write'
+  const result = await runRoutedCodex($, e, label, CODEX[label].effort, sandbox, `class ${label}`)
+  if (result) return result
+  $.ui.log(`ai-delegation: Codex gave no answer for a ${label} task, falling back to Haiku`)
+  return lastResort(`${label} codex no answer`)
 }
 
 // Answers core's bypass-immune "shell -c script runs rm" ask. Anything but a clean verdict returns core's own
