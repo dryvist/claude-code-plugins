@@ -55,7 +55,7 @@ repos:
         additional_dependencies: ["@commitlint/config-conventional@20.4.1"]
 
   - repo: https://github.com/commit-check/commit-check
-    rev: v2.18.3
+    rev: v2.19.1
     hooks:
       - id: check-branch
         name: Check branch naming conventions
@@ -113,7 +113,7 @@ repos:
         language: golang
         additional_dependencies:
           # renovate: datasource=github-releases depName=dotcommander/cclint
-          - github.com/dotcommander/cclint@v0.58.0
+          - github.com/dotcommander/cclint@v0.59.0
         entry: >-
           bash -c 'files=$(git diff --cached --name-only --diff-filter=ACMR
           -- "*/skills/*/SKILL.md" "*/.claude-plugin/plugin.json");
