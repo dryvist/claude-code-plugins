@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.24.0](https://github.com/dryvist/claude-code-plugins/compare/v6.23.2...v6.24.0) (2026-10-24)
+
+
+### Features
+
+* **jpe-ai-delegation:** route every class to Codex Luna, Haiku last resort ([#641](https://github.com/dryvist/claude-code-plugins/issues/641)) ([6783688](https://github.com/dryvist/claude-code-plugins/commit/6783688205972d4c1b759957d79b0703d13c24f5))
+
 ## [6.23.2](https://github.com/dryvist/claude-code-plugins/compare/v6.23.1...v6.23.2) (2026-10-18)
 
 

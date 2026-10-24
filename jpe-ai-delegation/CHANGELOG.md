@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.3.1...jpe-ai-delegation-v1.4.0) (2026-10-24)
+
+
+### Features
+
+* **jpe-ai-delegation:** route every class to Codex Luna, Haiku last resort ([#641](https://github.com/dryvist/claude-code-plugins/issues/641)) ([6783688](https://github.com/dryvist/claude-code-plugins/commit/6783688205972d4c1b759957d79b0703d13c24f5))
+
 ## [1.3.1](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.3.0...jpe-ai-delegation-v1.3.1) (2026-10-18)
 
 
