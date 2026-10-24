@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.0](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.4.0...jpe-ai-delegation-v1.5.0) (2026-10-24)
+
+
+### Features
+
+* **jpe-ai-delegation:** add the Z.ai GLM rung to the code and private ladders ([#644](https://github.com/dryvist/claude-code-plugins/issues/644)) ([ff9b5c5](https://github.com/dryvist/claude-code-plugins/commit/ff9b5c5d6dcf3c30e277a737d7486b36889dad7f))
+
 ## [1.4.0](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.3.1...jpe-ai-delegation-v1.4.0) (2026-10-24)
 
 

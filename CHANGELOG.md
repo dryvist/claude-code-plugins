@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.25.0](https://github.com/dryvist/claude-code-plugins/compare/v6.24.0...v6.25.0) (2026-10-24)
+
+
+### Features
+
+* **jpe-ai-delegation:** add the Z.ai GLM rung to the code and private ladders ([#644](https://github.com/dryvist/claude-code-plugins/issues/644)) ([ff9b5c5](https://github.com/dryvist/claude-code-plugins/commit/ff9b5c5d6dcf3c30e277a737d7486b36889dad7f))
+
 ## [6.24.0](https://github.com/dryvist/claude-code-plugins/compare/v6.23.2...v6.24.0) (2026-10-24)
 
 
