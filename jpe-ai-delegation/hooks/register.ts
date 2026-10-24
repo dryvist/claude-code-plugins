@@ -31,19 +31,44 @@ async function codexQuotaStatus($: Engine): Promise<QuotaLine> {
   }
 }
 
-// One `codex exec`: the final message is stdout. Undefined on any failure or an empty answer, and when no Luna
-// model is listed: without `-m`, codex would use its configured default, which may not be Luna.
+// One `codex exec`; its final message is read from a temporary output file. The finite stdin string is closed by process.run.
 async function runCodex($: Engine, effort: string, sandbox: Sandbox, prompt: string, timeoutMs: number): Promise<string | undefined> {
+  let outputFile: string | undefined
+  let failure: string | undefined
   try {
-    const home = (await $.env.get('CODEX_HOME')) ?? `${await $.env.get('HOME')}/.codex`
-    const cache = `${home}/models_cache.json`
-    const model = (await $.fs.exists(cache)) ? newestModel((await $.fs.read(cache)) as string, CODEX_FAMILY) : undefined
-    const r = await $.process.run(codexArgv(sandbox, effort, model), { stdin: prompt, timeoutMs })
-    const text = r.stdout.trim()
-    return r.exitCode === 0 && text ? text : undefined
+    const temporary = await $.process.run(['mktemp'], { timeoutMs: 5_000 })
+    const temporaryPath = temporary.stdout.trim()
+    if (temporary.exitCode !== 0 || !temporaryPath.startsWith('/')) {
+      failure = `could not create final-message file (exit ${temporary.exitCode})`
+    } else {
+      outputFile = temporaryPath
+      const home = (await $.env.get('CODEX_HOME')) ?? `${await $.env.get('HOME')}/.codex`
+      const cache = `${home}/models_cache.json`
+      const model = (await $.fs.exists(cache)) ? newestModel((await $.fs.read(cache)) as string, CODEX_FAMILY) : undefined
+      const r = await $.process.run(codexArgv(sandbox, effort, model, outputFile), { stdin: prompt, timeoutMs })
+      if (r.exitCode !== 0) {
+        failure = `codex exec exited with code ${r.exitCode}`
+      } else {
+        const text = ((await $.fs.read(outputFile)) as string).trim()
+        if (text) return text
+        failure = 'codex exec returned an empty final message'
+      }
+    }
   } catch {
-    return undefined
+    failure = 'codex exec invocation or output read failed'
+  } finally {
+    if (outputFile) {
+      try {
+        await $.process.run(['rm', '-f', outputFile], { timeoutMs: 5_000 })
+      } catch {
+        // A cleanup failure must not replace the Codex result.
+      }
+    }
   }
+  const reason = failure ?? 'unknown failure'
+  $.ui.log(`ai-delegation: Codex failed: ${reason}`)
+  await logDecision($, `codex failure: ${reason}`)
+  return undefined
 }
 
 // Append-only decision log; `tee -a` keeps parallel hooks from dropping each other's lines.
