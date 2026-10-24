@@ -18,8 +18,8 @@ assert_route() {
 }
 
 @test "Codex exhaustion follows each kind's fallback" {
-  assert_route 'OpenCode Go' exhausted code
-  assert_route 'OpenCode Go' exhausted private
+  assert_route 'Z.ai GLM' exhausted code
+  assert_route 'Z.ai GLM' exhausted private
   assert_route 'Haiku xhigh' exhausted other
 }
 
@@ -57,7 +57,7 @@ EOF
 
   run env -u AGENT_ROUTE_CODEX_QUOTA CODEX_QUOTA_EXIT=1 PATH="$BATS_TEST_TMPDIR/bin:$PATH" agent-route code
   [ "$status" -eq 0 ]
-  [ "$output" = 'OpenCode Go' ]
+  [ "$output" = 'Z.ai GLM' ]
 }
 
 @test "unknown kinds exit 2 with one line" {
