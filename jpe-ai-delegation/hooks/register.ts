@@ -115,6 +115,23 @@ async function runRoutedCodex($: Engine, e: AgentCall, route: string, effort: st
   } as never
 }
 
+async function codexNoAnswer($: Engine, e: AgentCall, route: string): Promise<unknown> {
+  const started = await $.clock.now()
+  await logDecision($, `route: ${route} codex no answer -> fail (no haiku)`)
+  return {
+    result: {
+      status: 'completed',
+      prompt: e.prompt,
+      agentId: 'ai-delegation-codex',
+      content: [{ type: 'text', text: `FAIL | router | Codex gave no answer for a ${route} task; no Haiku fallback while Codex has quota. Split the task or re-brief.` }],
+      totalToolUseCount: 0,
+      totalDurationMs: (await $.clock.now()) - started,
+      totalTokens: 0,
+      usage: { input_tokens: 0, output_tokens: 0, cache_creation_input_tokens: null, cache_read_input_tokens: null, server_tool_use: null, service_tier: null, cache_creation: null },
+    },
+  } as never
+}
+
 async function customAgentDefinition($: Engine, type: string): Promise<{ model?: string; prompt: string } | undefined> {
   if (!/^[\w:.-]+$/.test(type)) return undefined
   const cwd = await $.session.cwd()
@@ -140,8 +157,7 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
       const prompt = definition.prompt ? `Custom agent instructions:\n${definition.prompt}\n\nTask:\n${e.prompt}` : e.prompt
       const result = await runRoutedCodex($, { ...e, prompt }, `custom ${e.subagent_type} haiku`, CODEX.standard.effort, 'workspace-write', 'custom haiku agent')
       if (result) return result
-      $.ui.log(`ai-delegation: Codex gave no answer for custom ${e.subagent_type} haiku, passing it through`)
-      return next(e as never)
+      return codexNoAnswer($, { ...e, prompt }, `custom ${e.subagent_type} haiku`)
     }
   }
 
@@ -149,8 +165,7 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
     if (e.isolation || !(await codexReady($))) return next(e as never)
     const result = await runRoutedCodex($, e, 'standard', CODEX.standard.effort, 'workspace-write', 'explicit haiku')
     if (result) return result
-    $.ui.log('ai-delegation: Codex gave no answer for an explicit haiku spawn, passing it through')
-    return next(e as never)
+    return codexNoAnswer($, e, 'standard')
   }
 
   if (!isRoutable(e)) return next(e as never)
@@ -166,8 +181,7 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
   const sandbox: Sandbox = isAdvisory(label) || e.subagent_type === 'Explore' || e.subagent_type === 'Plan' ? 'read-only' : 'workspace-write'
   const result = await runRoutedCodex($, e, label, CODEX[label].effort, sandbox, `class ${label}`)
   if (result) return result
-  $.ui.log(`ai-delegation: Codex gave no answer for a ${label} task, falling back to Haiku`)
-  return lastResort(`${label} codex no answer`)
+  return codexNoAnswer($, e, label)
 }
 
 // Answers core's bypass-immune "shell -c script runs rm" ask. Anything but a clean verdict returns core's own

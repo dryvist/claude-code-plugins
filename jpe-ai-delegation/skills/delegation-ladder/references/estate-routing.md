@@ -10,8 +10,10 @@ Codex is ready when `codex` starts and `codex-quota` exits 0. Every class runs
 on Codex Luna, the latest listed Luna slug from Codex's cache: `xhigh` for
 standard work, `max` for complex, plan and deep work. Plan and deep run in a
 read-only sandbox as advisory workers, as do `Explore` and `Plan` spawns. When
-Codex is capped, unavailable or gives no answer, routable work goes to Haiku at
-`xhigh`, the last resort; no class resolves to Sonnet or Opus. Explicit `opus`
+Codex is capped or unavailable, routable work goes to Haiku at `xhigh`, the last
+resort; no class resolves to Sonnet or Opus. When Codex is ready but gives no
+answer, the spawn returns a `FAIL | router |` hand-back instead of running on
+Haiku, so the lead splits or re-briefs the task. Explicit `opus`
 and `sonnet` choices are preserved; explicit `haiku` is routed to Codex when
 ready. Worktree-isolated spawns go to Haiku.
 

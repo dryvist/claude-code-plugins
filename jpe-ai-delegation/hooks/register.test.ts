@@ -247,15 +247,15 @@ describe('router', () => {
     })
   }
 
-  test('Codex no-answer for explicit Haiku keeps the requested spawn unchanged', async ($, on) => {
+  test('Codex no-answer for explicit Haiku returns a failure hand-back', async ($, on) => {
     const seen = world(on, { codex: true })
-    let routed: unknown
-    on('tool.call', { tool: 'Agent' }, (_$: any, e: unknown) => ((routed = e), { result: DONE }) as never)
-    const spawn = { tool: 'Agent', description: 'read', prompt: 'Summarise README.md', model: 'haiku' }
-    await $.tool.call(spawn as never)
-    expect(routed).toMatchObject(spawn)
-    expect((routed as any).effort).toBeUndefined()
+    const nextCalls: any[] = []
+    on('tool.call', { tool: 'Agent' }, (_$: any, e: unknown) => (nextCalls.push(e), { result: DONE }) as never)
+    const r: any = await $.tool.call({ tool: 'Agent', description: 'read', prompt: 'Summarise README.md', model: 'haiku' } as never)
+    expect(nextCalls.some((call) => call.model === 'haiku')).toBe(false)
+    expect(r.result.content[0].text.startsWith('FAIL | router |')).toBe(true)
     expect((seen as any).modelCalls).toEqual([])
+    expect(seen.filter((a) => a[0] === 'codex' && a[1] === 'exec')).toHaveLength(1)
   })
 
   test('explicit Opus and Sonnet choices pass through unchanged', async ($, on) => {
@@ -272,15 +272,18 @@ describe('router', () => {
     expect(seen).toEqual([])
   })
 
-  test('Codex with no answer falls back to Haiku xhigh without a classifier call', async ($, on) => {
+  test('Codex with no answer returns a failure hand-back without a classifier call', async ($, on) => {
     const seen = world(on, { codex: true, haikuSays: 'plan' })
-    let routed: unknown
-    on('tool.call', { tool: 'Agent' }, (_$: any, e: unknown) => ((routed = e), { result: DONE }) as never)
+    const nextCalls: any[] = []
+    on('tool.call', { tool: 'Agent' }, (_$: any, e: unknown) => (nextCalls.push(e), { result: DONE }) as never)
     const spawn = { tool: 'Agent', description: 'read', prompt: 'Summarise README.md' }
-    await $.tool.call(spawn as never)
-    expect(routed).toMatchObject({ ...spawn, model: 'haiku', effort: 'xhigh' })
+    const r: any = await $.tool.call(spawn as never)
+    expect(nextCalls.some((call) => call.model === 'haiku')).toBe(false)
+    expect(r.result.content[0].text.startsWith('FAIL | router |')).toBe(true)
+    expect(r.result.agentId).toBe('ai-delegation-codex')
     expect((seen as any).modelCalls).toEqual([])
     expect(seen.filter((a) => a[0] === 'codex' && a[1] === 'exec')).toHaveLength(2)
+    expect((seen as any).calls.some((call: { argv: string[]; stdin?: string }) => call.argv[0] === 'tee' && call.stdin?.includes('route: standard codex no answer -> fail (no haiku)'))).toBe(true)
   })
 
   test('a failed Codex readiness probe is logged with its reason', async ($, on) => {
@@ -291,44 +294,48 @@ describe('router', () => {
     expect((seen as any).calls.some((call: { argv: string[]; stdin?: string }) => call.argv[0] === 'tee' && call.stdin?.includes('codex not ready: codex --version exited 1'))).toBe(true)
   })
 
-  test('empty final messages are logged with a reason before falling back to Haiku', async ($, on) => {
+  test('empty final messages are logged with a reason before the failure hand-back', async ($, on) => {
     const seen = world(on, { codex: true, codexSays: '', haikuSays: 'standard' })
-    let routed: unknown
-    on('tool.call', { tool: 'Agent' }, (_$: any, e: unknown) => ((routed = e), { result: DONE }) as never)
-    await $.tool.call({ tool: 'Agent', description: 'read', prompt: 'Summarise README.md' } as never)
-    expect(routed).toMatchObject({ model: 'haiku', effort: 'xhigh' })
+    const nextCalls: any[] = []
+    on('tool.call', { tool: 'Agent' }, (_$: any, e: unknown) => (nextCalls.push(e), { result: DONE }) as never)
+    const r: any = await $.tool.call({ tool: 'Agent', description: 'read', prompt: 'Summarise README.md' } as never)
+    expect(nextCalls.some((call) => call.model === 'haiku')).toBe(false)
+    expect(r.result.content[0].text.startsWith('FAIL | router |')).toBe(true)
     expect((seen as any).uiLogs.join('\n')).toContain('codex exec returned an empty final message')
     expect((seen as any).calls.some((call: { argv: string[]; stdin?: string }) => call.argv[0] === 'tee' && call.stdin?.includes('codex failure: codex exec returned an empty final message'))).toBe(true)
   })
 
-  test('nonzero Codex exits are logged with a reason before falling back to Haiku', async ($, on) => {
+  test('nonzero Codex exits are logged with a reason before the failure hand-back', async ($, on) => {
     const seen = world(on, { codex: true, codexExitCode: 7, codexSays: 'unused', haikuSays: 'standard' })
-    let routed: unknown
-    on('tool.call', { tool: 'Agent' }, (_$: any, e: unknown) => ((routed = e), { result: DONE }) as never)
-    await $.tool.call({ tool: 'Agent', description: 'read', prompt: 'Summarise README.md' } as never)
-    expect(routed).toMatchObject({ model: 'haiku', effort: 'xhigh' })
+    const nextCalls: any[] = []
+    on('tool.call', { tool: 'Agent' }, (_$: any, e: unknown) => (nextCalls.push(e), { result: DONE }) as never)
+    const r: any = await $.tool.call({ tool: 'Agent', description: 'read', prompt: 'Summarise README.md' } as never)
+    expect(nextCalls.some((call) => call.model === 'haiku')).toBe(false)
+    expect(r.result.content[0].text.startsWith('FAIL | router |')).toBe(true)
     expect((seen as any).uiLogs.join('\n')).toContain('codex exec exited with code 7')
     expect((seen as any).calls.some((call: { argv: string[]; stdin?: string }) => call.argv[0] === 'tee' && call.stdin?.includes('codex failure: codex exec exited with code 7'))).toBe(true)
   })
 
-  test('a failed temporary-file creation is logged without invoking Codex', async ($, on) => {
+  test('a failed temporary-file creation is logged and returned as a failure hand-back', async ($, on) => {
     const seen = world(on, { codex: true, mktempExitCode: 1, mktempStdout: 'not-a-path', haikuSays: 'standard' })
-    let routed: unknown
-    on('tool.call', { tool: 'Agent' }, (_$: any, e: unknown) => ((routed = e), { result: DONE }) as never)
-    await $.tool.call({ tool: 'Agent', description: 'read', prompt: 'Summarise README.md' } as never)
-    expect(routed).toMatchObject({ model: 'haiku', effort: 'xhigh' })
+    const nextCalls: any[] = []
+    on('tool.call', { tool: 'Agent' }, (_$: any, e: unknown) => (nextCalls.push(e), { result: DONE }) as never)
+    const r: any = await $.tool.call({ tool: 'Agent', description: 'read', prompt: 'Summarise README.md' } as never)
+    expect(nextCalls.some((call) => call.model === 'haiku')).toBe(false)
+    expect(r.result.content[0].text.startsWith('FAIL | router |')).toBe(true)
     expect(seen.some((a) => a[0] === 'codex' && a[1] === 'exec')).toBe(false)
     expect((seen as any).uiLogs.join('\n')).toContain('could not create final-message file')
     expect((seen as any).calls.some((call: { argv: string[] }) => call.argv[0] === 'rm')).toBe(false)
   })
 
-  test('without a listed Luna model the spawn goes to Haiku xhigh, never the lead model', async ($, on) => {
+  test('without a listed Luna model the spawn gets a failure hand-back', async ($, on) => {
     const seen = world(on, { codex: true, codexSays: 'standard', haikuSays: 'standard', cache: false })
-    let routed: unknown
-    on('tool.call', { tool: 'Agent' }, (_$: any, e: unknown) => ((routed = e), { result: DONE }) as never)
+    const nextCalls: any[] = []
+    on('tool.call', { tool: 'Agent' }, (_$: any, e: unknown) => (nextCalls.push(e), { result: DONE }) as never)
     const spawn = { tool: 'Agent', description: 'read', prompt: 'Summarise README.md' }
-    await $.tool.call(spawn as never)
-    expect(routed).toMatchObject({ ...spawn, model: 'haiku', effort: 'xhigh' })
+    const r: any = await $.tool.call(spawn as never)
+    expect(nextCalls.some((call) => call.model === 'haiku')).toBe(false)
+    expect(r.result.content[0].text.startsWith('FAIL | router |')).toBe(true)
     expect(seen.some((a) => a[0] === 'codex' && a[1] === 'exec')).toBe(false)
     expect((seen as any).modelCalls).toEqual([])
   })
@@ -362,6 +369,19 @@ describe('router', () => {
     expect(codex?.stdin).toContain('Follow the pull request review rubric.')
     expect(codex?.stdin).toContain('Review the change.')
     expect(calls.some((call) => call.argv[0] === 'tee' && call.stdin?.includes('route: custom pr-shepherd haiku -> codex luna xhigh (workspace-write)'))).toBe(true)
+  })
+
+  test('a custom Haiku agent with no Codex answer returns a failure hand-back', async ($, on) => {
+    const seen = world(on, {
+      codex: true,
+      agentFiles: { 'pr-shepherd': '---\nname: pr-shepherd\nmodel: haiku\n---\nFollow the pull request review rubric.' },
+    })
+    const nextCalls: any[] = []
+    on('tool.call', { tool: 'Agent' }, (_$: any, e: unknown) => (nextCalls.push(e), { result: DONE }) as never)
+    const r: any = await $.tool.call({ tool: 'Agent', description: 'review', prompt: 'Review the change.', subagent_type: 'pr-shepherd' } as never)
+    expect(nextCalls.some((call) => call.model === 'haiku')).toBe(false)
+    expect(r.result.content[0].text.startsWith('FAIL | router |')).toBe(true)
+    expect(seen.filter((a) => a[0] === 'codex' && a[1] === 'exec')).toHaveLength(1)
   })
 
   test('a custom Opus agent passes through untouched while Codex is ready', async ($, on) => {
