@@ -78,11 +78,13 @@ git status --porcelain
    `npm run lint`, `make lint`, etc.). If failures are found, fix them and amend the commit.
    Skip this step if no lint command is discoverable.
 6. Push: `git push -u origin HEAD`
-7. Create PR: `gh pr create --fill` (or with title/body derived from commit).
-   Never pass `--draft`. Include the session id (`<runtime>-<host>-<8hex>`) in
-   the PR body. Unless the PR needs `human:review` or is a promotion into a
-   production branch, enable auto-merge: `gh pr merge <PR_NUMBER> --auto --squash`.
-   An open PR does not merge by itself without it — never assume it merged.
+7. Create a PR: `gh pr create --fill` (or with title/body derived from the commit).
+   Use a draft or add `human:review` if it must wait for a person. Include the
+   session id (`<runtime>-<host>-<8hex>`) in the PR body. The org `pr-automerge`
+   workflow arms non-draft PRs without `human:review`; agents never arm auto-merge.
+   It uses a merge commit for PRs into `main` on git-flow repos and squash otherwise.
+   It never arms `develop` to `main` promotions. Never assume the PR merged;
+   verify its state before reporting.
 8. **Pacing**: Run `sleep 2` after `gh pr create` to allow GitHub to index the PR
 9. Capture PR number from output (look for `pull/NUMBER` pattern)
 10. Add it to the PR list
