@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.3](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.6.2...jpe-ai-delegation-v1.6.3) (2026-10-25)
+
+
+### Bug Fixes
+
+* **jpe-ai-delegation:** return a failure hand-back when Codex gives no answer ([#655](https://github.com/dryvist/claude-code-plugins/issues/655)) ([4f4d270](https://github.com/dryvist/claude-code-plugins/commit/4f4d2707ea1aa135d9c54211602d888694ed1596))
+
 ## [1.6.2](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.6.1...jpe-ai-delegation-v1.6.2) (2026-10-24)
 
 
