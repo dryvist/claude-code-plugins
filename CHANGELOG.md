@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.27.1](https://github.com/dryvist/claude-code-plugins/compare/v6.27.0...v6.27.1) (2026-10-25)
+
+
+### Bug Fixes
+
+* **jpe-ai-delegation:** return a failure hand-back when Codex gives no answer ([#655](https://github.com/dryvist/claude-code-plugins/issues/655)) ([4f4d270](https://github.com/dryvist/claude-code-plugins/commit/4f4d2707ea1aa135d9c54211602d888694ed1596))
+
 ## [6.27.0](https://github.com/dryvist/claude-code-plugins/compare/v6.26.2...v6.27.0) (2026-10-24)
 
 
