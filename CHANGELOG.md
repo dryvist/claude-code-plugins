@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.27.2](https://github.com/dryvist/claude-code-plugins/compare/v6.27.1...v6.27.2) (2026-10-25)
+
+
+### Bug Fixes
+
+* agents hold PRs with draft or human:review and never arm auto-merge ([#657](https://github.com/dryvist/claude-code-plugins/issues/657)) ([7b84bd4](https://github.com/dryvist/claude-code-plugins/commit/7b84bd41038fa8211959b19a79442ab3507d78e4))
+
 ## [6.27.1](https://github.com/dryvist/claude-code-plugins/compare/v6.27.0...v6.27.1) (2026-10-25)
 
 
