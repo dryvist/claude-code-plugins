@@ -1,5 +1,13 @@
 # Changelog
 
+## [6.27.3](https://github.com/dryvist/claude-code-plugins/compare/v6.27.2...v6.27.3) (2026-10-28)
+
+
+### Bug Fixes
+
+* **attention-notify:** resolve terminal-notifier from standard install directories ([#660](https://github.com/dryvist/claude-code-plugins/issues/660)) ([95abade](https://github.com/dryvist/claude-code-plugins/commit/95abade147619fbeb3d1f97f99f38844d417c511))
+* **attention-notify:** search terminal-notifier's standard install directories ([95abade](https://github.com/dryvist/claude-code-plugins/commit/95abade147619fbeb3d1f97f99f38844d417c511))
+
 ## [6.27.2](https://github.com/dryvist/claude-code-plugins/compare/v6.27.1...v6.27.2) (2026-10-25)
 
 
