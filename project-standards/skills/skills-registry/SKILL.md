@@ -38,6 +38,7 @@ description: Use when looking up available tools, skills, commands, agents, or p
 | Infrastructure | `/infrastructure-standards` | `infra-standards` | IaC standards |
 | Claude skill authoring | `/claude-skill-authoring` | `project-standards` | Token budgets & placement |
 | Workspace management | `/workspace-standards` | `project-standards` | Multi-repo |
+| Capture app config | `/capture-app-config` | `project-standards` | Nix-managed app settings |
 | This registry | `/skills-registry` | `project-standards` | Tool lookup |
 
 All plugins sourced from `jacobpevans-cc-plugins`.

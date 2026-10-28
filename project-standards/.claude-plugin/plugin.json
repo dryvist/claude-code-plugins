@@ -19,6 +19,7 @@
     "./skills/claude-skill-authoring",
     "./skills/workspace-standards",
     "./skills/skills-registry",
-    "./skills/nix-tool-policy"
+    "./skills/nix-tool-policy",
+    "./skills/capture-app-config"
   ]
 }
