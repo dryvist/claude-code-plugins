@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.28.2](https://github.com/dryvist/claude-code-plugins/compare/v6.28.1...v6.28.2) (2026-10-28)
+
+
+### Bug Fixes
+
+* **openbao-secrets:** log in with flow-lock approle-token ([#665](https://github.com/dryvist/claude-code-plugins/issues/665)) ([b89959b](https://github.com/dryvist/claude-code-plugins/commit/b89959b93dd64023a77b8a6bee803162f3643681))
+
 ## [6.28.1](https://github.com/dryvist/claude-code-plugins/compare/v6.28.0...v6.28.1) (2026-10-28)
 
 
