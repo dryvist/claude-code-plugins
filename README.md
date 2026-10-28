@@ -88,7 +88,7 @@ On-demand skill-based plugins that load specific standards as context.
 | **ansible** | `/ansible-conventions` | Ansible repository layout, linting, testing, dependencies, releases, and secrets |
 | **cribl** | `/cribl-pack-conventions` | Cribl pack structure, validation, tests, releases, and secrets |
 | **splunk** | `/splunk-app-conventions` | Splunk app and deployment layout, validation, releases, and secrets |
-| **project-standards** | `/claude-skill-authoring`, `/workspace-standards`, `/skills-registry`, `/nix-tool-policy` | Claude skill authoring, workspace, skills registry, Nix tool policy |
+| **project-standards** | `/claude-skill-authoring`, `/workspace-standards`, `/skills-registry`, `/nix-tool-policy`, `/capture-app-config` | Claude skill authoring, workspace, skills registry, Nix tool policy, and app config capture |
 
 ### homelab-ops
 
