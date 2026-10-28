@@ -1,6 +1,6 @@
 import type { EngineInterface, Register } from 'claude-code'
-import { CLASSIFIER, CODEX, CODEX_FAMILY, DEFAULT_EFFORT, JUDGE, LAST_RESORT, codexArgv, isAdvisory, isGenericType, isHaikuRoutable, isRoutable, isShellCAsk, newestModel, parseVerdict, pickLabel } from './lib/policy'
-import type { Label, Sandbox } from './lib/policy'
+import { CLASSIFIER, CODEX, JUDGE, LAST_RESORT, UTILITY, codexArgv, explicitLabel, isAdvisory, isGenericType, isHaikuRoutable, isRoutable, isShellCAsk, newestModel, parseVerdict, pickLabel } from './lib/policy'
+import type { Label, Route, Sandbox } from './lib/policy'
 
 type Engine = EngineInterface
 type AgentCall = { description?: string; prompt: string; subagent_type?: string; model?: string; effort?: string; name?: string; isolation?: string }
@@ -8,7 +8,7 @@ type QuotaLine = 'codex-quota: available' | 'codex-quota: exhausted' | 'codex-qu
 const UNAVAILABLE: QuotaLine = 'codex-quota: unavailable'
 // shortcut: the startup line lives in the module, so a hot reload recomputes it on the next prompt.compose.
 let startupQuota: QuotaLine | undefined
-const PROMPT_POLICY = 'Delegates run on Codex Luna while available (xhigh standard, max complex, plan, deep); when capped, Haiku xhigh. Never Sonnet or Opus.'
+const PROMPT_POLICY = 'Codex delegates: Terra medium default, Terra high for complex/plan/deep, Luna xhigh bulk, Luna max bulk-complex; capped: Haiku xhigh. Never Sonnet or Opus.'
 
 // Codex is usable when the CLI starts and `codex-quota` reports at least 5% free in every window.
 async function codexReady($: Engine): Promise<boolean> {
@@ -42,7 +42,7 @@ async function codexQuotaStatus($: Engine): Promise<QuotaLine> {
 }
 
 // One `codex exec`; its final message is read from a temporary output file. The finite stdin string is closed by process.run.
-async function runCodex($: Engine, effort: string, sandbox: Sandbox, prompt: string, timeoutMs: number): Promise<string | undefined> {
+async function runCodex($: Engine, codexRoute: Route, sandbox: Sandbox, prompt: string, timeoutMs: number): Promise<string | undefined> {
   let outputFile: string | undefined
   let failure: string | undefined
   try {
@@ -54,8 +54,8 @@ async function runCodex($: Engine, effort: string, sandbox: Sandbox, prompt: str
       outputFile = temporaryPath
       const home = (await $.env.get('CODEX_HOME')) ?? `${await $.env.get('HOME')}/.codex`
       const cache = `${home}/models_cache.json`
-      const model = (await $.fs.exists(cache)) ? newestModel((await $.fs.read(cache)) as string, CODEX_FAMILY) : undefined
-      const r = await $.process.run(codexArgv(sandbox, effort, model, outputFile), { stdin: prompt, timeoutMs })
+      const model = (await $.fs.exists(cache)) ? newestModel((await $.fs.read(cache)) as string, codexRoute.family) : undefined
+      const r = await $.process.run(codexArgv(sandbox, codexRoute, model, outputFile), { stdin: prompt, timeoutMs })
       if (r.exitCode !== 0) {
         failure = `codex exec exited with code ${r.exitCode}`
       } else {
@@ -93,20 +93,22 @@ async function logDecision($: Engine, line: string): Promise<void> {
 // Only called while Codex is ready: the label picks the Codex effort, and Claude has one fallback for every class.
 async function classify($: Engine, e: AgentCall): Promise<Label> {
   const task = `${e.description ?? ''}\n${e.prompt.slice(0, 4000)}`
-  return pickLabel(await runCodex($, DEFAULT_EFFORT, 'read-only', `${CLASSIFIER}\n\nTask:\n${task}`, 90_000)) ?? 'standard'
+  const named = explicitLabel(e.description)
+  if (named) return named
+  return pickLabel(await runCodex($, UTILITY, 'read-only', `${CLASSIFIER}\n\nTask:\n${task}`, 90_000)) ?? 'standard'
 }
 
-async function runRoutedCodex($: Engine, e: AgentCall, route: string, effort: string, sandbox: Sandbox, detail: string): Promise<unknown | undefined> {
+async function runRoutedCodex($: Engine, e: AgentCall, route: string, codexRoute: Route, sandbox: Sandbox, detail: string): Promise<unknown | undefined> {
   const started = await $.clock.now()
-  const out = await runCodex($, effort, sandbox, e.prompt, 600_000)
+  const out = await runCodex($, codexRoute, sandbox, e.prompt, 600_000)
   if (!out) return undefined
-  await logDecision($, `route: ${route} -> codex ${CODEX_FAMILY} ${effort} (${sandbox})`)
+  await logDecision($, `route: ${route} -> codex ${codexRoute.family} ${codexRoute.effort} (${sandbox})`)
   return {
     result: {
       status: 'completed',
       prompt: e.prompt,
       agentId: 'ai-delegation-codex',
-      content: [{ type: 'text', text: `${out}\n\n[routed: codex ${CODEX_FAMILY} ${effort}, ${detail}]` }],
+      content: [{ type: 'text', text: `${out}\n\n[routed: codex ${codexRoute.family} ${codexRoute.effort}, ${detail}]` }],
       totalToolUseCount: 0,
       totalDurationMs: (await $.clock.now()) - started,
       totalTokens: 0,
@@ -155,7 +157,7 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
     if (definition?.model === 'haiku') {
       if (e.isolation || !(await codexReady($))) return next(e as never)
       const prompt = definition.prompt ? `Custom agent instructions:\n${definition.prompt}\n\nTask:\n${e.prompt}` : e.prompt
-      const result = await runRoutedCodex($, { ...e, prompt }, `custom ${e.subagent_type} haiku`, CODEX.standard.effort, 'workspace-write', 'custom haiku agent')
+      const result = await runRoutedCodex($, { ...e, prompt }, `custom ${e.subagent_type} haiku`, CODEX.standard, 'workspace-write', 'custom haiku agent')
       if (result) return result
       return codexNoAnswer($, { ...e, prompt }, `custom ${e.subagent_type} haiku`)
     }
@@ -163,7 +165,7 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
 
   if (isHaikuRoutable(e)) {
     if (e.isolation || !(await codexReady($))) return next(e as never)
-    const result = await runRoutedCodex($, e, 'standard', CODEX.standard.effort, 'workspace-write', 'explicit haiku')
+    const result = await runRoutedCodex($, e, 'standard', CODEX.standard, 'workspace-write', 'explicit haiku')
     if (result) return result
     return codexNoAnswer($, e, 'standard')
   }
@@ -179,7 +181,7 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
   if (e.isolation) return lastResort('isolated')
   const label = await classify($, e)
   const sandbox: Sandbox = isAdvisory(label) || e.subagent_type === 'Explore' || e.subagent_type === 'Plan' ? 'read-only' : 'workspace-write'
-  const result = await runRoutedCodex($, e, label, CODEX[label].effort, sandbox, `class ${label}`)
+  const result = await runRoutedCodex($, e, label, CODEX[label], sandbox, `class ${label}`)
   if (result) return result
   return codexNoAnswer($, e, label)
 }
@@ -193,11 +195,11 @@ async function judge($: Engine, e: { input: unknown }, next: (e: never) => Promi
   const command = String((e.input as { command?: unknown })?.command ?? '')
   const ask = `${JUDGE}\n\nCommand:\n\`\`\`\n${command}\n\`\`\``
   const ready = await codexReady($)
-  let by = `codex ${CODEX_FAMILY} ${DEFAULT_EFFORT}`
-  let verdict = ready ? parseVerdict(await runCodex($, DEFAULT_EFFORT, 'read-only', ask, 120_000)) : undefined
+  let by = `codex ${UTILITY.family} ${UTILITY.effort}`
+  let verdict = ready ? parseVerdict(await runCodex($, UTILITY, 'read-only', ask, 120_000)) : undefined
   if (!ready) {
-    by = `haiku ${DEFAULT_EFFORT}`
-    const r = await $.model.complete({ model: 'haiku', effort: DEFAULT_EFFORT, prompt: ask, maxTokens: 400, timeoutMs: 60_000 })
+    by = `haiku ${LAST_RESORT.effort}`
+    const r = await $.model.complete({ model: 'haiku', effort: LAST_RESORT.effort, prompt: ask, maxTokens: 400, timeoutMs: 60_000 })
     verdict = parseVerdict(r.isAnswered ? r.text : undefined)
   }
   if (!verdict) {

@@ -1,5 +1,5 @@
 import { describe, expect, mock, test } from 'claude-code/testing'
-import { CODEX, DEFAULT_EFFORT, LAST_RESORT, codexArgv, isAdvisory, isRoutable, isShellCAsk, newestModel, parseVerdict, pickLabel } from './lib/policy'
+import { CODEX, LAST_RESORT, TIERS, codexArgv, explicitLabel, isAdvisory, isRoutable, isShellCAsk, newestModel, parseVerdict, pickLabel } from './lib/policy'
 
 const CORE_ASK = { decision: 'ask', reason: 'This command passes a shell -c script that runs rm, and Claude Code could not check the script for dangerous removals.' }
 const RAN = { exitCode: 0, stdout: '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false }
@@ -18,6 +18,7 @@ const CACHE = JSON.stringify({
     { slug: 'gpt-older-luna', visibility: 'list', priority: 9 },
     { slug: 'gpt-newer-luna', visibility: 'list', priority: 4 },
     { slug: 'gpt-newest-sol', visibility: 'list', priority: 1 },
+    { slug: 'gpt-newer-terra', visibility: 'list', priority: 3 },
     { slug: 'gpt-hidden-luna', visibility: 'hide', priority: 0 },
   ],
 })
@@ -50,18 +51,31 @@ describe('policy', () => {
     expect(isRoutable({ model: 'haiku' })).toBe(false)
     expect(isRoutable({ name: 'worker' })).toBe(false)
     expect(isRoutable({ effort: 'high' })).toBe(false)
-    const argv = codexArgv('read-only', 'xhigh', 'gpt-newer-luna', '/tmp/final-message')
+    const argv = codexArgv('read-only', CODEX.bulk, 'gpt-newer-luna', '/tmp/final-message')
     expect(argv).toContain('gpt-newer-luna')
     expect(argv.slice(-3)).toEqual(['-o', '/tmp/final-message', '-'])
-    expect(() => codexArgv('read-only', 'xhigh', 'gpt-newer-luna', '')).toThrow()
+    expect(() => codexArgv('read-only', CODEX.bulk, 'gpt-newer-luna', '')).toThrow()
   })
 
-  test('Codex uses Luna at xhigh for standard and max for complex, plan and deep; Claude is Haiku xhigh only', () => {
-    for (const effort of ['high', 'xhigh', 'max']) expect(codexArgv('read-only', effort, 'gpt-newer-luna', '/tmp/final-message')).toContain(`model_reasoning_effort="${effort}"`)
-    for (const effort of ['low', 'medium', 'minimal', '']) expect(() => codexArgv('read-only', effort, 'gpt-newer-luna', '/tmp/final-message')).toThrow()
-    for (const model of ['gpt-newest-sol', 'gpt-newer-luna-mini', 'luna', 'latest', '', undefined]) expect(() => codexArgv('read-only', 'xhigh', model, '/tmp/final-message')).toThrow()
-    expect(DEFAULT_EFFORT).toBe('xhigh')
-    expect(CODEX).toEqual({ standard: { effort: 'xhigh' }, complex: { effort: 'max' }, plan: { effort: 'max' }, deep: { effort: 'max' } })
+  test('Terra runs only at medium or high, Luna only at xhigh or max; Claude is Haiku xhigh only', () => {
+    for (const effort of ['medium', 'high']) expect(codexArgv('read-only', { family: 'terra', effort }, 'gpt-newer-terra', '/tmp/final-message')).toContain(`model_reasoning_effort="${effort}"`)
+    for (const effort of ['xhigh', 'max']) expect(codexArgv('read-only', { family: 'luna', effort }, 'gpt-newer-luna', '/tmp/final-message')).toContain(`model_reasoning_effort="${effort}"`)
+    for (const effort of ['low', 'xhigh', 'max', 'ultra', '']) expect(() => codexArgv('read-only', { family: 'terra', effort }, 'gpt-newer-terra', '/tmp/final-message')).toThrow()
+    for (const effort of ['low', 'medium', 'high', '']) expect(() => codexArgv('read-only', { family: 'luna', effort }, 'gpt-newer-luna', '/tmp/final-message')).toThrow()
+    for (const model of ['gpt-newest-sol', 'gpt-newer-terra', 'gpt-newer-luna-mini', 'luna', '', undefined]) expect(() => codexArgv('read-only', CODEX.bulk, model, '/tmp/final-message')).toThrow()
+    expect(CODEX).toEqual({
+      bulk: { family: 'luna', effort: 'xhigh' },
+      'bulk-complex': { family: 'luna', effort: 'max' },
+      standard: { family: 'terra', effort: 'medium' },
+      complex: { family: 'terra', effort: 'high' },
+      plan: { family: 'terra', effort: 'high' },
+      deep: { family: 'terra', effort: 'high' },
+    })
+    expect(TIERS).toEqual(['bulk', 'bulk-complex', 'standard', 'complex'])
+    expect(pickLabel('bulk-complex')).toBe('bulk-complex')
+    expect(pickLabel('Bulk')).toBe('bulk')
+    expect(explicitLabel('retry [class: complex]')).toBe('complex')
+    expect(explicitLabel('[class: ultra]')).toBeUndefined()
     expect(['standard', 'complex', 'plan', 'deep'].filter((l) => isAdvisory(l as never))).toEqual(['plan', 'deep'])
     expect(LAST_RESORT).toEqual({ model: 'haiku', effort: 'xhigh' })
   })
@@ -160,13 +174,13 @@ describe('router', () => {
     })
   }
 
-  test('Codex-ready standard work runs on Codex Luna xhigh', async ($, on) => {
+  test('Codex-ready standard work runs on Codex Terra medium', async ($, on) => {
     const seen = world(on, { codex: true, codexSays: 'standard' })
     let reached = false
     on('tool.call', { tool: 'Agent' }, () => ((reached = true), { result: DONE }) as never)
     const r: any = await $.tool.call({ tool: 'Agent', description: 'read', prompt: 'Summarise README.md' } as never)
     expect(reached).toBe(false)
-    expect(JSON.stringify(r)).toContain('[routed: codex luna xhigh, class standard]')
+    expect(JSON.stringify(r)).toContain('[routed: codex terra medium, class standard]')
     expect(seen.some((a) => a[0] === 'codex' && a.includes('workspace-write'))).toBe(true)
     const calls = (seen as any).calls.filter((call: { argv: string[] }) => call.argv[0] === 'codex' && call.argv[1] === 'exec')
     expect(calls).toHaveLength(2)
@@ -175,31 +189,49 @@ describe('router', () => {
     expect((seen as any).modelCalls).toEqual([])
   })
 
-  test('complex Codex work uses max after an xhigh classification', async ($, on) => {
+  test('complex Codex work uses Terra high after a Luna xhigh classification', async ($, on) => {
     const seen = world(on, { codex: true, codexSays: 'complex' })
     on('tool.call', { tool: 'Agent' }, () => ({ result: DONE }) as never)
     const r: any = await $.tool.call({ tool: 'Agent', description: 'multi-file change', prompt: 'Implement the coordinated update.' } as never)
-    expect(JSON.stringify(r)).toContain('[routed: codex luna max, class complex]')
+    expect(JSON.stringify(r)).toContain('[routed: codex terra high, class complex]')
     const runs = seen.filter((a) => a[0] === 'codex' && a[1] === 'exec')
-    expect(runs.map((a) => a.join(' ').match(/model_reasoning_effort="(\w+)"/)?.[1])).toEqual(['xhigh', 'max'])
+    expect(runs.map((a) => a.join(' ').match(/model_reasoning_effort="(\w+)"/)?.[1])).toEqual(['xhigh', 'high'])
     expect(runs[1]).toContain('workspace-write')
   })
 
+  for (const [label, family, effort] of [['bulk', 'luna', 'xhigh'], ['bulk-complex', 'luna', 'max']]) {
+    test(`${label} work runs on Codex Luna ${effort}`, async ($, on) => {
+      const seen = world(on, { codex: true, codexSays: label })
+      on('tool.call', { tool: 'Agent' }, () => ({ result: DONE }) as never)
+      const r: any = await $.tool.call({ tool: 'Agent', description: 'large read', prompt: 'Summarise every log file.' } as never)
+      expect(JSON.stringify(r)).toContain(`[routed: codex ${family} ${effort}, class ${label}]`)
+      const runs = seen.filter((a) => a[0] === 'codex' && a[1] === 'exec')
+      expect(runs[1]).toContain('gpt-newer-luna')
+    })
+  }
+
+  test('an explicit [class: x] escalation skips the classifier', async ($, on) => {
+    const seen = world(on, { codex: true, codexSays: 'bulk' })
+    on('tool.call', { tool: 'Agent' }, () => ({ result: DONE }) as never)
+    const r: any = await $.tool.call({ tool: 'Agent', description: 'retry [class: complex]', prompt: 'Redo the change.' } as never)
+    expect(JSON.stringify(r)).toContain('[routed: codex terra high, class complex]')
+    expect(seen.filter((a) => a[0] === 'codex' && a[1] === 'exec')).toHaveLength(1)
+  })
+
   for (const label of ['plan', 'deep']) {
-    test(`${label} work runs on Codex Luna max as a read-only advisory worker`, async ($, on) => {
+    test(`${label} work runs on Codex Terra high as a read-only advisory worker`, async ($, on) => {
       const seen = world(on, { codex: true, codexSays: label })
       let reached = false
       on('tool.call', { tool: 'Agent' }, () => ((reached = true), { result: DONE }) as never)
       const r: any = await $.tool.call({ tool: 'Agent', description: label, prompt: 'Assess the trust boundaries.' } as never)
       expect(reached).toBe(false)
-      expect(JSON.stringify(r)).toContain(`[routed: codex luna max, class ${label}]`)
+      expect(JSON.stringify(r)).toContain(`[routed: codex terra high, class ${label}]`)
       const runs = seen.filter((a) => a[0] === 'codex' && a[1] === 'exec')
       expect(runs).toHaveLength(2)
-      for (const argv of runs) {
-        expect(argv).toContain('read-only')
-        expect(argv).toContain('gpt-newer-luna')
-      }
-      expect(runs[1].join(' ')).toContain('model_reasoning_effort="max"')
+      for (const argv of runs) expect(argv).toContain('read-only')
+      expect(runs[0]).toContain('gpt-newer-luna')
+      expect(runs[1]).toContain('gpt-newer-terra')
+      expect(runs[1].join(' ')).toContain('model_reasoning_effort="high"')
       expect((seen as any).modelCalls).toEqual([])
     })
   }
@@ -210,7 +242,7 @@ describe('router', () => {
     on('tool.call', { tool: 'Agent' }, () => ((reached = true), { result: DONE }) as never)
     const r: any = await $.tool.call({ tool: 'Agent', description: 'execute', prompt: 'Do the bounded task.', subagent_type: 'executor' } as never)
     expect(reached).toBe(false)
-    expect(JSON.stringify(r)).toContain('[routed: codex luna xhigh, class standard]')
+    expect(JSON.stringify(r)).toContain('[routed: codex terra medium, class standard]')
     expect(seen.some((a) => a[0] === 'codex' && a[1] === 'exec')).toBe(true)
   })
 
@@ -220,7 +252,7 @@ describe('router', () => {
     on('tool.call', { tool: 'Agent' }, () => ((reached = true), { result: DONE }) as never)
     const r: any = await $.tool.call({ tool: 'Agent', description: 'read', prompt: 'Summarise README.md', model: 'haiku' } as never)
     expect(reached).toBe(false)
-    expect(JSON.stringify(r)).toContain('[routed: codex luna xhigh, explicit haiku]')
+    expect(JSON.stringify(r)).toContain('[routed: codex terra medium, explicit haiku]')
     expect(seen.filter((a) => a[0] === 'codex' && a[1] === 'exec')).toHaveLength(1)
     expect((seen as any).modelCalls).toEqual([])
   })
@@ -364,11 +396,11 @@ describe('router', () => {
     const calls = (seen as any).calls as { argv: string[]; stdin?: string }[]
     const codex = calls.find((call) => call.argv[0] === 'codex' && call.argv[1] === 'exec')
     expect(reached).toBe(false)
-    expect(JSON.stringify(r)).toContain('[routed: codex luna xhigh, custom haiku agent]')
+    expect(JSON.stringify(r)).toContain('[routed: codex terra medium, custom haiku agent]')
     expect(codex?.argv).toContain('workspace-write')
     expect(codex?.stdin).toContain('Follow the pull request review rubric.')
     expect(codex?.stdin).toContain('Review the change.')
-    expect(calls.some((call) => call.argv[0] === 'tee' && call.stdin?.includes('route: custom pr-shepherd haiku -> codex luna xhigh (workspace-write)'))).toBe(true)
+    expect(calls.some((call) => call.argv[0] === 'tee' && call.stdin?.includes('route: custom pr-shepherd haiku -> codex terra medium (workspace-write)'))).toBe(true)
   })
 
   test('a custom Haiku agent with no Codex answer returns a failure hand-back', async ($, on) => {
@@ -440,7 +472,7 @@ describe('session startup', () => {
     const matches = sections.filter((section: { id: string }) => section.id === 'jpe-ai-delegation:codex-quota')
     expect(matches).toHaveLength(1)
     expect(matches[0].scope).toBe('session')
-    expect(matches[0].text).toBe(`${status}\nDelegates run on Codex Luna while available (xhigh standard, max complex, plan, deep); when capped, Haiku xhigh. Never Sonnet or Opus.`)
+    expect(matches[0].text).toBe(`${status}\nCodex delegates: Terra medium default, Terra high for complex/plan/deep, Luna xhigh bulk, Luna max bulk-complex; capped: Haiku xhigh. Never Sonnet or Opus.`)
     expect(matches[0].text.length).toBeLessThan(200)
   }
 
