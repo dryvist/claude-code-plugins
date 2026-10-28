@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.29.0](https://github.com/dryvist/claude-code-plugins/compare/v6.28.2...v6.29.0) (2026-10-28)
+
+
+### Features
+
+* **project-standards:** add capture-app-config skill ([#667](https://github.com/dryvist/claude-code-plugins/issues/667)) ([74da3d0](https://github.com/dryvist/claude-code-plugins/commit/74da3d0c42cd660e8e5d341fd3aad06369db1534))
+
 ## [6.28.2](https://github.com/dryvist/claude-code-plugins/compare/v6.28.1...v6.28.2) (2026-10-28)
 
 
