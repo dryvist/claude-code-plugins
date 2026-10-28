@@ -26,13 +26,15 @@ you have it. Two rules carry most of the weight: **mint, don't store**, and
 
 The fast path for a read, in order:
 
-1. **Log in** with the ambient AppRole (secret-zero arrives from the run-wrapper,
-   never hand-typed):
+1. **Log in** with `flow-lock approle-token`, which mints one fresh single-use
+   secret_id for the target AppRole and logs in with it. Supply `BAO_ADDR` and the
+   AppRole issuer pair from Doppler:
 
    ```bash
-   token=$(bao write -field=token auth/approle/login \
-     role_id="$ROLE_ID" secret_id="$SECRET_ID")
+   token=$(doppler run -p iac-conf-mgmt -c prd -- flow-lock approle-token ROLE)
    ```
+
+   Replace `ROLE` with the target AppRole name. Run `flow-lock help` for usage.
 
 2. **Read** the value from the KV path you need:
 
