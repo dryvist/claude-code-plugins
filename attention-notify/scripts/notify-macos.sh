@@ -9,8 +9,9 @@
 #
 # Session name: .name from ~/.claude/sessions/<CLAUDE_PID>.json, else from the
 # sessions file whose sessionId matches, else "<cwd basename> <short id>".
-# Clicking focuses Ghostty when terminal-notifier is on PATH; otherwise
-# osascript shows a plain banner. Non-darwin hosts and every failure exit 0.
+# Clicking focuses Ghostty when terminal-notifier is on PATH or in a standard
+# install directory; otherwise osascript shows a plain banner. Non-darwin hosts
+# and every failure exit 0.
 set -u
 
 [ "$(uname -s)" = Darwin ] || exit 0
@@ -42,6 +43,8 @@ fi
 [ -n "$session" ] || session="$(basename "$cwd")${sid:+ ${sid:0:8}}"
 title="claude · $session"
 
+# Search terminal-notifier's standard install directories after the inherited PATH.
+PATH="${PATH:+$PATH:}/opt/homebrew/bin:/usr/local/bin:/etc/profiles/per-user/${USER:-}/bin:${HOME:-}/.nix-profile/bin:/run/current-system/sw/bin"
 if command -v terminal-notifier >/dev/null 2>&1; then
   terminal-notifier -title "$title" -message "$msg" -sound Ping \
     -activate com.mitchellh.ghostty -group "${sid:-$session}" >/dev/null 2>&1
