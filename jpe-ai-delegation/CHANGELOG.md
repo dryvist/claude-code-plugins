@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.0](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.6.3...jpe-ai-delegation-v1.7.0) (2026-10-28)
+
+
+### Features
+
+* **jpe-ai-delegation:** route each class to Terra medium/high or Luna xhigh/max ([#659](https://github.com/dryvist/claude-code-plugins/issues/659)) ([9553c2d](https://github.com/dryvist/claude-code-plugins/commit/9553c2d898e0e64f904485b3e95151bc6e07a6c7))
+
 ## [1.6.3](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.6.2...jpe-ai-delegation-v1.6.3) (2026-10-25)
 
 
