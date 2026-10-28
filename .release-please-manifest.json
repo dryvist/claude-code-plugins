@@ -1,5 +1,5 @@
 {
-  ".": "6.27.2",
+  ".": "6.27.3",
   "ai-cli-harness-better-practices": "4.30.0",
   "ai-delegation": "6.11.0",
   "code-standards": "6.3.0",
@@ -16,7 +16,7 @@
   "ansible": "1.1.0",
   "cribl": "1.1.0",
   "splunk": "1.1.0",
-  "attention-notify": "1.1.0",
+  "attention-notify": "1.1.1",
   "process-cleanup": "6.2.1",
   "project-standards": "6.4.0",
   "testing": "1.1.0"
