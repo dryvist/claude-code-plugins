@@ -44,7 +44,9 @@ fi
 title="claude · $session"
 
 # Search terminal-notifier's standard install directories after the inherited PATH.
-PATH="${PATH:+$PATH:}/opt/homebrew/bin:/usr/local/bin:/etc/profiles/per-user/${USER:-}/bin:${HOME:-}/.nix-profile/bin:/run/current-system/sw/bin"
+# NOTIFY_MACOS_SEARCH_DIRS replaces that list; set it empty to search PATH only.
+search_dirs="${NOTIFY_MACOS_SEARCH_DIRS-/opt/homebrew/bin:/usr/local/bin:/etc/profiles/per-user/${USER:-}/bin:${HOME:-}/.nix-profile/bin:/run/current-system/sw/bin}"
+[ -n "$search_dirs" ] && PATH="${PATH:+$PATH:}$search_dirs"
 if command -v terminal-notifier >/dev/null 2>&1; then
   terminal-notifier -title "$title" -message "$msg" -sound Ping \
     -activate com.mitchellh.ghostty -group "${sid:-$session}" >/dev/null 2>&1
