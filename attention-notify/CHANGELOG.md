@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.2](https://github.com/dryvist/claude-code-plugins/compare/attention-notify-v1.1.1...attention-notify-v1.1.2) (2026-10-28)
+
+
+### Bug Fixes
+
+* **attention-notify:** make terminal-notifier search directories overridable ([#663](https://github.com/dryvist/claude-code-plugins/issues/663)) ([7e5b715](https://github.com/dryvist/claude-code-plugins/commit/7e5b715dd21d1d676ad43075e3a52f349b41f3ff))
+
 ## [1.1.1](https://github.com/dryvist/claude-code-plugins/compare/attention-notify-v1.1.0...attention-notify-v1.1.1) (2026-10-28)
 
 

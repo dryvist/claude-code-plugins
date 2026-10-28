@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "Claude Code plugins and hooks by JacobPEvans",
-    "version": "6.28.0"
+    "version": "6.28.1"
   },
   "plugins": [
     {
@@ -166,7 +166,7 @@
       "name": "attention-notify",
       "source": "./attention-notify",
       "description": "Raise a local macOS banner for every PushNotification call and every attention-needed Notification event",
-      "version": "1.1.1",
+      "version": "1.1.2",
       "author": {
         "name": "JacobPEvans"
       }
