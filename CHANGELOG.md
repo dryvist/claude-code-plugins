@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.28.1](https://github.com/dryvist/claude-code-plugins/compare/v6.28.0...v6.28.1) (2026-10-28)
+
+
+### Bug Fixes
+
+* **attention-notify:** make terminal-notifier search directories overridable ([#663](https://github.com/dryvist/claude-code-plugins/issues/663)) ([7e5b715](https://github.com/dryvist/claude-code-plugins/commit/7e5b715dd21d1d676ad43075e3a52f349b41f3ff))
+
 ## [6.28.0](https://github.com/dryvist/claude-code-plugins/compare/v6.27.3...v6.28.0) (2026-10-28)
 
 
