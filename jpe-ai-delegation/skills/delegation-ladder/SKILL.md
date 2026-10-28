@@ -21,9 +21,8 @@ xhigh is the last resort. ZCode is not on any ladder.
 
 ## Execute the selected route
 
-- **Codex**: newest Luna model only; effort `xhigh` for standard work, `max`
-  for complex, plan and deep work. Plan and deep run as read-only advisory
-  workers. Call contract: [model-delegation.md](https://github.com/dryvist/ai-llm-prompts/blob/main/auto-ai-agent/instructions/agentsmd/rules/on-demand/model-delegation.md).
+- **Codex**: newest Terra model (newest Luna when no Terra is listed), effort
+  `xhigh` for every class. Plan and deep run as read-only advisory workers. Call contract: [model-delegation.md](https://github.com/dryvist/ai-llm-prompts/blob/main/auto-ai-agent/instructions/agentsmd/rules/on-demand/model-delegation.md).
 - **Z.ai GLM**: run the task through `codex-zai`.
 - **OpenCode Go**: use the configured OpenCode Go route.
 - **Haiku xhigh**: use the xhigh effort Haiku subagent.

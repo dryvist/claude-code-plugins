@@ -7,8 +7,8 @@ put the session's `codex-quota` status in the system prompt.
 ## Session routing
 
 Codex is ready when `codex` starts and `codex-quota` exits 0. Every class runs
-on Codex Luna, the latest listed Luna slug from Codex's cache: `xhigh` for
-standard work, `max` for complex, plan and deep work. Plan and deep run in a
+on Codex Terra, the latest listed Terra slug from Codex's cache (the latest Luna
+slug when no Terra is listed), at `xhigh`. Plan and deep run in a
 read-only sandbox as advisory workers, as do `Explore` and `Plan` spawns. When
 Codex is capped or unavailable, routable work goes to Haiku at `xhigh`, the last
 resort; no class resolves to Sonnet or Opus. When Codex is ready but gives no
@@ -21,13 +21,13 @@ Codex call contract: [model-delegation.md](https://github.com/dryvist/ai-llm-pro
 
 | Class | Codex | Last resort |
 | --- | --- | --- |
-| standard | Luna, `xhigh` | Haiku, `xhigh` |
-| complex | Luna, `max` | Haiku, `xhigh` |
-| plan | Luna, `max` (read-only) | Haiku, `xhigh` |
-| deep | Luna, `max` (read-only) | Haiku, `xhigh` |
+| standard | Terra, `xhigh` | Haiku, `xhigh` |
+| complex | Terra, `xhigh` | Haiku, `xhigh` |
+| plan | Terra, `xhigh` (read-only) | Haiku, `xhigh` |
+| deep | Terra, `xhigh` (read-only) | Haiku, `xhigh` |
 
 Codex classifies the task read-only at `xhigh` and defaults to `standard` when
-it gives no answer; nothing classifies when Codex is not ready. The permission judge uses Luna at
+it gives no answer; nothing classifies when Codex is not ready. The permission judge uses Terra at
 `xhigh` when ready, Haiku at `xhigh` otherwise, and leaves the core dialog when
 it gets no verdict.
 

@@ -1,5 +1,5 @@
 import type { EngineInterface, Register } from 'claude-code'
-import { CLASSIFIER, CODEX, CODEX_FAMILY, DEFAULT_EFFORT, JUDGE, LAST_RESORT, codexArgv, isAdvisory, isGenericType, isHaikuRoutable, isRoutable, isShellCAsk, newestModel, parseVerdict, pickLabel } from './lib/policy'
+import { CLASSIFIER, CODEX, CODEX_FAMILY, DEFAULT_EFFORT, JUDGE, LAST_RESORT, codexArgv, isAdvisory, isGenericType, isHaikuRoutable, isRoutable, isShellCAsk, parseVerdict, pickModel, pickLabel } from './lib/policy'
 import type { Label, Sandbox } from './lib/policy'
 
 type Engine = EngineInterface
@@ -8,7 +8,7 @@ type QuotaLine = 'codex-quota: available' | 'codex-quota: exhausted' | 'codex-qu
 const UNAVAILABLE: QuotaLine = 'codex-quota: unavailable'
 // shortcut: the startup line lives in the module, so a hot reload recomputes it on the next prompt.compose.
 let startupQuota: QuotaLine | undefined
-const PROMPT_POLICY = 'Delegates run on Codex Luna while available (xhigh standard, max complex, plan, deep); when capped, Haiku xhigh. Never Sonnet or Opus.'
+const PROMPT_POLICY = 'Delegates run on Codex Terra xhigh while available (newest Luna if no Terra is listed); when capped, Haiku xhigh. Never Sonnet or Opus.'
 
 // Codex is usable when the CLI starts and `codex-quota` reports at least 5% free in every window.
 async function codexReady($: Engine): Promise<boolean> {
@@ -54,7 +54,7 @@ async function runCodex($: Engine, effort: string, sandbox: Sandbox, prompt: str
       outputFile = temporaryPath
       const home = (await $.env.get('CODEX_HOME')) ?? `${await $.env.get('HOME')}/.codex`
       const cache = `${home}/models_cache.json`
-      const model = (await $.fs.exists(cache)) ? newestModel((await $.fs.read(cache)) as string, CODEX_FAMILY) : undefined
+      const model = (await $.fs.exists(cache)) ? pickModel((await $.fs.read(cache)) as string) : undefined
       const r = await $.process.run(codexArgv(sandbox, effort, model, outputFile), { stdin: prompt, timeoutMs })
       if (r.exitCode !== 0) {
         failure = `codex exec exited with code ${r.exitCode}`

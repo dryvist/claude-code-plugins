@@ -6,18 +6,20 @@ export type Sandbox = 'read-only' | 'workspace-write'
 
 export const LABELS: readonly Label[] = ['standard', 'complex', 'plan', 'deep']
 
-// Operator rule: Codex runs only the Luna family at high, xhigh or max. `codexArgv` enforces the family and efforts.
-export const CODEX_FAMILY = 'luna'
+// Operator rule: Codex runs the newest Terra model, or the newest Luna model when no Terra model is listed, at high,
+// xhigh or max. `codexArgv` enforces the families and efforts.
+export const CODEX_FAMILY = 'terra'
+export const CODEX_FAMILIES: readonly string[] = [CODEX_FAMILY, 'luna']
 export const CODEX_EFFORTS: readonly string[] = ['high', 'xhigh', 'max']
 export const DEFAULT_EFFORT = 'xhigh'
 
-// Codex Luna takes every class: xhigh for standard work, max for complex, plan and deep work. Plan and deep run as
-// advisory workers (read-only sandbox), so no class resolves to a Claude subagent while Codex has quota.
+// Codex takes every class at xhigh. Plan and deep run as advisory workers (read-only sandbox), so no class resolves
+// to a Claude subagent while Codex has quota.
 export const CODEX: Record<Label, { effort: string }> = {
   standard: { effort: 'xhigh' },
-  complex: { effort: 'max' },
-  plan: { effort: 'max' },
-  deep: { effort: 'max' },
+  complex: { effort: 'xhigh' },
+  plan: { effort: 'xhigh' },
+  deep: { effort: 'xhigh' },
 }
 
 // Plan and deep judgment is advice: it never writes.
@@ -63,7 +65,7 @@ export const isRoutable = (e: Spawn): boolean => isGenericType(e) && !e.model &&
 // Explicit Haiku is rerouted only for generic, unnamed spawns; custom-agent definitions are checked by the router.
 export const isHaikuRoutable = (e: Spawn): boolean => e.model === 'haiku' && isGenericType(e) && !e.name
 
-// Preferred listed model of a family ("luna") in Codex's own model cache. The cache ranks models by `priority`
+// Preferred listed model of a family ("terra") in Codex's own model cache. The cache ranks models by `priority`
 // (lowest is newest), so no version is parsed or written here and a new release is picked up with no change.
 export function newestModel(cacheText: string, family: string): string | undefined {
   const found = (JSON.parse(cacheText).models ?? []).filter(
@@ -73,10 +75,15 @@ export function newestModel(cacheText: string, family: string): string | undefin
   return found[0]?.slug
 }
 
-// The only way to build a `codex exec` command. Throws for any model outside the Luna family or any effort
+// Newest listed model of the first family in CODEX_FAMILIES that has one.
+export const pickModel = (cacheText: string): string | undefined =>
+  CODEX_FAMILIES.map((family) => newestModel(cacheText, family)).find(Boolean)
+
+// The only way to build a `codex exec` command. Throws for any model outside CODEX_FAMILIES or any effort
 // outside CODEX_EFFORTS; a missing model throws too, because `codex` would then fall back to its configured default.
 export function codexArgv(sandbox: Sandbox, effort: string, model: string | undefined, outputFile: string): string[] {
-  if (!model || !model.endsWith(`-${CODEX_FAMILY}`)) throw new Error(`codex model must be the ${CODEX_FAMILY} family, got ${model ?? 'none'}`)
+  if (!model || !CODEX_FAMILIES.some((family) => model.endsWith(`-${family}`)))
+    throw new Error(`codex model must be one of the ${CODEX_FAMILIES.join(', ')} families, got ${model ?? 'none'}`)
   if (!CODEX_EFFORTS.includes(effort)) throw new Error(`codex effort must be one of ${CODEX_EFFORTS.join(', ')}, got ${effort}`)
   if (!outputFile) throw new Error('codex final-message output file is required')
   return ['codex', 'exec', '-s', sandbox, '-c', `model_reasoning_effort="${effort}"`, '--skip-git-repo-check', '-m', model, '-o', outputFile, '-']
