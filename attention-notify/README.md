@@ -9,7 +9,7 @@ whether or not the terminal has focus.
 claude plugins add jacobpevans-cc-plugins/attention-notify
 ```
 
-Optional, for click-to-focus: `terminal-notifier` on `PATH`.
+Optional, for click-to-focus: `terminal-notifier` on `PATH` or in a standard install directory (Homebrew, Nix).
 
 ## Events
 
@@ -28,8 +28,8 @@ and question prompts, and PushNotification calls go through the `PostToolUse` ho
   `sessionId` matches the hook's `session_id`, else `<cwd basename> <first 8 of session id>`.
   No other field of those files is read.
 - **Body**: the notification message.
-- **Click**: focuses Ghostty when `terminal-notifier` is on `PATH`; otherwise
-  `osascript` shows a plain banner.
+- **Click**: focuses Ghostty when `terminal-notifier` is on `PATH` or in a standard
+  install directory; otherwise `osascript` shows a plain banner.
 
 ## Usage
 

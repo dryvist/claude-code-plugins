@@ -50,10 +50,19 @@ teardown() { rm -rf "$TMP"; }
 
 @test "osascript fallback passes quotes as argv" {
   rm "$TMP/bin/terminal-notifier"
-  # System dirs only, so no host-installed terminal-notifier is found.
-  PATH="$TMP/bin:/usr/bin:/bin" run "$SCRIPT" <<<'{"session_id":"abc","cwd":"/r","message":"say \"hi\" & '\''bye'\''"}'
+  # Empty HOME, unknown USER and system dirs only, so no host-installed
+  # terminal-notifier is found in the standard install directories.
+  HOME="$TMP/home" USER=no-such-user PATH="$TMP/bin:/usr/bin:/bin" run "$SCRIPT" <<<'{"session_id":"abc","cwd":"/r","message":"say \"hi\" & '\''bye'\''"}'
   [ "$status" -eq 0 ]
   grep -qxF "say \"hi\" & 'bye'" "$LOG"
+}
+
+@test "terminal-notifier in ~/.nix-profile/bin is used when PATH lacks it" {
+  mkdir -p "$TMP/home/.nix-profile/bin"
+  mv "$TMP/bin/terminal-notifier" "$TMP/home/.nix-profile/bin/"
+  HOME="$TMP/home" USER=no-such-user PATH="$TMP/bin:/usr/bin:/bin" run "$SCRIPT" <<<'{"session_id":"abc","cwd":"/r","message":"Tap the key"}'
+  [ "$status" -eq 0 ]
+  grep -qxF 'com.mitchellh.ghostty' "$LOG"
 }
 
 @test "non-darwin is a silent no-op" {
