@@ -81,8 +81,8 @@ describe('policy', () => {
   })
 })
 
-function world(on: any, w: { codex: boolean; quotaExitCode?: number; quotaMissing?: boolean; codexSays?: string; codexExitCode?: number; mktempExitCode?: number; mktempStdout?: string; haikuSays?: string; cache?: boolean; agentFiles?: Record<string, string>; router?: boolean; layaChoice?: string; layaError?: boolean }) {
-  mock.env(on, { HOME: '/home/test', ...(w.router ? { LLM_ROUTER_URL: 'https://router.example/v1/', LLM_ROUTER_TOKEN_FILE: '/token' } : {}) })
+function world(on: any, w: { codex: boolean; quotaExitCode?: number; quotaMissing?: boolean; codexSays?: string; codexExitCode?: number; mktempExitCode?: number; mktempStdout?: string; haikuSays?: string; cache?: boolean; agentFiles?: Record<string, string>; router?: boolean; localBase?: string; layaChoice?: string; layaError?: boolean }) {
+  mock.env(on, { HOME: '/home/test', ...(w.router ? { LLM_ROUTER_URL: 'https://router.example/v1/', LLM_ROUTER_TOKEN_FILE: '/token' } : {}), ...(w.localBase ? { LLM_ROUTER_TOKEN_FILE: '', LITELLM_LOCAL_BASE_URL: w.localBase } : {}) })
   mock.clock(on)
   const seen: string[][] = []
   const calls: { argv: string[]; stdin?: string }[] = []
@@ -231,6 +231,18 @@ describe('router', () => {
     expect(body.questions.route.type).toBe('choice')
     expect(Object.keys(body.questions.route.criteria).sort()).toEqual([...LABELS].sort())
     expect((seen as any).calls.some((call: any) => call.stdin?.includes('classify: laya -> complex'))).toBe(true)
+  })
+
+  test('Laya uses the local proxy without a bearer when the token path is empty', async ($, on) => {
+    const port = '<port-var>'
+    const seen = world(on, { codex: true, codexSays: 'result', localBase: `http://127.0.0.1:${port}/`, layaChoice: 'complex' })
+    on('tool.call', { tool: 'Agent' }, () => ({ result: DONE }) as never)
+    const r: any = await $.tool.call({ tool: 'Agent', description: 'review', prompt: 'Review the change.' } as never)
+    expect(JSON.stringify(r)).toContain('class complex')
+    const request = (seen as any).fetchCalls[0]
+    expect(request.url).toBe(`http://127.0.0.1:${port}/v1/systemone`)
+    expect(request.init.headers.authorization).toBeUndefined()
+    expect(seen.filter((a) => a[0] === 'codex' && a[1] === 'exec')).toHaveLength(1)
   })
 
   for (const failure of [{ layaChoice: 'complex-extra' }, { layaError: true }]) {
