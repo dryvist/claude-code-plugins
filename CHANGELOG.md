@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.30.0](https://github.com/dryvist/claude-code-plugins/compare/v6.29.0...v6.30.0) (2026-10-30)
+
+
+### Features
+
+* **jpe-ai-delegation:** classify spawns with Laya before Codex ([#669](https://github.com/dryvist/claude-code-plugins/issues/669)) ([5e99699](https://github.com/dryvist/claude-code-plugins/commit/5e9969961ff5859d5f1857e52c5af0b39944277d))
+
 ## [6.29.0](https://github.com/dryvist/claude-code-plugins/compare/v6.28.2...v6.29.0) (2026-10-28)
 
 
