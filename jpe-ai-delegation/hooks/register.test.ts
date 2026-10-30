@@ -1,5 +1,5 @@
 import { describe, expect, mock, test } from 'claude-code/testing'
-import { CODEX, LAST_RESORT, TIERS, codexArgv, explicitLabel, isAdvisory, isRoutable, isShellCAsk, newestModel, parseVerdict, pickLabel } from './lib/policy'
+import { CODEX, LABELS, LAST_RESORT, TIERS, codexArgv, explicitLabel, isAdvisory, isRoutable, isShellCAsk, newestModel, parseVerdict, pickLabel } from './lib/policy'
 
 const CORE_ASK = { decision: 'ask', reason: 'This command passes a shell -c script that runs rm, and Claude Code could not check the script for dangerous removals.' }
 const RAN = { exitCode: 0, stdout: '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false }
@@ -81,20 +81,27 @@ describe('policy', () => {
   })
 })
 
-function world(on: any, w: { codex: boolean; quotaExitCode?: number; quotaMissing?: boolean; codexSays?: string; codexExitCode?: number; mktempExitCode?: number; mktempStdout?: string; haikuSays?: string; cache?: boolean; agentFiles?: Record<string, string> }) {
-  mock.env(on, { HOME: '/home/test' })
+function world(on: any, w: { codex: boolean; quotaExitCode?: number; quotaMissing?: boolean; codexSays?: string; codexExitCode?: number; mktempExitCode?: number; mktempStdout?: string; haikuSays?: string; cache?: boolean; agentFiles?: Record<string, string>; router?: boolean; layaChoice?: string; layaError?: boolean }) {
+  mock.env(on, { HOME: '/home/test', ...(w.router ? { LLM_ROUTER_URL: 'https://router.example/v1/', LLM_ROUTER_TOKEN_FILE: '/token' } : {}) })
   mock.clock(on)
   const seen: string[][] = []
   const calls: { argv: string[]; stdin?: string }[] = []
   const uiLogs: string[] = []
   const modelCalls: string[] = []
+  const fetchCalls: any[] = []
   ;(seen as any).calls = calls
   ;(seen as any).uiLogs = uiLogs
   ;(seen as any).modelCalls = modelCalls
+  ;(seen as any).fetchCalls = fetchCalls
   on('session.cwd', () => ({ value: '/workspace' }))
   const agentFile = (path: string) => Object.entries(w.agentFiles ?? {}).find(([name]) => path.endsWith(`/.claude/agents/${name}.md`))?.[1]
   on('fs.exists', (_$: any, e: { path: string }) => ({ value: e.path.endsWith('/models_cache.json') ? w.cache !== false : agentFile(e.path) !== undefined }))
-  on('fs.read', (_$: any, e: { path: string }) => ({ value: e.path === '/tmp/ai-delegation-final-message' ? w.codexSays ?? '' : e.path.endsWith('/models_cache.json') ? CACHE : agentFile(e.path) ?? '' }))
+  on('fs.read', (_$: any, e: { path: string }) => ({ value: e.path === '/token' ? ' test-token\n' : e.path === '/tmp/ai-delegation-final-message' ? w.codexSays ?? '' : e.path.endsWith('/models_cache.json') ? CACHE : agentFile(e.path) ?? '' }))
+  on('http.fetch', (_$: any, e: any) => {
+    fetchCalls.push(e)
+    if (w.layaError) throw new Error('network error')
+    return { value: { status: 200, ok: true, headers: {}, text: JSON.stringify({ answers: { route: { choice: w.layaChoice } } }) } }
+  })
   on('ui.log', (...args: any[]) => {
     uiLogs.push(args.map((value) => typeof value === 'string' ? value : JSON.stringify(value)).join(' '))
     return { value: undefined }
@@ -210,12 +217,49 @@ describe('router', () => {
     })
   }
 
-  test('an explicit [class: x] escalation skips the classifier', async ($, on) => {
+  test('Laya classifies using the router choice contract', async ($, on) => {
+    const seen = world(on, { codex: true, codexSays: 'result', router: true, layaChoice: 'complex' })
+    on('tool.call', { tool: 'Agent' }, () => ({ result: DONE }) as never)
+    const r: any = await $.tool.call({ tool: 'Agent', description: 'review', prompt: 'Review the change.' } as never)
+    expect(JSON.stringify(r)).toContain('class complex')
+    expect(seen.filter((a) => a[0] === 'codex' && a[1] === 'exec')).toHaveLength(1)
+    const request = (seen as any).fetchCalls[0]
+    expect(request.url).toBe('https://router.example/v1/systemone')
+    expect(request.init.headers.authorization).toBe('Bearer test-token')
+    const body = JSON.parse(request.init.body)
+    expect(body.state).toBe('review\nReview the change.')
+    expect(body.questions.route.type).toBe('choice')
+    expect(Object.keys(body.questions.route.criteria).sort()).toEqual([...LABELS].sort())
+    expect((seen as any).calls.some((call: any) => call.stdin?.includes('classify: laya -> complex'))).toBe(true)
+  })
+
+  for (const failure of [{ layaChoice: 'complex-extra' }, { layaError: true }]) {
+    test(`Laya failure falls back to Codex: ${JSON.stringify(failure)}`, async ($, on) => {
+      const seen = world(on, { codex: true, codexSays: 'bulk', router: true, ...failure })
+      on('tool.call', { tool: 'Agent' }, () => ({ result: DONE }) as never)
+      const r: any = await $.tool.call({ tool: 'Agent', description: 'read', prompt: 'Summarise text.' } as never)
+      expect(JSON.stringify(r)).toContain('class bulk')
+      expect(seen.filter((a) => a[0] === 'codex' && a[1] === 'exec')).toHaveLength(2)
+      expect((seen as any).calls.some((call: any) => call.stdin?.includes('classify: laya failed (') && call.stdin?.includes('-> codex'))).toBe(true)
+    })
+  }
+
+  test('an unset router URL skips fetch and uses Codex', async ($, on) => {
     const seen = world(on, { codex: true, codexSays: 'bulk' })
+    on('tool.call', { tool: 'Agent' }, () => ({ result: DONE }) as never)
+    const r: any = await $.tool.call({ tool: 'Agent', description: 'read', prompt: 'Summarise text.' } as never)
+    expect(JSON.stringify(r)).toContain('class bulk')
+    expect((seen as any).fetchCalls).toHaveLength(0)
+    expect(seen.filter((a) => a[0] === 'codex' && a[1] === 'exec')).toHaveLength(2)
+  })
+
+  test('an explicit [class: x] escalation skips the classifier', async ($, on) => {
+    const seen = world(on, { codex: true, codexSays: 'bulk', router: true, layaChoice: 'bulk' })
     on('tool.call', { tool: 'Agent' }, () => ({ result: DONE }) as never)
     const r: any = await $.tool.call({ tool: 'Agent', description: 'retry [class: complex]', prompt: 'Redo the change.' } as never)
     expect(JSON.stringify(r)).toContain('[routed: codex terra high, class complex]')
     expect(seen.filter((a) => a[0] === 'codex' && a[1] === 'exec')).toHaveLength(1)
+    expect((seen as any).fetchCalls).toHaveLength(0)
   })
 
   for (const label of ['plan', 'deep']) {
