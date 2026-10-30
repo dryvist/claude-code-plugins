@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.8.0](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.7.0...jpe-ai-delegation-v1.8.0) (2026-10-30)
+
+
+### Features
+
+* **jpe-ai-delegation:** classify spawns with Laya before Codex ([#669](https://github.com/dryvist/claude-code-plugins/issues/669)) ([5e99699](https://github.com/dryvist/claude-code-plugins/commit/5e9969961ff5859d5f1857e52c5af0b39944277d))
+
 ## [1.7.0](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.6.3...jpe-ai-delegation-v1.7.0) (2026-10-28)
 
 
