@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.9.0](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.8.0...jpe-ai-delegation-v1.9.0) (2026-10-30)
+
+
+### Features
+
+* **jpe-ai-delegation:** reach Laya through the local proxy without a token file ([#671](https://github.com/dryvist/claude-code-plugins/issues/671)) ([8cc3cd4](https://github.com/dryvist/claude-code-plugins/commit/8cc3cd49cac198a04b6e3b9e578c71d28aafa308))
+
 ## [1.8.0](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.7.0...jpe-ai-delegation-v1.8.0) (2026-10-30)
 
 
