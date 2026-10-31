@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.10.1](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.10.0...jpe-ai-delegation-v1.10.1) (2026-10-31)
+
+
+### Bug Fixes
+
+* **jpe-ai-delegation:** let laya() own the shadow configuration check ([#675](https://github.com/dryvist/claude-code-plugins/issues/675)) ([0d9d1f2](https://github.com/dryvist/claude-code-plugins/commit/0d9d1f27f6fe2bd0be602a642d8a0570f9d2293c))
+
 ## [1.10.0](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.9.0...jpe-ai-delegation-v1.10.0) (2026-10-31)
 
 
