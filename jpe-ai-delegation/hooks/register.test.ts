@@ -81,7 +81,7 @@ describe('policy', () => {
   })
 })
 
-function world(on: any, w: { codex: boolean; quotaExitCode?: number; quotaMissing?: boolean; codexSays?: string; codexExitCode?: number; mktempExitCode?: number; mktempStdout?: string; haikuSays?: string; cache?: boolean; agentFiles?: Record<string, string>; router?: boolean; localBase?: string; layaChoice?: string; layaError?: boolean }) {
+function world(on: any, w: { codex: boolean; quotaExitCode?: number; quotaMissing?: boolean; codexSays?: string; codexExitCode?: number; mktempExitCode?: number; mktempStdout?: string; haikuSays?: string; cache?: boolean; agentFiles?: Record<string, string>; router?: boolean; localBase?: string; layaChoice?: string; layaConfidence?: number; layaError?: boolean }) {
   mock.env(on, { HOME: '/home/test', ...(w.router ? { LLM_ROUTER_URL: 'https://router.example/v1/', LLM_ROUTER_TOKEN_FILE: '/token' } : {}), ...(w.localBase ? { LLM_ROUTER_TOKEN_FILE: '', LITELLM_LOCAL_BASE_URL: w.localBase } : {}) })
   mock.clock(on)
   const seen: string[][] = []
@@ -100,7 +100,7 @@ function world(on: any, w: { codex: boolean; quotaExitCode?: number; quotaMissin
   on('http.fetch', (_$: any, e: any) => {
     fetchCalls.push(e)
     if (w.layaError) throw new Error('network error')
-    return { value: { status: 200, ok: true, headers: {}, text: JSON.stringify({ answers: { route: { choice: w.layaChoice } } }) } }
+    return { value: { status: 200, ok: true, headers: {}, text: JSON.stringify({ answers: { route: { choice: w.layaChoice, answer_confidence: w.layaConfidence } } }) } }
   })
   on('ui.log', (...args: any[]) => {
     uiLogs.push(args.map((value) => typeof value === 'string' ? value : JSON.stringify(value)).join(' '))
@@ -265,13 +265,29 @@ describe('router', () => {
     expect(seen.filter((a) => a[0] === 'codex' && a[1] === 'exec')).toHaveLength(2)
   })
 
-  test('an explicit [class: x] escalation skips the classifier', async ($, on) => {
-    const seen = world(on, { codex: true, codexSays: 'bulk', router: true, layaChoice: 'bulk' })
+  test('an explicit [class: x] escalation records a shadow classification', async ($, on) => {
+    const seen = world(on, { codex: true, codexSays: 'bulk', router: true, layaChoice: 'bulk', layaConfidence: 0.876 })
     on('tool.call', { tool: 'Agent' }, () => ({ result: DONE }) as never)
     const r: any = await $.tool.call({ tool: 'Agent', description: 'retry [class: complex]', prompt: 'Redo the change.' } as never)
     expect(JSON.stringify(r)).toContain('[routed: codex terra high, class complex]')
     expect(seen.filter((a) => a[0] === 'codex' && a[1] === 'exec')).toHaveLength(1)
-    expect((seen as any).fetchCalls).toHaveLength(0)
+    expect((seen as any).fetchCalls).toHaveLength(1)
+    expect((seen as any).calls.some((call: any) => call.stdin?.includes('shadow: laya -> bulk conf=0.88 used=complex'))).toBe(true)
+  })
+
+  test('a failed shadow classification leaves the routed result intact', async ($, on) => {
+    const seen = world(on, { codex: true, codexSays: 'result', router: true, layaError: true })
+    on('tool.call', { tool: 'Agent' }, () => ({ result: DONE }) as never)
+    const r: any = await $.tool.call({ tool: 'Agent', description: 'retry [class: complex]', prompt: 'Redo the change.' } as never)
+    expect(JSON.stringify(r)).toContain('[routed: codex terra high, class complex]')
+    expect((seen as any).calls.some((call: any) => call.stdin?.includes('shadow: laya failed (request failed) used=complex'))).toBe(true)
+  })
+
+  test('an untagged classification logs confidence', async ($, on) => {
+    const seen = world(on, { codex: true, codexSays: 'result', router: true, layaChoice: 'standard', layaConfidence: 0.7 })
+    on('tool.call', { tool: 'Agent' }, () => ({ result: DONE }) as never)
+    await $.tool.call({ tool: 'Agent', description: 'read', prompt: 'Read it.' } as never)
+    expect((seen as any).calls.some((call: any) => call.stdin?.includes('classify: laya -> standard conf=0.70'))).toBe(true)
   })
 
   for (const label of ['plan', 'deep']) {
