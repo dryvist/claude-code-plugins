@@ -275,6 +275,15 @@ describe('router', () => {
     expect((seen as any).calls.some((call: any) => call.stdin?.includes('shadow: laya -> bulk conf=0.88 used=complex'))).toBe(true)
   })
 
+  test('an unconfigured router records no shadow classification', async ($, on) => {
+    const seen = world(on, { codex: true, codexSays: 'result' })
+    on('tool.call', { tool: 'Agent' }, () => ({ result: DONE }) as never)
+    const r: any = await $.tool.call({ tool: 'Agent', description: 'retry [class: complex]', prompt: 'Redo the change.' } as never)
+    expect(JSON.stringify(r)).toContain('[routed: codex terra high, class complex]')
+    expect((seen as any).fetchCalls).toHaveLength(0)
+    expect((seen as any).calls.some((call: any) => call.stdin?.includes('shadow:'))).toBe(false)
+  })
+
   test('a failed shadow classification leaves the routed result intact', async ($, on) => {
     const seen = world(on, { codex: true, codexSays: 'result', router: true, layaError: true })
     on('tool.call', { tool: 'Agent' }, () => ({ result: DONE }) as never)

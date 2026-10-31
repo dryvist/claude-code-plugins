@@ -249,14 +249,13 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
   const sandbox: Sandbox = isAdvisory(label) || e.subagent_type === 'Explore' || e.subagent_type === 'Plan' ? 'read-only' : 'workspace-write'
   const shadow = explicitLabel(e.description) ? (async () => {
     try {
-      const tokenFile = await $.env.get('LLM_ROUTER_TOKEN_FILE')
-      const routerUrl = await $.env.get('LLM_ROUTER_URL')
-      const localBase = await $.env.get('LITELLM_LOCAL_BASE_URL')
-      if (!(tokenFile && routerUrl) && !localBase) return
       const prediction = await laya($, e)
       return `shadow: laya -> ${prediction.label} conf=${formatConfidence(prediction.confidence)} used=${label}`
     } catch (error) {
-      return `shadow: laya failed (${layaReason(error)}) used=${label}`
+      const reason = layaReason(error)
+      // laya() owns the configuration check; an unconfigured router is not a shadow failure.
+      if (reason === 'router URL unset' || reason === 'token file unset') return
+      return `shadow: laya failed (${reason}) used=${label}`
     }
   })() : undefined
   let result: unknown | undefined
