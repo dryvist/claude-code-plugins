@@ -10,21 +10,22 @@ Codex is ready when `codex` starts and `codex-quota` exits 0. Every class runs
 on Codex, using the latest listed slug of the class's family from Codex's cache.
 Terra runs only at `medium` or `high`; Luna only at `xhigh` or `max`. Plan and deep run in a
 read-only sandbox as advisory workers, as do `Explore` and `Plan` spawns. When
-Codex is capped or unavailable, routable work goes to Haiku at `xhigh`, the last
-resort; no class resolves to Sonnet or Opus. When Codex is ready but gives no
+Codex is capped or unavailable, the hook runs routable work on Haiku `xhigh`. It
+cannot see repo eligibility, so the lead runs eligible coding work through the
+zcode-job sandbox by hand instead of spawning. No class resolves to Sonnet or Opus. When Codex is ready but gives no
 answer, the spawn returns a `FAIL | router |` hand-back instead of running on
 Haiku, so the lead splits or re-briefs the task. Explicit `opus`
 and `sonnet` choices are preserved; explicit `haiku` is routed to Codex when
-ready. Worktree-isolated spawns go to Haiku.
+ready. Worktree-isolated spawns go to Haiku `xhigh` while Codex is ready.
 
 Codex call contract: [model-delegation.md](https://github.com/dryvist/ai-llm-prompts/blob/main/auto-ai-agent/instructions/agentsmd/rules/on-demand/model-delegation.md).
 
-| Class | Codex | Last resort |
+| Class | Codex | When capped |
 | --- | --- | --- |
-| bulk | Luna, `xhigh` | Haiku, `xhigh` |
-| bulk-complex | Luna, `max` | Haiku, `xhigh` |
-| standard | Terra, `medium` | Haiku, `xhigh` |
-| complex | Terra, `high` | Haiku, `xhigh` |
+| bulk | Luna, `xhigh` | zcode-job if eligible, else Haiku, `xhigh` |
+| bulk-complex | Luna, `max` | zcode-job if eligible, else Haiku, `xhigh` |
+| standard | Terra, `medium` | zcode-job if eligible, else Haiku, `xhigh` |
+| complex | Terra, `high` | zcode-job if eligible, else Haiku, `xhigh` |
 | plan | Terra, `high` (read-only) | Haiku, `xhigh` |
 | deep | Terra, `high` (read-only) | Haiku, `xhigh` |
 

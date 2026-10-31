@@ -18,9 +18,19 @@ assert_route() {
 }
 
 @test "Codex exhaustion follows each kind's fallback" {
-  assert_route 'Z.ai GLM' exhausted code
+  assert_route 'zcode-job sandbox' exhausted code
   assert_route 'Z.ai GLM' exhausted private
   assert_route 'Haiku xhigh' exhausted other
+}
+
+@test "private repos reach the sandbox only when the lead sets the allowlist gate" {
+  run env AGENT_ROUTE_CODEX_QUOTA=exhausted AGENT_ROUTE_SANDBOX_ALLOWLISTED=yes agent-route private
+  [ "$status" -eq 0 ]
+  [ "$output" = 'zcode-job sandbox' ]
+
+  run env AGENT_ROUTE_CODEX_QUOTA=exhausted AGENT_ROUTE_SANDBOX_ALLOWLISTED=no agent-route private
+  [ "$status" -eq 0 ]
+  [ "$output" = 'Z.ai GLM' ]
 }
 
 @test "Codex availability selects Codex for every kind" {
@@ -29,8 +39,8 @@ assert_route() {
   assert_route 'Codex' available private
 }
 
-@test "ZCode is not a rung and its flag is rejected" {
-  run grep -ri zcode "$REPO_ROOT/jpe-ai-delegation/skills/delegation-ladder/ladder.json"
+@test "the sandbox rung is absent from the other kind and the zcode flag is rejected" {
+  run jq -e '[.kinds.other.rungs[].name] | any(test("sandbox"))' "$REPO_ROOT/jpe-ai-delegation/skills/delegation-ladder/ladder.json"
   [ "$status" -eq 1 ]
 
   run env AGENT_ROUTE_CODEX_QUOTA=exhausted agent-route code --zcode available
@@ -57,7 +67,7 @@ EOF
 
   run env -u AGENT_ROUTE_CODEX_QUOTA CODEX_QUOTA_EXIT=1 PATH="$BATS_TEST_TMPDIR/bin:$PATH" agent-route code
   [ "$status" -eq 0 ]
-  [ "$output" = 'Z.ai GLM' ]
+  [ "$output" = 'zcode-job sandbox' ]
 }
 
 @test "unknown kinds exit 2 with one line" {
