@@ -51,6 +51,10 @@ while IFS=$'\t' read -r executor gate; do
       [[ $codex_quota == available ]] || continue
       ;;
     always) ;;
+    # The lead sets this only after a private repo passes its property and classify-payload gates.
+    allowlisted)
+      [[ ${AGENT_ROUTE_SANDBOX_ALLOWLISTED:-} == yes ]] || continue
+      ;;
     *) fail 1 'invalid ladder gate' ;;
   esac
 
