@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.10.0](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.9.0...jpe-ai-delegation-v1.10.0) (2026-10-31)
+
+
+### Features
+
+* **jpe-ai-delegation:** log Laya shadow labels and confidence ([#673](https://github.com/dryvist/claude-code-plugins/issues/673)) ([e7cd1e6](https://github.com/dryvist/claude-code-plugins/commit/e7cd1e6ce0601ef8254599c28becc2902041f3a3))
+
 ## [1.9.0](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.8.0...jpe-ai-delegation-v1.9.0) (2026-10-30)
 
 

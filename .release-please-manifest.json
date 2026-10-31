@@ -1,5 +1,5 @@
 {
-  ".": "6.31.0",
+  ".": "6.32.0",
   "ai-cli-harness-better-practices": "4.30.0",
   "ai-delegation": "6.11.0",
   "code-standards": "6.3.0",
@@ -10,7 +10,7 @@
   "github-workflows": "6.11.1",
   "homelab-ops": "1.1.0",
   "infra-orchestration": "6.3.0",
-  "jpe-ai-delegation": "1.9.0",
+  "jpe-ai-delegation": "1.10.0",
   "infra-standards": "6.2.1",
   "openbao": "4.22.1",
   "ansible": "1.1.0",
