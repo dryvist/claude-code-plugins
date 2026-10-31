@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.10.2](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.10.1...jpe-ai-delegation-v1.10.2) (2026-10-31)
+
+
+### Bug Fixes
+
+* **jpe-ai-delegation:** add the zcode-job sandbox rung to the ladder ([#677](https://github.com/dryvist/claude-code-plugins/issues/677)) ([43ec48b](https://github.com/dryvist/claude-code-plugins/commit/43ec48b593bf8147c96f9adbfa2b276ec2b9a15c))
+
 ## [1.10.1](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.10.0...jpe-ai-delegation-v1.10.1) (2026-10-31)
 
 
