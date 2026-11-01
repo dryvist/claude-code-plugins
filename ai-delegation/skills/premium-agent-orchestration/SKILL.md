@@ -1,113 +1,126 @@
 ---
 name: premium-agent-orchestration
-description: Use when the session runs a premium top-tier/SOTA model AND the work is independent pieces exceeding one context window, or a marathon multi-workstream coordination session. Fans work to scoped worker subagents or the local router while the lead keeps judgment, merging, and verification. Not for serial work with a few decisions or a single chain fitting one context — tune effort on one model instead.
+description: Inject any time, including mid-task, to reset the session to lean orchestrator mode. Covers marathon or multi-workstream coordination and work larger than one context. Plan and fan out checkable work to the cheapest capable executor; keep goals, gates, decisions, and final review in the parent.
 ---
 
 # Premium Agent Orchestration
 
-Treat the model running the current session as the senior decision-maker,
-whatever it is — model- and vendor-agnostic. This skill is the
-**orchestrator** case only: independent work that together exceeds one
-context window, or a marathon multi-workstream coordination session.
-**Not this skill:** serial work with a few
-hard decisions, or one chain that fits a single context — tune effort on
-one model instead. The baseline to beat is always the frontier model at
-`high` effort alone; measure against that first.
+## Reset to orchestrator (run on load)
 
-## Economics
+Pause the current task and run this reset as soon as the skill loads.
 
-- **Pays** when combined input exceeds one context window.
-- **Measured gains:** 47–55% cost cut on large-corpus work; on routine
-  batches, half the average cost and a third of the worst-case (tail) cost
-  versus one agent working serially.
-- **Measured cost:** 10–12 accuracy points when workers are weaker than the
-  lead. Mitigate by keeping merging and final judgment on the lead — never
-  let a worker's output ship unreviewed.
+1. Re-read the current goal or plan and its success criteria.
+2. List every in-flight delegate and background job, with its task and
+   current state.
+3. Judge each finished result against its named yes/no check. Accept it or
+   record the shortfall.
+4. Re-plan from live state: completed work, open checks, dependencies, and
+   blockers.
+5. Fan out every ready, independent task in parallel to the cheapest capable
+   executor.
+6. Keep for yourself only intent, goals, plans, design, risk, authority
+   gates, integration and merge choices, and final review.
+7. Answer the user briefly with the current state, next step, or blocker.
 
-## Senior Model Owns
+## The parent's job
 
-The flagship keeps judgment on intent, design, tradeoffs, risk, and final
-approval. The lead checks every result against its yes/no check and sends
-failures back with the named shortfall; a delegate's claim isn't evidence.
+The parent session orchestrates. It sets goals and plans, defines task
+boundaries, makes design and risk decisions, holds authority gates, integrates
+results, decides what may merge, and reviews the final work.
 
-**Delegate strictly downward — never spawn a peer at your own tier.** Send
-quick lookups, exploration, and search to the **lowest** capable executor,
-not just one down — that work costs volume, not thought. Forks run on the
-lead's model. Prefer the router for checkable, low-skill work; discover
-availability live, never hard-code a physical model ID or a static
-task-to-model table.
+The parent does not do bulk reads, searches, edits, test runs, log digging, or
+long-output inspection. Delegate that volume to the cheapest capable executor
+and ask for a short result with evidence. Keep only judgment and coordination
+in the parent.
 
-## Concurrency and batching
+Do a handful of tool calls inline when delegation setup, prompt writing, or
+result handoff would cost more than the work. If a task contains routine work
+and a hard decision, delegate the evidence gathering and keep the decision.
 
-- **Parallelize ready work.** Launch all independent, ready work in parallel;
-  sequence only for real dependencies or same-file conflicts. Group related
-  lookups within a worker when they form one task. Probe the spawn substrate
-  before the first fan-out; if spawning fails, take the solo path.
-  Never cap the number of workers. Gate a large fan-out only on measured machine
-  load (CPU and memory under 80% of capacity); spawn failures and quota or rate
-  limits are the other signals (see Substrate Resilience below). Batch many
-  small related tasks into one routed Agent call as a task list.
+## Cheapest-capable ladder
 
-Codex delegation call and result contract: [model-delegation.md](https://github.com/dryvist/ai-llm-prompts/blob/main/auto-ai-agent/instructions/agentsmd/rules/on-demand/model-delegation.md).
+Choose an executor for each task, not for the whole project. Start at the
+lowest rung that can meet the check.
 
-## Boundary and High-Risk Work
+1. **Inline:** tiny work where handoff costs more than doing it, such as a few
+   simple tool calls.
+2. **Local or free model:** text-only extraction, summaries, classification,
+   and drafts from approved inputs.
+3. **Untrusted low-cost tier:** work that uses public data only.
+4. **Low-cost hosted worker:** other checkable work, including bounded code
+   and tool tasks.
+5. **Premium peer:** judgment that cannot be delegated. Choose below the
+   parent's tier; never use a peer at your own tier.
 
-Delegate searching, reading, editing, testing, verifying. Keep intent,
-design, tradeoffs, risk, disagreement, and final approval with the lead.
-High-risk (auth, billing, permissions, security, migrations, data loss,
-shared state, caching, concurrency, cross-module behavior, public APIs,
-user-visible workflows): the lead decides. An advisory worker gives
-architecture and security judgment. A scoped worker does the execution; the
-router gathers evidence only.
+At call time, read current prices, context-length price tiers, peak and
+off-peak windows, and quotas from the router or provider. Never hard-code
+prices, model names, or availability. Keep each worker below its model's
+context price tier. Split a task before it crosses that tier. Prefer off-peak
+windows for bulk work that can wait.
 
-## Substrate Resilience
+## Brief each task
 
-Probe the spawn substrate, bound every poller, and take the solo path when
-spawning fails. See the `subagent-resilience` rule
-from your project's agent instructions.
+Give each worker one outcome, the exact inputs it may use, and a yes/no check.
+Put a static shared prefix first and task-specific text last so matching calls
+can use prefix caching. Keep the shared prefix byte-identical when the
+executor supports caching.
 
-## Sibling-prefix cache sharing
+Use this compact brief:
 
-Where the executor supports prefix caching, parallel workers of the same
-type share it only when the prefix is byte-identical: keep startup context
-static, task-specific text **last** in the worker prompt. A varying opener
-breaks the shared prefix and adds cold-start overhead.
+```text
+Use only the supplied scope and inputs. Do not expand the task, make reserved
+decisions, or ship work. If blocked, stop and report why. Return only the
+stated output contract.
 
-## Plan Mode Versus Execution Mode
+Goal and intent: [what outcome is needed and why]
+Exact scope and what not to touch: [files, data, systems, boundaries]
+Constraints and decisions: [paste the applicable constraints and decisions]
+Success check (yes/no): [one concrete pass condition]
+Output contract: [one line or exact schema]
+Stop and report: [the point to stop, or the blocker to report]
+Difficulty and risk: [plain words]
+```
 
-A "Plan mode is active" system notice, a plan file, or a request to design
-before building means plan mode; anything else is execution. In plan mode,
-for more than a quick single-step change, invoke the `goal` skill
-(`ai-cli-harness-better-practices`) and put its output at the top of the
-plan: objective, one boundary, numbered exit conditions each a reader-
-runnable yes/no check, the last one end-to-end verification.
+## Judge every result
 
-## Operating Loop
+A delegate's output is a claim until its check passes.
 
-1. Confirm this is the orchestrator case (independent pieces exceeding one
-   context, or a marathon multi-workstream coordination session) — otherwise,
-   don't use this skill.
-2. Make each delegated task atomic: one outcome, named inputs, and a yes/no
-   check; keep sibling writes disjoint and sequence dependencies.
-3. Probe the spawn substrate before the first fan-out; on failure, take the
-   solo path.
-4. Route lookups and bulk reads to the router, then a scoped worker subagent.
-   Launch all independent, ready tasks in parallel; sequence real dependencies
-   or same-file conflicts.
-5. Use a scoped worker subagent for implementation. Use an advisory worker for architecture
-   and security judgment only.
-6. Require each worker's one-line or schema output (see above).
-7. Answer the user briefly.
+- Compare the returned artifact and evidence with the named yes/no check.
+- Send failures back with the specific shortfall and the next check to pass.
+- Split oversized tasks into smaller pieces with separate checks.
+- Never let unreviewed output ship or merge. The parent owns the final review
+  and gate.
 
-## Final Gate
+## Boundaries and high-risk work
 
-Before answering, confirm the request was handled, required output formats
-were used, non-trivial work was verified, and remaining risk is named.
+Do not send secrets, credentials, private data, or restricted information to
+an executor unless that executor is approved for it. A public-data-only tier
+receives public data only.
 
-## Related Skills
+The parent keeps decisions about intent, design, security, permissions,
+migrations, data loss, shared state, concurrency, public interfaces, and
+user-visible risk. A worker may gather evidence or complete a scoped change,
+but it does not make reserved decisions or approve its own result.
 
-- delegate-to-ai (ai-delegation) for generic safeguards; delegation-ladder (jpe-ai-delegation) for the maintainer's own route
-- auto-maintain (ai-delegation)
-- local-subagents (ai-delegation) — cheap-first-escalate loop for a single
-  chain of checkable work; this skill is the multi-worker fan-out case.
-- goal (ai-cli-harness-better-practices)
+## Substrate resilience
+
+Check live executor availability and limits before a fan-out. Respect
+concurrency, quota, and rate limits. Give background work a clear stop
+condition and bounded waits. If a call fails, record the failure, then
+re-plan or choose the next eligible executor. Do not poll forever or silently
+absorb a failed task into the parent.
+
+## Token discipline
+
+- Batch related asks when one worker can handle them under one clear check.
+- Pull back conclusions and supporting evidence, not full dumps.
+- Do not re-read material a delegate has already summarized unless the check
+  or risk requires it.
+- Fork a separate context only when the task truly needs one.
+
+## Related skills
+
+- `local-subagents` — choose and use local or low-cost model tiers.
+- `fast-subagent` — send routine, checkable work through a fast local route.
+- `delegate-to-ai` — general safeguards for bounded delegation.
+- For the maintainer's own route, see `delegation-ladder`.
