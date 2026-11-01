@@ -1,11 +1,12 @@
 import type { EngineInterface, Register } from 'claude-code'
-import { CLASSIFIER, CODEX, JUDGE, LABELS, LAST_RESORT, UTILITY, codexArgv, explicitLabel, isAdvisory, isGenericType, isHaikuRoutable, isRoutable, isShellCAsk, newestModel, parseVerdict, pickLabel } from './lib/policy'
+import { CLASSIFIER, CODEX, JUDGE, LABELS, LAST_RESORT, UTILITY, codexArgv, explicitExecutor, explicitLabel, isAdvisory, isGenericType, isHaikuRoutable, isRoutable, isShellCAsk, newestModel, parseVerdict, pickLabel } from './lib/policy'
 import type { Label, Route, Sandbox } from './lib/policy'
 
 type Engine = EngineInterface
 type AgentCall = { description?: string; prompt: string; subagent_type?: string; model?: string; effort?: string; name?: string; isolation?: string }
 type QuotaLine = 'codex-quota: available' | 'codex-quota: exhausted' | 'codex-quota: unavailable'
 const UNAVAILABLE: QuotaLine = 'codex-quota: unavailable'
+const TEXT_EXECUTOR_TIMEOUT_MS = 120_000
 // shortcut: the startup line lives in the module, so a hot reload recomputes it on the next prompt.compose.
 let startupQuota: QuotaLine | undefined
 const PROMPT_POLICY = 'Codex delegates: Luna only — xhigh for bulk/standard, max for bulk-complex/complex/plan/deep; capped: Haiku xhigh. Never Terra, Sonnet or Opus.'
@@ -90,28 +91,33 @@ async function logDecision($: Engine, line: string): Promise<void> {
   }
 }
 
+async function routerTarget($: Engine, endpoint: 'systemone' | 'chat/completions'): Promise<{ url: string; headers: Record<string, string> }> {
+  const tokenFile = await $.env.get('LLM_ROUTER_TOKEN_FILE')
+  const headers: Record<string, string> = { 'content-type': 'application/json' }
+  let base: string
+  if (tokenFile) {
+    const routerUrl = await $.env.get('LLM_ROUTER_URL')
+    if (!routerUrl) throw new Error('router URL unset')
+    let token: string
+    try { token = (await $.fs.read(tokenFile)).trim() } catch { throw new Error('token file unreadable') }
+    if (!token) throw new Error('token file empty')
+    base = routerUrl.replace(/\/+$/, '')
+    headers.authorization = `Bearer ${token}`
+  } else {
+    const localBase = await $.env.get('LITELLM_LOCAL_BASE_URL')
+    if (!localBase) throw new Error(await $.env.get('LLM_ROUTER_URL') ? 'token file unset' : 'router URL unset')
+    base = `${localBase.replace(/\/+$/, '')}/v1`
+  }
+  return { url: `${base}/${endpoint}`, headers }
+}
+
 async function laya($: Engine, e: AgentCall): Promise<{ label: Label; confidence: number | undefined }> {
   const task = `${e.description ?? ''}\n${e.prompt.slice(0, 4000)}`
   let timer: { cancel: () => void } | undefined
   try {
     return await Promise.race([
       (async () => {
-        const tokenFile = await $.env.get('LLM_ROUTER_TOKEN_FILE')
-        let url: string
-        const headers: Record<string, string> = { 'content-type': 'application/json' }
-        if (tokenFile) {
-          const routerUrl = await $.env.get('LLM_ROUTER_URL')
-          if (!routerUrl) throw new Error('router URL unset')
-          let token: string
-          try { token = (await $.fs.read(tokenFile)).trim() } catch { throw new Error('token file unreadable') }
-          if (!token) throw new Error('token file empty')
-          url = `${routerUrl.replace(/\/+$/, '')}/systemone`
-          headers.authorization = `Bearer ${token}`
-        } else {
-          const localBase = await $.env.get('LITELLM_LOCAL_BASE_URL')
-          if (!localBase) throw new Error(await $.env.get('LLM_ROUTER_URL') ? 'token file unset' : 'router URL unset')
-          url = `${localBase.replace(/\/+$/, '')}/v1/systemone`
-        }
+        const { url, headers } = await routerTarget($, 'systemone')
         const criteria: Record<Label, string> = {
           bulk: 'Simple work or very large text volume where cost per token matters most.',
           'bulk-complex': 'High-volume or cost-sensitive work that is still somewhat complicated.',
@@ -142,7 +148,7 @@ async function laya($: Engine, e: AgentCall): Promise<{ label: Label; confidence
 }
 
 function layaReason(error: unknown): string {
-  return error instanceof Error && ['router URL unset', 'token file unset', 'token file unreadable', 'token file empty', 'HTTP failure', 'invalid JSON', 'invalid label', 'timeout'].includes(error.message) ? error.message : 'request failed'
+  return error instanceof Error && ['router URL unset', 'token file unset', 'token file unreadable', 'token file empty', 'HTTP failure', 'invalid JSON', 'invalid label', 'empty content', 'timeout'].includes(error.message) ? error.message : 'request failed'
 }
 
 function formatConfidence(confidence: number | undefined): string {
@@ -169,18 +175,119 @@ async function runRoutedCodex($: Engine, e: AgentCall, route: string, codexRoute
   const out = await runCodex($, codexRoute, sandbox, e.prompt, 600_000)
   if (!out) return undefined
   await logDecision($, `route: ${route} -> codex ${codexRoute.family} ${codexRoute.effort} (${sandbox})`)
+  return routedResult(e, 'ai-delegation-codex', out, `[routed: codex ${codexRoute.family} ${codexRoute.effort}, ${detail}]`, (await $.clock.now()) - started)
+}
+
+function routedResult(e: AgentCall, agentId: string, out: string, footer: string, duration: number): unknown {
   return {
     result: {
       status: 'completed',
       prompt: e.prompt,
-      agentId: 'ai-delegation-codex',
-      content: [{ type: 'text', text: `${out}\n\n[routed: codex ${codexRoute.family} ${codexRoute.effort}, ${detail}]` }],
+      agentId,
+      content: [{ type: 'text', text: `${out}\n\n${footer}` }],
       totalToolUseCount: 0,
-      totalDurationMs: (await $.clock.now()) - started,
+      totalDurationMs: duration,
       totalTokens: 0,
       usage: { input_tokens: 0, output_tokens: 0, cache_creation_input_tokens: null, cache_read_input_tokens: null, server_tool_use: null, service_tier: null, cache_creation: null },
     },
   } as never
+}
+
+async function executorFallback($: Engine, executor: 'public' | 'text', reason: string): Promise<void> {
+  $.ui.log(`ai-delegation: ${executor} executor failed: ${reason}`)
+  await logDecision($, `route: ${executor} -> codex luna xhigh (standard fallback: ${reason})`)
+}
+
+function publicRepo(description: string | undefined): string | undefined {
+  const repo = description?.match(/\[repo: ([A-Za-z0-9][A-Za-z0-9-]{0,38}\/[A-Za-z0-9._-]{1,100})\]/)?.[1]
+  return repo && !['.', '..'].includes(repo.split('/')[1]) ? repo : undefined
+}
+
+async function runPublicExecutor($: Engine, e: AgentCall): Promise<unknown | undefined> {
+  const started = await $.clock.now()
+  const repo = publicRepo(e.description)
+  if (!repo) {
+    await executorFallback($, 'public', 'missing or invalid repo tag')
+    return undefined
+  }
+
+  let visibilityTimer: { cancel: () => void } | undefined
+  try {
+    const visibility = await Promise.race([
+      $.http.fetch(`https://api.github.com/repos/${repo}`, {
+        method: 'GET',
+        headers: { accept: 'application/vnd.github+json', 'user-agent': 'jpe-ai-delegation' },
+      }),
+      new Promise<never>((_, reject) => { visibilityTimer = $.clock.after(15_000, () => reject(new Error('timeout'))) }),
+    ])
+    if (!visibility.ok) {
+      await executorFallback($, 'public', 'repository visibility was not confirmed public')
+      return undefined
+    }
+    const repository = JSON.parse(visibility.text)
+    if (repository.visibility !== 'public' || repository.private !== false) {
+      await executorFallback($, 'public', 'repository visibility was not confirmed public')
+      return undefined
+    }
+  } catch {
+    await executorFallback($, 'public', 'repository visibility check failed or timed out')
+    return undefined
+  } finally {
+    visibilityTimer?.cancel()
+  }
+
+  let reason = 'zcode-job returned invalid output'
+  try {
+    const response = await $.process.run(['zcode-job', 'start', repo, e.prompt], { timeoutMs: 300_000 })
+    const line = response.stdout.replace(/\r?\n$/, '')
+    const done = line.match(/^DONE\|(j-[0-9a-f]{16})\|(?:no-pr|https:\/\/github\.com\/[A-Za-z0-9-]+\/[A-Za-z0-9._-]+\/pull\/\d+)$/)
+    if (response.exitCode === 0 && response.isStdoutTruncated !== true && done) {
+      let answer = ''
+      try {
+        const result = await $.process.run(['zcode-job', 'result', done[1]], { timeoutMs: 60_000 })
+        answer = result.exitCode === 0 ? result.stdout.trim() : ''
+        if (answer && (answer.length > 60_000 || result.isStdoutTruncated === true)) answer = `${answer.slice(0, 60_000 - '[truncated]'.length)}[truncated]`
+      } catch {
+        // A completed job remains usable when its result summary cannot be read.
+      }
+      await logDecision($, 'route: public -> sandbox zcode (class public)')
+      return routedResult(e, 'ai-delegation-zcode', `${answer ? `${answer}\n\n` : ''}${line}`, '[routed: sandbox zcode, class public]', (await $.clock.now()) - started)
+    }
+    if (/^FAIL\|j-[0-9a-f]{16}\|[^\r\n]+$/.test(line)) reason = 'zcode-job reported failure'
+    else if (!line) reason = 'zcode-job returned no output'
+  } catch {
+    reason = 'zcode-job failed or timed out'
+  }
+  await executorFallback($, 'public', reason)
+  return undefined
+}
+
+async function runTextExecutor($: Engine, e: AgentCall): Promise<unknown | undefined> {
+  const started = await $.clock.now()
+  let timer: { cancel: () => void } | undefined
+  try {
+    const target = await routerTarget($, 'chat/completions')
+    const response = await Promise.race([
+      $.http.fetch(target.url, {
+        method: 'POST',
+        headers: target.headers,
+        body: JSON.stringify({ model: 'small', messages: [{ role: 'user', content: e.prompt }] }),
+      }),
+      new Promise<never>((_, reject) => { timer = $.clock.after(TEXT_EXECUTOR_TIMEOUT_MS, () => reject(new Error('timeout'))) }),
+    ])
+    if (!response.ok) throw new Error('HTTP failure')
+    let answer: { choices?: { message?: { content?: unknown } }[] }
+    try { answer = JSON.parse(response.text) } catch { throw new Error('invalid JSON') }
+    const out = answer.choices?.[0]?.message?.content
+    if (typeof out !== 'string' || !out.trim()) throw new Error('empty content')
+    await logDecision($, 'route: text -> litellm small (class text)')
+    return routedResult(e, 'ai-delegation-litellm', out.trim(), '[routed: litellm small, class text]', (await $.clock.now()) - started)
+  } catch (error) {
+    await executorFallback($, 'text', layaReason(error))
+    return undefined
+  } finally {
+    timer?.cancel()
+  }
 }
 
 async function codexNoAnswer($: Engine, e: AgentCall, route: string): Promise<unknown> {
@@ -237,6 +344,11 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
   }
 
   if (!isRoutable(e)) return next(e as never)
+  const executor = explicitExecutor(e.description)
+  if (executor) {
+    const result = executor === 'public' ? await runPublicExecutor($, e) : await runTextExecutor($, e)
+    if (result) return result
+  }
   const lastResort = async (why: string): Promise<unknown> => {
     await logDecision($, `route: ${why} -> claude ${LAST_RESORT.model} ${LAST_RESORT.effort}`)
     return next({ ...e, ...LAST_RESORT } as never)
@@ -245,7 +357,7 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
   if (!(await codexReady($))) return lastResort('codex unavailable')
   // Worktree isolation cannot run through `codex exec`, which works in the session's directory.
   if (e.isolation) return lastResort('isolated')
-  const label = await classify($, e)
+  const label = executor ? 'standard' : await classify($, e)
   const sandbox: Sandbox = isAdvisory(label) || e.subagent_type === 'Explore' || e.subagent_type === 'Plan' ? 'read-only' : 'workspace-write'
   const shadow = explicitLabel(e.description) ? (async () => {
     try {

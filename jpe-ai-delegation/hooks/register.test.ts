@@ -1,5 +1,5 @@
 import { describe, expect, mock, test } from 'claude-code/testing'
-import { CODEX, LABELS, LAST_RESORT, TIERS, codexArgv, explicitLabel, isAdvisory, isRoutable, isShellCAsk, newestModel, parseVerdict, pickLabel } from './lib/policy'
+import { CODEX, LABELS, LAST_RESORT, TIERS, codexArgv, explicitExecutor, explicitLabel, isAdvisory, isRoutable, isShellCAsk, newestModel, parseVerdict, pickLabel } from './lib/policy'
 
 const CORE_ASK = { decision: 'ask', reason: 'This command passes a shell -c script that runs rm, and Claude Code could not check the script for dangerous removals.' }
 const RAN = { exitCode: 0, stdout: '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false }
@@ -39,6 +39,11 @@ describe('policy', () => {
   test('routing policy includes executor and keeps named choices', () => {
     expect(pickLabel('Complex.')).toBe('complex')
     expect(pickLabel('no idea')).toBeUndefined()
+    expect(explicitExecutor('[class: public]')).toBe('public')
+    expect(explicitExecutor('[class: text]')).toBe('text')
+    expect(explicitExecutor('[class: standard]')).toBeUndefined()
+    expect(explicitLabel('[class: public]')).toBeUndefined()
+    expect(explicitLabel('[class: text]')).toBeUndefined()
     expect(isShellCAsk('ask', CORE_ASK.reason)).toBe(true)
     expect(isShellCAsk('ask', 'Allow this git push?')).toBe(false)
     expect(isShellCAsk('allow', CORE_ASK.reason)).toBe(false)
@@ -86,7 +91,7 @@ describe('policy', () => {
   })
 })
 
-function world(on: any, w: { codex: boolean; quotaExitCode?: number; quotaMissing?: boolean; codexSays?: string; codexExitCode?: number; mktempExitCode?: number; mktempStdout?: string; haikuSays?: string; cache?: boolean; agentFiles?: Record<string, string>; router?: boolean; localBase?: string; layaChoice?: string; layaConfidence?: number; layaError?: boolean }) {
+function world(on: any, w: { codex: boolean; quotaExitCode?: number; quotaMissing?: boolean; codexSays?: string; codexExitCode?: number; mktempExitCode?: number; mktempStdout?: string; haikuSays?: string; cache?: boolean; agentFiles?: Record<string, string>; router?: boolean; localBase?: string; layaChoice?: string; layaConfidence?: number; layaError?: boolean; repoError?: boolean; repoStatus?: number; repoVisibility?: string; repoPrivate?: boolean; repoInvalidJson?: boolean; zcodeError?: boolean; zcodeExitCode?: number; zcodeOutput?: string; zcodeResultExitCode?: number; zcodeResultOutput?: string; httpStatus?: number; chatContent?: string }) {
   mock.env(on, { HOME: '/home/test', ...(w.router ? { LLM_ROUTER_URL: 'https://router.example/v1/', LLM_ROUTER_TOKEN_FILE: '/token' } : {}), ...(w.localBase ? { LLM_ROUTER_TOKEN_FILE: '', LITELLM_LOCAL_BASE_URL: w.localBase } : {}) })
   mock.clock(on)
   const seen: string[][] = []
@@ -104,8 +109,18 @@ function world(on: any, w: { codex: boolean; quotaExitCode?: number; quotaMissin
   on('fs.read', (_$: any, e: { path: string }) => ({ value: e.path === '/token' ? ' test-token\n' : e.path === '/tmp/ai-delegation-final-message' ? w.codexSays ?? '' : e.path.endsWith('/models_cache.json') ? CACHE : agentFile(e.path) ?? '' }))
   on('http.fetch', (_$: any, e: any) => {
     fetchCalls.push(e)
+    if (e.url.startsWith('https://api.github.com/repos/')) {
+      if (w.repoError) throw new Error('GitHub request failed')
+      const status = w.repoStatus ?? 200
+      const text = w.repoInvalidJson ? '{' : JSON.stringify({ visibility: w.repoVisibility ?? 'public', private: w.repoPrivate ?? false })
+      return { value: { status, ok: status >= 200 && status < 300, headers: {}, text } }
+    }
     if (w.layaError) throw new Error('network error')
-    return { value: { status: 200, ok: true, headers: {}, text: JSON.stringify({ answers: { route: { choice: w.layaChoice, answer_confidence: w.layaConfidence } } }) } }
+    const status = w.httpStatus ?? 200
+    const text = e.url.endsWith('/chat/completions')
+      ? JSON.stringify({ choices: [{ message: { content: w.chatContent ?? 'small result' } }] })
+      : JSON.stringify({ answers: { route: { choice: w.layaChoice, answer_confidence: w.layaConfidence } } })
+    return { value: { status, ok: status >= 200 && status < 300, headers: {}, text } }
   })
   on('ui.log', (...args: any[]) => {
     uiLogs.push(args.map((value) => typeof value === 'string' ? value : JSON.stringify(value)).join(' '))
@@ -117,6 +132,14 @@ function world(on: any, w: { codex: boolean; quotaExitCode?: number; quotaMissin
     calls.push({ argv, stdin: e.init?.stdin })
     if (argv[0] === 'mktemp') return { value: { ...RAN, exitCode: w.mktempExitCode ?? 0, stdout: w.mktempStdout ?? '/tmp/ai-delegation-final-message' } }
     if (argv[0] === 'rm') return { value: RAN }
+    if (argv[0] === 'zcode-job') {
+      if (w.zcodeError) throw new Error('zcode-job request failed')
+      if (argv[1] === 'result') {
+        const result = w.zcodeResultOutput ?? JSON.stringify({ job: 'j-0123456789abcdef', tool: 'zcode', repo: 'owner/project', state: 'succeeded', pr: '', duration: 1, result: 'job: j-0123456789abcdef\ntool: zcode\nrepo: owner/project\nstate: succeeded\npr: none\nduration: 1s' })
+        return { value: { ...RAN, exitCode: w.zcodeResultExitCode ?? 0, stdout: result }}
+      }
+      return { value: { ...RAN, exitCode: w.zcodeExitCode ?? 0, stdout: w.zcodeOutput ?? 'DONE|j-0123456789abcdef|no-pr\n' } }
+    }
     if (e.argv[0] === 'codex' && e.argv[1] === '--version') return { value: { ...RAN, exitCode: w.codex ? 0 : 1 } }
     if (argv[0] === 'codex-quota') {
       if (w.quotaMissing) return { value: { ...RAN, exitCode: 127 } }
@@ -183,6 +206,142 @@ describe('router', () => {
       expect(routed.effort).toBe('xhigh')
       expect((seen as any).modelCalls).toEqual([])
       expect(seen.some((a) => a[0] === 'codex' && a[1] === 'exec')).toBe(false)
+    })
+  }
+
+  test('explicit public work uses zcode only after GitHub confirms public visibility', async ($, on) => {
+    const result = JSON.stringify({ job: 'j-0123456789abcdef', tool: 'zcode', repo: 'owner/project', state: 'succeeded', pr: '', duration: 1, result: 'job: j-0123456789abcdef\ntool: zcode\nrepo: owner/project\nstate: succeeded\npr: none\nduration: 1s' })
+    const seen = world(on, { codex: false, repoVisibility: 'public', repoPrivate: false, zcodeOutput: 'DONE|j-0123456789abcdef|no-pr\n', zcodeResultOutput: `  ${result} \n` })
+    let reached = false
+    on('tool.call', { tool: 'Agent' }, () => ((reached = true), { result: DONE }) as never)
+    const r: any = await $.tool.call({ tool: 'Agent', description: '[class: public] [repo: owner/project]', prompt: 'Read the public project.' } as never)
+    const calls = (seen as any).calls.filter((call: any) => call.argv[0] === 'zcode-job')
+    const request = (seen as any).fetchCalls[0]
+    expect(reached).toBe(false)
+    expect(request.url).toBe('https://api.github.com/repos/owner/project')
+    expect(request.init).toEqual({ method: 'GET', headers: { accept: 'application/vnd.github+json', 'user-agent': 'jpe-ai-delegation' } })
+    expect(calls.map((call: any) => call.argv)).toEqual([
+      ['zcode-job', 'start', 'owner/project', 'Read the public project.'],
+      ['zcode-job', 'result', 'j-0123456789abcdef'],
+    ])
+    expect(r.result.content[0].text).toBe(`${result}\n\nDONE|j-0123456789abcdef|no-pr\n\n[routed: sandbox zcode, class public]`)
+    expect(seen.some((a) => a[0] === 'codex')).toBe(false)
+  })
+
+  test('a private repository never reaches zcode and falls back to Luna standard', async ($, on) => {
+    const seen = world(on, { codex: true, codexSays: 'Luna fallback', repoVisibility: 'private', repoPrivate: true })
+    on('tool.call', { tool: 'Agent' }, () => ({ result: DONE }) as never)
+    const r: any = await $.tool.call({ tool: 'Agent', description: '[class: public] [repo: owner/project]', prompt: 'Read the project.' } as never)
+    expect((seen as any).calls.some((call: any) => call.argv[0] === 'zcode-job')).toBe(false)
+    expect(JSON.stringify(r)).toContain('[routed: codex luna xhigh, class standard]')
+    expect(seen.filter((a) => a[0] === 'codex' && a[1] === 'exec')).toHaveLength(1)
+  })
+
+  test('public work without a repo tag falls back to Luna standard', async ($, on) => {
+    const seen = world(on, { codex: true, codexSays: 'Luna fallback' })
+    on('tool.call', { tool: 'Agent' }, () => ({ result: DONE }) as never)
+    const r: any = await $.tool.call({ tool: 'Agent', description: '[class: public]', prompt: 'Read the project.' } as never)
+    expect((seen as any).fetchCalls).toHaveLength(0)
+    expect((seen as any).calls.some((call: any) => call.argv[0] === 'zcode-job')).toBe(false)
+    expect(JSON.stringify(r)).toContain('[routed: codex luna xhigh, class standard]')
+  })
+
+  test('a GitHub visibility error never reaches zcode and falls back to Luna standard', async ($, on) => {
+    const seen = world(on, { codex: true, codexSays: 'Luna fallback', repoError: true })
+    on('tool.call', { tool: 'Agent' }, () => ({ result: DONE }) as never)
+    const r: any = await $.tool.call({ tool: 'Agent', description: '[class: public] [repo: owner/project]', prompt: 'Read the project.' } as never)
+    expect((seen as any).calls.some((call: any) => call.argv[0] === 'zcode-job')).toBe(false)
+    expect(JSON.stringify(r)).toContain('[routed: codex luna xhigh, class standard]')
+  })
+
+  test('invalid GitHub visibility JSON never reaches zcode and falls back to Luna standard', async ($, on) => {
+    const seen = world(on, { codex: true, codexSays: 'Luna fallback', repoInvalidJson: true })
+    on('tool.call', { tool: 'Agent' }, () => ({ result: DONE }) as never)
+    const r: any = await $.tool.call({ tool: 'Agent', description: '[class: public] [repo: owner/project]', prompt: 'Read the project.' } as never)
+    expect((seen as any).calls.some((call: any) => call.argv[0] === 'zcode-job')).toBe(false)
+    expect(JSON.stringify(r)).toContain('[routed: codex luna xhigh, class standard]')
+  })
+
+  test('a missing repository 404 falls back to Luna without running zcode', async ($, on) => {
+    const seen = world(on, { codex: true, codexSays: 'Luna fallback', repoStatus: 404 })
+    on('tool.call', { tool: 'Agent' }, () => ({ result: DONE }) as never)
+    const r: any = await $.tool.call({ tool: 'Agent', description: '[class: public] [repo: owner/project]', prompt: 'Read the project.' } as never)
+    expect((seen as any).fetchCalls[0].url).toBe('https://api.github.com/repos/owner/project')
+    expect((seen as any).calls.some((call: any) => call.argv[0] === 'zcode-job')).toBe(false)
+    expect(JSON.stringify(r)).toContain('[routed: codex luna xhigh, class standard]')
+  })
+
+  test('a public visibility response must also explicitly mark the repository non-private', async ($, on) => {
+    const seen = world(on, { codex: true, codexSays: 'Luna fallback', repoVisibility: 'public', repoPrivate: true })
+    on('tool.call', { tool: 'Agent' }, () => ({ result: DONE }) as never)
+    const r: any = await $.tool.call({ tool: 'Agent', description: '[class: public] [repo: owner/project]', prompt: 'Read the project.' } as never)
+    expect((seen as any).calls.some((call: any) => call.argv[0] === 'zcode-job')).toBe(false)
+    expect(JSON.stringify(r)).toContain('[routed: codex luna xhigh, class standard]')
+  })
+
+  for (const result of [{ exitCode: 1, stdout: 'unavailable' }, { exitCode: 0, stdout: '  \n' }]) {
+    test(`a failed or empty zcode result still returns the completed job: ${JSON.stringify(result)}`, async ($, on) => {
+      const seen = world(on, { codex: true, zcodeResultExitCode: result.exitCode, zcodeResultOutput: result.stdout })
+      on('tool.call', { tool: 'Agent' }, () => ({ result: DONE }) as never)
+      const r: any = await $.tool.call({ tool: 'Agent', description: '[class: public] [repo: owner/project]', prompt: 'Read the project.' } as never)
+      expect((seen as any).calls.some((call: any) => call.argv[0] === 'zcode-job' && call.argv[1] === 'result')).toBe(true)
+      expect(r.result.content[0].text).toBe('DONE|j-0123456789abcdef|no-pr\n\n[routed: sandbox zcode, class public]')
+      expect((seen as any).calls.some((call: any) => call.argv[0] === 'codex')).toBe(false)
+    })
+  }
+
+  test('a long zcode result is capped at 60000 characters with a marker', async ($, on) => {
+    const seen = world(on, { codex: false, zcodeResultOutput: 'x'.repeat(60_010) })
+    on('tool.call', { tool: 'Agent' }, () => ({ result: DONE }) as never)
+    const r: any = await $.tool.call({ tool: 'Agent', description: '[class: public] [repo: owner/project]', prompt: 'Read the project.' } as never)
+    const text = r.result.content[0].text
+    expect(text.slice(0, 60_000)).toHaveLength(60_000)
+    expect(text.startsWith(`${'x'.repeat(59_989)}[truncated]\n\nDONE|`)).toBe(true)
+    expect((seen as any).calls.filter((call: any) => call.argv[0] === 'zcode-job')[1].argv).toEqual(['zcode-job', 'result', 'j-0123456789abcdef'])
+  })
+
+  test('a zcode FAIL line falls back to Luna standard', async ($, on) => {
+    const seen = world(on, { codex: true, codexSays: 'Luna fallback', zcodeExitCode: 1, zcodeOutput: 'FAIL|j-0123456789abcdef|worker failed\n' })
+    on('tool.call', { tool: 'Agent' }, () => ({ result: DONE }) as never)
+    const r: any = await $.tool.call({ tool: 'Agent', description: '[class: public] [repo: owner/project]', prompt: 'Read the project.' } as never)
+    expect((seen as any).calls.some((call: any) => call.argv[0] === 'zcode-job')).toBe(true)
+    expect(JSON.stringify(r)).toContain('[routed: codex luna xhigh, class standard]')
+  })
+
+  test('explicit text work posts one OpenAI chat completion to LiteLLM small', async ($, on) => {
+    const seen = world(on, { codex: false, router: true, chatContent: 'Small result' })
+    let reached = false
+    on('tool.call', { tool: 'Agent' }, () => ((reached = true), { result: DONE }) as never)
+    const r: any = await $.tool.call({ tool: 'Agent', description: '[class: text]', prompt: 'Summarise this text.' } as never)
+    const requests = (seen as any).fetchCalls
+    expect(reached).toBe(false)
+    expect(requests).toHaveLength(1)
+    expect(requests[0].url).toBe('https://router.example/v1/chat/completions')
+    expect(requests[0].init.method).toBe('POST')
+    expect(requests[0].init.headers.authorization).toBe('Bearer test-token')
+    expect(JSON.parse(requests[0].init.body)).toEqual({ model: 'small', messages: [{ role: 'user', content: 'Summarise this text.' }] })
+    expect(r.result.content[0].text).toBe('Small result\n\n[routed: litellm small, class text]')
+    expect(seen.some((a) => a[0] === 'codex')).toBe(false)
+  })
+
+  test('an HTTP 500 from LiteLLM falls back to Luna standard', async ($, on) => {
+    const seen = world(on, { codex: true, router: true, httpStatus: 500, codexSays: 'Luna fallback' })
+    on('tool.call', { tool: 'Agent' }, () => ({ result: DONE }) as never)
+    const r: any = await $.tool.call({ tool: 'Agent', description: '[class: text]', prompt: 'Summarise this text.' } as never)
+    expect((seen as any).fetchCalls).toHaveLength(1)
+    expect(JSON.stringify(r)).toContain('[routed: codex luna xhigh, class standard]')
+    expect(seen.filter((a) => a[0] === 'codex' && a[1] === 'exec')).toHaveLength(1)
+  })
+
+  for (const executor of ['public', 'text']) {
+    test(`the classifier cannot select ${executor}`, async ($, on) => {
+      const seen = world(on, { codex: true, router: true, layaChoice: executor, codexSays: executor })
+      on('tool.call', { tool: 'Agent' }, () => ({ result: DONE }) as never)
+      const r: any = await $.tool.call({ tool: 'Agent', description: 'ordinary work', prompt: 'Summarise this text.' } as never)
+      expect(JSON.stringify(r)).toContain('[routed: codex luna xhigh, class standard]')
+      expect((seen as any).calls.some((call: any) => call.argv[0] === 'zcode-job')).toBe(false)
+      expect(JSON.stringify(r)).not.toContain('[routed: litellm small')
+      expect(JSON.stringify(r)).not.toContain('[routed: sandbox zcode')
     })
   }
 
