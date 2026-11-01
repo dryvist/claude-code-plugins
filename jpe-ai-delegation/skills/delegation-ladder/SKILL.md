@@ -22,11 +22,14 @@ Keep each task below the target model's context price tier. Split it rather than
 crossing that tier. Read model lists, prices, context tiers, peak windows and
 caps live from the router. Never hard-code them.
 
-| Kind | Sandbox eligibility | Use |
-| --- | --- | --- |
-| `code` | Public repos only | Public-repo implementation and code review |
-| `private` | No | Private material stays on approved local routes |
-| `other` | No | Triage, bulk reads, summaries, judgment |
+| Kind | Fallback when Codex quota is gone | Sandbox eligibility | Use |
+| --- | --- | --- | --- |
+| `code` | Codex -> zcode-job sandbox -> OpenCode Go -> Haiku xhigh | Public repos only | Public-repo implementation and code review |
+| `private` | Codex -> Haiku xhigh | No | Private material stays on approved routes |
+| `other` | Codex -> Haiku xhigh | No | Triage, bulk reads, summaries, judgment |
+
+Z.ai GLM runs only inside `zcode-job`, never through the router or another
+gateway, and only for work where non-zero-data-retention handling is acceptable.
 
 Run `agent-route <code|private|other>` from the plugin root to inspect executor
 eligibility. Apply the cost order above before dispatch; the helper does not
