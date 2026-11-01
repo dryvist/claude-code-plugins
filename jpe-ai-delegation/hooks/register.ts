@@ -8,7 +8,7 @@ type QuotaLine = 'codex-quota: available' | 'codex-quota: exhausted' | 'codex-qu
 const UNAVAILABLE: QuotaLine = 'codex-quota: unavailable'
 // shortcut: the startup line lives in the module, so a hot reload recomputes it on the next prompt.compose.
 let startupQuota: QuotaLine | undefined
-const PROMPT_POLICY = 'Codex delegates: Terra medium default, Terra high for complex/plan/deep, Luna xhigh bulk, Luna max bulk-complex; capped: Haiku xhigh. Never Sonnet or Opus.'
+const PROMPT_POLICY = 'Codex delegates: Luna only — xhigh for bulk/standard, max for bulk-complex/complex/plan/deep; capped: Haiku xhigh. Never Terra, Sonnet or Opus.'
 
 // Codex is usable when the CLI starts and `codex-quota` reports at least 5% free in every window.
 async function codexReady($: Engine): Promise<boolean> {
