@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.10.4](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.10.3...jpe-ai-delegation-v1.10.4) (2026-11-01)
+
+
+### Bug Fixes
+
+* **jpe-ai-delegation:** keep private work off the sandbox and drop the GLM rung ([#682](https://github.com/dryvist/claude-code-plugins/issues/682)) ([c8d3465](https://github.com/dryvist/claude-code-plugins/commit/c8d346570ab11dc031c19e64f8844505825df047))
+
 ## [1.10.3](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.10.2...jpe-ai-delegation-v1.10.3) (2026-11-01)
 
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.33.1](https://github.com/dryvist/claude-code-plugins/compare/v6.33.0...v6.33.1) (2026-11-01)
+
+
+### Bug Fixes
+
+* **jpe-ai-delegation:** keep private work off the sandbox and drop the GLM rung ([#682](https://github.com/dryvist/claude-code-plugins/issues/682)) ([c8d3465](https://github.com/dryvist/claude-code-plugins/commit/c8d346570ab11dc031c19e64f8844505825df047))
+
 ## [6.33.0](https://github.com/dryvist/claude-code-plugins/compare/v6.32.2...v6.33.0) (2026-11-01)
 
 
