@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.0](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.10.4...jpe-ai-delegation-v1.11.0) (2026-11-01)
+
+
+### Features
+
+* **jpe-ai-delegation:** route [class: public] to the sandbox and [class: text] to LiteLLM small ([#684](https://github.com/dryvist/claude-code-plugins/issues/684)) ([b5c92d0](https://github.com/dryvist/claude-code-plugins/commit/b5c92d01d6bd099ce3a0e75ec0c22459b3d733ae))
+
 ## [1.10.4](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.10.3...jpe-ai-delegation-v1.10.4) (2026-11-01)
 
 
