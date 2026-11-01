@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.12.0](https://github.com/dryvist/claude-code-plugins/compare/ai-delegation-v6.11.0...ai-delegation-v6.12.0) (2026-11-01)
+
+
+### Features
+
+* **ai-delegation:** make premium-agent-orchestration an inject-anytime reset ([#680](https://github.com/dryvist/claude-code-plugins/issues/680)) ([30b0372](https://github.com/dryvist/claude-code-plugins/commit/30b03722f2495d4c14c97dcf497a2aa29754fdf1))
+
 ## [6.11.0](https://github.com/dryvist/claude-code-plugins/compare/ai-delegation-v6.10.0...ai-delegation-v6.11.0) (2026-10-24)
 
 
