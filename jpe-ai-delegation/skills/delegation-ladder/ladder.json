@@ -5,7 +5,6 @@
       "rungs": [
         { "name": "Codex", "gate": "codex" },
         { "name": "zcode-job sandbox", "gate": "always" },
-        { "name": "Z.ai GLM", "gate": "always" },
         { "name": "OpenCode Go", "gate": "always" },
         { "name": "Haiku xhigh", "gate": "always" }
       ]
@@ -14,9 +13,6 @@
       "visibility": "private",
       "rungs": [
         { "name": "Codex", "gate": "codex" },
-        { "name": "zcode-job sandbox", "gate": "allowlisted" },
-        { "name": "Z.ai GLM", "gate": "always" },
-        { "name": "OpenCode Go", "gate": "always" },
         { "name": "Haiku xhigh", "gate": "always" }
       ]
     },

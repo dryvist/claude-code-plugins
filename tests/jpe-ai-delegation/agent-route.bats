@@ -19,18 +19,14 @@ assert_route() {
 
 @test "Codex exhaustion follows each kind's fallback" {
   assert_route 'zcode-job sandbox' exhausted code
-  assert_route 'Z.ai GLM' exhausted private
+  assert_route 'Haiku xhigh' exhausted private
   assert_route 'Haiku xhigh' exhausted other
 }
 
-@test "private repos reach the sandbox only when the lead sets the allowlist gate" {
+@test "private repos never reach the sandbox, even with the allowlist gate set" {
   run env AGENT_ROUTE_CODEX_QUOTA=exhausted AGENT_ROUTE_SANDBOX_ALLOWLISTED=yes agent-route private
   [ "$status" -eq 0 ]
-  [ "$output" = 'zcode-job sandbox' ]
-
-  run env AGENT_ROUTE_CODEX_QUOTA=exhausted AGENT_ROUTE_SANDBOX_ALLOWLISTED=no agent-route private
-  [ "$status" -eq 0 ]
-  [ "$output" = 'Z.ai GLM' ]
+  [ "$output" = 'Haiku xhigh' ]
 }
 
 @test "Codex availability selects Codex for every kind" {
@@ -48,8 +44,8 @@ assert_route() {
   [ "$output" = 'agent-route: usage: agent-route <code|private|other>' ]
 }
 
-@test "no ladder names Sonnet or Opus" {
-  run grep -riE 'sonnet|opus' "$REPO_ROOT/jpe-ai-delegation/skills/delegation-ladder/ladder.json"
+@test "no ladder names Sonnet, Opus or a GLM rung" {
+  run grep -riE 'sonnet|opus|glm' "$REPO_ROOT/jpe-ai-delegation/skills/delegation-ladder/ladder.json"
   [ "$status" -eq 1 ]
 }
 
