@@ -1,5 +1,17 @@
 # Changelog
 
+## [6.33.0](https://github.com/dryvist/claude-code-plugins/compare/v6.32.2...v6.33.0) (2026-11-01)
+
+
+### Features
+
+* **ai-delegation:** make premium-agent-orchestration an inject-anytime reset ([#680](https://github.com/dryvist/claude-code-plugins/issues/680)) ([30b0372](https://github.com/dryvist/claude-code-plugins/commit/30b03722f2495d4c14c97dcf497a2aa29754fdf1))
+
+
+### Bug Fixes
+
+* **jpe-ai-delegation:** route every delegation class to Codex Luna ([#679](https://github.com/dryvist/claude-code-plugins/issues/679)) ([e22a900](https://github.com/dryvist/claude-code-plugins/commit/e22a9003cc6a1223e393e0452f152aa0f6887487))
+
 ## [6.32.2](https://github.com/dryvist/claude-code-plugins/compare/v6.32.1...v6.32.2) (2026-10-31)
 
 

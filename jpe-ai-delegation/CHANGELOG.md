@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.10.3](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.10.2...jpe-ai-delegation-v1.10.3) (2026-11-01)
+
+
+### Bug Fixes
+
+* **jpe-ai-delegation:** route every delegation class to Codex Luna ([#679](https://github.com/dryvist/claude-code-plugins/issues/679)) ([e22a900](https://github.com/dryvist/claude-code-plugins/commit/e22a9003cc6a1223e393e0452f152aa0f6887487))
+
 ## [1.10.2](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.10.1...jpe-ai-delegation-v1.10.2) (2026-10-31)
 
 
