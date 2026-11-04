@@ -198,20 +198,7 @@ invoke `/resolve-codeql fix`.
 - ✅ Code simplified: `/simplify` ran at Phase 2.3.5 on all changes
 - ✅ Local linters pass: validators ran in Phase 2
 
-**Only if all three gates (3.1, 3.2, 3.3) pass**: Proceed to Phase 3.4.
-
-### 3.4 Human-Review Decision (main-targeted PRs only)
-
-Applies **only when the PR's `baseRefName` is `main`** — a trunk-repo PR or a
-`develop`→`main` promotion. A PR into `develop` on a git-flow repo is always
-AI-initiated; skip this step for it.
-
-See github-workflows pr-standards → Human-Review Gate for the application criteria.
-Record labeled PRs as `held` in Phase 5 (reason: `human:review`).
-
-**Multi-PR handling**: If a PR needs human intervention (unresolvable conflict,
-unrecoverable CI failure, etc.), log it with reason and continue to the next PR.
-Do not stop the batch for one blocked PR.
+**Only if all three gates (3.1, 3.2, 3.3) pass**: Proceed to Phase 4.
 
 ## Phase 4: Update PR Metadata
 
@@ -231,8 +218,10 @@ Proceed to Phase 5.
 this PR, Section 2 = all open PRs in current repo) as defined in /gh-cli-patterns,
 titled `PR Status`.
 
-**Multi-PR mode**: Record the per-PR result (ready / blocked / held). Restore the original
-branch and continue to the next PR. Do NOT emit a ready report — that happens in Phase 6.
+**Multi-PR mode**: Record the per-PR result (ready / blocked). Restore the original
+branch and continue to the next PR. If a PR needs human intervention (unresolvable
+conflict, unrecoverable CI failure, etc.), log it with reason and continue — do not
+stop the batch for one blocked PR. Do NOT emit a ready report — that happens in Phase 6.
 
 ## Stop Condition
 

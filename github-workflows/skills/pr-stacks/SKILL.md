@@ -58,7 +58,7 @@ requests CLI commands* docs; the upstream `gh-stack` skill covers it in depth.
   A partial merge auto-retargets the layers above — those branches are **not**
   orphans, so leave them alone (`/prune-branches` already protects `--base` refs).
 - **Stacks are not exempt from standards.** Apply `pr-standards` (issue linking,
-  conventional titles, the `human:review` gate) to every layer; `gh stack submit`
+  conventional titles) to every layer; `gh stack submit`
   creates the PRs, so edit their bodies afterward as needed.
 - **API merges** of a stacked PR must use GitHub's asynchronous merge endpoint —
   the legacy synchronous merge endpoints cannot merge a stack.
@@ -66,7 +66,7 @@ requests CLI commands* docs; the upstream `gh-stack` skill covers it in depth.
 ## Related Skills
 
 - gh-cli-patterns (github-workflows) — default-branch (trunk vs git-flow) detection
-- pr-standards (github-workflows) — PR creation guards, issue linking, human-review gate
+- pr-standards (github-workflows) — PR creation guards, issue linking
 - git-workflow-standards (git-workflows) — branch hygiene and worktree cleanup
 - merge-pr (github-workflows) — merges the stack-aware way
 - rebase-pr (github-workflows) — local rebase-merge for individual PRs

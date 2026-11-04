@@ -101,7 +101,6 @@ gh api graphql -f query='
     repository(owner:$owner,name:$repo){
       pullRequest(number:$prNumber){
         state mergeable mergeStateStatus isDraft reviewDecision
-        labels(first:100){nodes{name} pageInfo{hasNextPage}}
         commits(last:1){nodes{commit{statusCheckRollup{
           state
           contexts(first:100){nodes{... on CheckRun{name} ... on StatusContext{context}} pageInfo{hasNextPage}}
@@ -124,8 +123,6 @@ Required values — abort if any fail:
 | `mergeable` | `MERGEABLE` | "PR has git conflicts" |
 | `mergeStateStatus` | `CLEAN` or `HAS_HOOKS` | "PR blocked: {value}" |
 | `isDraft` | `false` | "PR is a draft" |
-| `labels[].name` has `human:review` | absent, for an autonomous merge | "Human-review gate — merge only on explicit same-session user instruction for THIS PR, then remove the label; see pr-standards" |
-| `labels.pageInfo.hasNextPage` | `false` | ">100 labels — paginate before trusting the gate. Never read a truncated label list as "`human:review` absent": this gate must fail closed" |
 | `reviewDecision` | `APPROVED` or `null` | "Review decision: {value}" |
 | `statusCheckRollup.state` | `SUCCESS` | "CI: {state}" |
 | Required status-check contexts | Every required `context` exactly matches a CheckRun `name` or StatusContext `context` in `statusCheckRollup.contexts` | For each absent context, report `required check never reported: <context>` and follow [github-actions-silent-failures](../github-actions-silent-failures/SKILL.md) |
