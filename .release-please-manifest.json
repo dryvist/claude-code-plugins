@@ -19,5 +19,6 @@
   "attention-notify": "1.1.2",
   "process-cleanup": "6.2.1",
   "project-standards": "6.5.0",
-  "testing": "1.1.0"
+  "testing": "1.1.0",
+  "ask-default": "1.0.0"
 }

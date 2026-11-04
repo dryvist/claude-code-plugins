@@ -32,6 +32,7 @@ This is a **Claude Code plugins repository** containing production-ready hooks f
 | **openbao** | Skill | `/openbao-secrets`, `/openbao-dynamic-aws-creds` | OpenBao secrets access model: mint ephemeral credentials from engines instead of storing static ones; reads pre-authorized, writes human-gated; includes a concrete dynamic-AWS-STS pattern |
 | **attention-notify** | PostToolUse/Notification | PushNotification, permission/question prompts | Local macOS banner ("claude · session name") for every operator-attention event; `scripts/notify-macos.sh "<body>"` is callable directly |
 | **process-cleanup** | PostToolUse | — | Cleanup orphaned MCP server processes on session exit |
+| **ask-default** | PreToolUse | AskUserQuestion | Answers every AskUserQuestion call at once with each question's first option; `DESTRUCTIVE:` headers keep the dialog |
 | **project-standards** | Skill | `/claude-skill-authoring`, `/workspace-standards`, `/skills-registry` | Claude skill authoring standards, workspace management, and skills/tools registry lookup |
 | **testing** | Skill | `/test` | Dispatches UI smoke, spec authoring, healing, performance, and exploratory browser testing to specialized agents so Playwright and Browser Use load only inside the chosen agent |
 | **estate-lsp** | LSP (code intelligence) | nixd, terraform-ls, yaml-language-server | Post-edit diagnostics and code navigation for Nix, Terraform/OpenTofu, and YAML. Expects the server binaries on PATH |

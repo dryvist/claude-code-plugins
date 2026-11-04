@@ -313,6 +313,21 @@
         }
       ]
     },
+    "ask-default": {
+      "component": "ask-default",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": ".claude-plugin/plugin.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "/.claude-plugin/marketplace.json",
+          "jsonpath": "$.plugins[?(@.name==\"ask-default\")].version"
+        }
+      ]
+    },
     "process-cleanup": {
       "component": "process-cleanup",
       "extra-files": [
