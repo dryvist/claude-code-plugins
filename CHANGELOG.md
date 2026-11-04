@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.36.0](https://github.com/dryvist/claude-code-plugins/compare/v6.35.1...v6.36.0) (2026-11-04)
+
+
+### Features
+
+* **agent:** autonomous zcode run j-fae1382ba350cc89 ([#691](https://github.com/dryvist/claude-code-plugins/issues/691)) ([565834d](https://github.com/dryvist/claude-code-plugins/commit/565834da9a833daaeeabeb88306946ae16a1da39))
+
 ## [6.35.1](https://github.com/dryvist/claude-code-plugins/compare/v6.35.0...v6.35.1) (2026-11-04)
 
 
