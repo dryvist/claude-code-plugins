@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.37.0](https://github.com/dryvist/claude-code-plugins/compare/v6.36.0...v6.37.0) (2026-11-04)
+
+
+### Features
+
+* **ask-default:** answer AskUserQuestion with first option via PreToolUse hook ([#690](https://github.com/dryvist/claude-code-plugins/issues/690)) ([0855eb0](https://github.com/dryvist/claude-code-plugins/commit/0855eb00854bba9147366c163668aae3ef07033b))
+
 ## [6.36.0](https://github.com/dryvist/claude-code-plugins/compare/v6.35.1...v6.36.0) (2026-11-04)
 
 
