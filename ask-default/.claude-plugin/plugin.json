@@ -1,6 +1,6 @@
 {
   "name": "ask-default",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "PreToolUse hook that answers every AskUserQuestion call at once with each question's first option, so the turn never waits on a dialog. Questions with a DESTRUCTIVE: header keep the dialog.",
   "author": {
     "name": "JacobPEvans"
