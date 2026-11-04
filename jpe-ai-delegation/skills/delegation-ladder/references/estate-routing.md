@@ -52,6 +52,6 @@ approved local routes. Shared model-tier guidance is in
 ## Repository and follow-up routing
 
 Use one project thread per repository; see the
-[claude-projects rule](https://github.com/dryvist/ai-assistant-instructions/blob/develop/agentsmd/rules/on-demand/claude-projects.md).
+[claude-projects rule](https://github.com/dryvist/ai-llm-prompts/blob/main/auto-ai-agent/instructions/agentsmd/rules/on-demand/claude-projects.md).
 File follow-up work as a Vikunja task, never a GitHub issue. Shared doctrine:
 `prompt://dryvist/auto-ai-agent/model-delegation`.

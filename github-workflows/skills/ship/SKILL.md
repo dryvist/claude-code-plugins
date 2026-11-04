@@ -168,7 +168,7 @@ For each PR in the list:
 3. Proceed to the next PR
 
 **Claude project route:** run one project thread per repository instead of the
-local fan-out; see [the claude-projects rule](https://github.com/dryvist/ai-assistant-instructions/blob/develop/agentsmd/rules/on-demand/claude-projects.md).
+local fan-out; see [the claude-projects rule](https://github.com/dryvist/ai-llm-prompts/blob/main/auto-ai-agent/instructions/agentsmd/rules/on-demand/claude-projects.md).
 
 ### What `/finalize-pr` handles
 

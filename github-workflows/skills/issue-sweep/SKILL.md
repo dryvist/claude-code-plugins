@@ -122,7 +122,7 @@ Issue Sweep — <scope>
   [references/tracker-adapters.md](references/tracker-adapters.md).
 - Multi-tracker or multi-repo runs reuse `/pr-sweep`'s parallel protocol.
 - **Claude project route:** run one project thread per repository instead of the
-  local fan-out; see [the claude-projects rule](https://github.com/dryvist/ai-assistant-instructions/blob/develop/agentsmd/rules/on-demand/claude-projects.md).
+  local fan-out; see [the claude-projects rule](https://github.com/dryvist/ai-llm-prompts/blob/main/auto-ai-agent/instructions/agentsmd/rules/on-demand/claude-projects.md).
 
 ## Related Skills
 
