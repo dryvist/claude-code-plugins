@@ -60,6 +60,6 @@ The Nix dev shell pattern avoids this by providing tools through the flake lockf
 All JacobPEvans repositories with `flake.nix` + `.envrc`, including:
 
 - ansible-proxmox, ansible-proxmox-apps, ansible-splunk
-- terraform-proxmox, terraform-aws, terraform-aws-bedrock
+- tofu-proxmox, terraform-aws, terraform-aws-bedrock
 - nix-darwin, nix-ai, nix-home, nix-devenv
 - orbstack-kubernetes
