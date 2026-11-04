@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "Claude Code plugins and hooks by JacobPEvans",
-    "version": "6.35.1"
+    "version": "6.36.0"
   },
   "plugins": [
     {
@@ -85,7 +85,7 @@
       "name": "github-workflows",
       "source": "./github-workflows",
       "description": "PR management, multi-repo PR finalization, and issue shaping with Shape Up methodology",
-      "version": "6.11.1",
+      "version": "6.12.0",
       "author": {
         "name": "JacobPEvans"
       }
@@ -112,7 +112,7 @@
       "name": "jpe-ai-delegation",
       "source": "./jpe-ai-delegation",
       "description": "Specific to the maintainer's own setup and not intended for general use",
-      "version": "1.11.1",
+      "version": "1.12.0",
       "author": {
         "name": "JacobPEvans"
       }

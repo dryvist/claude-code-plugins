@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.12.0](https://github.com/dryvist/claude-code-plugins/compare/github-workflows-v6.11.1...github-workflows-v6.12.0) (2026-11-04)
+
+
+### Features
+
+* **agent:** autonomous zcode run j-fae1382ba350cc89 ([#691](https://github.com/dryvist/claude-code-plugins/issues/691)) ([565834d](https://github.com/dryvist/claude-code-plugins/commit/565834da9a833daaeeabeb88306946ae16a1da39))
+
 ## [6.11.1](https://github.com/dryvist/claude-code-plugins/compare/github-workflows-v6.11.0...github-workflows-v6.11.1) (2026-10-25)
 
 
