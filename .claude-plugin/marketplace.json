@@ -197,6 +197,15 @@
       "author": {
         "name": "JacobPEvans"
       }
+    },
+    {
+      "name": "ask-default",
+      "source": "./ask-default",
+      "description": "Answer every AskUserQuestion call at once with each question's first option; DESTRUCTIVE: headers keep the dialog",
+      "version": "1.0.0",
+      "author": {
+        "name": "JacobPEvans"
+      }
     }
   ]
 }
