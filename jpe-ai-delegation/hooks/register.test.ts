@@ -91,8 +91,8 @@ describe('policy', () => {
   })
 })
 
-function world(on: any, w: { codex: boolean; quotaExitCode?: number; quotaMissing?: boolean; codexSays?: string; codexExitCode?: number; mktempExitCode?: number; mktempStdout?: string; haikuSays?: string; cache?: boolean; agentFiles?: Record<string, string>; router?: boolean; localBase?: string; layaChoice?: string; layaConfidence?: number; layaError?: boolean; repoError?: boolean; repoStatus?: number; repoVisibility?: string; repoPrivate?: boolean; repoInvalidJson?: boolean; zcodeError?: boolean; zcodeExitCode?: number; zcodeOutput?: string; zcodeResultExitCode?: number; zcodeResultOutput?: string; httpStatus?: number; chatContent?: string }) {
-  mock.env(on, { HOME: '/home/test', ...(w.router ? { LLM_ROUTER_URL: 'https://router.example/v1/', LLM_ROUTER_TOKEN_FILE: '/token' } : {}), ...(w.localBase ? { LLM_ROUTER_TOKEN_FILE: '', LITELLM_LOCAL_BASE_URL: w.localBase } : {}) })
+function world(on: any, w: { codex: boolean; quotaExitCode?: number; quotaMissing?: boolean; quotaOffPath?: boolean; codexSays?: string; codexExitCode?: number; mktempExitCode?: number; mktempStdout?: string; haikuSays?: string; cache?: boolean; agentFiles?: Record<string, string>; router?: boolean; localBase?: string; layaChoice?: string; layaConfidence?: number; layaError?: boolean; repoError?: boolean; repoStatus?: number; repoVisibility?: string; repoPrivate?: boolean; repoInvalidJson?: boolean; zcodeError?: boolean; zcodeExitCode?: number; zcodeOutput?: string; zcodeResultExitCode?: number; zcodeResultOutput?: string; httpStatus?: number; chatContent?: string }) {
+  mock.env(on, { HOME: '/home/test', ...(w.quotaOffPath ? { USER: 'someone' } : {}), ...(w.router ? { LLM_ROUTER_URL: 'https://router.example/v1/', LLM_ROUTER_TOKEN_FILE: '/token' } : {}), ...(w.localBase ? { LLM_ROUTER_TOKEN_FILE: '', LITELLM_LOCAL_BASE_URL: w.localBase } : {}) })
   mock.clock(on)
   const seen: string[][] = []
   const calls: { argv: string[]; stdin?: string }[] = []
@@ -141,8 +141,9 @@ function world(on: any, w: { codex: boolean; quotaExitCode?: number; quotaMissin
       return { value: { ...RAN, exitCode: w.zcodeExitCode ?? 0, stdout: w.zcodeOutput ?? 'DONE|j-0123456789abcdef|no-pr\n' } }
     }
     if (e.argv[0] === 'codex' && e.argv[1] === '--version') return { value: { ...RAN, exitCode: w.codex ? 0 : 1 } }
-    if (argv[0] === 'codex-quota') {
+    if (argv[0] === 'codex-quota' || argv[0].endsWith('/bin/codex-quota')) {
       if (w.quotaMissing) return { value: { ...RAN, exitCode: 127 } }
+      if (w.quotaOffPath && argv[0] === 'codex-quota') throw new Error('spawn codex-quota ENOENT')
       return { value: { ...RAN, exitCode: w.quotaExitCode ?? (w.codex ? 0 : 1) } }
     }
     if (argv[0] === 'codex') return { value: { ...RAN, exitCode: w.codexExitCode ?? 0 } }
@@ -729,6 +730,15 @@ describe('session startup', () => {
     await $.session.start({ cwd: '/workspace' })
     await statusSection($, 'codex-quota: available')
     expect(seen.some((a) => a[0] === 'codex-quota')).toBe(true)
+  })
+
+  test('session startup finds codex-quota in the per-user profile when PATH lacks it', async ($, on) => {
+    const seen = world(on, { codex: true, quotaOffPath: true })
+    on('session.start', (_$: any, e: { cwd: string }) => ({ cwd: e.cwd }) as never)
+    on('prompt.compose', () => ({ sections: [] }) as never)
+    await $.session.start({ cwd: '/workspace' })
+    await statusSection($, 'codex-quota: available')
+    expect(seen.some((a) => a[0] === '/etc/profiles/per-user/someone/bin/codex-quota')).toBe(true)
   })
 
   test('session startup reports exhausted quota', async ($, on) => {

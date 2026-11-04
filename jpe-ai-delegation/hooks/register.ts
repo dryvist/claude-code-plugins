@@ -11,13 +11,29 @@ const TEXT_EXECUTOR_TIMEOUT_MS = 120_000
 let startupQuota: QuotaLine | undefined
 const PROMPT_POLICY = 'Codex delegates: Luna only — xhigh for bulk/standard, max for bulk-complex/complex/plan/deep; capped: Haiku xhigh. Never Terra, Sonnet or Opus.'
 
+// The quota helper is installed in the nix per-user profile, which a hook's PATH may omit.
+// Try an explicit CODEX_QUOTA_BIN, then the bare name, then the per-user profile path.
+async function runCodexQuota($: Engine): Promise<{ exitCode: number }> {
+  const explicit = await $.env.get('CODEX_QUOTA_BIN')
+  if (explicit) return $.process.run([explicit], { timeoutMs: 20_000 })
+  try {
+    const bare = await $.process.run(['codex-quota'], { timeoutMs: 20_000 })
+    if (bare.exitCode !== 127) return bare
+  } catch {
+    // Not on PATH; fall through to the profile path.
+  }
+  const user = await $.env.get('USER')
+  if (!user) return { exitCode: 127 }
+  return $.process.run([`/etc/profiles/per-user/${user}/bin/codex-quota`], { timeoutMs: 20_000 })
+}
+
 // Codex is usable when the CLI starts and `codex-quota` reports at least 5% free in every window.
 async function codexReady($: Engine): Promise<boolean> {
   let reason: string
   try {
     const cli = await $.process.run(['codex', '--version'], { timeoutMs: 30_000 })
     if (cli.exitCode === 0) {
-      const quota = await $.process.run(['codex-quota'], { timeoutMs: 20_000 })
+      const quota = await runCodexQuota($)
       if (quota.exitCode === 0) return true
       reason = `codex-quota exited ${quota.exitCode}`
     } else {
@@ -34,7 +50,7 @@ async function codexReady($: Engine): Promise<boolean> {
 
 async function codexQuotaStatus($: Engine): Promise<QuotaLine> {
   try {
-    const result = await $.process.run(['codex-quota'], { timeoutMs: 20_000 })
+    const result = await runCodexQuota($)
     if (result.exitCode === 0) return 'codex-quota: available'
     return result.exitCode === 1 ? 'codex-quota: exhausted' : UNAVAILABLE
   } catch {
