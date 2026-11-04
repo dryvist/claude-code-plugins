@@ -118,11 +118,6 @@ promotion PR. Replace `<OWNER>`, `<REPO>`, and `<PR_NUMBER>` per that skill.
 If a soft block remains, use `/finalize-pr <PR_NUMBER>` and rerun the gate;
 stop on any hard block.
 
-> **Human-review gate.** Read github-workflows pr-standards → Human-Review
-> Gate. If the promotion PR carries `human:review`, stop unless the user
-> explicitly instructs in their own words in this session to merge this exact
-> PR. On that instruction, remove the label before proceeding.
-
 ## Step 7: Merge Commit Into Main
 
 Invoke `/merge-pr <PR_NUMBER>` to merge the promotion PR. Use a merge commit;
@@ -147,5 +142,4 @@ commit, which is already an ancestor of `main`. Do not open a PR to merge
   `main` on a git-flow repo
 - gh-cli-patterns (github-workflows) — canonical gh CLI command shapes,
   placeholder convention, PR-readiness gate, and default-branch detection
-- pr-standards (github-workflows) — human-review label criteria and merge gate
 - For branch creation and PR-branch sync, follow the [Git Town rule](https://github.com/dryvist/ai-llm-prompts/blob/main/auto-ai-agent/instructions/agentsmd/rules/on-demand/git-flow.md).

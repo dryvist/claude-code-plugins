@@ -53,7 +53,6 @@ Append after the URL, separated by ` | `. Omit when no issues exist ("Ready for 
 
 | Tag | Section 1 trigger | Section 2 trigger |
 |-----|-------------------|-------------------|
-| `Needs human review` | `labels` contains `human:review` | `labels` contains `human:review` |
 | `Conflicts` | `mergeable == CONFLICTING` | `mergeable == CONFLICTING` |
 | `Computing` | `mergeable == UNKNOWN` | `mergeable == UNKNOWN` |
 | `N unanswered feedback` | Unaddressed item count from the PR feedback ledger | Unaddressed items found when the gate is run |
@@ -84,7 +83,6 @@ gh api graphql -f query='
       pullRequests(states:OPEN,first:50){
         nodes{
           number url title mergeable reviewDecision mergeStateStatus isDraft
-          labels(first:100){nodes{name} pageInfo{hasNextPage}}
           commits(last:1){nodes{commit{statusCheckRollup{
             state
             contexts(first:100){nodes{... on CheckRun{name} ... on StatusContext{context}} pageInfo{hasNextPage}}
