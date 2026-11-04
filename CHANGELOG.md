@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.35.1](https://github.com/dryvist/claude-code-plugins/compare/v6.35.0...v6.35.1) (2026-11-04)
+
+
+### Bug Fixes
+
+* **jpe-ai-delegation:** find codex-quota outside the hook PATH ([#688](https://github.com/dryvist/claude-code-plugins/issues/688)) ([c46c92b](https://github.com/dryvist/claude-code-plugins/commit/c46c92b5b4f8deff59b74eb7f863b653d0342418))
+
 ## [6.35.0](https://github.com/dryvist/claude-code-plugins/compare/v6.34.0...v6.35.0) (2026-11-03)
 
 

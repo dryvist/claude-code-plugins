@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.1](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.11.0...jpe-ai-delegation-v1.11.1) (2026-11-04)
+
+
+### Bug Fixes
+
+* **jpe-ai-delegation:** find codex-quota outside the hook PATH ([#688](https://github.com/dryvist/claude-code-plugins/issues/688)) ([c46c92b](https://github.com/dryvist/claude-code-plugins/commit/c46c92b5b4f8deff59b74eb7f863b653d0342418))
+
 ## [1.11.0](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.10.4...jpe-ai-delegation-v1.11.0) (2026-11-01)
 
 
