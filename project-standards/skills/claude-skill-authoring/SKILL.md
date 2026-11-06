@@ -44,5 +44,7 @@ tables, examples).
 
 ## Related Skills
 
+- [agent-builder](../agent-builder/SKILL.md) - Author platform agents with generated exports and promotion evidence
+- [skill-builder](../skill-builder/SKILL.md) - Author skills with trigger, baseline, and held-out evaluation contracts
 - **skills-registry** (project-standards) — Use when looking up available skills, agents, tools, or plugins
 - **workspace-standards** (project-standards) — Use when setting up or managing multi-repo workspaces
