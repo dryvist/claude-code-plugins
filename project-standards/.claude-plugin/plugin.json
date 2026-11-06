@@ -1,7 +1,7 @@
 {
   "name": "project-standards",
   "version": "6.5.0",
-  "description": "Claude skill authoring standards, workspace management, and skills/tools registry lookup",
+  "description": "Agent and skill builders, authoring standards, workspace management, and skills/tools registry lookup",
   "author": {
     "name": "JacobPEvans"
   },
@@ -16,6 +16,8 @@
     "standards"
   ],
   "skills": [
+    "./skills/agent-builder",
+    "./skills/skill-builder",
     "./skills/claude-skill-authoring",
     "./skills/workspace-standards",
     "./skills/skills-registry",
