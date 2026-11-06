@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.38.1](https://github.com/dryvist/claude-code-plugins/compare/v6.38.0...v6.38.1) (2026-11-06)
+
+
+### Bug Fixes
+
+* **jpe-ai-delegation:** enforce the binding delegation routing ([#698](https://github.com/dryvist/claude-code-plugins/issues/698)) ([7135611](https://github.com/dryvist/claude-code-plugins/commit/71356119420d8658eddb09355d9fc947b319ffb7))
+
 ## [6.38.0](https://github.com/dryvist/claude-code-plugins/compare/v6.37.0...v6.38.0) (2026-11-06)
 
 
