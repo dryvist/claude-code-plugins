@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test'
+import { describe, expect, test } from 'claude-code/testing'
 import { register } from './register'
 import { CODEX, LAST_RESORT, codexArgv, explicitLabel, forbiddenModel, isAdvisory, mandatoryLabel, newestModel, parseVerdict, safePayload } from './lib/policy'
 
@@ -14,7 +14,7 @@ const CORE_ASK = { decision: 'ask', reason: 'This shell -c script runs rm.' }
 type Call = { argv: string[]; stdin?: string }
 type World = {
   quota?: number; cli?: number; quotaThrows?: boolean; cache?: boolean; codexExit?: number; answer?: string; label?: string
-  env?: Record<string, string>; definition?: string; fsThrows?: boolean; worktreeExit?: number; temporaryExit?: number
+  env?: Record<string, string>; definition?: string; files?: Record<string, string>; fsThrows?: boolean; worktreeExit?: number; temporaryExit?: number
   repository?: unknown; properties?: unknown; githubPrivateAuth?: boolean; githubAuthDenied?: boolean; pr?: unknown; githubError?: boolean; githubInvalidJson?: boolean
   zcodeExit?: number; zcodeOutput?: string; zcodeAvailable?: boolean; zcodeThrows?: boolean; zcodeTruncated?: boolean
   gatewayTimeout?: boolean; gatewayStatus?: Record<string, number>; gatewayAnswer?: Record<string, string>; gatewayInvalidJson?: boolean
@@ -44,9 +44,9 @@ function world(w: World = {}) {
     fs: {
       exists: async (path: string) => {
         if (w.fsThrows) throw new Error('read failed')
-        return path.endsWith('models_cache.json') ? w.cache !== false : Boolean(w.definition)
+        return path.endsWith('models_cache.json') ? w.cache !== false : w.files?.[path] !== undefined || Boolean(w.definition)
       },
-      read: async (path: string) => path === '/token' ? 'test-token' : path.endsWith('models_cache.json') ? CACHE : path === '/tmp/final' ? output : w.definition ?? '',
+      read: async (path: string) => path === '/token' ? 'test-token' : path.endsWith('models_cache.json') ? CACHE : path === '/tmp/final' ? output : w.files?.[path] ?? w.definition ?? '',
     },
     process: { run: async (argv: string[], init?: { stdin?: string }) => {
       calls.push({ argv, stdin: init?.stdin })
@@ -103,6 +103,7 @@ const text = (r: any): string => r.result.content[0].text
 const runs = (w: ReturnType<typeof world>) => w.calls.filter((c) => c.argv[0] === 'codex' && c.argv[1] === 'exec')
 const gateways = { LITELLM_LOCAL_BASE_URL: 'http://localhost:8000', AGENT_ROUTE_GLM_MODEL: 'configured-glm', AGENT_ROUTE_OPENCODE_GO_MODEL: 'configured-go' }
 const coding = { description: '[class: public] [repo: owner/project] [task: code]', prompt: 'Implement the change.' }
+const textTask = { description: '[class: text]', prompt: 'Summarize this supplied text: A small change.' }
 
 describe('policy', () => {
   test('exact class routes and newest listed model per family', () => {
@@ -158,6 +159,15 @@ describe('Codex first', () => {
       expect(mandatoryLabel(`${topic} work`)).toBe('bulk-complex')
       expect(text(r)).toContain('codex luna max, class bulk-complex')
       expect(runs(w)).toHaveLength(1)
+    })
+  }
+  for (const label of ['plan', 'deep']) {
+    test(`mandatory auth classification preserves explicit ${label} sandbox`, async () => {
+      const w = world()
+      expect(text(await w.agent({ description: `[class: ${label}]`, prompt: 'Review authentication design using placeholders.' }))).toContain('codex luna max, class bulk-complex')
+      expect(runs(w)).toHaveLength(1)
+      expect(runs(w)[0].argv).toContain('read-only')
+      expect(runs(w)[0].argv).not.toContain('workspace-write')
     })
   }
   for (const description of ['[class: public] [repo: owner/project] [task: code]', '[class: text]']) {
@@ -244,7 +254,7 @@ describe('model and payload guards', () => {
       expect(w.nextCalls).toEqual([])
     }
   })
-  for (const payload of ['password: sensitive-value', 'Authorization: Bearer example-value', '-----BEGIN PRIVATE KEY-----', 'ansible_host: 192.0.2.1', '[content: incident] details', 'outage timeline: details', 'token=abc123', 'ghp_abcdefghijklmnop']) {
+  for (const payload of ['password: sensitive-value', '{"password":"actual-value"}', '{"passwd": "actual-value"}', '{"token":"actual-value"}', '{"api_key":"actual-value"}', '{"secret-key":"actual-value"}', "'password': 'actual-value'", 'Authorization: Bearer example-value', '-----BEGIN PRIVATE KEY-----', 'ansible_host: 192.0.2.1', '[content: incident] details', 'outage timeline: details', 'token=abc123', 'ghp_abcdefghijklmnop']) {
     test(`prohibited payload never reaches any executor: ${payload.split(':')[0]}`, async () => {
       expect(safePayload(payload)).toBe(false)
       for (const quota of [0, 1]) {
@@ -256,9 +266,84 @@ describe('model and payload guards', () => {
       }
     })
   }
+  for (const model of ['haiku', 'sonnet', undefined]) {
+    test(`installed plugin agent ${model} definition is loaded and screened`, async () => {
+      const w = world({ files: {
+        '/home/test/.claude/plugins/installed_plugins.json': JSON.stringify({ version: 2, plugins: {
+          'codeql-resolver@marketplace': [{ scope: 'user', installPath: '/plugins/codeql-resolver' }],
+        } }),
+        '/plugins/codeql-resolver/agents/codeql-permissions-auditor.md': `---\nname: CodeQL Permissions Auditor\n${model ? `model: ${model}\n` : ''}---\nFollow the plugin review rubric.`,
+      } })
+      const r = await w.agent({ subagent_type: 'codeql-resolver:codeql-permissions-auditor' })
+      expect(text(r)).toContain(model !== 'sonnet' ? 'codex terra medium' : 'subagents are forbidden')
+      if (model !== 'sonnet') expect(runs(w)[0].stdin).toContain('Follow the plugin review rubric.')
+      else expect(w.calls).toEqual([])
+      expect(w.nextCalls).toEqual([])
+    })
+  }
+  for (const options of [
+    { registry: '{', definition: true },
+    { registry: JSON.stringify({ version: 2, plugins: {} }), definition: true },
+    { registry: JSON.stringify({ version: 2, plugins: { 'codeql-resolver@marketplace': [{ scope: 'user', installPath: '/plugins/codeql-resolver' }] } }), definition: false },
+    { registry: JSON.stringify({ version: 2, plugins: { 'codeql-resolver@marketplace': [{ scope: 'project', projectPath: '/other-project', installPath: '/plugins/codeql-resolver' }] } }), definition: true },
+  ]) {
+    test(`unverifiable plugin definitions fail closed: ${JSON.stringify(options)}`, async () => {
+      const w = world({ env: gateways, files: {
+        '/home/test/.claude/plugins/installed_plugins.json': options.registry,
+        ...(options.definition ? { '/plugins/codeql-resolver/agents/codeql-permissions-auditor.md': '---\nmodel: haiku\n---\nFollow the plugin rubric.' } : {}),
+      } })
+      expect(text(await w.agent({ subagent_type: 'codeql-resolver:codeql-permissions-auditor' }))).toStartWith('FAIL | router |')
+      expect(w.calls).toEqual([])
+      expect(w.fetches).toEqual([])
+      expect(w.nextCalls).toEqual([])
+    })
+  }
+  test('project plugin installation precedes the user installation', async () => {
+    const w = world({ env: { CLAUDE_CONFIG_DIR: '/config' }, files: {
+      '/config/plugins/installed_plugins.json': JSON.stringify({ version: 2, plugins: { 'codeql-resolver@marketplace': [
+        { scope: 'user', installPath: '/plugins/user' },
+        { scope: 'project', projectPath: '/workspace', installPath: '/plugins/project' },
+      ] } }),
+      '/plugins/user/agents/codeql-permissions-auditor.md': '---\nmodel: sonnet\n---\nWrong installation.',
+      '/plugins/project/agents/codeql-permissions-auditor.md': '---\nmodel: haiku\n---\nFollow the project plugin rubric.',
+    } })
+    expect(text(await w.agent({ subagent_type: 'codeql-resolver:codeql-permissions-auditor' }))).toContain('codex terra medium')
+    expect(runs(w)[0].stdin).toContain('Follow the project plugin rubric.')
+  })
+  test('project custom definition still precedes plugin discovery', async () => {
+    const w = world({ files: {
+      '/workspace/.claude/agents/codeql-resolver:codeql-permissions-auditor.md': '---\nmodel: haiku\n---\nFollow the local rubric.',
+      '/home/test/.claude/plugins/installed_plugins.json': '{',
+    } })
+    expect(text(await w.agent({ subagent_type: 'codeql-resolver:codeql-permissions-auditor' }))).toContain('codex terra medium')
+    expect(runs(w)[0].stdin).toContain('Follow the local rubric.')
+  })
 })
 
 describe('capped ladder', () => {
+  test('custom tool-using agents cannot opt into a text gateway', async () => {
+    const w = world({ quota: 1, env: gateways, definition: '---\nmodel: haiku\n---\nRead app.ts and run its tests.' })
+    await w.agent({ ...textTask, subagent_type: 'reviewer' })
+    expect(w.fetches).toEqual([])
+    expect(w.nextCalls[0]).toMatchObject({ subagent_type: 'general-purpose', model: 'haiku', effort: 'xhigh' })
+    expect(w.nextCalls[0].prompt).toContain('Read app.ts and run its tests.')
+  })
+  for (const task of [
+    { description: '[class: standard]', prompt: 'Edit app.ts and run its tests.' },
+    coding,
+    { description: 'read and triage', subagent_type: 'Explore', prompt: 'Read app.ts and inspect the repository.' },
+    { description: '[class: deep]', prompt: 'Review the repository architecture.' },
+    { description: '[class: text] [task: code]', prompt: 'Edit app.ts and run its tests.' },
+    { description: '[class: text]', subagent_type: 'Explore', prompt: 'Read app.ts and inspect the repository.' },
+    { description: '[class: text]', subagent_type: 'Plan', prompt: 'Inspect the repository and plan changes.' },
+  ]) {
+    test(`tool-dependent tasks skip chat gateways: ${task.prompt}`, async () => {
+      const w = world({ quota: 1, zcodeAvailable: false, env: gateways })
+      await w.agent(task)
+      expect(w.fetches).toEqual([])
+      expect(w.nextCalls[0]).toMatchObject({ model: 'haiku', effort: 'xhigh', prompt: task.prompt })
+    })
+  }
   test('public coding uses zcode and verifies a ready labelled PR', async () => {
     const w = world({ quota: 1, env: gateways })
     expect(text(await w.agent(coding))).toContain('[routed: zcode-job sandbox; leak-scan before merge; never auto-merge]')
@@ -272,8 +357,9 @@ describe('capped ladder', () => {
         const w = world({ quota: 1, repository: { visibility: 'private', private: true }, properties, env: gateways })
         const r = await w.agent({ ...coding, description: `${coding.description}${classified ? ' [payload: classified-safe]' : ''}` })
         const eligible = classified && properties[0]?.value === 'true'
-        expect(text(r)).toContain(eligible ? 'routed: zcode-job sandbox' : 'routed: Z.ai GLM')
+        expect(text(r)).toContain(eligible ? 'routed: zcode-job sandbox' : 'haiku result')
         expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(eligible)
+        if (!eligible) expect(w.fetches.some((f) => f.url.endsWith('/chat/completions'))).toBe(false)
       })
     }
   }
@@ -286,14 +372,15 @@ describe('capped ladder', () => {
   })
   test('unreadable private metadata never qualifies for zcode', async () => {
     const w = world({ quota: 1, githubPrivateAuth: true, githubAuthDenied: true, env: gateways })
-    expect(text(await w.agent(coding))).toContain('routed: Z.ai GLM')
+    expect(text(await w.agent(coding))).toContain('haiku result')
     expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
   })
   for (const options of [{}, { githubError: true }, { githubInvalidJson: true }, { repository: { visibility: 'public', private: true } }, { zcodeAvailable: false }]) {
-    test(`ineligible sandbox advances to GLM: ${JSON.stringify(options)}`, async () => {
+    test(`ineligible sandbox advances to a tool-capable executor: ${JSON.stringify(options)}`, async () => {
       const w = world({ quota: 1, env: gateways, ...options })
-      expect(text(await w.agent(options && Object.keys(options).length ? coding : { ...coding, description: '[class: public] [repo: owner/project]' }))).toContain('routed: Z.ai GLM')
+      expect(text(await w.agent(options && Object.keys(options).length ? coding : { ...coding, description: '[class: public] [repo: owner/project]' }))).toContain('haiku result')
       expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
+      expect(w.fetches.some((f) => f.url.endsWith('/chat/completions'))).toBe(false)
     })
   }
   for (const options of [
@@ -312,26 +399,26 @@ describe('capped ladder', () => {
   }
   test('GLM precedes OpenCode Go; neither uses small', async () => {
     const w = world({ quota: 1, env: gateways })
-    expect(text(await w.agent())).toContain('routed: Z.ai GLM')
+    expect(text(await w.agent(textTask))).toContain('routed: Z.ai GLM')
     expect(w.fetches.map((f) => JSON.parse(f.body!).model)).toEqual(['configured-glm'])
   })
   test('GLM failure advances to OpenCode Go before Haiku', async () => {
     const w = world({ quota: 1, env: gateways, gatewayStatus: { 'configured-glm': 503 } })
-    expect(text(await w.agent())).toContain('routed: OpenCode Go')
+    expect(text(await w.agent(textTask))).toContain('routed: OpenCode Go')
     expect(w.fetches.map((f) => JSON.parse(f.body!).model)).toEqual(['configured-glm', 'configured-go'])
     expect(w.nextCalls).toEqual([])
   })
   for (const options of [{ env: {} }, { env: gateways, gatewayStatus: { 'configured-glm': 503, 'configured-go': 503 } }, { env: gateways, gatewayAnswer: { 'configured-glm': '', 'configured-go': '' } }, { env: gateways, gatewayInvalidJson: true }, { env: gateways, gatewayTimeout: true }]) {
     test(`Haiku xhigh only after all earlier rungs fail to qualify: ${JSON.stringify(options)}`, async () => {
       const w = world({ quota: 1, ...options })
-      await w.agent({ model: 'haiku', effort: 'low' })
+      await w.agent({ ...textTask, model: 'haiku', effort: 'low' })
       expect(w.nextCalls[0]).toMatchObject({ model: 'haiku', effort: 'xhigh' })
       expect(runs(w)).toEqual([])
     })
   }
   test('capped isolation skips transports that cannot preserve worktrees', async () => {
     const w = world({ quota: 1, env: gateways })
-    await w.agent({ isolation: 'worktree' })
+    await w.agent({ ...textTask, isolation: 'worktree' })
     expect(w.fetches).toEqual([])
     expect(w.nextCalls[0]).toMatchObject({ isolation: 'worktree', model: 'haiku', effort: 'xhigh' })
   })

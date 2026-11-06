@@ -40,10 +40,12 @@ The lead must keep prohibited content out of executor-accessible context.
 Codex uses the newest listed model of the selected family in its local cache.
 Plan, design and architecture review use the `plan` or `deep` class and a
 read-only sandbox, as do `Explore` and `Plan` agents. Explicit class tags select
-these routes; the mandatory bulk-complex topics override other class tags.
+these routes; mandatory bulk-complex topics override model selection while
+preserving an explicit `plan` or `deep` read-only sandbox.
 Explicit models, named agents and worktree isolation cannot bypass the ladder.
 Isolated Codex tasks get a detached worktree, whose path is returned for review.
-Custom-agent instructions are preserved; missing definitions stop dispatch.
+Custom-agent instructions are preserved; namespaced plugin agents resolve from
+the local installed-plugin registry. Missing definitions stop dispatch.
 A Codex failure while quota is available stops routing. An unknown quota status
 also stops routing rather than treating an error as exhaustion.
 
@@ -62,8 +64,11 @@ The GLM and OpenCode Go rungs use the existing router chat transport. Configure
 `AGENT_ROUTE_GLM_MODEL` and `AGENT_ROUTE_OPENCODE_GO_MODEL` with the approved
 model identifiers for those routes. Use `LLM_ROUTER_URL` with
 `LLM_ROUTER_TOKEN_FILE`, or `LITELLM_LOCAL_BASE_URL` for the local proxy.
-An unconfigured or unavailable route does not qualify. These text transports
-cannot preserve a requested worktree, so they do not qualify for isolated tasks.
+An unconfigured or unavailable route does not qualify. Mark self-contained text
+work with `[class: text]` in the description to qualify for these chat transports.
+Supply all required text in the prompt. Work requiring repository access, edits,
+tests or other tools continues to a tool-capable executor. Coding tags, custom
+agents, `Explore`, `Plan` and isolated tasks do not qualify for chat transports.
 There is no generic small-model executor rung.
 
 Run `agent-route <code|private|other>` from the plugin root to inspect the
