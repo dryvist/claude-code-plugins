@@ -109,8 +109,11 @@ substitute custom API glue. Record the app ID and imported artifact version.
 
 Check provider bindings, connector permissions, omitted resources, triggers,
 output contracts, failure routes, pause/resume behavior, and rollback version.
-Keep secret values out of exports and logs. Prove successful execution and
-correlated receipt in both Langfuse and Phoenix through Cribl Stream.
+Test the draft before publishing a shadow version with `mode: shadow`, then
+verify its published trigger subscriptions before starting the shadow interval.
+Keep secret values out of exports and logs. Trace every run through Cribl
+Stream to both Langfuse and Phoenix; prove correlated trace receipt and
+successful execution separately.
 Every event carries `agent`, `tier`, `privacy_class`, `model`, and `accelerator`.
 Sim and Langflow shadows must suppress external side effects.
 
