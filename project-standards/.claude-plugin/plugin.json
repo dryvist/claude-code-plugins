@@ -16,6 +16,7 @@
     "standards"
   ],
   "skills": [
+    "./skills/agent-builder",
     "./skills/claude-skill-authoring",
     "./skills/workspace-standards",
     "./skills/skills-registry",

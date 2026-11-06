@@ -6,6 +6,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for integration diagrams.
 
 ## Skills
 
+- **`/agent-builder`** - Canonical v2 agents, generated runtime exports, evals, and shadow-to-live evidence
 - **`/claude-skill-authoring`** - Token budgets, progressive disclosure, self-contained rule, component placement
 - **`/workspace-standards`** - Cross-project standards, git workflow, security, cost management
 - **`/skills-registry`** - Lookup table for all available tools, skills, commands, agents, plugins
@@ -21,6 +22,7 @@ claude plugins add jacobpevans-cc-plugins/project-standards
 ## Usage
 
 ```text
+/agent-builder
 /claude-skill-authoring
 /workspace-standards
 /skills-registry
