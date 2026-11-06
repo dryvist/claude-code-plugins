@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.12.0](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.11.1...jpe-ai-delegation-v1.12.0) (2026-11-04)
+
+
+### Features
+
+* **agent:** autonomous zcode run j-fae1382ba350cc89 ([#691](https://github.com/dryvist/claude-code-plugins/issues/691)) ([565834d](https://github.com/dryvist/claude-code-plugins/commit/565834da9a833daaeeabeb88306946ae16a1da39))
+
+## [1.11.1](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.11.0...jpe-ai-delegation-v1.11.1) (2026-11-04)
+
+
+### Bug Fixes
+
+* **jpe-ai-delegation:** find codex-quota outside the hook PATH ([#688](https://github.com/dryvist/claude-code-plugins/issues/688)) ([c46c92b](https://github.com/dryvist/claude-code-plugins/commit/c46c92b5b4f8deff59b74eb7f863b653d0342418))
+
+## [1.11.0](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.10.4...jpe-ai-delegation-v1.11.0) (2026-11-01)
+
+
+### Features
+
+* **jpe-ai-delegation:** route [class: public] to the sandbox and [class: text] to LiteLLM small ([#684](https://github.com/dryvist/claude-code-plugins/issues/684)) ([b5c92d0](https://github.com/dryvist/claude-code-plugins/commit/b5c92d01d6bd099ce3a0e75ec0c22459b3d733ae))
+
 ## [1.10.4](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.10.3...jpe-ai-delegation-v1.10.4) (2026-11-01)
 
 

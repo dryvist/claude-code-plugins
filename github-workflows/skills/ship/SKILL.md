@@ -79,9 +79,9 @@ git status --porcelain
    Skip this step if no lint command is discoverable.
 6. Push: `git push -u origin HEAD`
 7. Create a PR: `gh pr create --fill` (or with title/body derived from the commit).
-   Use a draft or add `human:review` if it must wait for a person. Include the
+   Use a draft if it must wait for a person. Include the
    session id (`<runtime>-<host>-<8hex>`) in the PR body. The org `pr-automerge`
-   workflow arms non-draft PRs without `human:review`; agents never arm auto-merge.
+   workflow arms non-draft PRs; agents never arm auto-merge.
    It uses a merge commit for PRs into `main` on git-flow repos and squash otherwise.
    It never arms `develop` to `main` promotions. Never assume the PR merged;
    verify its state before reporting.
@@ -164,11 +164,11 @@ prevents API rate limit errors from overlapping finalization cascades.
 For each PR in the list:
 
 1. Invoke `/finalize-pr <PR_NUMBER>` via the Skill tool
-2. Record the result (ready / blocked / held)
+2. Record the result (ready / blocked)
 3. Proceed to the next PR
 
 **Claude project route:** run one project thread per repository instead of the
-local fan-out; see [the claude-projects rule](https://github.com/dryvist/ai-assistant-instructions/blob/develop/agentsmd/rules/on-demand/claude-projects.md).
+local fan-out; see [the claude-projects rule](https://github.com/dryvist/ai-llm-prompts/blob/main/auto-ai-agent/instructions/agentsmd/rules/on-demand/claude-projects.md).
 
 ### What `/finalize-pr` handles
 
@@ -181,17 +181,6 @@ local fan-out; see [the claude-projects rule](https://github.com/dryvist/ai-assi
 
 **Do NOT run `/resolve-pr-threads` separately** — `/finalize-pr` already invokes it
 internally. Running both causes race conditions on GraphQL mutations and git pushes.
-
-### Human-review gate
-
-See github-workflows pr-standards → Human-Review Gate for the application criteria.
-
-**Never merging a labelled PR — unconditional.** `/ship` never merges a PR carrying
-`human:review`, whatever its base branch, without an explicit same-session user
-instruction to merge THAT PR. The scoping above governs where you may *apply* the
-label, not whether to honor one already present: a label on a `develop` PR means a
-human put it there deliberately, and this gate fails closed. See pr-standards
-(github-workflows) → Human-Review Gate.
 
 ## Step 3: Aggregate Results
 
@@ -252,5 +241,4 @@ PRs in the current repo (including unrelated ones).
 - merge-pr (github-workflows) — merge a PR after ship reports it ready
 - resolve-pr-threads (github-workflows) — invoked internally via finalize-pr to resolve review threads
 - gh-cli-patterns (github-workflows) — canonical gh CLI command shapes, placeholder convention, PR gate, code-scanning query
-- pr-standards (github-workflows) — the canonical label application criteria and merge prohibition
 - For branch creation and PR-branch sync, follow the [Git Town rule](https://github.com/dryvist/ai-llm-prompts/blob/main/auto-ai-agent/instructions/agentsmd/rules/on-demand/git-flow.md).

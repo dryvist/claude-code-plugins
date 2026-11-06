@@ -1,6 +1,6 @@
 ---
 name: terrakube-ops
-description: Operate self-hosted Terrakube (remote OpenTofu/Terraform plan/apply, state, locking) — login/plan/apply flow, why targeted apply is dangerous, lock recovery, offline-mirror gotcha, token rotation. Use for a plan/apply, stuck lock, new workspace.
+description: Operate self-hosted Terrakube (remote OpenTofu/Terraform plan/apply, state, locking) — login/plan/apply flow, gated targeted applies, lock recovery, offline-mirror gotcha, token rotation. Use for a plan/apply, stuck lock, new workspace.
 ---
 
 # Terrakube operations
@@ -29,14 +29,21 @@ convenient; they're interchangeable.
 > without contacting any provider — run that first, it's free and instant
 > compared to a remote plan.
 
-## Never use a targeted apply
+## Targeted applies
 
-A targeted apply (`-target=...`) can leave the real infrastructure and any
-downstream-published inventory describing two different worlds — whatever
-consumes that inventory (configuration management, DNS, monitoring) now
-disagrees with reality. Apply the reviewed **whole-workspace** plan. For
-state surgery, prefer `moved`/`removed` blocks over `-target` or manual state
-edits.
+Targeted applies (`-target=...`) are allowed through the gated path:
+
+- Run them through the Terrakube `Plan and apply (targeted)` template, with the
+  targets passed as the job's `targetAddrs` (or `TARGET_ADDRS` through a gated
+  converge script). Never run a hand-built CLI `-target` apply that skips the
+  approval gate.
+- The plan must show zero destroys and zero replaces unless the operator
+  approved those exact resources.
+- A targeted run leaves everything outside its targets unreconciled. Run a full
+  plan afterward to see what remains.
+
+For state surgery, prefer `moved`/`removed` blocks over `-target` or manual
+state edits.
 
 ## Workspace locking and recovery
 

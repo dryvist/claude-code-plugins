@@ -43,7 +43,7 @@ Terraform outputs feed Ansible dynamic inventory:
 
 - Terraform owns IP assignment (derived from VMID) and port assignment
 - Ansible consumes but never overrides these values
-- Changes to IPs/ports must originate in terraform-proxmox
+- Changes to IPs/ports must originate in tofu-proxmox
 
 ## Related Skills
 

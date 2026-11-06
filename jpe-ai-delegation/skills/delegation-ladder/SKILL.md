@@ -45,8 +45,8 @@ inspect text-only router lanes, prices or context tiers.
   Poll with `zcode-job status <job_id>`, read `zcode-job result <job_id>`, and
   stop with `zcode-job cancel <job_id>`. Classify the task text, attachments,
   diff and log before dispatch. Secrets, credentials, inventory and incident
-  content never leave the lead. Leak-scan the output before review. The job
-  returns a ready PR labelled `human:review`; never auto-merge it.
+  content never leave the lead. Leak-scan the output before review. Never
+  auto-merge the job's PR.
 - **Codex Luna**: use `xhigh` for `bulk` and `standard`; use `max` for
   `bulk-complex`, `complex`, `plan` and `deep`. Plan and deep run as read-only
   advisory workers. An off-base answer can be retried with a valid

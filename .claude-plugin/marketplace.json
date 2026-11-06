@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "Claude Code plugins and hooks by JacobPEvans",
-    "version": "6.33.1"
+    "version": "6.37.0"
   },
   "plugins": [
     {
@@ -85,7 +85,7 @@
       "name": "github-workflows",
       "source": "./github-workflows",
       "description": "PR management, multi-repo PR finalization, and issue shaping with Shape Up methodology",
-      "version": "6.11.1",
+      "version": "6.12.0",
       "author": {
         "name": "JacobPEvans"
       }
@@ -94,7 +94,7 @@
       "name": "homelab-ops",
       "source": "./homelab-ops",
       "description": "High-level operational runbooks for homelab management: DR-node power management, DNS ingress convergence, and secrets-engine identity bring-up",
-      "version": "1.1.0",
+      "version": "1.2.0",
       "author": {
         "name": "JacobPEvans"
       }
@@ -112,7 +112,7 @@
       "name": "jpe-ai-delegation",
       "source": "./jpe-ai-delegation",
       "description": "Specific to the maintainer's own setup and not intended for general use",
-      "version": "1.10.4",
+      "version": "1.12.0",
       "author": {
         "name": "JacobPEvans"
       }
@@ -194,6 +194,15 @@
       "source": "./estate-lsp",
       "description": "Language servers for Nix, Terraform/OpenTofu, and YAML: post-edit diagnostics and code navigation. Expects nixd, terraform-ls, and yaml-language-server binaries on PATH",
       "version": "1.0.0",
+      "author": {
+        "name": "JacobPEvans"
+      }
+    },
+    {
+      "name": "ask-default",
+      "source": "./ask-default",
+      "description": "Answer every AskUserQuestion call at once with each question's first option; DESTRUCTIVE: headers keep the dialog",
+      "version": "1.1.0",
       "author": {
         "name": "JacobPEvans"
       }

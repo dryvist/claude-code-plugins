@@ -57,6 +57,11 @@ export const explicitLabel = (description: string | undefined): Label | undefine
   return LABELS.find((l) => l === named)
 }
 
+export const explicitExecutor = (description: string | undefined): 'public' | 'text' | undefined => {
+  const named = description?.match(/\[class: (public|text)\]/)?.[1]
+  return named === 'public' || named === 'text' ? named : undefined
+}
+
 export function parseVerdict(text: string | undefined): Verdict | undefined {
   const raw = text?.match(/\{[^{}]*\}/s)?.[0]
   if (!raw) return undefined

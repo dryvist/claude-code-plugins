@@ -1,5 +1,40 @@
 # Changelog
 
+## [6.37.0](https://github.com/dryvist/claude-code-plugins/compare/v6.36.0...v6.37.0) (2026-11-04)
+
+
+### Features
+
+* **ask-default:** answer AskUserQuestion with first option via PreToolUse hook ([#690](https://github.com/dryvist/claude-code-plugins/issues/690)) ([0855eb0](https://github.com/dryvist/claude-code-plugins/commit/0855eb00854bba9147366c163668aae3ef07033b))
+
+## [6.36.0](https://github.com/dryvist/claude-code-plugins/compare/v6.35.1...v6.36.0) (2026-11-04)
+
+
+### Features
+
+* **agent:** autonomous zcode run j-fae1382ba350cc89 ([#691](https://github.com/dryvist/claude-code-plugins/issues/691)) ([565834d](https://github.com/dryvist/claude-code-plugins/commit/565834da9a833daaeeabeb88306946ae16a1da39))
+
+## [6.35.1](https://github.com/dryvist/claude-code-plugins/compare/v6.35.0...v6.35.1) (2026-11-04)
+
+
+### Bug Fixes
+
+* **jpe-ai-delegation:** find codex-quota outside the hook PATH ([#688](https://github.com/dryvist/claude-code-plugins/issues/688)) ([c46c92b](https://github.com/dryvist/claude-code-plugins/commit/c46c92b5b4f8deff59b74eb7f863b653d0342418))
+
+## [6.35.0](https://github.com/dryvist/claude-code-plugins/compare/v6.34.0...v6.35.0) (2026-11-03)
+
+
+### Features
+
+* allow gated targeted applies ([#686](https://github.com/dryvist/claude-code-plugins/issues/686)) ([d13c3bf](https://github.com/dryvist/claude-code-plugins/commit/d13c3bf2aab3e99ff7654212c1d1d7cd7f1b271f))
+
+## [6.34.0](https://github.com/dryvist/claude-code-plugins/compare/v6.33.1...v6.34.0) (2026-11-01)
+
+
+### Features
+
+* **jpe-ai-delegation:** route [class: public] to the sandbox and [class: text] to LiteLLM small ([#684](https://github.com/dryvist/claude-code-plugins/issues/684)) ([b5c92d0](https://github.com/dryvist/claude-code-plugins/commit/b5c92d01d6bd099ce3a0e75ec0c22459b3d733ae))
+
 ## [6.33.1](https://github.com/dryvist/claude-code-plugins/compare/v6.33.0...v6.33.1) (2026-11-01)
 
 

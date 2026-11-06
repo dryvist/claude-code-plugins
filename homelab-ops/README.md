@@ -14,8 +14,8 @@ operations, and resumable ZFS transfers.
   quorum-respecting rolling node updates, and the shape of joining a new node to a cluster
 - **`/monitoring-first`** - Read infrastructure and service state from monitoring,
   close telemetry gaps, and route critical alerts and issue notifications
-- **`/terrakube-ops`** - Canonical Terrakube login/plan/apply workflow, why a targeted
-  apply is dangerous, workspace lock recovery, the offline-mirror gotcha, the
+- **`/terrakube-ops`** - Canonical Terrakube login/plan/apply workflow, the gated
+  targeted-apply path, workspace lock recovery, the offline-mirror gotcha, the
   token-rotation trap, and the refresh-only 0/0/0 gate for importing existing
   infrastructure into an empty workspace
 - **`/pxe-netboot`** - Reliable PXE install path for hardware with an unreliable
