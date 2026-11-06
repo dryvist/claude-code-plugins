@@ -42,6 +42,8 @@ if [[ ${AGENT_ROUTE_CODEX_QUOTA+x} ]]; then
 elif codex-quota >/dev/null 2>&1; then
   codex_quota=available
 else
+  quota_status=$?
+  [[ $quota_status == 1 ]] || fail 1 'Codex quota status unavailable'
   codex_quota=exhausted
 fi
 
@@ -51,9 +53,19 @@ while IFS=$'\t' read -r executor gate; do
       [[ $codex_quota == available ]] || continue
       ;;
     always) ;;
-    # The lead sets this only after a private repo passes its property and classify-payload gates.
-    allowlisted)
-      [[ ${AGENT_ROUTE_SANDBOX_ALLOWLISTED:-} == yes ]] || continue
+    sandbox|allowlisted)
+      if [[ $gate == allowlisted ]]; then
+        [[ ${AGENT_ROUTE_TASK:-} == code && ${AGENT_ROUTE_REPO_AI_UNTRUSTED_OK:-} == true && ${AGENT_ROUTE_PAYLOAD_CLASSIFICATION:-} == safe ]] || continue
+      fi
+      if [[ ${AGENT_ROUTE_ZCODE_AVAILABLE:-} != yes ]]; then
+        [[ ${AGENT_ROUTE_ZCODE_AVAILABLE:-} != no ]] && command -v zcode-job >/dev/null 2>&1 || continue
+      fi
+      ;;
+    glm)
+      [[ -n ${AGENT_ROUTE_GLM_MODEL:-} && ( -n ${LITELLM_LOCAL_BASE_URL:-} || ( -n ${LLM_ROUTER_URL:-} && -r ${LLM_ROUTER_TOKEN_FILE:-} ) ) ]] || continue
+      ;;
+    opencode-go)
+      [[ -n ${AGENT_ROUTE_OPENCODE_GO_MODEL:-} && ( -n ${LITELLM_LOCAL_BASE_URL:-} || ( -n ${LLM_ROUTER_URL:-} && -r ${LLM_ROUTER_TOKEN_FILE:-} ) ) ]] || continue
       ;;
     *) fail 1 'invalid ladder gate' ;;
   esac

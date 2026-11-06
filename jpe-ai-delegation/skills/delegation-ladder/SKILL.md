@@ -5,61 +5,75 @@ description: Apply the executor ladder for the maintainer's own setup, including
 
 # Delegation ladder
 
-Keep scope, security decisions, final verification, and merging with the trusted
-caller. Classify task content before selecting a route. Use the cheapest capable
-route in this order:
+Route each delegated task to the first rung that qualifies. Check codex-quota first.
 
-1. Handle a handful of tool calls inline.
-2. Use the local LLM router lanes for text-only extract, summarize, classify and
-   draft work.
-3. Use the untrusted sandbox (`zcode-job`) for public-repo work only. It runs
-   ZCode on Z.ai GLM flash, OpenCode on OpenCode Go flash, contributor and free
-   models.
-4. Use Codex Luna `xhigh` or `max` for everything else.
-5. Use Haiku `xhigh` as the capped last resort.
+1. Codex, while codex-quota exits 0. Pick the model by class:
+   - bulk, reads and triage: Luna `xhigh`.
+   - bulk work that is still somewhat complicated: Luna `max`.
+   - auth, secrets, router, memory and cluster work: Luna `max`. Name `[class: bulk-complex]` in the description.
+   - standard implementation: Terra `medium`.
+   - complex work, plan, and design or architecture review: Terra `high`.
+   Never Terra above high, never Luna above max.
+2. zcode-job sandbox, while Codex is capped. Coding tasks only. Public repos qualify. A private repo qualifies
+   only when it has the repo property `ai-untrusted-ok=true` and its payload passes classification before
+   dispatch. The output is a ready PR labelled `human:review`. Leak-scan it before merge. Never auto-merge it.
+3. Z.ai GLM, then OpenCode Go, while Codex is capped.
+4. Haiku `xhigh`, the last resort, only when rungs 1 to 3 do not qualify.
 
-Keep each task below the target model's context price tier. Split it rather than
-crossing that tier. Read model lists, prices, context tiers, peak windows and
-caps live from the router. Never hard-code them.
+Never Sonnet, Opus or Fable subagents.
+Never send secrets, credentials, inventory or incident content to any executor.
 
-| Kind | Fallback when Codex quota is gone | Sandbox eligibility | Use |
+| Kind | Ladder | Sandbox eligibility | Use |
 | --- | --- | --- | --- |
-| `code` | Codex -> zcode-job sandbox -> OpenCode Go -> Haiku xhigh | Public repos only | Public-repo implementation and code review |
-| `private` | Codex -> Haiku xhigh | No | Private material stays on approved routes |
-| `other` | Codex -> Haiku xhigh | No | Triage, bulk reads, summaries, judgment |
+| `code` | Codex -> zcode-job sandbox -> Z.ai GLM -> OpenCode Go -> Haiku xhigh | Public coding tasks | Implementation |
+| `private` | Codex -> zcode-job sandbox -> Z.ai GLM -> OpenCode Go -> Haiku xhigh | Coding, property true, payload classification passed | Private tasks |
+| `other` | Codex -> Z.ai GLM -> OpenCode Go -> Haiku xhigh | Ineligible | Reads, triage, summaries, review and planning |
 
-Z.ai GLM runs only inside `zcode-job`, never through the router or another
-gateway, and only for work where non-zero-data-retention handling is acceptable.
+## Dispatch and completion
 
-Run `agent-route <code|private|other>` from the plugin root to inspect executor
-eligibility. Apply the cost order above before dispatch; the helper does not
-inspect text-only router lanes, prices or context tiers.
+The lead classifies the full payload, including attachments, diffs, logs and
+conversation context, before dispatch. Use placeholders in work about sensitive
+systems. The hook screens inline payloads locally before calling any classifier
+or executor; it cannot inspect attachments or files that workers might read.
+The lead must keep prohibited content out of executor-accessible context.
 
-## Execute the selected route
+Codex uses the newest listed model of the selected family in its local cache.
+Plan, design and architecture review use the `plan` or `deep` class and a
+read-only sandbox, as do `Explore` and `Plan` agents. Explicit class tags select
+these routes; the mandatory bulk-complex topics override other class tags.
+Explicit models, named agents and worktree isolation cannot bypass the ladder.
+Isolated Codex tasks get a detached worktree, whose path is returned for review.
+Custom-agent instructions are preserved; missing definitions stop dispatch.
+A Codex failure while quota is available stops routing. An unknown quota status
+also stops routing rather than treating an error as exhaustion.
 
-- **Local LLM router lanes**: use for text-only extract, summarize, classify and
-  draft work. Read current model lists, prices, context tiers, peak windows and
-  caps from the router.
-- **zcode-job sandbox**: coding tasks in public repositories only. Dispatch with
-  `zcode-job start [--tool zcode|opencode|opencode-local|opencode-zai|cursor-agent|qwen-code] <repo> <prompt>`.
-  Poll with `zcode-job status <job_id>`, read `zcode-job result <job_id>`, and
-  stop with `zcode-job cancel <job_id>`. Classify the task text, attachments,
-  diff and log before dispatch. Secrets, credentials, inventory and incident
-  content never leave the lead. Leak-scan the output before review. Never
-  auto-merge the job's PR.
-- **Codex Luna**: use `xhigh` for `bulk` and `standard`; use `max` for
-  `bulk-complex`, `complex`, `plan` and `deep`. Plan and deep run as read-only
-  advisory workers. An off-base answer can be retried with a valid
-  `[class: <label>]` in the description. The call contract is in
-  [model-delegation.md](https://github.com/dryvist/ai-llm-prompts/blob/main/auto-ai-agent/instructions/agentsmd/rules/on-demand/model-delegation.md).
-- **Haiku xhigh**: use as the capped last resort. The hook also uses Haiku for
-  worktree-isolated spawns because `codex exec` runs in the session directory.
-  An explicit Haiku spawn routes to Codex Luna `xhigh` while Codex is ready.
-- **Stop**: stop and notify the operator when no route qualifies.
+For sandbox coding, put `[task: code] [repo: owner/repository]` in the
+description. A public-repo tag alone does not establish that work is coding.
+For a private repository, also put `[payload: classified-safe]` in the
+description only after the lead classifies the full payload. The hook reads the
+repository property before dispatch, using the caller's existing GitHub CLI
+identity when unauthenticated metadata is unavailable. It verifies the returned PR belongs to
+the requested repository, is open and non-draft, and has `human:review`.
+A job with no PR or an unverifiable PR fails the handoff; inspect a dispatched
+job before retrying. The hook never merges. Leak-scan the exact PR head before
+any human merge.
 
-The spawn router in `hooks/register.ts` runs Codex and Haiku only. It cannot see
-repository eligibility, so the lead checks public-repository eligibility before
-using `zcode-job`.
+The GLM and OpenCode Go rungs use the existing router chat transport. Configure
+`AGENT_ROUTE_GLM_MODEL` and `AGENT_ROUTE_OPENCODE_GO_MODEL` with the approved
+model identifiers for those routes. Use `LLM_ROUTER_URL` with
+`LLM_ROUTER_TOKEN_FILE`, or `LITELLM_LOCAL_BASE_URL` for the local proxy.
+An unconfigured or unavailable route does not qualify. These text transports
+cannot preserve a requested worktree, so they do not qualify for isolated tasks.
+There is no generic small-model executor rung.
+
+Run `agent-route <code|private|other>` from the plugin root to inspect the
+first eligible executor. `code` means public coding; use `other` for read-only
+work even in public repos. For private sandbox eligibility, set
+`AGENT_ROUTE_TASK=code`, `AGENT_ROUTE_REPO_AI_UNTRUSTED_OK=true` and
+`AGENT_ROUTE_PAYLOAD_CLASSIFICATION=safe` only after checking the property and
+classifying the payload. The helper reports a route; it does not dispatch or
+verify the repository. `AGENT_ROUTE_CODEX_QUOTA=available|exhausted` and
+`AGENT_ROUTE_ZCODE_AVAILABLE=yes|no` are test overrides.
 
 ## Second-opinion review (agy)
 
@@ -87,10 +101,9 @@ agy -p="Read <brief-file> and review the diff it names. Reply with findings only
 
 Never ask an executor to merge, approve a gate, or use a credential. The trusted
 lead verifies the exact PR, repository, base branch, diff, checks, and head SHA
-before any merge. Review task text, attachments, diffs, logs, and conversation
-context before submission. Never send secrets, credentials, private repository
-content, live infrastructure work, or privileged actions to an external
-executor, including zcode-job and agy.
+before any merge. Classify the complete input before submission and leak-scan
+the output before merge. Apply the prohibited-content rule to every executor
+and second-opinion reviewer.
 
 ## Related skills
 
