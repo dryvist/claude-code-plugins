@@ -22,7 +22,8 @@ Codex CLI or failed Codex invocation while quota is available also stops.
 | plan | Terra, `high`, read-only |
 | deep: design or architecture review | Terra, `high`, read-only |
 
-Mandatory topics override explicit class tags and name `[class: bulk-complex]`.
+Mandatory topics override model selection and name `[class: bulk-complex]`;
+explicit `plan` and `deep` tags retain their read-only sandbox.
 Model selection uses the newest listed slug in the selected family from the
 Codex cache. The command builder rejects family mismatches and effort values
 outside the assigned ranges. `Explore` and `Plan` spawns stay read-only.
