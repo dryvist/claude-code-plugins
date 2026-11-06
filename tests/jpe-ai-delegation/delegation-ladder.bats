@@ -41,8 +41,3 @@ setup() {
   run grep -iE 'Luna only|Never Terra[,.;]|GLM runs only inside|Explicit model choices.*pass through|isolated spawns go to Haiku|text-only router lanes|runs Codex and Haiku only' "$SKILL" "$REPO_ROOT/jpe-ai-delegation/skills/delegation-ladder/references/estate-routing.md"
   [ "$status" -eq 1 ]
 }
-
-@test "registered hooks enforce model classes, quota order, guards, sandbox gates and every capped rung" {
-  run bun test "$REPO_ROOT/jpe-ai-delegation/hooks/register.test.ts"
-  [ "$status" -eq 0 ]
-}

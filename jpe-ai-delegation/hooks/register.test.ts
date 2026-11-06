@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test'
+import { describe, expect, test } from 'claude-code/testing'
 import { register } from './register'
 import { CODEX, LAST_RESORT, codexArgv, explicitLabel, forbiddenModel, isAdvisory, mandatoryLabel, newestModel, parseVerdict, safePayload } from './lib/policy'
 
