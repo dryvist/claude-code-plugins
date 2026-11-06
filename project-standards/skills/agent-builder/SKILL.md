@@ -111,9 +111,9 @@ Check provider bindings, connector permissions, omitted resources, triggers,
 output contracts, failure routes, pause/resume behavior, and rollback version.
 Test the draft before publishing a shadow version with `mode: shadow`, then
 verify its published trigger subscriptions before starting the shadow interval.
-Keep secret values out of exports and logs. Trace every run through Cribl
-Stream to both Langfuse and Phoenix; prove correlated trace receipt and
-successful execution separately.
+Keep secret values out of exports and logs. Send traces for every run to the
+configured observability backends; prove correlated trace receipt and successful
+execution separately.
 Every event carries `agent`, `tier`, `privacy_class`, `model`, and `accelerator`.
 Sim and Langflow shadows must suppress external side effects.
 
