@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.12.2](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.12.1...jpe-ai-delegation-v1.12.2) (2026-11-06)
+
+
+### Bug Fixes
+
+* **jpe-ai-delegation:** close review gaps and restore harness tests ([#700](https://github.com/dryvist/claude-code-plugins/issues/700)) ([935918a](https://github.com/dryvist/claude-code-plugins/commit/935918af8d255de57c8ae385d8435b898e1c79b6))
+
 ## [1.12.1](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.12.0...jpe-ai-delegation-v1.12.1) (2026-11-06)
 
 
