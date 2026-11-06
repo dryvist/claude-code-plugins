@@ -1,767 +1,380 @@
-import { describe, expect, mock, test } from 'claude-code/testing'
-import { CODEX, LABELS, LAST_RESORT, TIERS, codexArgv, explicitExecutor, explicitLabel, isAdvisory, isRoutable, isShellCAsk, newestModel, parseVerdict, pickLabel } from './lib/policy'
+import { describe, expect, test } from 'bun:test'
+import { register } from './register'
+import { CODEX, LAST_RESORT, codexArgv, explicitLabel, forbiddenModel, isAdvisory, mandatoryLabel, newestModel, parseVerdict, safePayload } from './lib/policy'
 
-const CORE_ASK = { decision: 'ask', reason: 'This command passes a shell -c script that runs rm, and Claude Code could not check the script for dangerous removals.' }
-const RAN = { exitCode: 0, stdout: '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false }
-const DONE = {
-  status: 'completed',
-  prompt: 'p',
-  agentId: 'test-agent',
-  content: [{ type: 'text', text: 'ran' }],
-  totalToolUseCount: 0,
-  totalDurationMs: 1,
-  totalTokens: 0,
-  usage: { input_tokens: 0, output_tokens: 0, cache_creation_input_tokens: null, cache_read_input_tokens: null, server_tool_use: null, service_tier: null, cache_creation: null },
+const RAN = { exitCode: 0, stdout: '', stderr: '', isStdoutTruncated: false }
+const CACHE = JSON.stringify({ models: [
+  { slug: 'gpt-older-luna', visibility: 'list', priority: 9 },
+  { slug: 'gpt-newer-luna', visibility: 'list', priority: 4 },
+  { slug: 'gpt-newer-terra', visibility: 'list', priority: 1 },
+  { slug: 'gpt-hidden-luna', visibility: 'hide', priority: 0 },
+] })
+const PR = { html_url: 'https://github.com/owner/project/pull/12', state: 'open', draft: false, labels: [{ name: 'human:review' }] }
+const CORE_ASK = { decision: 'ask', reason: 'This shell -c script runs rm.' }
+type Call = { argv: string[]; stdin?: string }
+type World = {
+  quota?: number; cli?: number; quotaThrows?: boolean; cache?: boolean; codexExit?: number; answer?: string; label?: string
+  env?: Record<string, string>; definition?: string; fsThrows?: boolean; worktreeExit?: number; temporaryExit?: number
+  repository?: unknown; properties?: unknown; githubPrivateAuth?: boolean; githubAuthDenied?: boolean; pr?: unknown; githubError?: boolean; githubInvalidJson?: boolean
+  zcodeExit?: number; zcodeOutput?: string; zcodeAvailable?: boolean; zcodeThrows?: boolean; zcodeTruncated?: boolean
+  gatewayTimeout?: boolean; gatewayStatus?: Record<string, number>; gatewayAnswer?: Record<string, string>; gatewayInvalidJson?: boolean
 }
-const CACHE = JSON.stringify({
-  models: [
-    { slug: 'gpt-older-luna', visibility: 'list', priority: 9 },
-    { slug: 'gpt-newer-luna', visibility: 'list', priority: 4 },
-    { slug: 'gpt-newest-sol', visibility: 'list', priority: 1 },
-    { slug: 'gpt-hidden-luna', visibility: 'hide', priority: 0 },
-  ],
-})
+
+// Exercise the registered hooks with all IO captured; no subprocess or HTTP request escapes the fixture.
+function world(w: World = {}) {
+  const handlers = new Map<string, { run: Function; caught?: Function }>()
+  const on = (event: string, ...args: unknown[]) => {
+    const entry = { run: args[args.length - 1] as Function, caught: undefined as Function | undefined }
+    handlers.set(event, entry)
+    return { catch: (caught: Function) => { entry.caught = caught } }
+  }
+  register(on as never)
+  const calls: Call[] = []
+  const fetches: { url: string; body?: string }[] = []
+  const modelCalls: unknown[] = []
+  const nextCalls: any[] = []
+  const logs: string[] = []
+  const env: Record<string, string> = { HOME: '/home/test', ...w.env }
+  let output = ''
+  const $ = {
+    env: { get: async (key: string) => env[key] },
+    session: { cwd: async () => '/workspace' },
+    clock: { now: async () => 1, after: (delay: number, callback: () => void) => { if (w.gatewayTimeout && delay === 120_000) queueMicrotask(callback); return { cancel() {} } } },
+    ui: { log: (line: string) => logs.push(line) },
+    fs: {
+      exists: async (path: string) => {
+        if (w.fsThrows) throw new Error('read failed')
+        return path.endsWith('models_cache.json') ? w.cache !== false : Boolean(w.definition)
+      },
+      read: async (path: string) => path === '/token' ? 'test-token' : path.endsWith('models_cache.json') ? CACHE : path === '/tmp/final' ? output : w.definition ?? '',
+    },
+    process: { run: async (argv: string[], init?: { stdin?: string }) => {
+      calls.push({ argv, stdin: init?.stdin })
+      if (argv[0] === 'codex-quota' || argv[0].endsWith('/bin/codex-quota')) {
+        if (w.quotaThrows) throw new Error('missing quota command')
+        return { ...RAN, exitCode: w.quota ?? 0 }
+      }
+      if (argv[0] === 'codex' && argv[1] === '--version') return { ...RAN, exitCode: w.cli ?? 0 }
+      if (argv[0] === 'mktemp') return { ...RAN, exitCode: w.temporaryExit ?? 0, stdout: argv[1] === '-d' ? '/tmp/worktree' : '/tmp/final' }
+      if (argv[0] === 'git') return { ...RAN, exitCode: w.worktreeExit ?? 0 }
+      if (argv[0] === 'codex') {
+        output = init?.stdin?.startsWith('Classify the delegated task') ? w.label ?? 'standard' : w.answer ?? 'task result'
+        return { ...RAN, exitCode: w.codexExit ?? 0 }
+      }
+      if (argv[0] === 'gh') {
+        const value = argv[2].endsWith('/properties/values') ? w.properties : w.repository
+        return { ...RAN, exitCode: w.githubAuthDenied ? 1 : 0, stdout: JSON.stringify(value) }
+      }
+      if (argv[0] === 'which') return { ...RAN, exitCode: w.zcodeAvailable === false ? 1 : 0 }
+      if (argv[0] === 'zcode-job') {
+        if (w.zcodeThrows) throw new Error('dispatch failed')
+        return { ...RAN, exitCode: w.zcodeExit ?? 0, stdout: w.zcodeOutput ?? `DONE|j-0123456789abcdef|${PR.html_url}\n`, isStdoutTruncated: w.zcodeTruncated ?? false }
+      }
+      return RAN
+    } },
+    http: { fetch: async (url: string, init: { body?: string }) => {
+      fetches.push({ url, body: init.body })
+      if (url.startsWith('https://api.github.com/repos/')) {
+        if (w.githubError) throw new Error('visibility unavailable')
+        const value = url.includes('/properties/values') ? w.properties ?? [] : url.includes('/pulls/') ? w.pr ?? PR : w.repository ?? { visibility: 'public', private: false }
+        return { ok: !(w.githubPrivateAuth && !url.includes('/pulls/')), text: w.githubInvalidJson ? '{' : JSON.stringify(value) }
+      }
+      const body = JSON.parse(init.body ?? '{}')
+      if (url.endsWith('/systemone')) return { ok: true, text: JSON.stringify({ answers: { route: { choice: w.label ?? 'standard', answer_confidence: 1 } } }) }
+      if (w.gatewayTimeout) return new Promise<never>(() => {})
+      const status = w.gatewayStatus?.[body.model] ?? 200
+      return { ok: status === 200, text: w.gatewayInvalidJson ? '{' : JSON.stringify({ choices: [{ message: { content: w.gatewayAnswer?.[body.model] ?? 'gateway result' } }] }) }
+    } },
+    model: { complete: async (input: unknown) => { modelCalls.push(input); return { isAnswered: true, text: w.answer ?? '' } } },
+  }
+  async function invoke(event: string, e: unknown, core: unknown = { result: { content: [{ text: 'haiku result' }] } }) {
+    const handler = handlers.get(event)!
+    const next = async (value: unknown) => { nextCalls.push(value); return core }
+    try { return await handler.run($, e, next) } catch (error) {
+      if (!handler.caught) throw error
+      return handler.caught($, e, next)
+    }
+  }
+  return { calls, fetches, modelCalls, nextCalls, logs, invoke,
+    agent: (e: Record<string, unknown> = {}) => invoke('tool.call', { tool: 'Agent', description: '[class: standard]', prompt: 'Implement the change.', ...e }),
+  }
+}
+const text = (r: any): string => r.result.content[0].text
+const runs = (w: ReturnType<typeof world>) => w.calls.filter((c) => c.argv[0] === 'codex' && c.argv[1] === 'exec')
+const gateways = { LITELLM_LOCAL_BASE_URL: 'http://localhost:8000', AGENT_ROUTE_GLM_MODEL: 'configured-glm', AGENT_ROUTE_OPENCODE_GO_MODEL: 'configured-go' }
+const coding = { description: '[class: public] [repo: owner/project] [task: code]', prompt: 'Implement the change.' }
 
 describe('policy', () => {
-  test('newestModel picks the listed model of a family with the lowest priority', () => {
+  test('exact class routes and newest listed model per family', () => {
+    expect(CODEX).toEqual({ bulk: { family: 'luna', effort: 'xhigh' }, 'bulk-complex': { family: 'luna', effort: 'max' }, standard: { family: 'terra', effort: 'medium' }, complex: { family: 'terra', effort: 'high' }, plan: { family: 'terra', effort: 'high' }, deep: { family: 'terra', effort: 'high' } })
     expect(newestModel(CACHE, 'luna')).toBe('gpt-newer-luna')
-    expect(newestModel(CACHE, 'astra')).toBeUndefined()
-  })
-
-  test('parseVerdict accepts only a clean verdict', () => {
-    expect(parseVerdict('{"verdict":"safe","reason":"no removal"}')).toEqual({ verdict: 'safe', reason: 'no removal' })
-    expect(parseVerdict('```json\n{"verdict":"unsafe","reason":"rm of $HOME"}\n```')?.verdict).toBe('unsafe')
-    expect(parseVerdict('{"verdict":"maybe","reason":"x"}')).toBeUndefined()
-    expect(parseVerdict('safe')).toBeUndefined()
-    expect(parseVerdict(undefined)).toBeUndefined()
-  })
-
-  test('routing policy includes executor and keeps named choices', () => {
-    expect(pickLabel('Complex.')).toBe('complex')
-    expect(pickLabel('no idea')).toBeUndefined()
-    expect(explicitExecutor('[class: public]')).toBe('public')
-    expect(explicitExecutor('[class: text]')).toBe('text')
-    expect(explicitExecutor('[class: standard]')).toBeUndefined()
-    expect(explicitLabel('[class: public]')).toBeUndefined()
-    expect(explicitLabel('[class: text]')).toBeUndefined()
-    expect(isShellCAsk('ask', CORE_ASK.reason)).toBe(true)
-    expect(isShellCAsk('ask', 'Allow this git push?')).toBe(false)
-    expect(isShellCAsk('allow', CORE_ASK.reason)).toBe(false)
-    for (const subagent_type of [undefined, 'general-purpose', 'executor', 'Explore', 'Plan']) {
-      expect(isRoutable({ subagent_type })).toBe(true)
-    }
-    expect(isRoutable({ subagent_type: 'specialist' })).toBe(false)
-    expect(isRoutable({ model: 'opus' })).toBe(false)
-    expect(isRoutable({ model: 'haiku' })).toBe(false)
-    expect(isRoutable({ name: 'worker' })).toBe(false)
-    expect(isRoutable({ effort: 'high' })).toBe(false)
-    const argv = codexArgv('read-only', CODEX.bulk, 'gpt-newer-luna', '/tmp/final-message')
-    expect(argv).toContain('gpt-newer-luna')
-    expect(argv.slice(-3)).toEqual(['-o', '/tmp/final-message', '-'])
-    expect(() => codexArgv('read-only', CODEX.bulk, 'gpt-newer-luna', '')).toThrow()
-  })
-
-  test('every Codex route uses Luna', () => {
-    expect(Object.values(CODEX).every((route) => route.family === 'luna')).toBe(true)
-  })
-
-  test('codexArgv rejects any family other than Luna', () => {
-    expect(() => codexArgv('read-only', { family: 'terra', effort: 'high' } as never, 'gpt-newer-terra', '/tmp/final-message')).toThrow('codex family must be luna')
-  })
-
-  test('Codex uses Luna xhigh or max; Claude is Haiku xhigh only', () => {
-    for (const effort of ['xhigh', 'max']) expect(codexArgv('read-only', { family: 'luna', effort }, 'gpt-newer-luna', '/tmp/final-message')).toContain(`model_reasoning_effort="${effort}"`)
-    for (const effort of ['low', 'medium', 'high', '']) expect(() => codexArgv('read-only', { family: 'luna', effort }, 'gpt-newer-luna', '/tmp/final-message')).toThrow()
-    for (const model of ['gpt-newest-sol', 'gpt-newer-terra', 'gpt-newer-luna-mini', 'luna', '', undefined]) expect(() => codexArgv('read-only', CODEX.bulk, model, '/tmp/final-message')).toThrow()
-    expect(CODEX).toEqual({
-      bulk: { family: 'luna', effort: 'xhigh' },
-      'bulk-complex': { family: 'luna', effort: 'max' },
-      standard: { family: 'luna', effort: 'xhigh' },
-      complex: { family: 'luna', effort: 'max' },
-      plan: { family: 'luna', effort: 'max' },
-      deep: { family: 'luna', effort: 'max' },
-    })
-    expect(TIERS).toEqual(['bulk', 'bulk-complex'])
-    expect(pickLabel('bulk-complex')).toBe('bulk-complex')
-    expect(pickLabel('Bulk')).toBe('bulk')
-    expect(explicitLabel('retry [class: complex]')).toBe('complex')
-    expect(explicitLabel('[class: ultra]')).toBeUndefined()
-    expect(['standard', 'complex', 'plan', 'deep'].filter((l) => isAdvisory(l as never))).toEqual(['plan', 'deep'])
+    expect(newestModel(CACHE, 'terra')).toBe('gpt-newer-terra')
+    expect(newestModel(CACHE, 'missing')).toBeUndefined()
     expect(LAST_RESORT).toEqual({ model: 'haiku', effort: 'xhigh' })
   })
+  for (const [label, route] of Object.entries(CODEX)) {
+    test(`command builder accepts ${label} and binds family, effort and output`, () => {
+      const argv = codexArgv('read-only', route, `gpt-newer-${route.family}`, '/tmp/out')
+      expect(argv).toContain(`model_reasoning_effort="${route.effort}"`)
+      expect(argv.slice(-3)).toEqual(['-o', '/tmp/out', '-'])
+    })
+  }
+  test('command builder rejects family mismatch, unsupported efforts and missing output', () => {
+    for (const family of ['luna', 'terra'] as const) {
+      for (const effort of ['', 'ultra', ...(family === 'terra' ? ['xhigh', 'max'] : ['high', 'medium'])]) expect(() => codexArgv('read-only', { family, effort }, `gpt-${family}`, '/tmp/out')).toThrow()
+      for (const model of [undefined, '', 'gpt-sol', `gpt-${family}-mini`]) expect(() => codexArgv('read-only', CODEX[family === 'terra' ? 'standard' : 'bulk'], model, '/tmp/out')).toThrow()
+    }
+    expect(() => codexArgv('read-only', { family: 'sol', effort: 'high' } as never, 'gpt-sol', '/tmp/out')).toThrow()
+    expect(() => codexArgv('read-only', CODEX.bulk, 'gpt-terra', '/tmp/out')).toThrow()
+    expect(() => codexArgv('read-only', CODEX.bulk, 'gpt-luna', '')).toThrow()
+  })
+  test('labels, advisory classes and verdict parsing remain strict', () => {
+    expect(explicitLabel('[class: bulk-complex]')).toBe('bulk-complex')
+    expect(explicitLabel('[class: public]')).toBeUndefined()
+    expect(isAdvisory('plan')).toBe(true)
+    expect(isAdvisory('deep')).toBe(true)
+    expect(isAdvisory('complex')).toBe(false)
+    expect(parseVerdict('{"verdict":"safe","reason":"bounded"}')).toEqual({ verdict: 'safe', reason: 'bounded' })
+    expect(parseVerdict('{"verdict":"maybe","reason":"x"}')).toBeUndefined()
+  })
 })
 
-function world(on: any, w: { codex: boolean; quotaExitCode?: number; quotaMissing?: boolean; quotaOffPath?: boolean; codexSays?: string; codexExitCode?: number; mktempExitCode?: number; mktempStdout?: string; haikuSays?: string; cache?: boolean; agentFiles?: Record<string, string>; router?: boolean; localBase?: string; layaChoice?: string; layaConfidence?: number; layaError?: boolean; repoError?: boolean; repoStatus?: number; repoVisibility?: string; repoPrivate?: boolean; repoInvalidJson?: boolean; zcodeError?: boolean; zcodeExitCode?: number; zcodeOutput?: string; zcodeResultExitCode?: number; zcodeResultOutput?: string; httpStatus?: number; chatContent?: string }) {
-  mock.env(on, { HOME: '/home/test', ...(w.quotaOffPath ? { USER: 'someone' } : {}), ...(w.router ? { LLM_ROUTER_URL: 'https://router.example/v1/', LLM_ROUTER_TOKEN_FILE: '/token' } : {}), ...(w.localBase ? { LLM_ROUTER_TOKEN_FILE: '', LITELLM_LOCAL_BASE_URL: w.localBase } : {}) })
-  mock.clock(on)
-  const seen: string[][] = []
-  const calls: { argv: string[]; stdin?: string }[] = []
-  const uiLogs: string[] = []
-  const modelCalls: string[] = []
-  const fetchCalls: any[] = []
-  ;(seen as any).calls = calls
-  ;(seen as any).uiLogs = uiLogs
-  ;(seen as any).modelCalls = modelCalls
-  ;(seen as any).fetchCalls = fetchCalls
-  on('session.cwd', () => ({ value: '/workspace' }))
-  const agentFile = (path: string) => Object.entries(w.agentFiles ?? {}).find(([name]) => path.endsWith(`/.claude/agents/${name}.md`))?.[1]
-  on('fs.exists', (_$: any, e: { path: string }) => ({ value: e.path.endsWith('/models_cache.json') ? w.cache !== false : agentFile(e.path) !== undefined }))
-  on('fs.read', (_$: any, e: { path: string }) => ({ value: e.path === '/token' ? ' test-token\n' : e.path === '/tmp/ai-delegation-final-message' ? w.codexSays ?? '' : e.path.endsWith('/models_cache.json') ? CACHE : agentFile(e.path) ?? '' }))
-  on('http.fetch', (_$: any, e: any) => {
-    fetchCalls.push(e)
-    if (e.url.startsWith('https://api.github.com/repos/')) {
-      if (w.repoError) throw new Error('GitHub request failed')
-      const status = w.repoStatus ?? 200
-      const text = w.repoInvalidJson ? '{' : JSON.stringify({ visibility: w.repoVisibility ?? 'public', private: w.repoPrivate ?? false })
-      return { value: { status, ok: status >= 200 && status < 300, headers: {}, text } }
-    }
-    if (w.layaError) throw new Error('network error')
-    const status = w.httpStatus ?? 200
-    const text = e.url.endsWith('/chat/completions')
-      ? JSON.stringify({ choices: [{ message: { content: w.chatContent ?? 'small result' } }] })
-      : JSON.stringify({ answers: { route: { choice: w.layaChoice, answer_confidence: w.layaConfidence } } })
-    return { value: { status, ok: status >= 200 && status < 300, headers: {}, text } }
+describe('Codex first', () => {
+  for (const [label, route] of Object.entries(CODEX)) {
+    test(`${label} executes its assigned model and sandbox`, async () => {
+      const w = world()
+      expect(text(await w.agent({ description: `[class: ${label}]` }))).toContain(`codex ${route.family} ${route.effort}`)
+      expect(runs(w)).toHaveLength(1)
+      expect(runs(w)[0].argv).toContain(`gpt-newer-${route.family}`)
+      expect(runs(w)[0].argv).toContain(isAdvisory(label as never) ? 'read-only' : 'workspace-write')
+      expect(w.calls[0].argv).toEqual(['codex-quota'])
+      expect(w.nextCalls).toEqual([])
+    })
+  }
+  for (const topic of ['auth', 'secrets', 'router', 'memory', 'cluster']) {
+    test(`${topic} overrides an explicit standard class and names bulk-complex`, async () => {
+      const w = world()
+      const r = await w.agent({ prompt: `Implement ${topic} support using placeholders.` })
+      expect(mandatoryLabel(`${topic} work`)).toBe('bulk-complex')
+      expect(text(r)).toContain('codex luna max, class bulk-complex')
+      expect(runs(w)).toHaveLength(1)
+    })
+  }
+  for (const description of ['[class: public] [repo: owner/project] [task: code]', '[class: text]']) {
+    test(`${description} cannot bypass Codex`, async () => {
+      const w = world({ env: gateways })
+      expect(text(await w.agent({ description }))).toContain('codex terra medium')
+      expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
+      expect(w.fetches.filter((f) => !f.url.endsWith('/systemone'))).toEqual([])
+    })
+  }
+  test('untagged reads and triage use classifier bulk and Luna xhigh', async () => {
+    const w = world({ label: 'bulk' })
+    expect(text(await w.agent({ description: 'read and triage', prompt: 'Read the README.' }))).toContain('codex luna xhigh')
+    expect(runs(w)).toHaveLength(2)
+    expect(runs(w)[0].stdin).toContain('bulk: bulk work, reads and triage.')
   })
-  on('ui.log', (...args: any[]) => {
-    uiLogs.push(args.map((value) => typeof value === 'string' ? value : JSON.stringify(value)).join(' '))
-    return { value: undefined }
+  test('classification itself stays on Codex while quota is available', async () => {
+    const w = world({ env: gateways, label: 'complex' })
+    expect(text(await w.agent({ description: 'coordinated change' }))).toContain('codex terra high')
+    expect(runs(w)).toHaveLength(2)
+    expect(runs(w)[0].argv).toContain('gpt-newer-luna')
+    expect(runs(w)[1].argv).toContain('gpt-newer-terra')
+    expect(w.fetches).toEqual([])
+    expect(w.calls[0].argv).toEqual(['codex-quota'])
   })
-  on('process.run', (_$: any, e: { argv: string[]; init?: { stdin?: string } }) => {
-    const argv = [...e.argv]
-    seen.push(argv)
-    calls.push({ argv, stdin: e.init?.stdin })
-    if (argv[0] === 'mktemp') return { value: { ...RAN, exitCode: w.mktempExitCode ?? 0, stdout: w.mktempStdout ?? '/tmp/ai-delegation-final-message' } }
-    if (argv[0] === 'rm') return { value: RAN }
-    if (argv[0] === 'zcode-job') {
-      if (w.zcodeError) throw new Error('zcode-job request failed')
-      if (argv[1] === 'result') {
-        const result = w.zcodeResultOutput ?? JSON.stringify({ job: 'j-0123456789abcdef', tool: 'zcode', repo: 'owner/project', state: 'succeeded', pr: '', duration: 1, result: 'job: j-0123456789abcdef\ntool: zcode\nrepo: owner/project\nstate: succeeded\npr: none\nduration: 1s' })
-        return { value: { ...RAN, exitCode: w.zcodeResultExitCode ?? 0, stdout: result }}
+  for (const subagent_type of ['Explore', 'Plan']) {
+    test(`${subagent_type} remains read-only`, async () => {
+      const w = world()
+      await w.agent({ description: 'advisory', subagent_type })
+      expect(runs(w)[0].argv).toContain('read-only')
+      expect(runs(w)[0].argv).toContain(subagent_type === 'Plan' ? 'gpt-newer-terra' : 'gpt-newer-luna')
+    })
+  }
+  test('worktree isolation creates an isolated checkout and keeps Codex first', async () => {
+    const w = world()
+    expect(text(await w.agent({ isolation: 'worktree' }))).toContain('worktree /tmp/worktree')
+    expect(w.calls.find((c) => c.argv[0] === 'git')?.argv).toEqual(['git', '-C', '/workspace', 'worktree', 'add', '--detach', '/tmp/worktree', 'HEAD'])
+    expect(runs(w)[0].argv.slice(0, 4)).toEqual(['codex', 'exec', '-C', '/tmp/worktree'])
+    expect(w.nextCalls).toEqual([])
+  })
+  for (const options of [{ worktreeExit: 1 }, { temporaryExit: 1 }, { cache: false }, { answer: '' }, { codexExit: 7 }, { cli: 1 }]) {
+    test(`Codex failure stops without a lower rung: ${JSON.stringify(options)}`, async () => {
+      const w = world({ ...options, env: gateways })
+      expect(text(await w.agent({ isolation: options.worktreeExit ? 'worktree' : undefined }))).toStartWith('FAIL | router |')
+      expect(w.nextCalls).toEqual([])
+      expect(w.fetches).toEqual([])
+    })
+  }
+  for (const options of [{ quota: 127 }, { quota: 2 }, { quotaThrows: true }]) {
+    test(`unknown quota fails closed: ${JSON.stringify(options)}`, async () => {
+      const w = world(options)
+      expect(text(await w.agent())).toContain('quota status unavailable')
+      expect(w.nextCalls).toEqual([])
+    })
+  }
+})
+
+describe('model and payload guards', () => {
+  for (const model of ['sonnet', 'opus', 'fable', 'claude-opus-4-6', 'anthropic/claude-sonnet-5']) {
+    test(`explicit and custom ${model} are denied`, async () => {
+      expect(forbiddenModel(model)).toBe(true)
+      for (const custom of [false, true]) {
+        const w = world({ definition: `---\nmodel: ${model}\n---\nReview the change.` })
+        expect(text(await w.agent(custom ? { subagent_type: 'reviewer' } : { model }))).toContain('subagents are forbidden')
+        expect(w.calls).toEqual([])
+        expect(w.nextCalls).toEqual([])
       }
-      return { value: { ...RAN, exitCode: w.zcodeExitCode ?? 0, stdout: w.zcodeOutput ?? 'DONE|j-0123456789abcdef|no-pr\n' } }
-    }
-    if (e.argv[0] === 'codex' && e.argv[1] === '--version') return { value: { ...RAN, exitCode: w.codex ? 0 : 1 } }
-    if (argv[0] === 'codex-quota' || argv[0].endsWith('/bin/codex-quota')) {
-      if (w.quotaMissing) return { value: { ...RAN, exitCode: 127 } }
-      if (w.quotaOffPath && argv[0] === 'codex-quota') throw new Error('spawn codex-quota ENOENT')
-      return { value: { ...RAN, exitCode: w.quotaExitCode ?? (w.codex ? 0 : 1) } }
-    }
-    if (argv[0] === 'codex') return { value: { ...RAN, exitCode: w.codexExitCode ?? 0 } }
-    return { value: RAN }
-  })
-  on('model.complete', (_$: any, e: { model: string }) => {
-    modelCalls.push(e.model)
-    return { value: { isAnswered: true, text: w.haikuSays ?? '', usage: {} } }
-  })
-  return seen
-}
-
-describe('permission judge', () => {
-  test('Haiku can judge when Codex is unavailable', async ($, on) => {
-    world(on, { codex: false, haikuSays: '{"verdict":"safe","reason":"no removal"}' })
-    on('tool.check', () => CORE_ASK as never)
-    const r = await $.tool.check({ tool: 'Bash', input: { command: 'bash -c "$Z hi"' } })
-    expect(r.decision).toBe('allow')
-  })
-
-  test('Codex unsafe verdict denies with the reason', async ($, on) => {
-    const seen = world(on, { codex: true, codexSays: '{"verdict":"unsafe","reason":"rm of an unset variable"}' })
-    on('tool.check', () => CORE_ASK as never)
-    const r = await $.tool.check({ tool: 'Bash', input: { command: 'bash -c \'rm -rf "$UNSET"/x\'' } })
-    expect(r.decision).toBe('deny')
-    expect(r.reason).toContain('rm of an unset variable')
-    expect(seen.some((a) => a[0] === 'codex' && a.includes('read-only'))).toBe(true)
-  })
-
-  test('Codex with no verdict leaves the dialog without calling Haiku', async ($, on) => {
-    const seen = world(on, { codex: true, haikuSays: '{"verdict":"safe","reason":"must not be used"}' })
-    on('tool.check', () => CORE_ASK as never)
-    const r = await $.tool.check({ tool: 'Bash', input: { command: 'bash -c "$Z hi"' } })
-    expect(r.decision).toBe('ask')
-    expect((seen as any).modelCalls).toEqual([])
-  })
-
-  test('no verdict leaves the dialog, never an allow', async ($, on) => {
-    world(on, { codex: false, haikuSays: 'I cannot tell' })
-    on('tool.check', () => CORE_ASK as never)
-    const r = await $.tool.check({ tool: 'Bash', input: { command: 'bash -c "$Z hi"' } })
-    expect(r.decision).toBe('ask')
-  })
-
-  test('an ask that is not the shell -c check is untouched', async ($, on) => {
-    world(on, { codex: false, haikuSays: '{"verdict":"safe","reason":"x"}' })
-    on('tool.check', () => ({ decision: 'ask', reason: 'Allow this git push?' }) as never)
-    const r = await $.tool.check({ tool: 'Bash', input: { command: 'git push' } })
-    expect(r.decision).toBe('ask')
-  })
-})
-
-describe('router', () => {
-  for (const [label, prompt] of [['standard', 'Summarise README.md'], ['complex', 'Implement the coordinated update.'], ['plan', 'Plan the migration of the auth layer.'], ['deep', 'Assess the trust boundaries.']]) {
-    test(`without Codex a ${label} task goes to Haiku xhigh with no classifier call, never Sonnet or Opus`, async ($, on) => {
-      const seen = world(on, { codex: false, haikuSays: label })
-      let routed: { model?: string; effort?: string } = {}
-      on('tool.call', { tool: 'Agent' }, (_$: any, e: any) => ((routed = e), { result: DONE }) as never)
-      await $.tool.call({ tool: 'Agent', description: label, prompt } as never)
-      expect(routed.model).toBe('haiku')
-      expect(routed.effort).toBe('xhigh')
-      expect((seen as any).modelCalls).toEqual([])
-      expect(seen.some((a) => a[0] === 'codex' && a[1] === 'exec')).toBe(false)
     })
   }
+  test('explicit Haiku and named spawns still follow the class route', async () => {
+    const w = world()
+    expect(text(await w.agent({ model: 'haiku', name: 'worker', effort: 'max' }))).toContain('codex terra medium')
+    expect(w.nextCalls).toEqual([])
+  })
+  test('custom Haiku instructions are preserved on Codex', async () => {
+    const w = world({ definition: '---\nmodel: haiku\n---\nFollow the review rubric.' })
+    expect(text(await w.agent({ subagent_type: 'reviewer' }))).toContain('codex terra medium')
+    expect(runs(w)[0].stdin).toContain('Follow the review rubric.')
+  })
+  test('missing or unreadable custom definitions fail closed', async () => {
+    for (const options of [{}, { fsThrows: true }]) {
+      const w = world(options)
+      expect(text(await w.agent({ subagent_type: 'reviewer' }))).toStartWith('FAIL | router |')
+      expect(w.nextCalls).toEqual([])
+    }
+  })
+  for (const payload of ['password: sensitive-value', 'Authorization: Bearer example-value', '-----BEGIN PRIVATE KEY-----', 'ansible_host: 192.0.2.1', '[content: incident] details', 'outage timeline: details', 'token=abc123', 'ghp_abcdefghijklmnop']) {
+    test(`prohibited payload never reaches any executor: ${payload.split(':')[0]}`, async () => {
+      expect(safePayload(payload)).toBe(false)
+      for (const quota of [0, 1]) {
+        const w = world({ quota, env: gateways })
+        expect(text(await w.agent({ ...coding, prompt: payload }))).toContain('prohibited content')
+        expect(w.calls).toEqual([])
+        expect(w.fetches).toEqual([])
+        expect(w.nextCalls).toEqual([])
+      }
+    })
+  }
+})
 
-  test('explicit public work uses zcode only after GitHub confirms public visibility', async ($, on) => {
-    const result = JSON.stringify({ job: 'j-0123456789abcdef', tool: 'zcode', repo: 'owner/project', state: 'succeeded', pr: '', duration: 1, result: 'job: j-0123456789abcdef\ntool: zcode\nrepo: owner/project\nstate: succeeded\npr: none\nduration: 1s' })
-    const seen = world(on, { codex: false, repoVisibility: 'public', repoPrivate: false, zcodeOutput: 'DONE|j-0123456789abcdef|no-pr\n', zcodeResultOutput: `  ${result} \n` })
-    let reached = false
-    on('tool.call', { tool: 'Agent' }, () => ((reached = true), { result: DONE }) as never)
-    const r: any = await $.tool.call({ tool: 'Agent', description: '[class: public] [repo: owner/project]', prompt: 'Read the public project.' } as never)
-    const calls = (seen as any).calls.filter((call: any) => call.argv[0] === 'zcode-job')
-    const request = (seen as any).fetchCalls[0]
-    expect(reached).toBe(false)
-    expect(request.url).toBe('https://api.github.com/repos/owner/project')
-    expect(request.init).toEqual({ method: 'GET', headers: { accept: 'application/vnd.github+json', 'user-agent': 'jpe-ai-delegation' } })
-    expect(calls.map((call: any) => call.argv)).toEqual([
-      ['zcode-job', 'start', 'owner/project', 'Read the public project.'],
-      ['zcode-job', 'result', 'j-0123456789abcdef'],
+describe('capped ladder', () => {
+  test('public coding uses zcode and verifies a ready labelled PR', async () => {
+    const w = world({ quota: 1, env: gateways })
+    expect(text(await w.agent(coding))).toContain('[routed: zcode-job sandbox; leak-scan before merge; never auto-merge]')
+    expect(w.calls.find((c) => c.argv[0] === 'zcode-job')?.argv).toEqual(['zcode-job', 'start', 'owner/project', `${coding.prompt}\n\nReturn a ready PR labelled human:review. Never auto-merge. The trusted lead must leak-scan the PR before merge.`])
+    expect(w.fetches.map((f) => f.url)).toEqual(['https://api.github.com/repos/owner/project', 'https://api.github.com/repos/owner/project/pulls/12'])
+    expect(w.nextCalls).toEqual([])
+  })
+  for (const properties of [[], [{ property_name: 'ai-untrusted-ok', value: 'false' }], [{ property_name: 'ai-untrusted-ok', value: 'true' }]]) {
+    for (const classified of [false, true]) {
+      test(`private coding requires property and payload classification: ${JSON.stringify(properties)}, ${classified}`, async () => {
+        const w = world({ quota: 1, repository: { visibility: 'private', private: true }, properties, env: gateways })
+        const r = await w.agent({ ...coding, description: `${coding.description}${classified ? ' [payload: classified-safe]' : ''}` })
+        const eligible = classified && properties[0]?.value === 'true'
+        expect(text(r)).toContain(eligible ? 'routed: zcode-job sandbox' : 'routed: Z.ai GLM')
+        expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(eligible)
+      })
+    }
+  }
+  test('private metadata uses the existing authenticated CLI after an unauthenticated miss', async () => {
+    const w = world({ quota: 1, githubPrivateAuth: true, repository: { visibility: 'private', private: true }, properties: [{ property_name: 'ai-untrusted-ok', value: 'true' }] })
+    expect(text(await w.agent({ ...coding, description: `${coding.description} [payload: classified-safe]` }))).toContain('routed: zcode-job sandbox')
+    expect(w.calls.filter((c) => c.argv[0] === 'gh').map((c) => c.argv)).toEqual([
+      ['gh', 'api', 'repos/owner/project'], ['gh', 'api', 'repos/owner/project/properties/values'],
     ])
-    expect(r.result.content[0].text).toBe(`${result}\n\nDONE|j-0123456789abcdef|no-pr\n\n[routed: sandbox zcode, class public]`)
-    expect(seen.some((a) => a[0] === 'codex')).toBe(false)
   })
-
-  test('a private repository never reaches zcode and falls back to Luna standard', async ($, on) => {
-    const seen = world(on, { codex: true, codexSays: 'Luna fallback', repoVisibility: 'private', repoPrivate: true })
-    on('tool.call', { tool: 'Agent' }, () => ({ result: DONE }) as never)
-    const r: any = await $.tool.call({ tool: 'Agent', description: '[class: public] [repo: owner/project]', prompt: 'Read the project.' } as never)
-    expect((seen as any).calls.some((call: any) => call.argv[0] === 'zcode-job')).toBe(false)
-    expect(JSON.stringify(r)).toContain('[routed: codex luna xhigh, class standard]')
-    expect(seen.filter((a) => a[0] === 'codex' && a[1] === 'exec')).toHaveLength(1)
+  test('unreadable private metadata never qualifies for zcode', async () => {
+    const w = world({ quota: 1, githubPrivateAuth: true, githubAuthDenied: true, env: gateways })
+    expect(text(await w.agent(coding))).toContain('routed: Z.ai GLM')
+    expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
   })
-
-  test('public work without a repo tag falls back to Luna standard', async ($, on) => {
-    const seen = world(on, { codex: true, codexSays: 'Luna fallback' })
-    on('tool.call', { tool: 'Agent' }, () => ({ result: DONE }) as never)
-    const r: any = await $.tool.call({ tool: 'Agent', description: '[class: public]', prompt: 'Read the project.' } as never)
-    expect((seen as any).fetchCalls).toHaveLength(0)
-    expect((seen as any).calls.some((call: any) => call.argv[0] === 'zcode-job')).toBe(false)
-    expect(JSON.stringify(r)).toContain('[routed: codex luna xhigh, class standard]')
-  })
-
-  test('a GitHub visibility error never reaches zcode and falls back to Luna standard', async ($, on) => {
-    const seen = world(on, { codex: true, codexSays: 'Luna fallback', repoError: true })
-    on('tool.call', { tool: 'Agent' }, () => ({ result: DONE }) as never)
-    const r: any = await $.tool.call({ tool: 'Agent', description: '[class: public] [repo: owner/project]', prompt: 'Read the project.' } as never)
-    expect((seen as any).calls.some((call: any) => call.argv[0] === 'zcode-job')).toBe(false)
-    expect(JSON.stringify(r)).toContain('[routed: codex luna xhigh, class standard]')
-  })
-
-  test('invalid GitHub visibility JSON never reaches zcode and falls back to Luna standard', async ($, on) => {
-    const seen = world(on, { codex: true, codexSays: 'Luna fallback', repoInvalidJson: true })
-    on('tool.call', { tool: 'Agent' }, () => ({ result: DONE }) as never)
-    const r: any = await $.tool.call({ tool: 'Agent', description: '[class: public] [repo: owner/project]', prompt: 'Read the project.' } as never)
-    expect((seen as any).calls.some((call: any) => call.argv[0] === 'zcode-job')).toBe(false)
-    expect(JSON.stringify(r)).toContain('[routed: codex luna xhigh, class standard]')
-  })
-
-  test('a missing repository 404 falls back to Luna without running zcode', async ($, on) => {
-    const seen = world(on, { codex: true, codexSays: 'Luna fallback', repoStatus: 404 })
-    on('tool.call', { tool: 'Agent' }, () => ({ result: DONE }) as never)
-    const r: any = await $.tool.call({ tool: 'Agent', description: '[class: public] [repo: owner/project]', prompt: 'Read the project.' } as never)
-    expect((seen as any).fetchCalls[0].url).toBe('https://api.github.com/repos/owner/project')
-    expect((seen as any).calls.some((call: any) => call.argv[0] === 'zcode-job')).toBe(false)
-    expect(JSON.stringify(r)).toContain('[routed: codex luna xhigh, class standard]')
-  })
-
-  test('a public visibility response must also explicitly mark the repository non-private', async ($, on) => {
-    const seen = world(on, { codex: true, codexSays: 'Luna fallback', repoVisibility: 'public', repoPrivate: true })
-    on('tool.call', { tool: 'Agent' }, () => ({ result: DONE }) as never)
-    const r: any = await $.tool.call({ tool: 'Agent', description: '[class: public] [repo: owner/project]', prompt: 'Read the project.' } as never)
-    expect((seen as any).calls.some((call: any) => call.argv[0] === 'zcode-job')).toBe(false)
-    expect(JSON.stringify(r)).toContain('[routed: codex luna xhigh, class standard]')
-  })
-
-  for (const result of [{ exitCode: 1, stdout: 'unavailable' }, { exitCode: 0, stdout: '  \n' }]) {
-    test(`a failed or empty zcode result still returns the completed job: ${JSON.stringify(result)}`, async ($, on) => {
-      const seen = world(on, { codex: true, zcodeResultExitCode: result.exitCode, zcodeResultOutput: result.stdout })
-      on('tool.call', { tool: 'Agent' }, () => ({ result: DONE }) as never)
-      const r: any = await $.tool.call({ tool: 'Agent', description: '[class: public] [repo: owner/project]', prompt: 'Read the project.' } as never)
-      expect((seen as any).calls.some((call: any) => call.argv[0] === 'zcode-job' && call.argv[1] === 'result')).toBe(true)
-      expect(r.result.content[0].text).toBe('DONE|j-0123456789abcdef|no-pr\n\n[routed: sandbox zcode, class public]')
-      expect((seen as any).calls.some((call: any) => call.argv[0] === 'codex')).toBe(false)
+  for (const options of [{}, { githubError: true }, { githubInvalidJson: true }, { repository: { visibility: 'public', private: true } }, { zcodeAvailable: false }]) {
+    test(`ineligible sandbox advances to GLM: ${JSON.stringify(options)}`, async () => {
+      const w = world({ quota: 1, env: gateways, ...options })
+      expect(text(await w.agent(options && Object.keys(options).length ? coding : { ...coding, description: '[class: public] [repo: owner/project]' }))).toContain('routed: Z.ai GLM')
+      expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
     })
   }
-
-  test('a long zcode result is capped at 60000 characters with a marker', async ($, on) => {
-    const seen = world(on, { codex: false, zcodeResultOutput: 'x'.repeat(60_010) })
-    on('tool.call', { tool: 'Agent' }, () => ({ result: DONE }) as never)
-    const r: any = await $.tool.call({ tool: 'Agent', description: '[class: public] [repo: owner/project]', prompt: 'Read the project.' } as never)
-    const text = r.result.content[0].text
-    expect(text.slice(0, 60_000)).toHaveLength(60_000)
-    expect(text.startsWith(`${'x'.repeat(59_989)}[truncated]\n\nDONE|`)).toBe(true)
-    expect((seen as any).calls.filter((call: any) => call.argv[0] === 'zcode-job')[1].argv).toEqual(['zcode-job', 'result', 'j-0123456789abcdef'])
-  })
-
-  test('a zcode FAIL line falls back to Luna standard', async ($, on) => {
-    const seen = world(on, { codex: true, codexSays: 'Luna fallback', zcodeExitCode: 1, zcodeOutput: 'FAIL|j-0123456789abcdef|worker failed\n' })
-    on('tool.call', { tool: 'Agent' }, () => ({ result: DONE }) as never)
-    const r: any = await $.tool.call({ tool: 'Agent', description: '[class: public] [repo: owner/project]', prompt: 'Read the project.' } as never)
-    expect((seen as any).calls.some((call: any) => call.argv[0] === 'zcode-job')).toBe(true)
-    expect(JSON.stringify(r)).toContain('[routed: codex luna xhigh, class standard]')
-  })
-
-  test('explicit text work posts one OpenAI chat completion to LiteLLM small', async ($, on) => {
-    const seen = world(on, { codex: false, router: true, chatContent: 'Small result' })
-    let reached = false
-    on('tool.call', { tool: 'Agent' }, () => ((reached = true), { result: DONE }) as never)
-    const r: any = await $.tool.call({ tool: 'Agent', description: '[class: text]', prompt: 'Summarise this text.' } as never)
-    const requests = (seen as any).fetchCalls
-    expect(reached).toBe(false)
-    expect(requests).toHaveLength(1)
-    expect(requests[0].url).toBe('https://router.example/v1/chat/completions')
-    expect(requests[0].init.method).toBe('POST')
-    expect(requests[0].init.headers.authorization).toBe('Bearer test-token')
-    expect(JSON.parse(requests[0].init.body)).toEqual({ model: 'small', messages: [{ role: 'user', content: 'Summarise this text.' }] })
-    expect(r.result.content[0].text).toBe('Small result\n\n[routed: litellm small, class text]')
-    expect(seen.some((a) => a[0] === 'codex')).toBe(false)
-  })
-
-  test('an HTTP 500 from LiteLLM falls back to Luna standard', async ($, on) => {
-    const seen = world(on, { codex: true, router: true, httpStatus: 500, codexSays: 'Luna fallback' })
-    on('tool.call', { tool: 'Agent' }, () => ({ result: DONE }) as never)
-    const r: any = await $.tool.call({ tool: 'Agent', description: '[class: text]', prompt: 'Summarise this text.' } as never)
-    expect((seen as any).fetchCalls).toHaveLength(1)
-    expect(JSON.stringify(r)).toContain('[routed: codex luna xhigh, class standard]')
-    expect(seen.filter((a) => a[0] === 'codex' && a[1] === 'exec')).toHaveLength(1)
-  })
-
-  for (const executor of ['public', 'text']) {
-    test(`the classifier cannot select ${executor}`, async ($, on) => {
-      const seen = world(on, { codex: true, router: true, layaChoice: executor, codexSays: executor })
-      on('tool.call', { tool: 'Agent' }, () => ({ result: DONE }) as never)
-      const r: any = await $.tool.call({ tool: 'Agent', description: 'ordinary work', prompt: 'Summarise this text.' } as never)
-      expect(JSON.stringify(r)).toContain('[routed: codex luna xhigh, class standard]')
-      expect((seen as any).calls.some((call: any) => call.argv[0] === 'zcode-job')).toBe(false)
-      expect(JSON.stringify(r)).not.toContain('[routed: litellm small')
-      expect(JSON.stringify(r)).not.toContain('[routed: sandbox zcode')
+  for (const options of [
+    { zcodeOutput: 'DONE|j-0123456789abcdef|no-pr\n' },
+    { zcodeOutput: 'DONE|j-0123456789abcdef|https://github.com/other/project/pull/12\n' },
+    { zcodeOutput: 'FAIL|j-0123456789abcdef|failed\n', zcodeExit: 1 },
+    { zcodeTruncated: true }, { zcodeThrows: true },
+    { pr: { ...PR, draft: true } }, { pr: { ...PR, state: 'closed' } }, { pr: { ...PR, labels: [] } },
+  ]) {
+    test(`dispatched zcode must yield a verified ready PR: ${JSON.stringify(options)}`, async () => {
+      const w = world({ quota: 1, env: gateways, ...options })
+      expect(text(await w.agent(coding))).toStartWith('FAIL | router |')
+      expect(w.fetches.some((f) => f.url.endsWith('/chat/completions'))).toBe(false)
+      expect(w.nextCalls).toEqual([])
     })
   }
-
-  test('Codex-ready standard work runs on Codex Luna xhigh', async ($, on) => {
-    const seen = world(on, { codex: true, codexSays: 'standard' })
-    let reached = false
-    on('tool.call', { tool: 'Agent' }, () => ((reached = true), { result: DONE }) as never)
-    const r: any = await $.tool.call({ tool: 'Agent', description: 'read', prompt: 'Summarise README.md' } as never)
-    expect(reached).toBe(false)
-    expect(JSON.stringify(r)).toContain('[routed: codex luna xhigh, class standard]')
-    expect(seen.some((a) => a[0] === 'codex' && a.includes('workspace-write'))).toBe(true)
-    const calls = (seen as any).calls.filter((call: { argv: string[] }) => call.argv[0] === 'codex' && call.argv[1] === 'exec')
-    expect(calls).toHaveLength(2)
-    for (const call of calls) expect(call.argv.slice(-3)).toEqual(['-o', '/tmp/ai-delegation-final-message', '-'])
-    expect(calls[1].stdin).toBe('Summarise README.md')
-    expect((seen as any).modelCalls).toEqual([])
+  test('GLM precedes OpenCode Go; neither uses small', async () => {
+    const w = world({ quota: 1, env: gateways })
+    expect(text(await w.agent())).toContain('routed: Z.ai GLM')
+    expect(w.fetches.map((f) => JSON.parse(f.body!).model)).toEqual(['configured-glm'])
   })
-
-  test('complex Codex work uses Luna max after a Luna xhigh classification', async ($, on) => {
-    const seen = world(on, { codex: true, codexSays: 'complex' })
-    on('tool.call', { tool: 'Agent' }, () => ({ result: DONE }) as never)
-    const r: any = await $.tool.call({ tool: 'Agent', description: 'multi-file change', prompt: 'Implement the coordinated update.' } as never)
-    expect(JSON.stringify(r)).toContain('[routed: codex luna max, class complex]')
-    const runs = seen.filter((a) => a[0] === 'codex' && a[1] === 'exec')
-    expect(runs.map((a) => a.join(' ').match(/model_reasoning_effort="(\w+)"/)?.[1])).toEqual(['xhigh', 'max'])
-    expect(runs[1]).toContain('gpt-newer-luna')
-    expect(runs[1]).toContain('workspace-write')
+  test('GLM failure advances to OpenCode Go before Haiku', async () => {
+    const w = world({ quota: 1, env: gateways, gatewayStatus: { 'configured-glm': 503 } })
+    expect(text(await w.agent())).toContain('routed: OpenCode Go')
+    expect(w.fetches.map((f) => JSON.parse(f.body!).model)).toEqual(['configured-glm', 'configured-go'])
+    expect(w.nextCalls).toEqual([])
   })
-
-  for (const [label, family, effort] of [['bulk', 'luna', 'xhigh'], ['bulk-complex', 'luna', 'max']]) {
-    test(`${label} work runs on Codex Luna ${effort}`, async ($, on) => {
-      const seen = world(on, { codex: true, codexSays: label })
-      on('tool.call', { tool: 'Agent' }, () => ({ result: DONE }) as never)
-      const r: any = await $.tool.call({ tool: 'Agent', description: 'large read', prompt: 'Summarise every log file.' } as never)
-      expect(JSON.stringify(r)).toContain(`[routed: codex ${family} ${effort}, class ${label}]`)
-      const runs = seen.filter((a) => a[0] === 'codex' && a[1] === 'exec')
-      expect(runs[1]).toContain('gpt-newer-luna')
+  for (const options of [{ env: {} }, { env: gateways, gatewayStatus: { 'configured-glm': 503, 'configured-go': 503 } }, { env: gateways, gatewayAnswer: { 'configured-glm': '', 'configured-go': '' } }, { env: gateways, gatewayInvalidJson: true }, { env: gateways, gatewayTimeout: true }]) {
+    test(`Haiku xhigh only after all earlier rungs fail to qualify: ${JSON.stringify(options)}`, async () => {
+      const w = world({ quota: 1, ...options })
+      await w.agent({ model: 'haiku', effort: 'low' })
+      expect(w.nextCalls[0]).toMatchObject({ model: 'haiku', effort: 'xhigh' })
+      expect(runs(w)).toEqual([])
     })
   }
-
-  test('Laya classifies using the router choice contract', async ($, on) => {
-    const seen = world(on, { codex: true, codexSays: 'result', router: true, layaChoice: 'complex' })
-    on('tool.call', { tool: 'Agent' }, () => ({ result: DONE }) as never)
-    const r: any = await $.tool.call({ tool: 'Agent', description: 'review', prompt: 'Review the change.' } as never)
-    expect(JSON.stringify(r)).toContain('class complex')
-    expect(seen.filter((a) => a[0] === 'codex' && a[1] === 'exec')).toHaveLength(1)
-    const request = (seen as any).fetchCalls[0]
-    expect(request.url).toBe('https://router.example/v1/systemone')
-    expect(request.init.headers.authorization).toBe('Bearer test-token')
-    const body = JSON.parse(request.init.body)
-    expect(body.state).toBe('review\nReview the change.')
-    expect(body.questions.route.type).toBe('choice')
-    expect(Object.keys(body.questions.route.criteria).sort()).toEqual([...LABELS].sort())
-    expect((seen as any).calls.some((call: any) => call.stdin?.includes('classify: laya -> complex'))).toBe(true)
-  })
-
-  test('Laya uses the local proxy without a bearer when the token path is empty', async ($, on) => {
-    const port = '<port-var>'
-    const seen = world(on, { codex: true, codexSays: 'result', localBase: `http://127.0.0.1:${port}/`, layaChoice: 'complex' })
-    on('tool.call', { tool: 'Agent' }, () => ({ result: DONE }) as never)
-    const r: any = await $.tool.call({ tool: 'Agent', description: 'review', prompt: 'Review the change.' } as never)
-    expect(JSON.stringify(r)).toContain('class complex')
-    const request = (seen as any).fetchCalls[0]
-    expect(request.url).toBe(`http://127.0.0.1:${port}/v1/systemone`)
-    expect(request.init.headers.authorization).toBeUndefined()
-    expect(seen.filter((a) => a[0] === 'codex' && a[1] === 'exec')).toHaveLength(1)
-  })
-
-  for (const failure of [{ layaChoice: 'complex-extra' }, { layaError: true }]) {
-    test(`Laya failure falls back to Codex: ${JSON.stringify(failure)}`, async ($, on) => {
-      const seen = world(on, { codex: true, codexSays: 'bulk', router: true, ...failure })
-      on('tool.call', { tool: 'Agent' }, () => ({ result: DONE }) as never)
-      const r: any = await $.tool.call({ tool: 'Agent', description: 'read', prompt: 'Summarise text.' } as never)
-      expect(JSON.stringify(r)).toContain('class bulk')
-      expect(seen.filter((a) => a[0] === 'codex' && a[1] === 'exec')).toHaveLength(2)
-      expect((seen as any).calls.some((call: any) => call.stdin?.includes('classify: laya failed (') && call.stdin?.includes('-> codex'))).toBe(true)
-    })
-  }
-
-  test('an unset router URL skips fetch and uses Codex', async ($, on) => {
-    const seen = world(on, { codex: true, codexSays: 'bulk' })
-    on('tool.call', { tool: 'Agent' }, () => ({ result: DONE }) as never)
-    const r: any = await $.tool.call({ tool: 'Agent', description: 'read', prompt: 'Summarise text.' } as never)
-    expect(JSON.stringify(r)).toContain('class bulk')
-    expect((seen as any).fetchCalls).toHaveLength(0)
-    expect(seen.filter((a) => a[0] === 'codex' && a[1] === 'exec')).toHaveLength(2)
-  })
-
-  test('an explicit [class: x] escalation records a shadow classification', async ($, on) => {
-    const seen = world(on, { codex: true, codexSays: 'bulk', router: true, layaChoice: 'bulk', layaConfidence: 0.876 })
-    on('tool.call', { tool: 'Agent' }, () => ({ result: DONE }) as never)
-    const r: any = await $.tool.call({ tool: 'Agent', description: 'retry [class: complex]', prompt: 'Redo the change.' } as never)
-    expect(JSON.stringify(r)).toContain('[routed: codex luna max, class complex]')
-    expect(seen.filter((a) => a[0] === 'codex' && a[1] === 'exec')).toHaveLength(1)
-    expect((seen as any).fetchCalls).toHaveLength(1)
-    expect((seen as any).calls.some((call: any) => call.stdin?.includes('shadow: laya -> bulk conf=0.88 used=complex'))).toBe(true)
-  })
-
-  test('an unconfigured router records no shadow classification', async ($, on) => {
-    const seen = world(on, { codex: true, codexSays: 'result' })
-    on('tool.call', { tool: 'Agent' }, () => ({ result: DONE }) as never)
-    const r: any = await $.tool.call({ tool: 'Agent', description: 'retry [class: complex]', prompt: 'Redo the change.' } as never)
-    expect(JSON.stringify(r)).toContain('[routed: codex luna max, class complex]')
-    expect((seen as any).fetchCalls).toHaveLength(0)
-    expect((seen as any).calls.some((call: any) => call.stdin?.includes('shadow:'))).toBe(false)
-  })
-
-  test('a failed shadow classification leaves the routed result intact', async ($, on) => {
-    const seen = world(on, { codex: true, codexSays: 'result', router: true, layaError: true })
-    on('tool.call', { tool: 'Agent' }, () => ({ result: DONE }) as never)
-    const r: any = await $.tool.call({ tool: 'Agent', description: 'retry [class: complex]', prompt: 'Redo the change.' } as never)
-    expect(JSON.stringify(r)).toContain('[routed: codex luna max, class complex]')
-    expect((seen as any).calls.some((call: any) => call.stdin?.includes('shadow: laya failed (request failed) used=complex'))).toBe(true)
-  })
-
-  test('an untagged classification logs confidence', async ($, on) => {
-    const seen = world(on, { codex: true, codexSays: 'result', router: true, layaChoice: 'standard', layaConfidence: 0.7 })
-    on('tool.call', { tool: 'Agent' }, () => ({ result: DONE }) as never)
-    await $.tool.call({ tool: 'Agent', description: 'read', prompt: 'Read it.' } as never)
-    expect((seen as any).calls.some((call: any) => call.stdin?.includes('classify: laya -> standard conf=0.70'))).toBe(true)
-  })
-
-  for (const label of ['plan', 'deep']) {
-    test(`${label} work runs on Codex Luna max as a read-only advisory worker`, async ($, on) => {
-      const seen = world(on, { codex: true, codexSays: label })
-      let reached = false
-      on('tool.call', { tool: 'Agent' }, () => ((reached = true), { result: DONE }) as never)
-      const r: any = await $.tool.call({ tool: 'Agent', description: label, prompt: 'Assess the trust boundaries.' } as never)
-      expect(reached).toBe(false)
-      expect(JSON.stringify(r)).toContain(`[routed: codex luna max, class ${label}]`)
-      const runs = seen.filter((a) => a[0] === 'codex' && a[1] === 'exec')
-      expect(runs).toHaveLength(2)
-      for (const argv of runs) expect(argv).toContain('read-only')
-      expect(runs[0]).toContain('gpt-newer-luna')
-      expect(runs[1]).toContain('gpt-newer-luna')
-      expect(runs[1].join(' ')).toContain('model_reasoning_effort="max"')
-      expect((seen as any).modelCalls).toEqual([])
-    })
-  }
-
-  test('executor is routable like general-purpose', async ($, on) => {
-    const seen = world(on, { codex: true, codexSays: 'task result' })
-    let reached = false
-    on('tool.call', { tool: 'Agent' }, () => ((reached = true), { result: DONE }) as never)
-    const r: any = await $.tool.call({ tool: 'Agent', description: 'execute', prompt: 'Do the bounded task.', subagent_type: 'executor' } as never)
-    expect(reached).toBe(false)
-    expect(JSON.stringify(r)).toContain('[routed: codex luna xhigh, class standard]')
-    expect(seen.some((a) => a[0] === 'codex' && a[1] === 'exec')).toBe(true)
-  })
-
-  test('explicit Haiku routes to Codex as standard when Codex is ready', async ($, on) => {
-    const seen = world(on, { codex: true, codexSays: 'task result' })
-    let reached = false
-    on('tool.call', { tool: 'Agent' }, () => ((reached = true), { result: DONE }) as never)
-    const r: any = await $.tool.call({ tool: 'Agent', description: 'read', prompt: 'Summarise README.md', model: 'haiku' } as never)
-    expect(reached).toBe(false)
-    expect(JSON.stringify(r)).toContain('[routed: codex luna xhigh, explicit haiku]')
-    expect(seen.filter((a) => a[0] === 'codex' && a[1] === 'exec')).toHaveLength(1)
-    expect((seen as any).modelCalls).toEqual([])
-  })
-
-  test('explicit Haiku is kept when Codex is not ready', async ($, on) => {
-    const seen = world(on, { codex: false })
-    let routed: unknown
-    on('tool.call', { tool: 'Agent' }, (_$: any, e: unknown) => ((routed = e), { result: DONE }) as never)
-    const spawn = { tool: 'Agent', description: 'read', prompt: 'Summarise README.md', model: 'haiku', effort: 'low' }
-    await $.tool.call(spawn as never)
-    expect(routed).toMatchObject(spawn)
-    expect(seen.some((a) => a[0] === 'codex' && a[1] === 'exec')).toBe(false)
-  })
-
-  for (const extra of [{ name: 'worker' }, { subagent_type: 'pr-shepherd' }]) {
-    test(`explicit Haiku on ${Object.keys(extra)[0]} ${Object.values(extra)[0]} keeps its definition while Codex is ready`, async ($, on) => {
-      const seen = world(on, { codex: true })
-      let routed: unknown
-      on('tool.call', { tool: 'Agent' }, (_$: any, e: unknown) => ((routed = e), { result: DONE }) as never)
-      const spawn = { tool: 'Agent', description: 'read', prompt: 'Summarise README.md', model: 'haiku', ...extra }
-      await $.tool.call(spawn as never)
-      expect(routed).toMatchObject(spawn)
-      expect(seen.some((a) => a[0] === 'codex' && a[1] === 'exec')).toBe(false)
-    })
-  }
-
-  test('Codex no-answer for explicit Haiku returns a failure hand-back', async ($, on) => {
-    const seen = world(on, { codex: true })
-    const nextCalls: any[] = []
-    on('tool.call', { tool: 'Agent' }, (_$: any, e: unknown) => (nextCalls.push(e), { result: DONE }) as never)
-    const r: any = await $.tool.call({ tool: 'Agent', description: 'read', prompt: 'Summarise README.md', model: 'haiku' } as never)
-    expect(nextCalls.some((call) => call.model === 'haiku')).toBe(false)
-    expect(r.result.content[0].text.startsWith('FAIL | router |')).toBe(true)
-    expect((seen as any).modelCalls).toEqual([])
-    expect(seen.filter((a) => a[0] === 'codex' && a[1] === 'exec')).toHaveLength(1)
-  })
-
-  test('explicit Opus and Sonnet choices pass through unchanged', async ($, on) => {
-    const seen = world(on, { codex: true, codexSays: 'unused' })
-    const routed: unknown[] = []
-    on('tool.call', { tool: 'Agent' }, (_$: any, e: unknown) => (routed.push(e), { result: DONE }) as never)
-    for (const model of ['opus', 'sonnet']) {
-      const spawn = { tool: 'Agent', description: 'review', prompt: 'Review the design.', model }
-      await $.tool.call(spawn as never)
-    }
-    expect(routed).toHaveLength(2)
-    expect(routed[0]).toMatchObject({ model: 'opus' })
-    expect(routed[1]).toMatchObject({ model: 'sonnet' })
-    expect(seen).toEqual([])
-  })
-
-  test('Codex with no answer returns a failure hand-back without a classifier call', async ($, on) => {
-    const seen = world(on, { codex: true, haikuSays: 'plan' })
-    const nextCalls: any[] = []
-    on('tool.call', { tool: 'Agent' }, (_$: any, e: unknown) => (nextCalls.push(e), { result: DONE }) as never)
-    const spawn = { tool: 'Agent', description: 'read', prompt: 'Summarise README.md' }
-    const r: any = await $.tool.call(spawn as never)
-    expect(nextCalls.some((call) => call.model === 'haiku')).toBe(false)
-    expect(r.result.content[0].text.startsWith('FAIL | router |')).toBe(true)
-    expect(r.result.agentId).toBe('ai-delegation-codex')
-    expect((seen as any).modelCalls).toEqual([])
-    expect(seen.filter((a) => a[0] === 'codex' && a[1] === 'exec')).toHaveLength(2)
-    expect((seen as any).calls.some((call: { argv: string[]; stdin?: string }) => call.argv[0] === 'tee' && call.stdin?.includes('route: standard codex no answer -> fail (no haiku)'))).toBe(true)
-  })
-
-  test('a failed Codex readiness probe is logged with its reason', async ($, on) => {
-    const seen = world(on, { codex: false, haikuSays: 'standard' })
-    on('tool.call', { tool: 'Agent' }, () => ({ result: DONE }) as never)
-    await $.tool.call({ tool: 'Agent', description: 'read', prompt: 'Summarise README.md' } as never)
-    expect((seen as any).uiLogs.join('\n')).toContain('Codex not ready: codex --version exited 1')
-    expect((seen as any).calls.some((call: { argv: string[]; stdin?: string }) => call.argv[0] === 'tee' && call.stdin?.includes('codex not ready: codex --version exited 1'))).toBe(true)
-  })
-
-  test('empty final messages are logged with a reason before the failure hand-back', async ($, on) => {
-    const seen = world(on, { codex: true, codexSays: '', haikuSays: 'standard' })
-    const nextCalls: any[] = []
-    on('tool.call', { tool: 'Agent' }, (_$: any, e: unknown) => (nextCalls.push(e), { result: DONE }) as never)
-    const r: any = await $.tool.call({ tool: 'Agent', description: 'read', prompt: 'Summarise README.md' } as never)
-    expect(nextCalls.some((call) => call.model === 'haiku')).toBe(false)
-    expect(r.result.content[0].text.startsWith('FAIL | router |')).toBe(true)
-    expect((seen as any).uiLogs.join('\n')).toContain('codex exec returned an empty final message')
-    expect((seen as any).calls.some((call: { argv: string[]; stdin?: string }) => call.argv[0] === 'tee' && call.stdin?.includes('codex failure: codex exec returned an empty final message'))).toBe(true)
-  })
-
-  test('nonzero Codex exits are logged with a reason before the failure hand-back', async ($, on) => {
-    const seen = world(on, { codex: true, codexExitCode: 7, codexSays: 'unused', haikuSays: 'standard' })
-    const nextCalls: any[] = []
-    on('tool.call', { tool: 'Agent' }, (_$: any, e: unknown) => (nextCalls.push(e), { result: DONE }) as never)
-    const r: any = await $.tool.call({ tool: 'Agent', description: 'read', prompt: 'Summarise README.md' } as never)
-    expect(nextCalls.some((call) => call.model === 'haiku')).toBe(false)
-    expect(r.result.content[0].text.startsWith('FAIL | router |')).toBe(true)
-    expect((seen as any).uiLogs.join('\n')).toContain('codex exec exited with code 7')
-    expect((seen as any).calls.some((call: { argv: string[]; stdin?: string }) => call.argv[0] === 'tee' && call.stdin?.includes('codex failure: codex exec exited with code 7'))).toBe(true)
-  })
-
-  test('a failed temporary-file creation is logged and returned as a failure hand-back', async ($, on) => {
-    const seen = world(on, { codex: true, mktempExitCode: 1, mktempStdout: 'not-a-path', haikuSays: 'standard' })
-    const nextCalls: any[] = []
-    on('tool.call', { tool: 'Agent' }, (_$: any, e: unknown) => (nextCalls.push(e), { result: DONE }) as never)
-    const r: any = await $.tool.call({ tool: 'Agent', description: 'read', prompt: 'Summarise README.md' } as never)
-    expect(nextCalls.some((call) => call.model === 'haiku')).toBe(false)
-    expect(r.result.content[0].text.startsWith('FAIL | router |')).toBe(true)
-    expect(seen.some((a) => a[0] === 'codex' && a[1] === 'exec')).toBe(false)
-    expect((seen as any).uiLogs.join('\n')).toContain('could not create final-message file')
-    expect((seen as any).calls.some((call: { argv: string[] }) => call.argv[0] === 'rm')).toBe(false)
-  })
-
-  test('without a listed Luna model the spawn gets a failure hand-back', async ($, on) => {
-    const seen = world(on, { codex: true, codexSays: 'standard', haikuSays: 'standard', cache: false })
-    const nextCalls: any[] = []
-    on('tool.call', { tool: 'Agent' }, (_$: any, e: unknown) => (nextCalls.push(e), { result: DONE }) as never)
-    const spawn = { tool: 'Agent', description: 'read', prompt: 'Summarise README.md' }
-    const r: any = await $.tool.call(spawn as never)
-    expect(nextCalls.some((call) => call.model === 'haiku')).toBe(false)
-    expect(r.result.content[0].text.startsWith('FAIL | router |')).toBe(true)
-    expect(seen.some((a) => a[0] === 'codex' && a[1] === 'exec')).toBe(false)
-    expect((seen as any).modelCalls).toEqual([])
-  })
-
-  test('a named roster agent with no model passes through untouched while Codex is ready', async ($, on) => {
-    const seen = world(on, { codex: true, codexSays: 'standard' })
-    let routed: unknown
-    on('tool.call', { tool: 'Agent' }, (_$: any, e: unknown) => ((routed = e), { result: DONE }) as never)
-    const spawn = { tool: 'Agent', description: 'review', prompt: 'Review the diff.', subagent_type: 'pr-shepherd' }
-    await $.tool.call(spawn as never)
-    expect(routed).toMatchObject(spawn)
-    expect((routed as any).model).toBeUndefined()
-    expect((routed as any).effort).toBeUndefined()
-    expect(seen).toEqual([])
-  })
-
-  test('a custom Haiku agent routes to Codex with its instructions', async ($, on) => {
-    const seen = world(on, {
-      codex: true,
-      codexSays: 'task result',
-      agentFiles: { 'pr-shepherd': '---\nname: pr-shepherd\nmodel: haiku\n---\nFollow the pull request review rubric.' },
-    })
-    let reached = false
-    on('tool.call', { tool: 'Agent' }, () => ((reached = true), { result: DONE }) as never)
-    const r: any = await $.tool.call({ tool: 'Agent', description: 'review', prompt: 'Review the change.', subagent_type: 'pr-shepherd' } as never)
-    const calls = (seen as any).calls as { argv: string[]; stdin?: string }[]
-    const codex = calls.find((call) => call.argv[0] === 'codex' && call.argv[1] === 'exec')
-    expect(reached).toBe(false)
-    expect(JSON.stringify(r)).toContain('[routed: codex luna xhigh, custom haiku agent]')
-    expect(codex?.argv).toContain('workspace-write')
-    expect(codex?.stdin).toContain('Follow the pull request review rubric.')
-    expect(codex?.stdin).toContain('Review the change.')
-    expect(calls.some((call) => call.argv[0] === 'tee' && call.stdin?.includes('route: custom pr-shepherd haiku -> codex luna xhigh (workspace-write)'))).toBe(true)
-  })
-
-  test('a custom Haiku agent with no Codex answer returns a failure hand-back', async ($, on) => {
-    const seen = world(on, {
-      codex: true,
-      agentFiles: { 'pr-shepherd': '---\nname: pr-shepherd\nmodel: haiku\n---\nFollow the pull request review rubric.' },
-    })
-    const nextCalls: any[] = []
-    on('tool.call', { tool: 'Agent' }, (_$: any, e: unknown) => (nextCalls.push(e), { result: DONE }) as never)
-    const r: any = await $.tool.call({ tool: 'Agent', description: 'review', prompt: 'Review the change.', subagent_type: 'pr-shepherd' } as never)
-    expect(nextCalls.some((call) => call.model === 'haiku')).toBe(false)
-    expect(r.result.content[0].text.startsWith('FAIL | router |')).toBe(true)
-    expect(seen.filter((a) => a[0] === 'codex' && a[1] === 'exec')).toHaveLength(1)
-  })
-
-  test('a custom Opus agent passes through untouched while Codex is ready', async ($, on) => {
-    const seen = world(on, { codex: true, agentFiles: { 'pr-shepherd': '---\nmodel: opus\n---\nKeep the review focused.' } })
-    let routed: unknown
-    on('tool.call', { tool: 'Agent' }, (_$: any, e: unknown) => ((routed = e), { result: DONE }) as never)
-    const spawn = { tool: 'Agent', description: 'review', prompt: 'Review the change.', subagent_type: 'pr-shepherd' }
-    await $.tool.call(spawn as never)
-    expect(routed).toMatchObject(spawn)
-    expect(seen.some((a) => a[0] === 'codex' && a[1] === 'exec')).toBe(false)
-  })
-
-  test('a custom agent with no definition passes through untouched while Codex is ready', async ($, on) => {
-    const seen = world(on, { codex: true })
-    let routed: unknown
-    on('tool.call', { tool: 'Agent' }, (_$: any, e: unknown) => ((routed = e), { result: DONE }) as never)
-    const spawn = { tool: 'Agent', description: 'review', prompt: 'Review the change.', subagent_type: 'pr-shepherd' }
-    await $.tool.call(spawn as never)
-    expect(routed).toMatchObject(spawn)
-    expect(seen.some((a) => a[0] === 'codex' && a[1] === 'exec')).toBe(false)
-  })
-
-  test('worktree isolation goes to Haiku xhigh without running Codex', async ($, on) => {
-    const seen = world(on, { codex: true, codexSays: 'complex' })
-    let routed: { model?: string; effort?: string; isolation?: string } = {}
-    on('tool.call', { tool: 'Agent' }, (_$: any, e: any) => ((routed = e), { result: DONE }) as never)
-    await $.tool.call({ tool: 'Agent', description: 'isolated edit', prompt: 'Change the isolated worktree.', isolation: 'worktree' } as never)
-    expect(routed).toMatchObject({ model: 'haiku', effort: 'xhigh', isolation: 'worktree' })
-    expect(seen.some((a) => a[0] === 'codex' && a[1] === 'exec')).toBe(false)
-  })
-
-  test('Codex quota exhaustion routes standard work to Haiku xhigh', async ($, on) => {
-    const seen = world(on, { codex: true, quotaExitCode: 1, haikuSays: 'standard' })
-    let routed: { model?: string; effort?: string } = {}
-    on('tool.call', { tool: 'Agent' }, (_$: any, e: any) => ((routed = e), { result: DONE }) as never)
-    await $.tool.call({ tool: 'Agent', description: 'read', prompt: 'Summarise README.md' } as never)
-    expect(routed.model).toBe('haiku')
-    expect(routed.effort).toBe('xhigh')
-    expect(seen.some((a) => a[0] === 'codex' && a[1] === 'exec')).toBe(false)
-  })
-
-  test('a missing Codex quota command routes standard work to Haiku xhigh', async ($, on) => {
-    const seen = world(on, { codex: true, quotaMissing: true, haikuSays: 'standard' })
-    let routed: { model?: string; effort?: string } = {}
-    on('tool.call', { tool: 'Agent' }, (_$: any, e: any) => ((routed = e), { result: DONE }) as never)
-    await $.tool.call({ tool: 'Agent', description: 'read', prompt: 'Summarise README.md' } as never)
-    expect(routed.model).toBe('haiku')
-    expect(routed.effort).toBe('xhigh')
-    expect(seen.some((a) => a[0] === 'codex' && a[1] === 'exec')).toBe(false)
+  test('capped isolation skips transports that cannot preserve worktrees', async () => {
+    const w = world({ quota: 1, env: gateways })
+    await w.agent({ isolation: 'worktree' })
+    expect(w.fetches).toEqual([])
+    expect(w.nextCalls[0]).toMatchObject({ isolation: 'worktree', model: 'haiku', effort: 'xhigh' })
   })
 })
 
-describe('session startup', () => {
-  async function statusSection($: any, status: string) {
-    const { sections } = await $.prompt.compose({ model: 'claude-sonnet-5-5', promptModel: 'claude-sonnet-5-5', surfaces: [], tools: [], outputStyle: null, traits: ['bare'] })
-    const matches = sections.filter((section: { id: string }) => section.id === 'jpe-ai-delegation:codex-quota')
-    expect(matches).toHaveLength(1)
-    expect(matches[0].scope).toBe('session')
-    expect(matches[0].text).toBe(`${status}\nCodex delegates: Luna only — xhigh for bulk/standard, max for bulk-complex/complex/plan/deep; capped: Haiku xhigh. Never Terra, Sonnet or Opus.`)
-    expect(matches[0].text.length).toBeLessThan(200)
+describe('judge and session policy', () => {
+  test('Codex judge honors safe verdict and leaves malformed verdicts to the core', async () => {
+    for (const answer of ['{"verdict":"safe","reason":"bounded"}', 'not a verdict']) {
+      const w = world({ answer })
+      const r = await w.invoke('tool.check', { input: { command: 'rm ./file' } }, CORE_ASK)
+      expect(r.decision).toBe(answer.startsWith('{') ? 'allow' : 'ask')
+      expect(w.modelCalls).toEqual([])
+    }
+  })
+  test('mandatory judge topics also use Luna max and name the class', async () => {
+    const w = world({ answer: '{"verdict":"safe","reason":"bounded"}' })
+    await w.invoke('tool.check', { input: { command: 'rm ./auth-cache' } }, CORE_ASK)
+    expect(runs(w)[0].argv).toContain('model_reasoning_effort="max"')
+    expect(runs(w)[0].stdin).toStartWith('[class: bulk-complex]')
+  })
+  test('capped judge tries GLM and Go before Haiku', async () => {
+    const w = world({ quota: 1, env: gateways, gatewayStatus: { 'configured-glm': 503, 'configured-go': 503 }, answer: '{"verdict":"unsafe","reason":"outside tree"}' })
+    expect((await w.invoke('tool.check', { input: { command: 'rm /other' } }, CORE_ASK)).decision).toBe('deny')
+    expect(w.fetches.map((f) => JSON.parse(f.body!).model)).toEqual(['configured-glm', 'configured-go'])
+    expect(w.modelCalls[0]).toMatchObject({ model: 'haiku', effort: 'xhigh' })
+  })
+  test('unknown quota and sensitive shell input leave core ask without model calls', async () => {
+    for (const options of [{ quota: 127 }, { quota: 1 }]) {
+      const w = world(options)
+      await w.invoke('tool.check', { input: { command: options.quota === 1 ? 'token=abc123' : 'rm ./file' } }, CORE_ASK)
+      expect(w.modelCalls).toEqual([])
+      expect(runs(w)).toEqual([])
+    }
+  })
+  for (const [quota, status] of [[0, 'available'], [1, 'exhausted'], [2, 'unavailable']] as const) {
+    test(`session injects ${status} quota and the complete routing policy`, async () => {
+      const w = world({ quota })
+      await w.invoke('session.start', { cwd: '/workspace' })
+      const r = await w.invoke('prompt.compose', {}, { sections: [] })
+      expect(r.sections).toHaveLength(1)
+      const policy = r.sections[0].text
+      expect(policy).toStartWith(`codex-quota: ${status}\nCheck codex-quota first.`)
+      for (const fragment of ['Luna xhigh', 'Luna max', '[class: bulk-complex]', 'Terra medium', 'Terra high', 'ai-untrusted-ok=true', 'payload classification', 'then Z.ai GLM, then OpenCode Go, then Haiku xhigh', 'human:review', 'leak-scan', 'never auto-merge', 'Sonnet, Opus or Fable', 'secrets, credentials, inventory or incident content']) expect(policy).toContain(fragment)
+    })
   }
-
-  test('session startup stores available quota in one session prompt section', async ($, on) => {
-    const seen = world(on, { codex: true })
-    on('session.start', (_$: any, e: { cwd: string }) => ({ cwd: e.cwd }) as never)
-    on('prompt.compose', () => ({ sections: [] }) as never)
-    await $.session.start({ cwd: '/workspace' })
-    await statusSection($, 'codex-quota: available')
-    expect(seen.some((a) => a[0] === 'codex-quota')).toBe(true)
-  })
-
-  test('session startup finds codex-quota in the per-user profile when PATH lacks it', async ($, on) => {
-    const seen = world(on, { codex: true, quotaOffPath: true })
-    on('session.start', (_$: any, e: { cwd: string }) => ({ cwd: e.cwd }) as never)
-    on('prompt.compose', () => ({ sections: [] }) as never)
-    await $.session.start({ cwd: '/workspace' })
-    await statusSection($, 'codex-quota: available')
-    expect(seen.some((a) => a[0] === '/etc/profiles/per-user/someone/bin/codex-quota')).toBe(true)
-  })
-
-  test('session startup reports exhausted quota', async ($, on) => {
-    world(on, { codex: true, quotaExitCode: 1 })
-    on('session.start', (_$: any, e: { cwd: string }) => ({ cwd: e.cwd }) as never)
-    on('prompt.compose', () => ({ sections: [] }) as never)
-    await $.session.start({ cwd: '/workspace' })
-    await statusSection($, 'codex-quota: exhausted')
-  })
-
-  test('session startup reports unavailable quota on command failure', async ($, on) => {
-    world(on, { codex: true, quotaMissing: true })
-    on('session.start', (_$: any, e: { cwd: string }) => ({ cwd: e.cwd }) as never)
-    on('prompt.compose', () => ({ sections: [] }) as never)
-    await $.session.start({ cwd: '/workspace' })
-    await statusSection($, 'codex-quota: unavailable')
-  })
-
-  test('session startup reports unexpected quota exits as unavailable', async ($, on) => {
-    world(on, { codex: true, quotaExitCode: 2 })
-    on('session.start', (_$: any, e: { cwd: string }) => ({ cwd: e.cwd }) as never)
-    on('prompt.compose', () => ({ sections: [] }) as never)
-    await $.session.start({ cwd: '/workspace' })
-    await statusSection($, 'codex-quota: unavailable')
-  })
 })

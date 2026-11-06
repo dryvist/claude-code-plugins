@@ -3,24 +3,72 @@
     "code": {
       "visibility": "public",
       "rungs": [
-        { "name": "Codex", "gate": "codex" },
-        { "name": "zcode-job sandbox", "gate": "always" },
-        { "name": "OpenCode Go", "gate": "always" },
-        { "name": "Haiku xhigh", "gate": "always" }
+        {
+          "name": "Codex",
+          "gate": "codex"
+        },
+        {
+          "name": "zcode-job sandbox",
+          "gate": "sandbox"
+        },
+        {
+          "name": "Z.ai GLM",
+          "gate": "glm"
+        },
+        {
+          "name": "OpenCode Go",
+          "gate": "opencode-go"
+        },
+        {
+          "name": "Haiku xhigh",
+          "gate": "always"
+        }
       ]
     },
     "private": {
       "visibility": "private",
       "rungs": [
-        { "name": "Codex", "gate": "codex" },
-        { "name": "Haiku xhigh", "gate": "always" }
+        {
+          "name": "Codex",
+          "gate": "codex"
+        },
+        {
+          "name": "zcode-job sandbox",
+          "gate": "allowlisted"
+        },
+        {
+          "name": "Z.ai GLM",
+          "gate": "glm"
+        },
+        {
+          "name": "OpenCode Go",
+          "gate": "opencode-go"
+        },
+        {
+          "name": "Haiku xhigh",
+          "gate": "always"
+        }
       ]
     },
     "other": {
       "visibility": "private",
       "rungs": [
-        { "name": "Codex", "gate": "codex" },
-        { "name": "Haiku xhigh", "gate": "always" }
+        {
+          "name": "Codex",
+          "gate": "codex"
+        },
+        {
+          "name": "Z.ai GLM",
+          "gate": "glm"
+        },
+        {
+          "name": "OpenCode Go",
+          "gate": "opencode-go"
+        },
+        {
+          "name": "Haiku xhigh",
+          "gate": "always"
+        }
       ]
     }
   }
