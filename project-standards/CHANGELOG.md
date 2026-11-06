@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.6.0](https://github.com/dryvist/claude-code-plugins/compare/project-standards-v6.5.0...project-standards-v6.6.0) (2026-11-06)
+
+
+### Features
+
+* **project-standards:** add agent and skill builders ([#696](https://github.com/dryvist/claude-code-plugins/issues/696)) ([6790c0d](https://github.com/dryvist/claude-code-plugins/commit/6790c0dde3767577f543ed7cad9e3bd2af92294c))
+
 ## [6.5.0](https://github.com/dryvist/claude-code-plugins/compare/project-standards-v6.4.0...project-standards-v6.5.0) (2026-10-28)
 
 
