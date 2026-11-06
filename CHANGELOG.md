@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.38.2](https://github.com/dryvist/claude-code-plugins/compare/v6.38.1...v6.38.2) (2026-11-06)
+
+
+### Bug Fixes
+
+* **jpe-ai-delegation:** close review gaps and restore harness tests ([#700](https://github.com/dryvist/claude-code-plugins/issues/700)) ([935918a](https://github.com/dryvist/claude-code-plugins/commit/935918af8d255de57c8ae385d8435b898e1c79b6))
+
 ## [6.38.1](https://github.com/dryvist/claude-code-plugins/compare/v6.38.0...v6.38.1) (2026-11-06)
 
 
