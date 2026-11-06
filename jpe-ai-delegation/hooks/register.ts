@@ -288,16 +288,37 @@ async function customAgentDefinition($: Engine, type: string): Promise<{ model?:
   const cwd = await $.session.cwd()
   const home = await $.env.get('HOME')
   const paths = [`${cwd}/.claude/agents/${type}.md`, ...(home ? [`${home}/.claude/agents/${type}.md`] : [])]
-
+  let text: string | undefined
   for (const path of paths) {
     if (!(await $.fs.exists(path))) continue
-    const text = (await $.fs.read(path)) as string
-    const frontmatter = text.match(/^---\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/)
-    const model = frontmatter?.[1].match(/^model:\s*(?:"([^"]*)"|'([^']*)'|([^\s#]+))(?:\s+#.*)?$/m)
-    return { model: model?.[1] ?? model?.[2] ?? model?.[3], prompt: frontmatter ? text.slice(frontmatter[0].length).trim() : '' }
+    text = (await $.fs.read(path)) as string
+    break
+  }
+  const namespaced = type.match(/^([\w-]+):([\w-]+)$/)
+  if (text === undefined && namespaced) {
+    const config = (await $.env.get('CLAUDE_CONFIG_DIR')) ?? (home ? `${home}/.claude` : undefined)
+    const registry = config ? `${config}/plugins/installed_plugins.json` : undefined
+    if (registry && await $.fs.exists(registry)) {
+      type Installation = { scope: string; installPath: string; projectPath?: string }
+      const installed = JSON.parse((await $.fs.read(registry)) as string) as { plugins: Record<string, Installation[]> }
+      const scopes = ['local', 'project', 'user']
+      const matches = Object.entries(installed.plugins).filter(([key]) => key.split('@')[0] === namespaced[1])
+        .flatMap(([, entries]) => entries)
+        .filter((entry) => scopes.includes(entry.scope) && (entry.scope === 'user' || (entry.projectPath && (cwd === entry.projectPath || cwd.startsWith(`${entry.projectPath}/`)))))
+        .sort((a, b) => scopes.indexOf(a.scope) - scopes.indexOf(b.scope))
+      // Ambiguous plugin names must not load an arbitrary marketplace's instructions.
+      if (matches.length > 1 && matches[0].scope === matches[1].scope) return undefined
+      if (matches[0]?.installPath.startsWith('/')) {
+        const path = `${matches[0].installPath}/agents/${namespaced[2]}.md`
+        if (await $.fs.exists(path)) text = (await $.fs.read(path)) as string
+      }
+    }
   }
 
-  return undefined
+  if (text === undefined) return undefined
+  const frontmatter = text.match(/^---\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/)
+  const model = frontmatter?.[1].match(/^model:\s*(?:"([^"]*)"|'([^']*)'|([^\s#]+))(?:\s+#.*)?$/m)
+  return { model: model?.[1] ?? model?.[2] ?? model?.[3], prompt: frontmatter ? text.slice(frontmatter[0].length).trim() : '' }
 }
 
 async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknown>): Promise<unknown> {
@@ -314,15 +335,16 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
   if (quota === 'codex-quota: available') {
     if (!(await codexReady($))) return failure(e, 'Codex unavailable while quota is available')
     const label = await classify($, e)
+    const advisory = isAdvisory(label) || isAdvisory(explicitLabel(e.description) ?? label)
     if (mandatoryLabel(`${e.description ?? ''}\n${e.prompt}`)) e = { ...e, description: `${e.description ?? ''} [class: bulk-complex]` }
-    const sandbox: Sandbox = isAdvisory(label) || e.subagent_type === 'Explore' || e.subagent_type === 'Plan' ? 'read-only' : 'workspace-write'
+    const sandbox: Sandbox = advisory || e.subagent_type === 'Explore' || e.subagent_type === 'Plan' ? 'read-only' : 'workspace-write'
     const result = await runRoutedCodex($, e, label, CODEX[label], sandbox, `class ${label}`)
     return result ?? codexNoAnswer($, e, label)
   }
   const sandbox = await runSandboxExecutor($, e)
   if (sandbox) return sandbox
-  // These text transports cannot preserve a requested worktree or run custom tools.
-  if (!e.isolation) {
+  // Only explicitly self-contained text work qualifies for transports without tools.
+  if (!e.isolation && isGenericType(e) && !['Explore', 'Plan'].includes(e.subagent_type ?? '') && !codingTask(e.description) && e.description?.includes('[class: text]')) {
     for (const gateway of ['Z.ai GLM', 'OpenCode Go'] as const) {
       const out = await runGateway($, e, gateway)
       if (out) return routedResult(e, 'ai-delegation-gateway', out, `[routed: ${gateway}]`, 0)
