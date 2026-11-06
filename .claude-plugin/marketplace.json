@@ -183,7 +183,7 @@
     {
       "name": "project-standards",
       "source": "./project-standards",
-      "description": "AgentsMD authoring standards, workspace management, and skills/tools registry lookup",
+      "description": "Agent and skill builders, authoring standards, workspace management, and skills/tools registry lookup",
       "version": "6.5.0",
       "author": {
         "name": "JacobPEvans"
