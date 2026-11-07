@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.8.0](https://github.com/dryvist/claude-code-plugins/compare/project-standards-v6.7.6...project-standards-v6.8.0) (2026-11-07)
+
+
+### Features
+
+* **skill-builder:** define attributable optimization rounds ([#724](https://github.com/dryvist/claude-code-plugins/issues/724)) ([b93fd51](https://github.com/dryvist/claude-code-plugins/commit/b93fd51b632a2ad93b7aa29e0cfdc533f0336691))
+
 ## [6.7.6](https://github.com/dryvist/claude-code-plugins/compare/project-standards-v6.7.5...project-standards-v6.7.6) (2026-11-07)
 
 
