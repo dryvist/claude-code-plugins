@@ -128,4 +128,27 @@ If instruction behavior changes after freezing, obtain a fresh held-out set.
   observations are not acceptance. Until the lead supplies complete native
   run artifacts, all behavioral measurements remain **not yet run**.
 
+## Schema compatibility review
+
+Checked **2026-11-06** against the [case fields][case-fields] and
+[grader fields][grader-fields] references (publication/update date unavailable).
+Each inline grader declares its type-specific fields directly alongside
+`name` and `type`. Held-out prompts, rubrics, expected outcomes, and grader
+limits retain their frozen values after this structural conversion.
+
+**Blocked: shared grader.** The documented schema supports per-case `graders`
+entries and per-case `graders/*.md` files. It defines no cross-case grader
+reference, include, or suite-level grader defaults. Suite-wide mocks share MCP
+responses, not graders. The no-shell, no-write, and no-edit assertions remain
+local to each case pending a documented native sharing mechanism. No custom
+preprocessor or undocumented sharing field is introduced.
+
+CLI **2.1.319** exposes no validation-only or dry-run option in
+`claude plugin eval --help`. YAML checks and preservation of normalized case
+data are structural evidence only. Native suite loading and behavioral
+acceptance remain **not yet run**; the lead runs the commands above outside
+the builder sandbox and retains their load errors or measured results.
+
 [native-docs]: https://code.claude.com/docs/en/plugin-evals
+[case-fields]: https://code.claude.com/docs/en/plugin-evals#case-yaml-fields
+[grader-fields]: https://code.claude.com/docs/en/plugin-evals#grader-frontmatter
