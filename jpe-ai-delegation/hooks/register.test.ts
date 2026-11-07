@@ -1,5 +1,4 @@
-// Claude supplies its kit; standalone Bun runs the same IO fixture with its native kit.
-const { describe, expect, test } = await import('claude-code/testing').catch(() => import('bun:test'))
+import { describe, expect, test } from 'claude-code/testing'
 import { register } from './register'
 import { CODEX, LAST_RESORT, codexArgv, explicitLabel, forbiddenModel, isAdvisory, mandatoryLabel, newestModel, parseVerdict, safePayload } from './lib/policy'
 import { customAgentSandbox, parseAgentDefinition } from './lib/agent-definition'

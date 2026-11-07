@@ -1,4 +1,4 @@
-const { expect, test } = await import('claude-code/testing').catch(() => import('bun:test'))
+import { expect, test } from 'claude-code/testing'
 import { parseAgentDefinition, type AgentDefinition } from './agent-definition'
 
 test('frontmatter policy forms are parsed, inherited, or fail closed', () => {
