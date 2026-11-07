@@ -162,6 +162,12 @@ For Gemini CLI same-name skills, workspace scope overrides user scope; within
 either tier, `.agents/skills/` overrides `.gemini/skills/`. Verify the selected
 resource path and canonical revision before testing a distributed copy. Source: S5.
 
+For Antigravity CLI, run a separate acceptance case: verify the skill under
+its `.agents/skills/` workspace path and record the skill it selects on a
+real run. Do not assume Gemini path precedence carries over. Sources:
+[Antigravity CLI migration][antigravity-migration]; [Gemini CLI to Antigravity
+CLI transition][antigravity-transition] (2026-05-19).
+
 ## Validate, compare, and deliver
 
 Run the repository's `agentskills validate` loop, progressive-disclosure check,
@@ -191,3 +197,5 @@ while keeping held-out answers separate. Sources: A3, O3, G1.
 
 [skill-creator]: https://github.com/anthropics/skills/blob/main/skills/skill-creator/SKILL.md
 [skill-development]: https://github.com/anthropics/claude-plugins-official/blob/main/plugins/plugin-dev/skills/skill-development/SKILL.md
+[antigravity-migration]: https://antigravity.google/docs/cli/gcli-migration
+[antigravity-transition]: https://developers.googleblog.com/an-important-update-transitioning-gemini-cli-to-antigravity-cli/
