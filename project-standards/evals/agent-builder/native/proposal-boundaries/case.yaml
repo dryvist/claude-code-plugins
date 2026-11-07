@@ -1,0 +1,31 @@
+schema_version: "1.1"
+name: agent-proposal-boundaries
+tags: [development, should-trigger, execution, discrimination]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: >-
+    Review this proposed platform worker package against the applicable agent
+    authoring policy. It is a tier 2 private code-review worker. The proposal
+    stores its prompt in a deployment role, puts an integration API key in the
+    worker, edits code in its own runtime, and falls back to a hosted model
+    after 20 minutes of local congestion. Its Dify, Sim, and Langflow exports
+    are maintained independently. Return only JSON with status and corrections
+    covering canonical inputs, integration access, code execution, routing,
+    and exports. Review the proposal only; do not create files, select a model,
+    obtain credentials, or contact services.
+graders:
+  - name: selected-agent-builder
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:[\w-]+:)?agent-builder"'
+  - name: package-boundaries
+    type: llm
+    criteria: >-
+      PASS only if all five corrections appear: canonical prompt/definition in
+      ai-llm-prompts (or authorized private twin), deployment roles accept
+      parameters only; the sole credential-holding connector is called by name
+      over A2A through agentgateway with verified identity; code work runs in
+      agent-sandbox jobs; tier 2 stays local and may wait 12 hours without cloud
+      fallback; one shared template renders all three exports, with Dify live
+      and Sim/Langflow shadow. FAIL for missing corrections, invented model
+      choices, a second credential path, or claimed execution.

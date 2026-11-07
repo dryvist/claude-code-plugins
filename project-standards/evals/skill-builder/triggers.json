@@ -1,0 +1,12 @@
+[
+  {"query": "Create a reusable harness skill for extracting invoice totals with a declared output schema and evaluation cases.", "should_trigger": true},
+  {"query": "The spreadsheet skill fires on ordinary edits. Tighten its description and test near-misses against its previous version.", "should_trigger": true},
+  {"query": "Move the skill's optional provider instructions into supporting references while retaining safe standalone execution.", "should_trigger": true},
+  {"query": "Add a skill to this plugin using its existing packaging and validation workflow.", "should_trigger": true},
+  {"query": "Revise the skill's behavior to return structured partial results on budget exhaustion, with baseline comparisons.", "should_trigger": true},
+  {"query": "Run the existing invoice-extraction skill on these documents without changing the skill.", "should_trigger": false},
+  {"query": "Define a new scheduled platform agent with its prompt and generated runtime exports.", "should_trigger": false},
+  {"query": "Fix the JSON parser used by the skill catalog application; leave skill instructions unchanged.", "should_trigger": false},
+  {"query": "Explain what skills and agents are; do not create, revise, or evaluate them.", "should_trigger": false},
+  {"query": "Correct a typo in the README's skill installation example.", "should_trigger": false}
+]

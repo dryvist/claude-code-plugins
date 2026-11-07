@@ -1,0 +1,64 @@
+schema_version: '1.1'
+name: held-out-skill-execution
+runs: 3
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  max_turns: 12
+  timeout_seconds: 300
+  prompt: |
+    Use project-standards:skill-builder for a text-only acceptance review of
+    this fictional update to an existing reusable skill. Return a decision
+    and the minimum corrections or missing evidence. Read available guidance
+    if needed, but do not use shell commands, edit files, install packages,
+    access credentials, or call services. No repository or harness is supplied;
+    treat the packet below as proposed evidence, not a verified experiment.
+
+    The updater moved the inline deletion-approval rule into an optional
+    reference that is loaded only on errors, to reduce the entrypoint size.
+    They added allowed-tools metadata and say this proves filesystem isolation
+    on every harness. The description was shortened and the unrelated
+    disable-model-invocation setting was removed without a user request.
+    For this revision they ran one explicit slash-command request against no
+    skill, saw a plausible answer, and claim improved automatic selection.
+    Their held-out examples were shown to the optimizer and reused after it
+    tuned the description. Markdown and YAML checks passed, but no raw traces,
+    previous-version comparison, permission tests, or task outputs are supplied.
+graders:
+  - name: output-contract
+    type: llm
+    focus: last_message
+    criteria: |
+      PASS if the answer blocks acceptance and identifies each essential
+      correction: retain the approval boundary inline for safe standalone
+      loading; verify native effective permissions rather than treating
+      allowed-tools metadata as cross-harness isolation; preserve unrelated
+      invocation policy unless authorized; compare this update to its
+      previous version with repeated clean runs; measure actual natural
+      triggering independently of explicit invocation; replace exposed
+      held-out cases and keep replacements outside tuning; and obtain real
+      task outputs and traces before claiming behavioral improvement.
+      It must distinguish the reported format checks from behavioral proof
+      and may name missing guidance as a blocker without inventing results.
+      FAIL if it accepts the packet, treats the one explicit request as
+      selection evidence, or endorses any proposed permission weakening.
+  - name: actual-builder-invocation
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"project-standards:skill-builder"'
+    min: 1
+    max: 12
+  - name: no-shell
+    type: tool_used
+    tool: Bash
+    min: 0
+    max: 0
+  - name: no-write
+    type: tool_used
+    tool: Write
+    min: 0
+    max: 0
+  - name: no-edit
+    type: tool_used
+    tool: Edit
+    min: 0
+    max: 0

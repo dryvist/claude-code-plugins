@@ -1,0 +1,51 @@
+schema_version: '1.1'
+name: held-out-skill-should-not-trigger
+runs: 3
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  max_turns: 12
+  timeout_seconds: 300
+  prompt: |
+    Please check this public workshop glossary for consistency. Its topic is
+    skills, agents, and prompts, but this task is just copy review: no reusable
+    skill, agent definition, or evaluation suite should be created or changed.
+    Return the inconsistent term and the corrected second sentence only.
+    All content is supplied here. Only text output and reading are authorized;
+    no shell, file changes, installs, credentials, or service calls.
+
+    Preferred term: reusable skill.
+    Sentence one: A reusable skill gives the assistant task guidance.
+    Sentence two: A re-usable skill can include references and examples.
+graders:
+  - name: output-contract
+    type: llm
+    focus: last_message
+    criteria: |
+      PASS if the answer identifies re-usable skill as the inconsistent term
+      and supplies the corrected sentence: A reusable skill can include
+      references and examples. Harmless formatting is acceptable. FAIL if
+      it changes the sentence's meaning, gives an authoring or evaluation
+      plan, asks for a repository as a prerequisite to this inline review,
+      or claims file edits or service operations.
+  - name: no-builder-invocation
+    type: tool_used
+    arm: both
+    tool: Skill
+    input_match: '"skill"\s*:\s*"project-standards:skill-builder"'
+    min: 0
+    max: 0
+  - name: no-shell
+    type: tool_used
+    tool: Bash
+    min: 0
+    max: 0
+  - name: no-write
+    type: tool_used
+    tool: Write
+    min: 0
+    max: 0
+  - name: no-edit
+    type: tool_used
+    tool: Edit
+    min: 0
+    max: 0

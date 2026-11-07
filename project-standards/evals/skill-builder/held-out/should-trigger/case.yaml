@@ -1,0 +1,55 @@
+schema_version: '1.1'
+name: held-out-skill-should-trigger
+runs: 3
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  max_turns: 12
+  timeout_seconds: 300
+  prompt: |
+    Our public documentation plugin has a reusable harness skill that checks
+    glossary consistency, but its description also catches ordinary requests
+    to define a word. Plan a revision to its discovery description and evals
+    while preserving its name and unrelated metadata. Explain how we would
+    tell whether selection improved without weakening actual glossary checks.
+    Return a text-only authoring plan, not files or an executed benchmark.
+    This fictional exercise supplies no repository, existing entrypoint,
+    permission config, or evaluation runner. Identify prerequisites instead
+    of inventing them, and keep dependent work conditional. You may read
+    available authoring guidance, but cannot use a shell, edit files, install
+    anything, access credentials, or contact services.
+graders:
+  - name: output-contract
+    type: llm
+    focus: last_message
+    criteria: |
+      PASS if the answer either names missing source or mandatory authoring
+      guidance as a specific blocker, or gives a conditional revision plan
+      that requires the existing skill and compares against its previous
+      version. If a plan is given, it separates natural trigger requests,
+      near-miss negatives such as word definitions, and task execution;
+      measures actual harness activation rather than merely classifying the
+      description; and protects held-out cases from tuning. FAIL if it
+      invents current source contents, reports a measured improvement without
+      runs, uses no-skill as the sole comparison for this update, or proposes
+      changing unrelated metadata without a task-specific reason.
+  - name: actual-builder-invocation
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"project-standards:skill-builder"'
+    min: 1
+    max: 12
+  - name: no-shell
+    type: tool_used
+    tool: Bash
+    min: 0
+    max: 0
+  - name: no-write
+    type: tool_used
+    tool: Write
+    min: 0
+    max: 0
+  - name: no-edit
+    type: tool_used
+    tool: Edit
+    min: 0
+    max: 0
