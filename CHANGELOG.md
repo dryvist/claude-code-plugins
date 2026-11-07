@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.39.2](https://github.com/dryvist/claude-code-plugins/compare/v6.39.1...v6.39.2) (2026-11-07)
+
+
+### Bug Fixes
+
+* **ci:** run the AI merge gate on the review runner ([#711](https://github.com/dryvist/claude-code-plugins/issues/711)) ([2d81055](https://github.com/dryvist/claude-code-plugins/commit/2d810550b3a6f2f8a50be8d8fd1c984bbb0560ac))
+
 ## [6.39.1](https://github.com/dryvist/claude-code-plugins/compare/v6.39.0...v6.39.1) (2026-11-07)
 
 
