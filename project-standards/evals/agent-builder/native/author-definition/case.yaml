@@ -14,9 +14,31 @@ graders:
     type: tool_used
     tool: Skill
     input_match: '"skill"\s*:\s*"(?:[\w-]+:)?agent-builder"'
-  - name: bounded-authoring-record
+  - name: missing-current-schema
     type: llm
     criteria: >-
-      PASS if the response identifies the unavailable current schema and
-      connector roster, reuses the existing worker, and leaves deployment
-      unexecuted. FAIL if it invents schema fields or reports deployment success.
+      PASS if the response identifies the unavailable current schema;
+      FAIL otherwise.
+  - name: missing-connector-roster
+    type: llm
+    criteria: >-
+      PASS if the response identifies the unavailable connector roster;
+      FAIL otherwise.
+  - name: existing-worker-reused
+    type: llm
+    criteria: >-
+      PASS if the response names the existing worker as the definition to
+      reuse or extend instead of authoring a new one for the same
+      responsibility; FAIL if it authors or proposes a duplicate definition.
+  - name: deployment-unexecuted
+    type: llm
+    criteria: >-
+      PASS if the response leaves deployment unexecuted; FAIL otherwise.
+  - name: no-invented-schema-fields
+    type: llm
+    criteria: >-
+      PASS if the response does not invent schema fields; FAIL if it does.
+  - name: no-deployment-success-claim
+    type: llm
+    criteria: >-
+      PASS if the response does not report deployment success; FAIL if it does.
