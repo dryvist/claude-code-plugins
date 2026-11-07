@@ -1,6 +1,9 @@
 ---
 name: claude-skill-authoring
-description: Use when authoring or editing a skill in this estate — file layout, description length limits, and the self-contained-execution rule. General skill-authoring guidance is covered by Anthropic's own Agent Skills docs.
+description: >-
+  Covers estate SKILL.md rules: layout, length limits, and self-contained
+  execution. Skill design, testing, evaluation, and comparison requests use
+  skill-builder.
 ---
 
 # AgentsMD Authoring Standards (estate-specific)

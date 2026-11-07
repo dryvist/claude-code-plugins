@@ -1,9 +1,10 @@
 ---
 name: skill-builder
 description: >-
-  Guides reusable skill creation, trigger tuning, packaging and context-budget
-  reviews, and evaluation or comparison decisions, including evidence-only
-  acceptance. Excludes running existing skills, platform agents, and ordinary edits.
+  Applies when creating or designing a skill, tuning when it loads, running or
+  reading skill evals, comparing skill versions, deciding whether a skill change
+  is accepted, or reviewing skill packaging and context budgets. Includes
+  evidence-only reviews. Excludes executing existing skills and platform-agent work.
 ---
 
 # Skill builder

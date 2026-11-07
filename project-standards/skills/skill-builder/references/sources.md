@@ -92,3 +92,11 @@ The new native comparison-control case separates correct activation, unchanged
 task quality, and a measured efficiency regression. Existing ceiling-score
 cases remain controls. Discrimination and trigger recall remain unmeasured
 until the lead runs the revised suites.
+
+Description routing clarified **2026-11-07** using S1's trigger guidance and
+O1's focused descriptions, within E1's byte budget. Skill-builder names
+creation/design, trigger tuning, eval execution or interpretation, version
+comparison, acceptance, and packaging/budget reviews. Claude-skill-authoring
+identifies estate SKILL.md constraints and routes the builder workflow to
+skill-builder. Platform-agent work stays outside skill-builder's trigger scope.
+This changes discovery metadata; native activation remains unmeasured here.
