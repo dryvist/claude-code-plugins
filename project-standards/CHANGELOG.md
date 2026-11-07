@@ -1,5 +1,13 @@
 # Changelog
 
+## [6.9.0](https://github.com/dryvist/claude-code-plugins/compare/project-standards-v6.8.0...project-standards-v6.9.0) (2026-11-07)
+
+
+### Features
+
+* **agent:** zcode run j-fa4b9d8fc13c8fb4 ([3685446](https://github.com/dryvist/claude-code-plugins/commit/36854462c887fa79d86107649ad4a056d24bc5ae))
+* **project-standards:** add subagent folding and Antigravity skill checks ([#731](https://github.com/dryvist/claude-code-plugins/issues/731)) ([3685446](https://github.com/dryvist/claude-code-plugins/commit/36854462c887fa79d86107649ad4a056d24bc5ae))
+
 ## [6.8.0](https://github.com/dryvist/claude-code-plugins/compare/project-standards-v6.7.6...project-standards-v6.8.0) (2026-11-07)
 
 
