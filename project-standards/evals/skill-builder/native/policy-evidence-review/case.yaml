@@ -1,0 +1,37 @@
+schema_version: "1.1"
+name: skill-policy-evidence-review
+tags: [development, should-trigger, execution, discrimination]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: >-
+    Apply the estate's current acceptance policy to this public, synthetic
+    evidence worksheet for a revised reusable harness skill. Review which
+    gates are satisfied, what evidence the policy requires next, and whether
+    this revision can be accepted. Installed policy reads are allowed; use
+    the inline worksheet as the complete evidence fixture. Do not run evals,
+    models, counters, or shell commands, write files, or contact services.
+    The worksheet records passing schema, packaging, output, and privacy
+    assertions in 3 fresh candidate sessions. Its acceptance-threshold fields
+    are blank. It contains no selection traces, baseline arm, independent
+    unseen acceptance results, latency, or cost measurements. Return only
+    JSON with status, satisfied_gates, and required_evidence. Distinguish
+    structural observations from behavioral acceptance; invent no results.
+graders:
+  - name: selected-skill-builder
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"project-standards:skill-builder"'
+  - name: policy-evidence-decision
+    type: llm
+    criteria: >-
+      PASS only if acceptance remains blocked and the answer retains the
+      supplied passing assertions while requiring predeclared numeric gates
+      for activation precision/recall, correctness, privacy, latency, and
+      cost, with zero boundary violations; actual implicit selection trials
+      on positive and negative requests; repeated clean previous-version-only
+      comparisons under identical frozen suites and settings; independent
+      evaluator-owned unseen acceptance after freezing the candidate; and
+      measured latency, cost, baseline deltas, and uncertainty. Missing data
+      stays unknown. FAIL if it accepts, treats passing output or structure
+      as activation proof, invents thresholds or measurements, or asks to
+      expose unseen prompts or private outputs to the author.

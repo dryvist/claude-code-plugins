@@ -1,0 +1,42 @@
+schema_version: "1.1"
+name: skill-policy-comparison-review
+tags: [development, should-trigger, execution, discrimination]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: >-
+    Review a reusable harness skill revision under the estate's current
+    comparison and acceptance policy. Identify valid claims and the exact
+    evidence needed for acceptance from this public, synthetic fixture.
+    You may read installed policy. The inline fixture is the complete public
+    evidence; do not execute evals, models, counters, or shell commands,
+    write files, or access services. The native report shows WITH 1.00 and
+    WITHOUT 1.00, but its positive Skill indicators have scored: false and
+    passed: false. The no-plugin snapshot retains an equivalent skill; the
+    previous-version snapshot contains only that version, but reuses one
+    writable workspace across trials. All arms use identical frozen suites,
+    model settings, and graders. Structure and privacy assertions pass.
+    Latency and cost are unmeasured. An independent evaluator still owns
+    unopened acceptance cases. Return only JSON with status, valid_claims,
+    and required_reruns. Apply current policy without inventing results or
+    requesting unseen prompts, private cases, or raw private outputs.
+graders:
+  - name: selected-skill-builder
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"project-standards:skill-builder"'
+  - name: policy-comparison-decision
+    type: llm
+    criteria: >-
+      PASS only if acceptance is blocked, format/privacy observations remain
+      valid, and native task scores are separated from actual activation:
+      scored: false excludes positive Skill indicators from ablation scores,
+      while passed: false records failed selection. Equal task scores do
+      not establish contribution; the no-plugin comparison needs both the
+      candidate and equivalent skills disabled. Preserve the previous arm's
+      correct version isolation, but require repeated fresh sessions and
+      workspaces with identical frozen settings and suites. Require measured
+      activation, latency, cost, baseline deltas, and uncertainty against
+      predeclared gates, followed by independent unseen acceptance after
+      candidate freeze. Keep unopened cases evaluator-owned. FAIL if it
+      accepts, treats 1.00 as activation proof, alleges held-out exposure,
+      requests unseen answers, or claims an efficiency or quality gain.
