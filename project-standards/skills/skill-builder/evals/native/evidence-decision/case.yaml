@@ -1,0 +1,26 @@
+schema_version: "1.1"
+name: skill-evidence-decision
+tags: [development, should-trigger, execution]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: >-
+    Assess release acceptance for a revised reusable skill. Supplied evidence:
+    YAML and Markdown pass; one session classified 8 descriptions correctly;
+    no actual skill selections, previous-version runs, or unseen tests were
+    recorded. Return only JSON with status and missing_evidence. Decide from
+    those facts without running a model, writing files, or inventing results.
+graders:
+  - name: selected-skill-builder
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:[\w-]+:)?skill-builder"'
+  - name: decision-fields
+    type: regex
+    pattern: '^(?=[\s\S]*"status"\s*:)(?=[\s\S]*"missing_evidence"\s*:)[\s\S]*$'
+  - name: acceptance-decision
+    type: llm
+    criteria: >-
+      PASS if the JSON marks behavioral acceptance pending or blocked and names
+      actual trigger selection, repeated clean-session previous-version
+      comparison, and independent held-out evaluation as missing. FAIL if it
+      treats description classification or lint success as behavioral acceptance.

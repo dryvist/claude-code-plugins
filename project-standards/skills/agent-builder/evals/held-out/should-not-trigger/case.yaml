@@ -1,0 +1,46 @@
+schema_version: '1.1'
+name: held-out-agent-should-not-trigger
+runs: 3
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  max_turns: 12
+  timeout_seconds: 300
+  prompt: |
+    An existing agent produced this fictional exhibition digest. Copyedit its
+    output into two clear sentences for museum visitors. Do not create or
+    revise the agent, its prompt, its configuration, or its evaluations.
+    All facts you need are below; preserve the opening date and free entry.
+    Return only the revised visitor text. Reading and text output are the
+    only authorized operations: no shell, edits, installs, or service calls.
+
+    The Paper Worlds show is opening on May 14. Admission entry is free.
+    Visitors will be able to see artworks made from folded paper objects.
+    A museum agent has summarized these public announcement details.
+graders:
+  - name: output-contract
+    type: llm
+    options:
+      focus: last_message
+      criteria: |
+        PASS if the answer is two visitor-facing sentences that retain the
+        Paper Worlds exhibition, opening on May 14, free admission, and folded
+        paper artworks, without adding facts. FAIL if it supplies an agent
+        authoring plan, asks for platform prerequisites, discusses its own
+        workflow, or claims to have changed files or contacted services.
+  - name: no-builder-invocation
+    type: tool_used
+    arm: both
+    options:
+      tool: Skill
+      input_match: '"skill"\s*:\s*"project-standards:agent-builder"'
+      min: 0
+      max: 0
+  - name: no-shell
+    type: tool_used
+    options: {tool: Bash, min: 0, max: 0}
+  - name: no-write
+    type: tool_used
+    options: {tool: Write, min: 0, max: 0}
+  - name: no-edit
+    type: tool_used
+    options: {tool: Edit, min: 0, max: 0}

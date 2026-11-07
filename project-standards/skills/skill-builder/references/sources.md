@@ -12,6 +12,7 @@ required for this refresh.
 | S1 | Anthropic [skill-creator](https://github.com/anthropics/skills/blob/b0cbd3df1533b396d281a6886d5132f623393a9c/skills/skill-creator/SKILL.md) | Updated [2026-03-06](https://github.com/anthropics/skills/commit/b0cbd3df1533b396d281a6886d5132f623393a9c) | Previous-version/no-skill baseline, observable artifacts, independent trigger testing, repeated experiments. Outside the preferred 4-month window; within 12 months. |
 | S2 | OpenAI [Build skills](https://learn.chatgpt.com/docs/build-skills) | Undated; verified 2026-11-06 | Supplementary native invocation/dependency metadata, focused descriptions, instruction-first packaging. |
 | S3 | Anthropic [Extend Claude with skills](https://code.claude.com/docs/en/skills) | Undated; verified 2026-11-06 | Supplementary Claude invocation lifecycle, supporting files, and tool pre-approval semantics. |
+| S4 | Anthropic [Test plugins with evals](https://code.claude.com/docs/en/plugin-evals) | Publication/update date unavailable; retrieved 2026-11-06. CLI help verified at 2.1.319. | Native case format, actual Skill-call graders, clean repeated trials, baseline arms, and local reports. Undated supplementary syntax guidance. |
 | E1 | Local [claude-skill-authoring](../../claude-skill-authoring/SKILL.md) | Updated [2026-11-06](https://github.com/dryvist/claude-code-plugins/commit/6790c0dde3767577f543ed7cad9e3bd2af92294c) | 1,024-byte description maximum, approximately 250-character target, canonical placement, self-contained execution, inline safety. |
 
 ## Shared dated sources
@@ -56,7 +57,7 @@ tables across the builders. Both directories ship in the same plugin.
 
 ## Evaluation evidence boundary
 
-[Development cases](../evals/evals.json) specify observable expectations, with
+[Native development cases](../evals/native/) specify observable expectations, with
 baseline revision and acceptance criteria in [the eval contract](../evals/contract.md).
 Trigger selection, actual task execution, schema/lint validation, and deployed
 performance are different measurements. A review of instructions or a hand-run

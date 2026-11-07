@@ -1,0 +1,22 @@
+schema_version: "1.1"
+name: agent-author-definition
+tags: [development, should-trigger]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: >-
+    Author a platform worker definition for a release summary using the canonical
+    prompt repository. A worker with that responsibility already exists. Only
+    authoring is authorized; the current schema and connector roster have not
+    been supplied. Return a concise blocked authoring record with the missing
+    inputs and the existing definition to inspect. Perform no deployment.
+graders:
+  - name: selected-agent-builder
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:[\w-]+:)?agent-builder"'
+  - name: bounded-authoring-record
+    type: llm
+    criteria: >-
+      PASS if the response identifies the unavailable current schema and
+      connector roster, reuses the existing worker, and leaves deployment
+      unexecuted. FAIL if it invents schema fields or reports deployment success.

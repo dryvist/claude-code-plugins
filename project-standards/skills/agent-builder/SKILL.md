@@ -12,7 +12,7 @@ Produce one canonical agent package in `dryvist/ai-llm-prompts/agents/`, or
 the authorized private twin. Keep private content in the private repository.
 This skill supplies authoring instructions, never a second agent definition.
 For provenance or a refresh, consult the dated [sources and findings](references/sources.md).
-For builder regression testing, use [evals/evals.json](evals/evals.json).
+For builder regression testing, use the [native suite](evals/native/).
 Follow the shared [eval contract](../skill-builder/evals/contract.md) for comparisons.
 
 ## Establish the contract

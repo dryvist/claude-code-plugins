@@ -13,7 +13,7 @@ outputs meet a declared evaluation contract. Extend the existing skill when
 its scope already fits. Keep platform agent definitions and runtime prompts
 in ai-llm-prompts; use agent-builder for that work.
 Use the dated [source register](references/sources.md) when checking provenance
-or refreshing guidance, and [evals/evals.json](evals/evals.json) for builder regressions.
+or refreshing guidance, and the [native suite](evals/native/) for builder regressions.
 Follow the [eval contract](evals/contract.md) when comparing builder revisions.
 
 ## Establish scope and reuse authoring guidance

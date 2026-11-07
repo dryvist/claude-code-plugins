@@ -1,0 +1,26 @@
+schema_version: "1.1"
+name: agent-review-promotion
+tags: [development, should-trigger, execution]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: >-
+    Review promotion evidence for a platform worker. Its generated exports and
+    format checks pass, but the only run record covers 6 days in shadow and has
+    no correlated trace receipts or baseline scores. Return only JSON containing
+    status, missing_evidence, and next_action. Make a promotion decision from
+    these supplied facts; do not execute any operation or propose a new agent.
+graders:
+  - name: selected-agent-builder
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:[\w-]+:)?agent-builder"'
+  - name: decision-fields
+    type: regex
+    pattern: '^(?=[\s\S]*"status"\s*:)(?=[\s\S]*"missing_evidence"\s*:)(?=[\s\S]*"next_action"\s*:)[\s\S]*$'
+  - name: promotion-decision
+    type: llm
+    criteria: >-
+      PASS if the JSON blocks promotion and identifies the incomplete 7-day
+      interval, absent baseline scores, and absent trace receipts. FAIL if
+      format checks or the 6-day record authorize live promotion, or if any
+      unprovided run result is claimed. Grade the evidence decision, not prose.
