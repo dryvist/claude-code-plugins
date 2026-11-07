@@ -15,11 +15,11 @@ execution:
     successfully read fresh this run. Immediately before delivery the source
     returns these verification results:
     - item-a: initially awaiting review; now awaiting a dependency, still open.
-      Its own html_url is https://example.test/records/canonical-a?view=current
+      Its own html_url is https://example.com/records/canonical-a?view=current
     - item-b: initially awaiting review; now resolved.
-      Its own html_url is https://example.test/records/canonical-b
+      Its own html_url is https://example.com/records/canonical-b
     - item-c: initially awaiting review; verification returns unavailable.
-      Its earlier html_url was https://example.test/records/canonical-c
+      Its earlier html_url was https://example.com/records/canonical-c
 graders:
   - name: verify-every-item-before-delivery
     type: llm
