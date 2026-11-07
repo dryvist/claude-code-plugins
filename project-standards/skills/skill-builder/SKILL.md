@@ -105,6 +105,9 @@ truncation, grader disagreement, and run contamination. Calibrate open-ended
 judges against human-reviewed examples. Report baseline deltas and variance;
 do not claim an improvement that remains within noise.
 Before accepting or rejecting a revision, check each grader's pass rate in both arms.
+Use a judge model distinct from the candidate and name it in the run record.
+Compare arms blind to identity, randomizing their order per item.
+Grade a sample of identical outputs twice; fix disagreeing repeat verdicts as grader noise before deciding.
 A grader at 0% in both or 100% in both gives no signal; count it neither for nor against.
 Read its outputs, recalibrate to one requirement per grader, and rerun both arms before deciding.
 

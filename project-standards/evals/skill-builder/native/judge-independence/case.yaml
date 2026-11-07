@@ -1,0 +1,61 @@
+schema_version: "1.1"
+name: skill-judge-independence
+tags: [development, should-trigger, execution, discrimination]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: |-
+    Decide whether to accept or reject a revised record-formatting skill using
+    this public, synthetic run record. Installed policy reads are allowed;
+    the inline record is the complete fixture. Do not run evals, models, shell
+    commands, writes, or service operations. Return only JSON with status,
+    evidence_assessment, and next_action.
+
+    Both arms used identical frozen cases and settings in fresh sessions.
+    All other acceptance gates are recorded as satisfied.
+    Model identifiers below are synthetic fixture labels.
+
+    candidate_model: fixture-formatter
+    judge_model: fixture-formatter
+    comparison_labels: previous-version, candidate
+    presentation_order: previous-version first, candidate second on every item
+    arm_identities_visible_to_judge: true
+    identical_outputs_regraded: false
+    record-format-correct: previous-version 18/24, candidate 22/24
+
+    No independent judging, reordered comparisons, or repeat grading has run.
+graders:
+  - name: selected-skill-builder
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"project-standards:skill-builder"'
+  - name: decision-fields
+    type: regex
+    pattern: '^\s*\{(?=[\s\S]*"status"\s*:)(?=[\s\S]*"evidence_assessment"\s*:)(?=[\s\S]*"next_action"\s*:)[\s\S]*\}\s*$'
+  - name: acceptance-decision-deferred
+    type: llm
+    criteria: >-
+      PASS if the answer withholds acceptance or rejection of the revision
+      because this judging record is insufficient; FAIL if it decides either
+      outcome from the supplied scores.
+  - name: distinct-judge-required
+    type: llm
+    criteria: >-
+      PASS if the answer requires a judge model different from the candidate
+      model and naming that judge in the run record; FAIL otherwise.
+  - name: blind-randomized-comparison-required
+    type: llm
+    criteria: >-
+      PASS if the answer requires hiding arm identities from the judge and
+      randomizing arm presentation order per item; FAIL otherwise.
+  - name: identical-output-repeat-grading-required
+    type: llm
+    criteria: >-
+      PASS if the answer requires grading a sample of identical outputs twice
+      and resolving repeat-verdict disagreement as grader noise before a
+      decision; FAIL otherwise.
+  - name: no-invented-results
+    type: llm
+    criteria: >-
+      PASS if the answer invents no evaluation results or completed judging,
+      comparison, or repeat-grading runs beyond the supplied record;
+      FAIL otherwise.
