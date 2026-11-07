@@ -20,6 +20,9 @@ execution:
     and required_reruns. Apply current policy without inventing results or
     requesting unseen prompts, private cases, or raw private outputs.
 graders:
+  - name: decision-fields
+    type: regex
+    pattern: '^\s*\{(?=[\s\S]*"status"\s*:)(?=[\s\S]*"valid_claims"\s*:)(?=[\s\S]*"required_reruns"\s*:)[\s\S]*\}\s*$'
   - name: selected-skill-builder
     type: tool_used
     tool: Skill

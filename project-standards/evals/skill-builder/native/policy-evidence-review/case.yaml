@@ -17,6 +17,9 @@ execution:
     JSON with status, satisfied_gates, and required_evidence. Distinguish
     structural observations from behavioral acceptance; invent no results.
 graders:
+  - name: decision-fields
+    type: regex
+    pattern: '^\s*\{(?=[\s\S]*"status"\s*:)(?=[\s\S]*"satisfied_gates"\s*:)(?=[\s\S]*"required_evidence"\s*:)[\s\S]*\}\s*$'
   - name: selected-skill-builder
     type: tool_used
     tool: Skill
