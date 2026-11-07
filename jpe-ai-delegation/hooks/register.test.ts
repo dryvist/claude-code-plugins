@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'claude-code/testing'
 import { register } from './register'
 import { CODEX, LAST_RESORT, codexArgv, explicitLabel, forbiddenModel, isAdvisory, mandatoryLabel, newestModel, parseVerdict, safePayload } from './lib/policy'
+import { customAgentSandbox, parseAgentDefinition } from './lib/agent-definition'
 
 const RAN = { exitCode: 0, stdout: '', stderr: '', isStdoutTruncated: false }
 const CACHE = JSON.stringify({ models: [
@@ -138,6 +139,246 @@ describe('policy', () => {
     expect(parseVerdict('{"verdict":"safe","reason":"bounded"}')).toEqual({ verdict: 'safe', reason: 'bounded' })
     expect(parseVerdict('{"verdict":"maybe","reason":"x"}')).toBeUndefined()
   })
+})
+
+describe('custom agent tool authority', () => {
+  for (const model of ['"ha\\x69ku"', '"ha\\u0069ku"', '"ha\\U00000069ku"']) {
+    test(`YAML model escapes preserve inherited routing: ${model}`, async () => {
+      for (const quota of [0, 1]) {
+        const w = world({ quota, definition: `---\nmodel: ${model}\n---\nImplement the requested change.` })
+        const result = text(await w.agent({ ...coding, subagent_type: 'worker' }))
+        if (quota === 0) expect(runs(w)[1].argv).toContain('workspace-write')
+        else expect(result).toContain('routed: zcode-job sandbox')
+      }
+    })
+  }
+  test('YAML model escapes retain the forbidden-model guard', async () => {
+    const w = world({ definition: '---\nmodel: "o\\x70us"\n---\nReview changes.' })
+    expect(text(await w.agent({ subagent_type: 'reviewer' }))).toContain('subagents are forbidden')
+    expect(w.calls).toEqual([])
+    expect(w.nextCalls).toEqual([])
+  })
+  for (const fields of [
+    '  tools: [Read]', '{"tools": [Read]}', "  'disallowedTools' : [Bash]", 'model: "ha\\qiku"', '  model: opus',
+    ...['"tools"', "'tools' ", '"too\\u006cs" ', '"\\x74ools" '].map((key) => `${key}: [Read]`),
+    ...['"disallowedTools" ', "'disallowedTools'\t"].map((key) => `tools: [Read, Bash]\n${key}: [Bash]`),
+    ...['"model" ', "'model'\t", '"mo\\x64el"'].map((key) => `${key}: opus`),
+    '? tools\n: [Read]', '? "to\\\n  ols"\n: [Read]', '? "mo\\\n  del"\n: opus',
+    '"to\\x6fls": [Read]', '  name: reviewer\n  tools: [Read]', 'model: haiku\nmodel: opus',
+    'defaults: &defaults {model: opus}\n<<: *defaults',
+  ]) {
+    test(`unreadable policy reports a closed route at every quota: ${fields}`, async () => {
+      for (const quota of [0, 1]) {
+        const w = world({ quota, env: gateways, definition: `---\n${fields}\n---\nPerform the task.` })
+        expect(text(await w.agent({ ...coding, subagent_type: 'worker' }))).toContain('model or tool restrictions could not be read')
+        expect(w.calls).toEqual([])
+        expect(w.nextCalls).toEqual([])
+        expect(w.fetches).toEqual([])
+      }
+    })
+  }
+  for (const key of ['tools ', 'tools\t']) {
+    for (const tools of ['[Read, Grep, Glob]', '# file reads\n  - Read # supplied files\n  # search helpers\n  - Grep\n\n  - Glob']) {
+      test(`spaced plain keys preserve the read-only allowlist: ${key}; ${tools}`, async () => {
+        const definition = `---\nmodel: haiku\n${key}: ${tools}\n---\nRead the supplied files.`
+        expect(parseAgentDefinition(definition).tools).toEqual(['Read', 'Grep', 'Glob'])
+        for (const quota of [0, 1]) {
+          const w = world({ quota, env: gateways, definition })
+          await w.agent({ ...coding, description: `[class: standard] ${coding.description}`, subagent_type: 'reviewer' })
+          if (quota === 0) {
+            expect(runs(w)).toHaveLength(1)
+            expect(runs(w)[0].argv).toContain('read-only')
+            expect(runs(w)[0].argv).not.toContain('workspace-write')
+            expect(w.nextCalls).toEqual([])
+          } else {
+            expect(runs(w)).toEqual([])
+            expect(w.nextCalls[0]).toMatchObject({ subagent_type: 'reviewer', model: 'haiku', effort: 'xhigh' })
+          }
+          expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
+          expect(w.fetches).toEqual([])
+        }
+      })
+    }
+  }
+  for (const key of ['disallowedTools ', 'disallowedTools\t']) {
+    for (const tools of ['[Bash]', '# no shell\n  - Bash # retain native enforcement']) {
+      test(`spaced plain denials remove Bash from a write-capable agent: ${key}; ${tools}`, async () => {
+        const definition = `---\nmodel: haiku\ntools: [Read, Bash]\n${key}: ${tools}\n---\nPerform the task.`
+        expect(parseAgentDefinition(definition).disallowedTools).toEqual(['Bash'])
+        for (const quota of [0, 1]) {
+          const w = world({ quota, env: gateways, definition })
+          const call = { ...coding, subagent_type: 'worker' }
+          await w.agent(call)
+          expect(runs(w)).toEqual([])
+          expect(w.nextCalls).toEqual([{ tool: 'Agent', ...call }])
+          expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
+          expect(w.fetches).toEqual([])
+        }
+      })
+    }
+  }
+  for (const key of ['model ', 'model\t']) {
+    test(`spaced plain model keys retain the forbidden-model guard: ${key}`, async () => {
+      const definition = `---\n${key}: opus\ntools: [Read]\n---\nRead the supplied files.`
+      expect(parseAgentDefinition(definition).model).toBe('opus')
+      const w = world({ definition })
+      expect(text(await w.agent({ subagent_type: 'reviewer' }))).toContain('subagents are forbidden')
+      expect(w.calls).toEqual([])
+      expect(w.nextCalls).toEqual([])
+    })
+  }
+  for (const tools of ['Read, Grep, Glob', '"Read, Grep, Glob"', '[Read, Grep, Glob]', '["Read", "Grep", "Glob"]', "['Read', 'Grep', 'Glob']", '\n  - Read\n  - Grep\n  - Glob', '# file reads\n  - Read\n  - Grep\n  - Glob']) {
+    test(`read-only allowlist selects the Codex read-only sandbox: ${tools}`, async () => {
+      const w = world({ definition: `---\nmodel: haiku\ntools: ${tools}\n---\nRead the supplied files.` })
+      await w.agent({ subagent_type: 'reviewer' })
+      expect(runs(w)).toHaveLength(1)
+      expect(runs(w)[0].argv).toContain('read-only')
+      expect(runs(w)[0].argv).not.toContain('workspace-write')
+      expect(w.nextCalls).toEqual([])
+    })
+  }
+  for (const tool of ['Edit', 'Write', 'NotebookEdit', 'Bash']) {
+    test(`${tool} permits workspace-write while advisory work stays read-only`, async () => {
+      for (const label of ['standard', 'plan']) {
+        const w = world({ definition: `---\nmodel: haiku\ntools: [Read, ${tool}]\n---\nPerform the task.` })
+        await w.agent({ subagent_type: 'worker', description: `[class: ${label}]` })
+        expect(runs(w)[0].argv).toContain(label === 'plan' ? 'read-only' : 'workspace-write')
+      }
+    })
+  }
+  for (const tools of ['mcp__tracker__*', '[mcp__tracker__get*]', '[Read, mcp__tracker__get]', '[WebFetch]', '[Agent]', '[Bash(git:*)]', '[Read, Bash(git:*)]', '[]']) {
+    for (const quota of [0, 1]) {
+      test(`native-only tools preserve the custom type and prompt at quota ${quota}: ${tools}`, async () => {
+        const w = world({ quota, env: gateways, definition: `---\nmodel: haiku\ntools: ${tools}\n---\nFollow the native instructions.` })
+        const call = { ...coding, subagent_type: 'tracker-specialist', model: 'haiku', isolation: 'worktree' }
+        await w.agent(call)
+        expect(w.nextCalls).toEqual([{ tool: 'Agent', ...call }])
+        expect(w.calls.map((c) => c.argv)).toEqual([['codex-quota'], ['tee', '-a', '/home/test/.claude/ai-delegation.log']])
+        expect(w.fetches).toEqual([])
+      })
+    }
+  }
+  for (const tools of [
+    'Bash(git:*), Read', '"Bash(git:*), Read"', '[Bash(git:*), Read]',
+    '["Bash(echo a,b:*)", Read]', "['Read(src/[ab](copy)*.ts)', Bash]",
+    '\n  - "Bash(echo # tag:*)"\n  - Read',
+  ]) {
+    test(`selectors parse without broadening their native authority: ${tools}`, async () => {
+      const definition = `---\nmodel: haiku\ntools: ${tools}\n---\nPerform the task.`
+      const parsed = parseAgentDefinition(definition)
+      expect(parsed.tools).toHaveLength(2)
+      expect(customAgentSandbox(parsed)).toBeUndefined()
+      const w = world({ definition })
+      await w.agent({ subagent_type: 'worker' })
+      expect(w.nextCalls[0]).toMatchObject({ subagent_type: 'worker', prompt: 'Implement the change.' })
+      expect(runs(w)).toEqual([])
+    })
+  }
+  for (const fields of ['disallowedTools: Bash', 'disallowedTools: [Write, Edit]', 'disallowedTools: [Bash(git:*)]', 'disallowedTools: mcp__tracker__*', 'tools: [Read, Bash]\ndisallowedTools:\n  - Bash']) {
+    test(`per-tool denials stay with the native custom agent: ${fields}`, async () => {
+      const w = world({ definition: `---\nmodel: haiku\n${fields}\n---\nPerform the task.` })
+      await w.agent({ subagent_type: 'reviewer' })
+      expect(runs(w)).toEqual([])
+      expect(w.nextCalls[0]).toMatchObject({ subagent_type: 'reviewer' })
+    })
+  }
+  for (const fields of ['tools: [Read, Grep, Glob]', 'tools: [Read, Write]']) {
+    test(`capped restricted agents retain their type and skip sandbox jobs: ${fields}`, async () => {
+      const w = world({ quota: 1, env: gateways, definition: `---\nmodel: inherit\n${fields}\n---\nFollow the custom instructions.` })
+      await w.agent({ ...coding, subagent_type: 'reviewer' })
+      expect(w.nextCalls[0]).toMatchObject({ ...coding, subagent_type: 'reviewer', model: 'haiku', effort: 'xhigh' })
+      expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
+      expect(w.fetches).toEqual([])
+    })
+  }
+  test('omitting tools keeps inherited Codex write access and unrestricted sandbox eligibility', async () => {
+    for (const quota of [0, 1]) {
+      const w = world({ quota, definition: '---\nmodel: haiku\n---\nImplement the requested change.' })
+      const result = text(await w.agent({ ...coding, subagent_type: 'worker' }))
+      if (quota === 0) {
+        expect(runs(w)).toHaveLength(2)
+        expect(runs(w)[1].argv).toContain('workspace-write')
+        expect(runs(w)[1].stdin).toContain('Implement the requested change.')
+      } else expect(result).toContain('routed: zcode-job sandbox')
+    }
+  })
+  for (const model of ['sonnet', 'opus', 'fable', 'inherit', undefined]) {
+    test(`native-only tools fail closed for an unverifiable or forbidden model: ${model}`, async () => {
+      const w = world({ definition: `---\n${model ? `model: ${model}\n` : ''}tools: mcp__tracker__*\n---\nPerform the task.` })
+      expect(text(await w.agent({ subagent_type: 'tracker-specialist' }))).toStartWith('FAIL | router |')
+      expect(w.nextCalls).toEqual([])
+      expect(runs(w)).toEqual([])
+    })
+  }
+  test('an explicit permitted override makes an inherited native model verifiable', async () => {
+    const w = world({ definition: '---\nmodel: inherit\ntools: mcp__tracker__*\n---\nPerform the task.' })
+    await w.agent({ subagent_type: 'tracker-specialist', model: 'haiku' })
+    expect(w.nextCalls[0]).toMatchObject({ subagent_type: 'tracker-specialist', model: 'haiku' })
+  })
+  for (const fields of [
+    'tools: [Read', 'tools: null', 'tools: true', 'tools:', 'tools: {allow: Read}',
+    'tools: &allowed [Read]', 'tools: *allowed', 'tools: [Read]\ntools: [Write]',
+    'tools: [Read]\n"tools": [Write]', 'tools: [Read]\ndisallowedTools: null',
+    'tools: [Read]\n  disallowedTools: Bash',
+    'tools: mcp__tracker__get*unexpected', 'tools: Read,', 'tools: Bash(git:*',
+    'tools: ["Read", "Bash(git:*)]', 'tools: [Read,, Write]',
+    'tools : [Read', '"tools" : null', "'tools : [Read]", '"tools : [Read]',
+    'tools: [Read]\n"tools" : [Write]', 'disallowedTools : {deny: Bash}',
+    '  tools: [Read]', '{tools: [Read]}', "  'tools' : [Read]",
+    '{"disallowedTools" : [Bash]}', '  "too\\x6cs": [Read]',
+    '  model: haiku', '{model: haiku}', 'model: "ha\\qiku"',
+    'model: |\n  haiku',
+  ]) {
+    test(`ambiguous policy frontmatter never reaches an executor: ${fields}`, async () => {
+      const w = world({ definition: `---\n${fields}\n---\nPerform the task.` })
+      expect(text(await w.agent({ subagent_type: 'reviewer' }))).toStartWith('FAIL | router |')
+      expect(w.calls).toEqual([])
+      expect(w.nextCalls).toEqual([])
+    })
+  }
+  test('an unterminated frontmatter block fails closed', async () => {
+    const w = world({ definition: '---\nmodel: haiku\ntools: [Read]\nPerform the task.' })
+    expect(text(await w.agent({ subagent_type: 'reviewer' }))).toStartWith('FAIL | router |')
+    expect(w.calls).toEqual([])
+    expect(w.nextCalls).toEqual([])
+  })
+  test('CRLF, comments and folded metadata preserve the allowlist', async () => {
+    const w = world({ definition: '---\r\nmodel: "haiku" # permitted\r\ndescription: >\r\n  Inspect the repository.\r\ntools: [Read, Grep, Glob] # file reads\r\n---\r\nFollow the rubric.' })
+    await w.agent({ subagent_type: 'reviewer' })
+    expect(runs(w)[0].argv).toContain('read-only')
+    expect(runs(w)[0].stdin).toContain('Follow the rubric.')
+  })
+  for (const metadata of [
+    "description: Review the user's changes",
+    'description: "Review: the supplied changes"',
+    "description: 'Review the user''s changes'",
+    'description: Review the supplied changes\n  and report the results.',
+    'description: "Review the supplied changes\n  and report the results."',
+    'description: |\n  Review the supplied changes.\n  Report the results.',
+    'description: >-\n  Review the supplied changes\n  and report the results.',
+    'metadata:\n  tags: [review, "code: changes"]',
+    'metadata: {tags: [review, "code: changes"]}',
+    'description: |\n  Review the supplied changes.\n  tools: Bash\n  model: opus',
+    'metadata:\n  tools: [Bash]\n  model: opus\n  tags: [review, "code: changes"]',
+    String.raw`description: 'Check "C:\path": text'`,
+    'metadata: {tools: [Bash], model: opus}',
+  ]) {
+    for (const tools of ['', 'tools: [Read, Grep, Glob]\n', 'tools:\n  - Read\n  - Grep\n  - Glob\n']) {
+      test(`unrelated metadata preserves inherited or restricted routing: ${metadata}; ${tools}`, async () => {
+        const definition = `---\n${metadata}\nmodel: "haiku"\n${tools}---\nFollow the rubric.`
+        const parsed = parseAgentDefinition(definition)
+        expect(parsed.model).toBe('haiku')
+        expect(parsed.tools).toEqual(tools ? ['Read', 'Grep', 'Glob'] : undefined)
+        expect(parsed.disallowedTools).toBeUndefined()
+        const w = world({ definition })
+        await w.agent({ subagent_type: 'reviewer' })
+        expect(runs(w)).toHaveLength(1)
+        expect(runs(w)[0].argv).toContain(tools ? 'read-only' : 'workspace-write')
+        expect(runs(w)[0].stdin).toContain('Follow the rubric.')
+        expect(w.nextCalls).toEqual([])
+      })
+    }
+  }
 })
 
 describe('Codex first', () => {
@@ -325,8 +566,7 @@ describe('capped ladder', () => {
     const w = world({ quota: 1, env: gateways, definition: '---\nmodel: haiku\n---\nRead app.ts and run its tests.' })
     await w.agent({ ...textTask, subagent_type: 'reviewer' })
     expect(w.fetches).toEqual([])
-    expect(w.nextCalls[0]).toMatchObject({ subagent_type: 'general-purpose', model: 'haiku', effort: 'xhigh' })
-    expect(w.nextCalls[0].prompt).toContain('Read app.ts and run its tests.')
+    expect(w.nextCalls[0]).toMatchObject({ subagent_type: 'reviewer', model: 'haiku', effort: 'xhigh', prompt: textTask.prompt })
   })
   for (const task of [
     { description: '[class: standard]', prompt: 'Edit app.ts and run its tests.' },

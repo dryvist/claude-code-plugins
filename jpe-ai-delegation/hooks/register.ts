@@ -1,6 +1,8 @@
 import type { EngineInterface, Register } from 'claude-code'
 import { CLASSIFIER, CODEX, JUDGE, LAST_RESORT, UTILITY, codexArgv, codingTask, explicitLabel, forbiddenModel, isAdvisory, isGenericType, isShellCAsk, mandatoryLabel, newestModel, parseVerdict, pickLabel, safePayload } from './lib/policy'
 import type { Label, Route, Sandbox } from './lib/policy'
+import { customAgentSandbox, parseAgentDefinition } from './lib/agent-definition'
+import type { AgentDefinition } from './lib/agent-definition'
 
 type Engine = EngineInterface
 type AgentCall = { description?: string; prompt: string; subagent_type?: string; model?: string; effort?: string; name?: string; isolation?: string }
@@ -283,7 +285,7 @@ async function codexNoAnswer($: Engine, e: AgentCall, route: string): Promise<un
   } as never
 }
 
-async function customAgentDefinition($: Engine, type: string): Promise<{ model?: string; prompt: string } | undefined> {
+async function customAgentDefinition($: Engine, type: string): Promise<AgentDefinition | undefined> {
   if (!/^[\w:.-]+$/.test(type)) return undefined
   const cwd = await $.session.cwd()
   const home = await $.env.get('HOME')
@@ -316,32 +318,46 @@ async function customAgentDefinition($: Engine, type: string): Promise<{ model?:
   }
 
   if (text === undefined) return undefined
-  const frontmatter = text.match(/^---\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/)
-  const model = frontmatter?.[1].match(/^model:\s*(?:"([^"]*)"|'([^']*)'|([^\s#]+))(?:\s+#.*)?$/m)
-  return { model: model?.[1] ?? model?.[2] ?? model?.[3], prompt: frontmatter ? text.slice(frontmatter[0].length).trim() : '' }
+  return parseAgentDefinition(text)
 }
 
 async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknown>): Promise<unknown> {
   if (forbiddenModel(e.model) || forbiddenModel(e.subagent_type)) return failure(e, 'Sonnet, Opus and Fable subagents are forbidden')
+  const original = e
+  let definition: AgentDefinition | undefined
+  let customSandbox: Sandbox | undefined
   if (e.subagent_type && !isGenericType(e)) {
-    const definition = await customAgentDefinition($, e.subagent_type)
+    try {
+      definition = await customAgentDefinition($, e.subagent_type)
+    } catch {
+      return failure(e, 'custom agent model or tool restrictions could not be read')
+    }
     if (!definition) return failure(e, 'custom agent definition could not be verified')
     if (forbiddenModel(definition.model)) return failure(e, 'Sonnet, Opus and Fable subagents are forbidden')
+    customSandbox = customAgentSandbox(definition)
     if (definition.prompt) e = { ...e, prompt: `Custom agent instructions:\n${definition.prompt}\n\nTask:\n${e.prompt}` }
   }
   if (!safePayload(`${e.description ?? ''}\n${e.prompt}`)) return failure(e, 'payload contains prohibited content')
   const quota = await codexQuotaStatus($)
   if (quota === UNAVAILABLE) return failure(e, 'Codex quota status unavailable')
+  if (definition && customSandbox === undefined) {
+    // An inherited model cannot be verified on a native pass-through.
+    const model = original.model ?? definition.model
+    if (!model || model === 'inherit') return failure(e, 'custom agent requires an explicit permitted model for native tools')
+    await logDecision($, 'route: custom tool policy -> native custom agent')
+    return next(original as never)
+  }
   if (quota === 'codex-quota: available') {
     if (!(await codexReady($))) return failure(e, 'Codex unavailable while quota is available')
     const label = await classify($, e)
     const advisory = isAdvisory(label) || isAdvisory(explicitLabel(e.description) ?? label)
     if (mandatoryLabel(`${e.description ?? ''}\n${e.prompt}`)) e = { ...e, description: `${e.description ?? ''} [class: bulk-complex]` }
-    const sandbox: Sandbox = advisory || e.subagent_type === 'Explore' || e.subagent_type === 'Plan' ? 'read-only' : 'workspace-write'
+    const sandbox: Sandbox = advisory || e.subagent_type === 'Explore' || e.subagent_type === 'Plan' || customSandbox === 'read-only' ? 'read-only' : 'workspace-write'
     const result = await runRoutedCodex($, e, label, CODEX[label], sandbox, `class ${label}`)
     return result ?? codexNoAnswer($, e, label)
   }
-  const sandbox = await runSandboxExecutor($, e)
+  const restricted = definition && (definition.tools !== undefined || Boolean(definition.disallowedTools?.length))
+  const sandbox = restricted ? undefined : await runSandboxExecutor($, e)
   if (sandbox) return sandbox
   // Only explicitly self-contained text work qualifies for transports without tools.
   if (!e.isolation && isGenericType(e) && !['Explore', 'Plan'].includes(e.subagent_type ?? '') && !codingTask(e.description) && e.description?.includes('[class: text]')) {
@@ -351,8 +367,7 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
     }
   }
   await logDecision($, 'route: capped, earlier rungs ineligible -> claude haiku xhigh')
-  // The custom instructions have already been loaded and screened above.
-  return next({ ...e, subagent_type: isGenericType(e) ? e.subagent_type : 'general-purpose', ...LAST_RESORT } as never)
+  return next({ ...original, ...LAST_RESORT } as never)
 }
 
 // Answers core's bypass-immune "shell -c script runs rm" ask. Anything but a clean verdict returns core's own
