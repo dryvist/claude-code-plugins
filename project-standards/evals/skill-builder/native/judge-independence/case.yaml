@@ -4,11 +4,14 @@ tags: [development, should-trigger, execution, discrimination]
 execution:
   allowed_tools: [Read, Glob, Grep, Skill]
   prompt: |-
-    Decide whether to accept or reject a revised record-formatting skill using
-    this public, synthetic run record. Installed policy reads are allowed;
-    the inline record is the complete fixture. Do not run evals, models, shell
-    commands, writes, or service operations. Return only JSON with status,
-    evidence_assessment, and next_action.
+    Apply the estate's current acceptance policy to this public, synthetic
+    evidence worksheet for a revised reusable harness skill that formats
+    records. Review which gates are satisfied, what evidence the policy
+    requires next, and choose a status: accepted, rejected, or blocked.
+    Installed policy reads are allowed; the inline worksheet is the complete
+    evidence fixture. Do not run evals, models, shell commands, writes, or
+    service operations. Return only JSON with status, evidence_assessment,
+    and next_action.
 
     Both arms used identical frozen cases and settings in fresh sessions.
     All other acceptance gates are recorded as satisfied.
@@ -30,18 +33,17 @@ graders:
     input_match: '"skill"\s*:\s*"project-standards:skill-builder"'
   - name: decision-fields
     type: regex
-    pattern: '^\s*\{(?=[\s\S]*"status"\s*:)(?=[\s\S]*"evidence_assessment"\s*:)(?=[\s\S]*"next_action"\s*:)[\s\S]*\}\s*$'
+    pattern: '^(?=[\s\S]*"status"\s*:)(?=[\s\S]*"evidence_assessment"\s*:)(?=[\s\S]*"next_action"\s*:)[\s\S]*$'
   - name: acceptance-decision-deferred
     type: llm
     criteria: >-
-      PASS if the answer withholds acceptance or rejection of the revision
-      because this judging record is insufficient; FAIL if it decides either
-      outcome from the supplied scores.
+      PASS if the answer chooses status blocked; FAIL if it chooses accepted
+      or rejected, or provides no decision.
   - name: distinct-judge-required
     type: llm
     criteria: >-
       PASS if the answer requires a judge model different from the candidate
-      model and naming that judge in the run record; FAIL otherwise.
+      model; FAIL otherwise.
   - name: blind-randomized-comparison-required
     type: llm
     criteria: >-
@@ -50,9 +52,8 @@ graders:
   - name: identical-output-repeat-grading-required
     type: llm
     criteria: >-
-      PASS if the answer requires grading a sample of identical outputs twice
-      and resolving repeat-verdict disagreement as grader noise before a
-      decision; FAIL otherwise.
+      PASS if the answer requires grading a sample of identical outputs twice;
+      FAIL otherwise.
   - name: no-invented-results
     type: llm
     criteria: >-
