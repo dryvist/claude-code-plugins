@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.40.1](https://github.com/dryvist/claude-code-plugins/compare/v6.40.0...v6.40.1) (2026-11-07)
+
+
+### Bug Fixes
+
+* **delegation:** keep custom agent tool limits across routing ([#725](https://github.com/dryvist/claude-code-plugins/issues/725)) ([feba7cb](https://github.com/dryvist/claude-code-plugins/commit/feba7cbe243e897cda3617e17f78beae4cba04df))
+
 ## [6.40.0](https://github.com/dryvist/claude-code-plugins/compare/v6.39.7...v6.40.0) (2026-11-07)
 
 

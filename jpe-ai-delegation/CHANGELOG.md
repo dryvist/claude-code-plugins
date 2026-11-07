@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.12.3](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.12.2...jpe-ai-delegation-v1.12.3) (2026-11-07)
+
+
+### Bug Fixes
+
+* **delegation:** keep custom agent tool limits across routing ([#725](https://github.com/dryvist/claude-code-plugins/issues/725)) ([feba7cb](https://github.com/dryvist/claude-code-plugins/commit/feba7cbe243e897cda3617e17f78beae4cba04df))
+
 ## [1.12.2](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.12.1...jpe-ai-delegation-v1.12.2) (2026-11-06)
 
 
