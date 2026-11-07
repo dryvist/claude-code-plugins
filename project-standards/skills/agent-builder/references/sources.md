@@ -13,7 +13,7 @@ supplies a new rule here. No practitioner sources are used.
 | ID | Official source | Published or revised | Retrieved | Rules applied |
 | --- | --- | --- | --- | --- |
 | A1 | Anthropic, [context engineering](https://claude.dev/blog/the-new-rules-of-context-engineering-for-claude-5-generation-models/) | Published 2026-07-24 | 2026-11-06 | Task-specific context, progressive disclosure, tool-owned instructions, remove redundant scaffolding. |
-| A2 | Anthropic, [agent automations](https://claude.dev/blog/building-effective-agent-automations/) | Published 2026-10-08 | 2026-11-06 | Read-only preferences, constrained sources/destinations, delivery confirmation and bookmarks. |
+| A2 | Anthropic, [agent automations](https://claude.dev/blog/building-effective-agent-automations/) | Published 2026-10-08 | 2026-11-06; reverified 2026-11-07 | Fresh read-only preferences with stop on unreadable input; pre-delivery status rechecks, source-field links, recorded unverifiable cuts; constrained sources/destinations, delivery confirmation and bookmarks. |
 | A3 | Anthropic, [eval design and hillclimbing](https://claude.dev/blog/automating-eval-design-and-hillclimbing/) | Published 2026-09-28 | 2026-11-06 | Production tasks, calibrated graders, clean repeated trials, baselines, evaluator-owned held-out sets. |
 | O1 | OpenAI, [skills and prompts](https://learn.chatgpt.com/blog/rethinking-skills-and-prompts-for-gpt-6-astra) | Published 2026-09-11 | 2026-11-06 | Narrow descriptions, outcome-driven instructions, measure changes instead of accumulating rules. |
 | O2 | OpenAI Agents SDK, [guardrails](https://github.com/openai/openai-agents-python/blob/f53c62451c7f34c15f0c87fa745e05404025420f/docs/guardrails.md) | Revised [2026-10-13](https://github.com/openai/openai-agents-python/commit/f53c62451c7f34c15f0c87fa745e05404025420f) | 2026-11-06 | Input/output checks have different boundaries; use pre-action enforcement, verify handoffs and tool coverage. |
@@ -25,6 +25,10 @@ Rendered Google guides: [evaluation](https://adk.dev/evaluate/) and
 [safety](https://adk.dev/safety/), both undated and retrieved **2026-11-06**.
 Their retrieval does not date the rendered content. Apply the practices through the existing
 platform, without introducing ADK or a second evaluation framework.
+
+A2's title, publication date, and `memory` and `agent` guidance were fetched
+live on **2026-11-07**. The official [Claude resources site](https://claude.com/resources/articles)
+links `claude.dev` as its developer blog, confirming the publisher.
 
 ## Findings at the base revision
 
