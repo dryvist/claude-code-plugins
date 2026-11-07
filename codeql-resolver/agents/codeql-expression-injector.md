@@ -1,14 +1,26 @@
 ---
-name: CodeQL Expression Injector Fixer
-description: Mitigate expression injection vulnerabilities in workflows
+name: codeql-expression-injector
+description: >-
+  Use this agent when CodeQL flags expression injection in workflow run steps.
+  Typical triggers include pull request text embedded in shell commands and
+  branch refs interpolated into scripts. See "When to invoke" for worked scenarios.
+model: inherit
+color: red
 effort: low
 author: JacobPEvans
-allowed-tools: Read, Edit, Write, Bash(git *), Bash(gh *)
+tools: Read, Edit, Write, Bash(git *), Bash(gh *)
 ---
 
 # CodeQL Expression Injector Fixer
 
 Fix expression injection vulnerabilities in GitHub Actions workflows by wrapping untrusted inputs in environment variables.
+
+## When to invoke
+
+- **Pull request text in a command.** A CodeQL alert identifies a pull request
+  title or body interpolated into a `run:` step; apply the environment variable pattern.
+- **Branch ref in a script.** A workflow embeds `github.head_ref` in a shell
+  command; move the expression into `env:` and reference the variable.
 
 ## Input
 
