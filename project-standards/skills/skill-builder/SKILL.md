@@ -1,10 +1,9 @@
 ---
 name: skill-builder
 description: >-
-  This skill applies when authoring reusable skills, tuning triggers, or
-  assessing release acceptance and evaluation evidence, even without edits.
-  It excludes running existing skills, platform agent authoring or promotion,
-  and ordinary code or doc edits.
+  Guides reusable skill creation, trigger tuning, packaging and context-budget
+  reviews, and evaluation or comparison decisions, including evidence-only
+  acceptance. Excludes running existing skills, platform agents, and ordinary edits.
 ---
 
 # Skill builder
@@ -29,7 +28,8 @@ For a text-only draft, return the complete SKILL.md contents; write no files.
 Keep unrun validation and behavioral acceptance explicitly unverified. An
 unavailable evaluator blocks acceptance, not drafting. For evidence review,
 judge the supplied facts against the inline gates without searching for
-unsupplied artifacts or running operations. Sources: S1, S4.
+unsupplied artifacts or running operations. Consulting installed skill policy
+is distinct from a network lookup or an evaluation run. Sources: S1, S4.
 
 For authoring, read [claude-skill-authoring](../claude-skill-authoring/SKILL.md) for placement,
 description budgets, and the self-contained rule. Use Anthropic's
@@ -93,6 +93,12 @@ Evaluate triggering independently of execution: present ordinary user requests
 without explicitly invoking the skill and measure selection. Then test task
 completion with the intended skill loaded. Compare real artifacts and tool
 actions, not a model's claim that it followed the skill.
+In native WITH/WITHOUT results, positive Skill-call indicators have
+`scored: false`: task scores and command success do not prove activation.
+Read each indicator and compute trigger precision/recall separately. A false
+indicator reports a missed selection, not proof of a broken indicator. Equal
+task scores show no measured task contribution on those cases; retain them
+as controls and add harder development cases. Source: S4.
 For tool-using skills, grade tool selection, arguments, permitted side effects,
 and resulting state alongside final outputs. Allow equivalent valid paths;
 require call ordering only for a task invariant. Include denied operations,
@@ -162,6 +168,11 @@ evaluation. Improve against development cases only, then rerun affected checks.
 Accept only when structural checks and declared behavioral thresholds pass,
 no authority/privacy boundary is violated, and held-out results show no
 regression. Preserve test evidence with the same change as the behavior.
+In evidence decisions, preserve valid observations within their measured
+scope even when acceptance is blocked. Invalidate contaminated comparisons,
+not unrelated format or boundary results. Require the clean previous-version
+arm for updates, fresh evaluator-owned replacements for exposed held-out
+cases, and missing latency/cost measurements before efficiency claims.
 Report changed paths, trigger precision/recall, task/baseline comparison,
 held-out result, uncertainty, checks, and delivery status. Mark unavailable
 behavioral runs as unverified; format validation alone proves no behavior.

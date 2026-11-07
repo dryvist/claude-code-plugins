@@ -1,0 +1,32 @@
+schema_version: "1.1"
+name: skill-comparison-control
+tags: [development, should-trigger, execution, discrimination]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: >-
+    Decide release acceptance for a revised reusable skill under the authoring
+    rules. Candidate, previous-version-only, and no-plugin arms ran identical
+    frozen suites in repeated fresh sessions with identical model and tool
+    settings. All task scores are 1.00, all positive requests actually select
+    the intended version, and all negative requests avoid it. Independent
+    unseen acceptance cases show no task regression. Structure and boundary
+    checks pass. Candidate latency is 2 seconds versus the previous version's
+    1 second in every trial; the predeclared latency maximum is 1.5 seconds.
+    Cost is unchanged. Return only JSON with status, supported_claims, and
+    next_action. Assess the supplied evidence only, with no operations.
+graders:
+  - name: selected-skill-builder
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:[\w-]+:)?skill-builder"'
+  - name: separate-quality-trigger-and-efficiency
+    type: llm
+    criteria: >-
+      PASS if acceptance stays blocked by the measured latency threshold
+      violation while retaining successful activation, structure, boundaries,
+      and no task regression as valid observations. Equal task scores show
+      no measured task contribution, not a trigger failure or contaminated
+      baseline. Keep ceiling-score cases as controls and propose harder
+      development cases and a measured latency fix before renewed acceptance.
+      FAIL if it accepts, claims task quality improved, discards valid evidence,
+      invents contamination, or proposes tuning on unseen acceptance cases.

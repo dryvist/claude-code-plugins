@@ -13,7 +13,8 @@ execution:
     the proposal sets only Claude's disable-model-invocation. Return only JSON
     with description_bytes, description_status, body_status, safety_decision,
     and invocation_correction. Decide from these supplied facts without
-    writing files, running counters, fetching guidance, or inventing results.
+    writing files, running counters, making network lookups, or inventing
+    results. Installed authoring policy may be consulted.
 graders:
   - name: selected-skill-builder
     type: tool_used

@@ -72,3 +72,23 @@ performance are different measurements. A review of instructions or a hand-run
 case does not establish target-harness trigger precision or a held-out result.
 Refresh on changed source guidance, models, tools, or harnesses; freeze unseen
 cases with the evaluator before any optimization.
+
+## Evidence and packaging review trace
+
+Review guidance checked **2026-11-07**. S4's undated native reference was
+rechecked on that date: positive Skill-call checks are unscored indicators
+in two-arm runs, and equal task scores measure no task contribution on those
+cases. Those semantics stay inline for evidence decisions; the experiment
+contract is not required to interpret a supplied result. A3 (2026-09-28) and
+S1 (2026-03-06) support preserving measured observations while rejecting
+contaminated comparisons and requesting clean repetitions.
+
+Packaging reviews apply E1's byte maximum, the separately retained installed
+token budget, and inline safety exception. The native packaging prompt permits
+installed policy reads while excluding network lookups; neither authority nor
+the rubric's limits change. Descriptions include packaging/context-budget and
+comparison reviews, while excluding platform-agent work and skill execution.
+The new native comparison-control case separates correct activation, unchanged
+task quality, and a measured efficiency regression. Existing ceiling-score
+cases remain controls. Discrimination and trigger recall remain unmeasured
+until the lead runs the revised suites.
