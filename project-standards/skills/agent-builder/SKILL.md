@@ -49,9 +49,10 @@ and service permissions, required checks, stop conditions, and delivery format.
 Proceed within those boundaries. Stop for a conflicting contract, missing
 schema/template/connector, missing authority, or the task's declared failure
 limit. If none is supplied, stop after 2 unsuccessful real fixes to the same
-check. Report the specific blocker without inventing defaults. Authoring does
-not authorize import, publishing, or live execution; perform those stages only
-within the task's service permissions.
+check. If blocked, return the authoring record with the missing prerequisites
+and the existing definition to inspect; leave unknown schema fields unresolved.
+Authoring does not authorize import, publishing, or live execution; perform
+those stages only within the task's service permissions.
 
 ## Author the canonical inputs
 

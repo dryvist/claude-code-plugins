@@ -89,3 +89,10 @@ and review-only authority. Existing incomplete-evidence cases remain controls.
 All package and promotion rubric requirements remain in place. Behavioral
 and trigger improvements require the lead's native runs; source review and
 static checks establish no measured gain.
+
+Bounded authoring reporting clarified **2026-11-07** under E2's prerequisite
+and authority policy and O3's terminal/partial output guidance. A blocked
+authoring result returns its scope record, missing inputs, and existing
+definition to inspect, with unknown schema fields unresolved. The native
+author-definition rubric remains unchanged; it checks this authoring branch
+separately from evidence-only reviews.
