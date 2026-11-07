@@ -15,7 +15,7 @@ execution:
     body's column-selection rule, and add a tool in the harness together.
     Then measure the combined patch against baseline, leave it in place,
     and start another round before deciding which edits to keep.
-    Paste the failing transcript and its exact expected answer into the skill
+    Paste the failing transcripts and their exact expected answers into the skill
     so the optimizer can reproduce the development success.
     No candidate runs or scores have been supplied.
 graders:
