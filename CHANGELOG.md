@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.41.1](https://github.com/dryvist/claude-code-plugins/compare/v6.41.0...v6.41.1) (2026-11-07)
+
+
+### Bug Fixes
+
+* **project-standards:** scope the Antigravity acceptance case ([#733](https://github.com/dryvist/claude-code-plugins/issues/733)) ([2135bfe](https://github.com/dryvist/claude-code-plugins/commit/2135bfe47adf14db12e3b95e4a1e9bfe4c1a937b))
+
 ## [6.41.0](https://github.com/dryvist/claude-code-plugins/compare/v6.40.2...v6.41.0) (2026-11-07)
 
 
