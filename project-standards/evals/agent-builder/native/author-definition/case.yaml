@@ -27,7 +27,9 @@ graders:
   - name: existing-worker-reused
     type: llm
     criteria: >-
-      PASS if the response reuses the existing worker; FAIL otherwise.
+      PASS if the response names the existing worker as the definition to
+      reuse or extend instead of authoring a new one for the same
+      responsibility; FAIL if it authors or proposes a duplicate definition.
   - name: deployment-unexecuted
     type: llm
     criteria: >-
