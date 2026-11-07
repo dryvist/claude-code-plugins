@@ -4,8 +4,8 @@ export type AgentDefinition = { model?: string; prompt: string; tools?: string[]
 const WRITERS = ['Edit', 'Write', 'NotebookEdit', 'Bash']
 const CODEX_TOOLS = ['Read', 'Grep', 'Glob', ...WRITERS]
 
-// The hooks environment has no YAML library. Accept the policy's scalar/list syntax;
-// ambiguous YAML stays closed rather than being interpreted as inherited authority.
+// The hook VM exposes neither Bun.YAML nor package imports; parse only policy keys.
+// Leave unrelated metadata to Claude Code's YAML parser.
 function scalar(raw: string, tool = false): string {
   let value = raw.trim()
   const quoted = value.match(/^("(?:[^"\\]|\\.)*"|'(?:[^']|'')*')(?:[ \t]+#.*)?$/)
@@ -71,8 +71,9 @@ export function parseAgentDefinition(text: string): AgentDefinition {
     const line = lines[i]
     if (!line.trim() || /^\s*#/.test(line)) continue
     const field = line.match(/^(?:([\w-]+)|"([\w-]+)"|'([\w-]+)'):[ \t]*(.*)$/)
-    if (!field) throw new Error('unsupported agent frontmatter')
+    if (!field) continue
     const key = field[1] ?? field[2] ?? field[3]
+    if (key !== 'model' && key !== 'tools' && key !== 'disallowedTools') continue
     if (seen.has(key)) throw new Error('duplicate agent frontmatter key')
     seen.add(key)
     const value = field[4].trim().replace(/^#.*$/, '')
@@ -87,13 +88,10 @@ export function parseAgentDefinition(text: string): AgentDefinition {
       definition[key] = tools
     } else if (toolField) definition[key] = toolList(value)
     else if (key === 'model') definition.model = scalar(value)
-    else {
-      if (/^[|>][+-]?$/.test(value)) {
-        while (i + 1 < lines.length && (!lines[i + 1].trim() || /^\s+\S/.test(lines[i + 1]))) i++
-      } else {
-        if (value.startsWith('[')) toolList(value)
-        else scalar(value)
-      }
+    if (toolField) {
+      let next = i + 1
+      while (next < lines.length && (!lines[next].trim() || /^\s*#/.test(lines[next]))) next++
+      if (next < lines.length && /^\s+\S/.test(lines[next])) throw new Error('unsupported agent tool continuation')
     }
   }
   return definition

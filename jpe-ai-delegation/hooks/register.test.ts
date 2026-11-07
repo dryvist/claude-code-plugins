@@ -235,7 +235,6 @@ describe('custom agent tool authority', () => {
     'tools: [Read', 'tools: null', 'tools: true', 'tools:', 'tools: {allow: Read}',
     'tools: &allowed [Read]', 'tools: *allowed', 'tools: [Read]\ntools: [Write]',
     'tools: [Read]\n"tools": [Write]', 'tools: [Read]\ndisallowedTools: null',
-    'tools: [Read]\nunknown: {', 'tools: [Read]\n<<: *defaults',
     'tools: [Read]\n  disallowedTools: Bash',
     'tools: mcp__tracker__get*unexpected', 'tools: Read,', 'tools: Bash(git:*',
     'tools: ["Read", "Bash(git:*)]', 'tools: [Read,, Write]',
@@ -259,6 +258,34 @@ describe('custom agent tool authority', () => {
     expect(runs(w)[0].argv).toContain('read-only')
     expect(runs(w)[0].stdin).toContain('Follow the rubric.')
   })
+  for (const metadata of [
+    "description: Review the user's changes",
+    'description: "Review: the supplied changes"',
+    "description: 'Review the user''s changes'",
+    'description: Review the supplied changes\n  and report the results.',
+    'description: "Review the supplied changes\n  and report the results."',
+    'description: |\n  Review the supplied changes.\n  tools: Bash\n  model: opus',
+    'description: >-\n  Review the supplied changes\n  and report the results.',
+    'metadata:\n  tools: [Bash]\n  model: opus\n  tags: [review, "code: changes"]',
+    'metadata: {tags: [review, "code: changes"]}',
+    'defaults: &defaults {description: Review changes}\n<<: *defaults',
+  ]) {
+    for (const tools of ['', 'tools: [Read, Grep, Glob]\n', 'tools:\n  - Read\n  - Grep\n  - Glob\n']) {
+      test(`unrelated metadata preserves inherited or restricted routing: ${metadata}; ${tools}`, async () => {
+        const definition = `---\n${metadata}\nmodel: "haiku"\n${tools}---\nFollow the rubric.`
+        const parsed = parseAgentDefinition(definition)
+        expect(parsed.model).toBe('haiku')
+        expect(parsed.tools).toEqual(tools ? ['Read', 'Grep', 'Glob'] : undefined)
+        expect(parsed.disallowedTools).toBeUndefined()
+        const w = world({ definition })
+        await w.agent({ subagent_type: 'reviewer' })
+        expect(runs(w)).toHaveLength(1)
+        expect(runs(w)[0].argv).toContain(tools ? 'read-only' : 'workspace-write')
+        expect(runs(w)[0].stdin).toContain('Follow the rubric.')
+        expect(w.nextCalls).toEqual([])
+      })
+    }
+  }
 })
 
 describe('Codex first', () => {
