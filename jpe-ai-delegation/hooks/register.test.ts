@@ -159,7 +159,15 @@ describe('custom agent tool authority', () => {
     expect(w.calls).toEqual([])
     expect(w.nextCalls).toEqual([])
   })
-  for (const fields of ['  tools: [Read]', '{"tools": [Read]}', "  'disallowedTools' : [Bash]", 'model: "ha\\qiku"', '  model: opus']) {
+  for (const fields of [
+    '  tools: [Read]', '{"tools": [Read]}', "  'disallowedTools' : [Bash]", 'model: "ha\\qiku"', '  model: opus',
+    ...['"tools"', "'tools' ", '"too\\u006cs" ', '"\\x74ools" '].map((key) => `${key}: [Read]`),
+    ...['"disallowedTools" ', "'disallowedTools'\t"].map((key) => `tools: [Read, Bash]\n${key}: [Bash]`),
+    ...['"model" ', "'model'\t", '"mo\\x64el"'].map((key) => `${key}: opus`),
+    '? tools\n: [Read]', '? "to\\\n  ols"\n: [Read]', '? "mo\\\n  del"\n: opus',
+    '"to\\x6fls": [Read]', '  name: reviewer\n  tools: [Read]', 'model: haiku\nmodel: opus',
+    'defaults: &defaults {model: opus}\n<<: *defaults',
+  ]) {
     test(`unreadable policy reports a closed route at every quota: ${fields}`, async () => {
       for (const quota of [0, 1]) {
         const w = world({ quota, env: gateways, definition: `---\n${fields}\n---\nPerform the task.` })
@@ -170,9 +178,9 @@ describe('custom agent tool authority', () => {
       }
     })
   }
-  for (const key of ['tools ', 'tools\t', '"tools"', "'tools' ", '"too\\u006cs" ', '"\\x74ools" ']) {
+  for (const key of ['tools ', 'tools\t']) {
     for (const tools of ['[Read, Grep, Glob]', '# file reads\n  - Read # supplied files\n  # search helpers\n  - Grep\n\n  - Glob']) {
-      test(`spaced and quoted keys preserve the read-only allowlist: ${key}; ${tools}`, async () => {
+      test(`spaced plain keys preserve the read-only allowlist: ${key}; ${tools}`, async () => {
         const definition = `---\nmodel: haiku\n${key}: ${tools}\n---\nRead the supplied files.`
         expect(parseAgentDefinition(definition).tools).toEqual(['Read', 'Grep', 'Glob'])
         for (const quota of [0, 1]) {
@@ -193,9 +201,9 @@ describe('custom agent tool authority', () => {
       })
     }
   }
-  for (const key of ['disallowedTools ', '"disallowedTools" ', "'disallowedTools'\t"]) {
+  for (const key of ['disallowedTools ', 'disallowedTools\t']) {
     for (const tools of ['[Bash]', '# no shell\n  - Bash # retain native enforcement']) {
-      test(`spaced and quoted denials remove Bash from a write-capable agent: ${key}; ${tools}`, async () => {
+      test(`spaced plain denials remove Bash from a write-capable agent: ${key}; ${tools}`, async () => {
         const definition = `---\nmodel: haiku\ntools: [Read, Bash]\n${key}: ${tools}\n---\nPerform the task.`
         expect(parseAgentDefinition(definition).disallowedTools).toEqual(['Bash'])
         for (const quota of [0, 1]) {
@@ -210,8 +218,8 @@ describe('custom agent tool authority', () => {
       })
     }
   }
-  for (const key of ['model ', '"model" ', "'model'\t"]) {
-    test(`spaced and quoted model keys retain the forbidden-model guard: ${key}`, async () => {
+  for (const key of ['model ', 'model\t']) {
+    test(`spaced plain model keys retain the forbidden-model guard: ${key}`, async () => {
       const definition = `---\n${key}: opus\ntools: [Read]\n---\nRead the supplied files.`
       expect(parseAgentDefinition(definition).model).toBe('opus')
       const w = world({ definition })
@@ -321,8 +329,6 @@ describe('custom agent tool authority', () => {
     '{"disallowedTools" : [Bash]}', '  "too\\x6cs": [Read]',
     '  model: haiku', '{model: haiku}', 'model: "ha\\qiku"',
     'model: |\n  haiku',
-    'description: |\n  Review the supplied changes.\n  tools: Bash\n  model: opus',
-    'metadata:\n  tools: [Bash]\n  model: opus\n  tags: [review, "code: changes"]',
   ]) {
     test(`ambiguous policy frontmatter never reaches an executor: ${fields}`, async () => {
       const w = world({ definition: `---\n${fields}\n---\nPerform the task.` })
@@ -337,8 +343,8 @@ describe('custom agent tool authority', () => {
     expect(w.calls).toEqual([])
     expect(w.nextCalls).toEqual([])
   })
-  test('quoted policy keys, CRLF, comments and folded metadata preserve the allowlist', async () => {
-    const w = world({ definition: '---\r\nmodel: "haiku" # permitted\r\ndescription: >\r\n  Inspect the repository.\r\n"tools": [Read, Grep, Glob] # file reads\r\n---\r\nFollow the rubric.' })
+  test('CRLF, comments and folded metadata preserve the allowlist', async () => {
+    const w = world({ definition: '---\r\nmodel: "haiku" # permitted\r\ndescription: >\r\n  Inspect the repository.\r\ntools: [Read, Grep, Glob] # file reads\r\n---\r\nFollow the rubric.' })
     await w.agent({ subagent_type: 'reviewer' })
     expect(runs(w)[0].argv).toContain('read-only')
     expect(runs(w)[0].stdin).toContain('Follow the rubric.')
@@ -353,8 +359,10 @@ describe('custom agent tool authority', () => {
     'description: >-\n  Review the supplied changes\n  and report the results.',
     'metadata:\n  tags: [review, "code: changes"]',
     'metadata: {tags: [review, "code: changes"]}',
-    '"\\x64escription": Review the supplied changes',
-    'defaults: &defaults {description: Review changes}\n<<: *defaults',
+    'description: |\n  Review the supplied changes.\n  tools: Bash\n  model: opus',
+    'metadata:\n  tools: [Bash]\n  model: opus\n  tags: [review, "code: changes"]',
+    String.raw`description: 'Check "C:\path": text'`,
+    'metadata: {tools: [Bash], model: opus}',
   ]) {
     for (const tools of ['', 'tools: [Read, Grep, Glob]\n', 'tools:\n  - Read\n  - Grep\n  - Glob\n']) {
       test(`unrelated metadata preserves inherited or restricted routing: ${metadata}; ${tools}`, async () => {

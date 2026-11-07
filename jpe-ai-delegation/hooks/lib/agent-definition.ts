@@ -4,8 +4,8 @@ export type AgentDefinition = { model?: string; prompt: string; tools?: string[]
 const WRITERS = ['Edit', 'Write', 'NotebookEdit', 'Bash']
 const CODEX_TOOLS = ['Read', 'Grep', 'Glob', ...WRITERS]
 
-// Decode quoted YAML keys and scalar values with the same escape rules.
-function fieldName(raw: string): string {
+// Decode YAML scalar escapes without requiring a parser in the hook VM.
+function quotedScalar(raw: string): string {
   if (!raw.startsWith('"')) return raw.startsWith("'") ? raw.slice(1, -1).replace(/''/g, "'") : raw
   const escapes: Record<string, string> = { '0': '\0', a: '\x07', b: '\b', t: '\t', n: '\n', v: '\v', f: '\f', r: '\r', e: '\x1b', ' ': ' ', '"': '"', '/': '/', '\\': '\\', N: '\x85', _: '\u00a0', L: '\u2028', P: '\u2029' }
   return raw.slice(1, -1).replace(/\\(x[\da-fA-F]{2}|u[\da-fA-F]{4}|U[\da-fA-F]{8}|.)/g, (_, escaped: string) => {
@@ -15,14 +15,12 @@ function fieldName(raw: string): string {
   })
 }
 
-// The hook VM exposes neither Bun.YAML nor package imports; parse only policy keys.
-// Leave unrelated metadata to Claude Code's YAML parser.
 function scalar(raw: string, tool = false): string {
   let value = raw.trim()
   const quoted = value.match(/^("(?:[^"\\]|\\.)*"|'(?:[^']|'')*')(?:[ \t]+#.*)?$/)
-  if (quoted) return fieldName(quoted[1])
+  if (quoted) return quotedScalar(quoted[1])
   value = value.replace(/[ \t]+#.*$/, '').trim()
-  if (!value || (!tool && (/[\[\]{}&*!|>'"`\n\r]/.test(value) || /:\s/.test(value)))) throw new Error('unsupported frontmatter scalar')
+  if (!value || /^[\[\]{}&*!|>'"`]/.test(value) || (!tool && (/[\[\]{}&*!|>'"`\n\r]/.test(value) || /:\s/.test(value)))) throw new Error('unsupported frontmatter scalar')
   return value
 }
 
@@ -54,6 +52,11 @@ function toolEntries(value: string): string[] {
   return entries
 }
 
+function validateTools(tools: string[]): string[] {
+  if (tools.some((tool) => /^(?:null|true|false|yes|no|on|off)$/i.test(tool) || !/^(?:\*|mcp__[\w-]+__(?:[\w-]+\*?|\*)|[A-Za-z]\w*(?:\([^\r\n]*\))?)$/.test(tool))) throw new Error('invalid tool name')
+  return tools
+}
+
 function toolList(raw: string): string[] {
   const value = raw.trim()
   let tools: string[]
@@ -65,20 +68,10 @@ function toolList(raw: string): string[] {
   } else {
     tools = toolEntries(scalar(value, true))
   }
-  if (tools.some((tool) => /^(?:null|true|false|yes|no|on|off)$/i.test(tool) || !/^(?:\*|mcp__[\w-]+__(?:[\w-]+\*?|\*)|[A-Za-z]\w*(?:\([^\r\n]*\))?)$/.test(tool))) throw new Error('invalid tool name')
-  return tools
+  return validateTools(tools)
 }
 
-// The raw guard also sees policy keys in YAML forms the line parser cannot read.
-function verifyPolicyKeys(raw: string, seen: Set<string>): void {
-  const detected = new Set(raw.match(/(?<![\w-])(?:tools|disallowedTools|model)(?=["']?\s*:)/g) ?? [])
-  for (const field of raw.matchAll(/("(?:[^"\\]|\\.)*"|'(?:[^']|'')*')\s*:/g)) {
-    detected.add(fieldName(field[1]))
-  }
-  if (['tools', 'disallowedTools'].some((key) => detected.has(key) && !seen.has(key))) throw new Error('tool restrictions could not be read')
-  if (detected.has('model') && !seen.has('model')) throw new Error('agent model could not be read')
-}
-
+// The hook VM has no YAML parser: accept plain top-level keys and bounded policy values.
 export function parseAgentDefinition(text: string): AgentDefinition {
   const frontmatter = text.match(/^---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/)
   if (!frontmatter) {
@@ -88,37 +81,39 @@ export function parseAgentDefinition(text: string): AgentDefinition {
   const definition: AgentDefinition = { prompt: text.slice(frontmatter[0].length).trim() }
   const lines = frontmatter[1].split(/\r?\n/)
   const seen = new Set<string>()
+  let parent: string | undefined
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
     if (!line.trim() || /^\s*#/.test(line)) continue
-    const field = line.match(/^([\w-]+|"(?:[^"\\]|\\.)*"|'(?:[^']|'')*')[ \t]*:[ \t]*(.*)$/)
-    if (!field) {
-      if (/^(?:\?[ \t]+)?["']?(?:tools|disallowedTools|model)\b/.test(line)) throw new Error('invalid agent policy key')
-      continue
-    }
-    const key = fieldName(field[1])
+    if (line.startsWith(' ') && parent) continue
+    const field = line.match(/^([A-Za-z_][\w-]*)[ \t]*:([ \t]|$)/)
+    if (!field) throw new Error('unsupported agent frontmatter key')
+    const key = parent = field[1]
     if (key !== 'model' && key !== 'tools' && key !== 'disallowedTools') continue
     if (seen.has(key)) throw new Error('duplicate agent frontmatter key')
     seen.add(key)
-    const value = field[2].trim().replace(/^#.*$/, '')
+    const value = line.slice(field[0].length).trim().replace(/^#.*$/, '')
+    const continuation: string[] = []
+    while (i + 1 < lines.length && (!lines[i + 1].trim() || /^\s*#/.test(lines[i + 1]) || lines[i + 1].startsWith(' '))) {
+      const line = lines[++i]
+      if (line.trim() && !/^\s*#/.test(line)) continuation.push(line)
+    }
     const toolField = key === 'tools' || key === 'disallowedTools'
     if (toolField && !value) {
-      const tools: string[] = []
-      while (i + 1 < lines.length && (!lines[i + 1].trim() || /^\s*#/.test(lines[i + 1]) || /^\s*-\s/.test(lines[i + 1]))) {
-        const item = lines[++i].match(/^\s*-\s+(.+)$/)
-        if (item) tools.push(...toolList(`[${item[1]}]`))
-      }
-      if (!tools.length) throw new Error('empty agent tool field requires []')
-      definition[key] = tools
-    } else if (toolField) definition[key] = toolList(value)
-    else if (key === 'model') definition.model = scalar(value)
-    if (toolField) {
-      let next = i + 1
-      while (next < lines.length && (!lines[next].trim() || /^\s*#/.test(lines[next]))) next++
-      if (next < lines.length && /^\s+\S/.test(lines[next])) throw new Error('unsupported agent tool continuation')
+      if (!continuation.length) throw new Error('empty agent tool field requires []')
+      let indent: number | undefined
+      definition[key] = validateTools(continuation.map((line) => {
+        const item = line.match(/^( +)-[ \t]+(.+)$/)
+        if (!item || (indent !== undefined && item[1].length !== indent)) throw new Error('unsupported agent tool list entry')
+        indent = item[1].length
+        return scalar(item[2], true)
+      }))
+    } else {
+      if (continuation.length) throw new Error('unsupported agent policy continuation')
+      if (toolField) definition[key] = toolList(value)
+      else definition.model = scalar(value)
     }
   }
-  verifyPolicyKeys(frontmatter[1], seen)
   return definition
 }
 
