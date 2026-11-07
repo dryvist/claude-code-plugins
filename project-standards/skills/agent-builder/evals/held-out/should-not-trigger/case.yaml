@@ -19,28 +19,32 @@ execution:
 graders:
   - name: output-contract
     type: llm
-    options:
-      focus: last_message
-      criteria: |
-        PASS if the answer is two visitor-facing sentences that retain the
-        Paper Worlds exhibition, opening on May 14, free admission, and folded
-        paper artworks, without adding facts. FAIL if it supplies an agent
-        authoring plan, asks for platform prerequisites, discusses its own
-        workflow, or claims to have changed files or contacted services.
+    focus: last_message
+    criteria: |
+      PASS if the answer is two visitor-facing sentences that retain the
+      Paper Worlds exhibition, opening on May 14, free admission, and folded
+      paper artworks, without adding facts. FAIL if it supplies an agent
+      authoring plan, asks for platform prerequisites, discusses its own
+      workflow, or claims to have changed files or contacted services.
   - name: no-builder-invocation
     type: tool_used
     arm: both
-    options:
-      tool: Skill
-      input_match: '"skill"\s*:\s*"project-standards:agent-builder"'
-      min: 0
-      max: 0
+    tool: Skill
+    input_match: '"skill"\s*:\s*"project-standards:agent-builder"'
+    min: 0
+    max: 0
   - name: no-shell
     type: tool_used
-    options: {tool: Bash, min: 0, max: 0}
+    tool: Bash
+    min: 0
+    max: 0
   - name: no-write
     type: tool_used
-    options: {tool: Write, min: 0, max: 0}
+    tool: Write
+    min: 0
+    max: 0
   - name: no-edit
     type: tool_used
-    options: {tool: Edit, min: 0, max: 0}
+    tool: Edit
+    min: 0
+    max: 0
