@@ -1,9 +1,9 @@
 ---
-name: CodeQL Expression Injector Fixer
+name: codeql-expression-injector
 description: Mitigate expression injection vulnerabilities in workflows
 effort: low
 author: JacobPEvans
-allowed-tools: Read, Edit, Write, Bash(git *), Bash(gh *)
+tools: Read, Edit, Write, Bash(git *), Bash(gh *)
 ---
 
 # CodeQL Expression Injector Fixer

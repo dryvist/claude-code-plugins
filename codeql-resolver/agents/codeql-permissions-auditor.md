@@ -1,9 +1,9 @@
 ---
-name: CodeQL Permissions Auditor
+name: codeql-permissions-auditor
 description: Analyze workflow permission issues and apply fixes
 effort: low
 author: JacobPEvans
-allowed-tools: Read, Edit, Write, Bash(git *), Bash(gh *)
+tools: Read, Edit, Write, Bash(git *), Bash(gh *)
 ---
 
 # CodeQL Permissions Auditor

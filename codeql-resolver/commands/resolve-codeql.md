@@ -2,7 +2,7 @@
 description: Analyze and resolve CodeQL alerts systematically
 model: sonnet
 author: JacobPEvans
-allowed-tools: Task, TaskOutput, Bash(gh *), Bash(git *), Read, Grep, Glob, TodoWrite
+allowed-tools: Agent, Skill
 ---
 
 # Resolve CodeQL
@@ -32,7 +32,10 @@ Fix CodeQL alerts in **current repository only** by analyzing, classifying, and 
 
 ### Phase 1: Alert Discovery & Classification
 
-Replace `<OWNER>` and `<REPO>` before running.
+Use Agent to delegate this phase to `codeql-generic-resolver` in read-only mode:
+discover and classify alerts without editing files or committing changes.
+Pass the current repository and requested scope. Have the agent replace
+`<OWNER>` and `<REPO>` before running the query below.
 
 This endpoint needs a token carrying **`security_events: read`** (App
 installation) or the `security_events` scope (classic PAT). Without it the call
@@ -95,9 +98,9 @@ Each agent receives:
 
 After all agents complete:
 
-1. Re-run alert discovery
+1. Delegate read-only alert discovery to `codeql-generic-resolver` again
 2. Compare before/after counts
-3. Verify fixes committed to local branch
+3. Have that agent verify fixes committed to the local branch
 4. Report summary:
 
    ```text

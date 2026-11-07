@@ -1,9 +1,9 @@
 ---
-name: CodeQL Generic Resolver
+name: codeql-generic-resolver
 description: Handle non-standard CodeQL alerts with escalation for unclear patterns
 effort: low
 author: JacobPEvans
-allowed-tools: Read, Write, Edit, Grep, Glob, Bash(gh *), Bash(git *)
+tools: Read, Write, Edit, Grep, Glob, Bash(gh *), Bash(git *)
 ---
 
 # CodeQL Generic Resolver
@@ -74,7 +74,7 @@ rule_id:
 **File**: `scripts/deploy.py:42`
 
 ```python
-api_key = "sk-abc123def456"  # ALERT: Hardcoded credential
+api_key = "EXAMPLE_ONLY"  # ALERT: Hardcoded credential placeholder
 ```
 
 **Fix**:
