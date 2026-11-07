@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.7.6](https://github.com/dryvist/claude-code-plugins/compare/project-standards-v6.7.5...project-standards-v6.7.6) (2026-11-07)
+
+
+### Bug Fixes
+
+* **skill-builder:** check description overlap before paid trials ([#721](https://github.com/dryvist/claude-code-plugins/issues/721)) ([d29765a](https://github.com/dryvist/claude-code-plugins/commit/d29765a6c744fedd7a08ba045885a3deaaf55156))
+
 ## [6.7.5](https://github.com/dryvist/claude-code-plugins/compare/project-standards-v6.7.4...project-standards-v6.7.5) (2026-11-07)
 
 
