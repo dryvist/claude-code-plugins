@@ -1,6 +1,11 @@
 ---
 name: codeql-generic-resolver
-description: Handle non-standard CodeQL alerts with escalation for unclear patterns
+description: >-
+  Use this agent when CodeQL alerts fall outside workflow permissions and expression
+  injection. Typical triggers include resource cleanup findings and unfamiliar rule
+  IDs needing escalation. See "When to invoke" for worked scenarios.
+model: inherit
+color: yellow
 effort: low
 author: JacobPEvans
 tools: Read, Write, Edit, Grep, Glob, Bash(gh *), Bash(git *)
@@ -9,6 +14,13 @@ tools: Read, Write, Edit, Grep, Glob, Bash(gh *), Bash(git *)
 # CodeQL Generic Resolver
 
 Handle CodeQL alerts that don't fit the permissions or expression injection categories by analyzing, attempting common fixes, and escalating unclear cases.
+
+## When to invoke
+
+- **Resource cleanup finding.** A CodeQL alert identifies an unclosed resource;
+  assess the context and apply the supported cleanup pattern when it matches.
+- **Unfamiliar rule.** A request supplies an alert with an unsupported rule ID;
+  return the escalation summary with analysis and a recommendation for review.
 
 ## Input
 

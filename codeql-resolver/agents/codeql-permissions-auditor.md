@@ -1,6 +1,11 @@
 ---
 name: codeql-permissions-auditor
-description: Analyze workflow permission issues and apply fixes
+description: >-
+  Use this agent when CodeQL flags missing workflow permissions. Typical triggers
+  include jobs without explicit permission blocks and reusable workflow callers
+  needing the callee's permissions. See "When to invoke" for worked scenarios.
+model: inherit
+color: blue
 effort: low
 author: JacobPEvans
 tools: Read, Edit, Write, Bash(git *), Bash(gh *)
@@ -9,6 +14,13 @@ tools: Read, Edit, Write, Bash(git *), Bash(gh *)
 # CodeQL Permissions Auditor
 
 Fix "Workflow does not contain permissions" CodeQL alerts by analyzing and adding explicit permission blocks to GitHub Actions jobs.
+
+## When to invoke
+
+- **Job without permissions.** A CodeQL alert identifies a workflow job without
+  an explicit permission block; inspect its steps and declare the minimum permissions.
+- **Reusable workflow caller.** A request asks to resolve a permissions alert on
+  a reusable workflow call; inspect the callee and apply its caller contract.
 
 ## Input
 
