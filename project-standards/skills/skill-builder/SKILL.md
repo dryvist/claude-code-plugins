@@ -162,9 +162,9 @@ For Gemini CLI same-name skills, workspace scope overrides user scope; within
 either tier, `.agents/skills/` overrides `.gemini/skills/`. Verify the selected
 resource path and canonical revision before testing a distributed copy. Source: S5.
 
-For Antigravity CLI, run a separate acceptance case: verify the skill under
-its `.agents/skills/` workspace path and record the skill it selects on a
-real run. Do not assume Gemini path precedence carries over. Sources:
+When a skill targets Antigravity CLI, run a separate acceptance case: verify
+the skill under its `.agents/skills/` workspace path and record the skill it
+selects on a real run. Do not assume Gemini path precedence carries over. Sources:
 [Antigravity CLI migration][antigravity-migration]; [Gemini CLI to Antigravity
 CLI transition][antigravity-transition] (2026-05-19).
 
