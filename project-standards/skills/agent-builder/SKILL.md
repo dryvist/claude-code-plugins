@@ -46,6 +46,9 @@ within the task's service permissions.
 
 ## Author the canonical inputs
 
+Search canonical definitions first for an agent with the same responsibility.
+If one exists, reuse or extend it and name it; never author a duplicate.
+
 Create or update `agents/<name>.yaml`, its `agents/prompts/` prompt, and its
 evaluation inputs. Take field types and allowed values from the current schema;
 retain other required fields, including tool allowlists and routing roles.
@@ -157,6 +160,9 @@ configured observability backends; prove correlated trace receipt and successful
 execution separately.
 Every event carries `agent`, `tier`, `privacy_class`, `model`, and `accelerator`.
 Sim and Langflow shadows must suppress external side effects.
+
+Ship a `mode` change only as a PR reviewed and merged by the supervising lead.
+Passing evidence makes that PR eligible; it never authorizes publishing the change directly.
 
 Promote only when promptfoo evals pass and **7 days in shadow show no drop in
 Langfuse scores** against the versioned baseline. Missing scores or insufficient
