@@ -1,6 +1,8 @@
-import { describe, expect, test } from 'claude-code/testing'
+// Claude supplies its kit; standalone Bun runs the same IO fixture with its native kit.
+const { describe, expect, test } = await import('claude-code/testing').catch(() => import('bun:test'))
 import { register } from './register'
 import { CODEX, LAST_RESORT, codexArgv, explicitLabel, forbiddenModel, isAdvisory, mandatoryLabel, newestModel, parseVerdict, safePayload } from './lib/policy'
+import { customAgentSandbox, parseAgentDefinition } from './lib/agent-definition'
 
 const RAN = { exitCode: 0, stdout: '', stderr: '', isStdoutTruncated: false }
 const CACHE = JSON.stringify({ models: [
@@ -137,6 +139,125 @@ describe('policy', () => {
     expect(isAdvisory('complex')).toBe(false)
     expect(parseVerdict('{"verdict":"safe","reason":"bounded"}')).toEqual({ verdict: 'safe', reason: 'bounded' })
     expect(parseVerdict('{"verdict":"maybe","reason":"x"}')).toBeUndefined()
+  })
+})
+
+describe('custom agent tool authority', () => {
+  for (const tools of ['Read, Grep, Glob', '"Read, Grep, Glob"', '[Read, Grep, Glob]', '["Read", "Grep", "Glob"]', "['Read', 'Grep', 'Glob']", '\n  - Read\n  - Grep\n  - Glob', '# file reads\n  - Read\n  - Grep\n  - Glob']) {
+    test(`read-only allowlist selects the Codex read-only sandbox: ${tools}`, async () => {
+      const w = world({ definition: `---\nmodel: haiku\ntools: ${tools}\n---\nRead the supplied files.` })
+      await w.agent({ subagent_type: 'reviewer' })
+      expect(runs(w)).toHaveLength(1)
+      expect(runs(w)[0].argv).toContain('read-only')
+      expect(runs(w)[0].argv).not.toContain('workspace-write')
+      expect(w.nextCalls).toEqual([])
+    })
+  }
+  for (const tool of ['Edit', 'Write', 'NotebookEdit', 'Bash']) {
+    test(`${tool} permits workspace-write while advisory work stays read-only`, async () => {
+      for (const label of ['standard', 'plan']) {
+        const w = world({ definition: `---\nmodel: haiku\ntools: [Read, ${tool}]\n---\nPerform the task.` })
+        await w.agent({ subagent_type: 'worker', description: `[class: ${label}]` })
+        expect(runs(w)[0].argv).toContain(label === 'plan' ? 'read-only' : 'workspace-write')
+      }
+    })
+  }
+  for (const tools of ['mcp__tracker__*', '[mcp__tracker__get*]', '[Read, mcp__tracker__get]', '[WebFetch]', '[Agent]', '[Bash(git:*)]', '[Read, Bash(git:*)]', '[]']) {
+    for (const quota of [0, 1]) {
+      test(`native-only tools preserve the custom type and prompt at quota ${quota}: ${tools}`, async () => {
+        const w = world({ quota, env: gateways, definition: `---\nmodel: haiku\ntools: ${tools}\n---\nFollow the native instructions.` })
+        const call = { ...coding, subagent_type: 'tracker-specialist', model: 'haiku', isolation: 'worktree' }
+        await w.agent(call)
+        expect(w.nextCalls).toEqual([{ tool: 'Agent', ...call }])
+        expect(w.calls.map((c) => c.argv)).toEqual([['codex-quota'], ['tee', '-a', '/home/test/.claude/ai-delegation.log']])
+        expect(w.fetches).toEqual([])
+      })
+    }
+  }
+  for (const tools of [
+    'Bash(git:*), Read', '"Bash(git:*), Read"', '[Bash(git:*), Read]',
+    '["Bash(echo a,b:*)", Read]', "['Read(src/[ab](copy)*.ts)', Bash]",
+    '\n  - "Bash(echo # tag:*)"\n  - Read',
+  ]) {
+    test(`selectors parse without broadening their native authority: ${tools}`, async () => {
+      const definition = `---\nmodel: haiku\ntools: ${tools}\n---\nPerform the task.`
+      const parsed = parseAgentDefinition(definition)
+      expect(parsed.tools).toHaveLength(2)
+      expect(customAgentSandbox(parsed)).toBeUndefined()
+      const w = world({ definition })
+      await w.agent({ subagent_type: 'worker' })
+      expect(w.nextCalls[0]).toMatchObject({ subagent_type: 'worker', prompt: 'Implement the change.' })
+      expect(runs(w)).toEqual([])
+    })
+  }
+  for (const fields of ['disallowedTools: Bash', 'disallowedTools: [Write, Edit]', 'disallowedTools: [Bash(git:*)]', 'disallowedTools: mcp__tracker__*', 'tools: [Read, Bash]\ndisallowedTools:\n  - Bash']) {
+    test(`per-tool denials stay with the native custom agent: ${fields}`, async () => {
+      const w = world({ definition: `---\nmodel: haiku\n${fields}\n---\nPerform the task.` })
+      await w.agent({ subagent_type: 'reviewer' })
+      expect(runs(w)).toEqual([])
+      expect(w.nextCalls[0]).toMatchObject({ subagent_type: 'reviewer' })
+    })
+  }
+  for (const fields of ['tools: [Read, Grep, Glob]', 'tools: [Read, Write]']) {
+    test(`capped restricted agents retain their type and skip sandbox jobs: ${fields}`, async () => {
+      const w = world({ quota: 1, env: gateways, definition: `---\nmodel: inherit\n${fields}\n---\nFollow the custom instructions.` })
+      await w.agent({ ...coding, subagent_type: 'reviewer' })
+      expect(w.nextCalls[0]).toMatchObject({ ...coding, subagent_type: 'reviewer', model: 'haiku', effort: 'xhigh' })
+      expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
+      expect(w.fetches).toEqual([])
+    })
+  }
+  test('omitting tools keeps inherited Codex write access and unrestricted sandbox eligibility', async () => {
+    for (const quota of [0, 1]) {
+      const w = world({ quota, definition: '---\nmodel: haiku\n---\nImplement the requested change.' })
+      const result = text(await w.agent({ ...coding, subagent_type: 'worker' }))
+      if (quota === 0) {
+        expect(runs(w)).toHaveLength(2)
+        expect(runs(w)[1].argv).toContain('workspace-write')
+        expect(runs(w)[1].stdin).toContain('Implement the requested change.')
+      } else expect(result).toContain('routed: zcode-job sandbox')
+    }
+  })
+  for (const model of ['sonnet', 'opus', 'fable', 'inherit', undefined]) {
+    test(`native-only tools fail closed for an unverifiable or forbidden model: ${model}`, async () => {
+      const w = world({ definition: `---\n${model ? `model: ${model}\n` : ''}tools: mcp__tracker__*\n---\nPerform the task.` })
+      expect(text(await w.agent({ subagent_type: 'tracker-specialist' }))).toStartWith('FAIL | router |')
+      expect(w.nextCalls).toEqual([])
+      expect(runs(w)).toEqual([])
+    })
+  }
+  test('an explicit permitted override makes an inherited native model verifiable', async () => {
+    const w = world({ definition: '---\nmodel: inherit\ntools: mcp__tracker__*\n---\nPerform the task.' })
+    await w.agent({ subagent_type: 'tracker-specialist', model: 'haiku' })
+    expect(w.nextCalls[0]).toMatchObject({ subagent_type: 'tracker-specialist', model: 'haiku' })
+  })
+  for (const fields of [
+    'tools: [Read', 'tools: null', 'tools: true', 'tools:', 'tools: {allow: Read}',
+    'tools: &allowed [Read]', 'tools: *allowed', 'tools: [Read]\ntools: [Write]',
+    'tools: [Read]\n"tools": [Write]', 'tools: [Read]\ndisallowedTools: null',
+    'tools: [Read]\nunknown: {', 'tools: [Read]\n<<: *defaults',
+    'tools: [Read]\n  disallowedTools: Bash',
+    'tools: mcp__tracker__get*unexpected', 'tools: Read,', 'tools: Bash(git:*',
+    'tools: ["Read", "Bash(git:*)]', 'tools: [Read,, Write]',
+  ]) {
+    test(`ambiguous policy frontmatter never reaches an executor: ${fields}`, async () => {
+      const w = world({ definition: `---\nmodel: haiku\n${fields}\n---\nPerform the task.` })
+      expect(text(await w.agent({ subagent_type: 'reviewer' }))).toStartWith('FAIL | router |')
+      expect(w.calls).toEqual([])
+      expect(w.nextCalls).toEqual([])
+    })
+  }
+  test('an unterminated frontmatter block fails closed', async () => {
+    const w = world({ definition: '---\nmodel: haiku\ntools: [Read]\nPerform the task.' })
+    expect(text(await w.agent({ subagent_type: 'reviewer' }))).toStartWith('FAIL | router |')
+    expect(w.calls).toEqual([])
+    expect(w.nextCalls).toEqual([])
+  })
+  test('quoted policy keys, CRLF, comments and folded metadata preserve the allowlist', async () => {
+    const w = world({ definition: '---\r\nmodel: "haiku" # permitted\r\ndescription: >\r\n  Inspect the repository.\r\n"tools": [Read, Grep, Glob] # file reads\r\n---\r\nFollow the rubric.' })
+    await w.agent({ subagent_type: 'reviewer' })
+    expect(runs(w)[0].argv).toContain('read-only')
+    expect(runs(w)[0].stdin).toContain('Follow the rubric.')
   })
 })
 
@@ -325,8 +446,7 @@ describe('capped ladder', () => {
     const w = world({ quota: 1, env: gateways, definition: '---\nmodel: haiku\n---\nRead app.ts and run its tests.' })
     await w.agent({ ...textTask, subagent_type: 'reviewer' })
     expect(w.fetches).toEqual([])
-    expect(w.nextCalls[0]).toMatchObject({ subagent_type: 'general-purpose', model: 'haiku', effort: 'xhigh' })
-    expect(w.nextCalls[0].prompt).toContain('Read app.ts and run its tests.')
+    expect(w.nextCalls[0]).toMatchObject({ subagent_type: 'reviewer', model: 'haiku', effort: 'xhigh', prompt: textTask.prompt })
   })
   for (const task of [
     { description: '[class: standard]', prompt: 'Edit app.ts and run its tests.' },
