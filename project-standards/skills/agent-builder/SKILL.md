@@ -80,9 +80,10 @@ untrusted inputs; enforce permissions through runtime controls. For recurring
 work, preserve source bookmarks on failed reads and advance delivery state
 only after confirmed receipt. Return unavailable sources explicitly.
 Immediately before delivery, recheck each reportable item's live status;
-update changed items, drop resolved items, and record unverifiable items
-omitted from the report in the run record's cuts. Copy links from the source
-record's own fields, never assemble them.
+update changed items, drop items resolved since collection unless resolutions
+are what the report covers, and record unverifiable items omitted from the
+report in the run record's cuts. Copy links from the source record's own
+fields, never assemble them.
 Keep preferences read-only and read them fresh at the start of every run;
 never bake them into prompts or infer defaults. If preferences cannot be
 read, stop the run and report the unreadable source without using defaults.
