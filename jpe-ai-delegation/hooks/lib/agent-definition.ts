@@ -4,13 +4,13 @@ export type AgentDefinition = { model?: string; prompt: string; tools?: string[]
 const WRITERS = ['Edit', 'Write', 'NotebookEdit', 'Bash']
 const CODEX_TOOLS = ['Read', 'Grep', 'Glob', ...WRITERS]
 
-// Decode quoted YAML keys before identifying the policy fields.
+// Decode quoted YAML keys and scalar values with the same escape rules.
 function fieldName(raw: string): string {
   if (!raw.startsWith('"')) return raw.startsWith("'") ? raw.slice(1, -1).replace(/''/g, "'") : raw
   const escapes: Record<string, string> = { '0': '\0', a: '\x07', b: '\b', t: '\t', n: '\n', v: '\v', f: '\f', r: '\r', e: '\x1b', ' ': ' ', '"': '"', '/': '/', '\\': '\\', N: '\x85', _: '\u00a0', L: '\u2028', P: '\u2029' }
   return raw.slice(1, -1).replace(/\\(x[\da-fA-F]{2}|u[\da-fA-F]{4}|U[\da-fA-F]{8}|.)/g, (_, escaped: string) => {
     if (/^[xuU]/.test(escaped)) return String.fromCodePoint(parseInt(escaped.slice(1), 16))
-    if (!(escaped in escapes)) throw new Error('invalid quoted agent key')
+    if (!(escaped in escapes)) throw new Error('invalid quoted agent scalar')
     return escapes[escaped]
   })
 }
@@ -20,7 +20,7 @@ function fieldName(raw: string): string {
 function scalar(raw: string, tool = false): string {
   let value = raw.trim()
   const quoted = value.match(/^("(?:[^"\\]|\\.)*"|'(?:[^']|'')*')(?:[ \t]+#.*)?$/)
-  if (quoted) return quoted[1].startsWith('"') ? JSON.parse(quoted[1]) : quoted[1].slice(1, -1).replace(/''/g, "'")
+  if (quoted) return fieldName(quoted[1])
   value = value.replace(/[ \t]+#.*$/, '').trim()
   if (!value || (!tool && (/[\[\]{}&*!|>'"`\n\r]/.test(value) || /:\s/.test(value)))) throw new Error('unsupported frontmatter scalar')
   return value
@@ -69,6 +69,16 @@ function toolList(raw: string): string[] {
   return tools
 }
 
+// The raw guard also sees policy keys in YAML forms the line parser cannot read.
+function verifyPolicyKeys(raw: string, seen: Set<string>): void {
+  const detected = new Set(raw.match(/(?<![\w-])(?:tools|disallowedTools|model)(?=["']?\s*:)/g) ?? [])
+  for (const field of raw.matchAll(/("(?:[^"\\]|\\.)*"|'(?:[^']|'')*')\s*:/g)) {
+    detected.add(fieldName(field[1]))
+  }
+  if (['tools', 'disallowedTools'].some((key) => detected.has(key) && !seen.has(key))) throw new Error('tool restrictions could not be read')
+  if (detected.has('model') && !seen.has('model')) throw new Error('agent model could not be read')
+}
+
 export function parseAgentDefinition(text: string): AgentDefinition {
   const frontmatter = text.match(/^---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/)
   if (!frontmatter) {
@@ -108,6 +118,7 @@ export function parseAgentDefinition(text: string): AgentDefinition {
       if (next < lines.length && /^\s+\S/.test(lines[next])) throw new Error('unsupported agent tool continuation')
     }
   }
+  verifyPolicyKeys(frontmatter[1], seen)
   return definition
 }
 

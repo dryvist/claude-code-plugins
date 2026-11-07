@@ -143,6 +143,33 @@ describe('policy', () => {
 })
 
 describe('custom agent tool authority', () => {
+  for (const model of ['"ha\\x69ku"', '"ha\\u0069ku"', '"ha\\U00000069ku"']) {
+    test(`YAML model escapes preserve inherited routing: ${model}`, async () => {
+      for (const quota of [0, 1]) {
+        const w = world({ quota, definition: `---\nmodel: ${model}\n---\nImplement the requested change.` })
+        const result = text(await w.agent({ ...coding, subagent_type: 'worker' }))
+        if (quota === 0) expect(runs(w)[1].argv).toContain('workspace-write')
+        else expect(result).toContain('routed: zcode-job sandbox')
+      }
+    })
+  }
+  test('YAML model escapes retain the forbidden-model guard', async () => {
+    const w = world({ definition: '---\nmodel: "o\\x70us"\n---\nReview changes.' })
+    expect(text(await w.agent({ subagent_type: 'reviewer' }))).toContain('subagents are forbidden')
+    expect(w.calls).toEqual([])
+    expect(w.nextCalls).toEqual([])
+  })
+  for (const fields of ['  tools: [Read]', '{"tools": [Read]}', "  'disallowedTools' : [Bash]", 'model: "ha\\qiku"', '  model: opus']) {
+    test(`unreadable policy reports a closed route at every quota: ${fields}`, async () => {
+      for (const quota of [0, 1]) {
+        const w = world({ quota, env: gateways, definition: `---\n${fields}\n---\nPerform the task.` })
+        expect(text(await w.agent({ ...coding, subagent_type: 'worker' }))).toContain('model or tool restrictions could not be read')
+        expect(w.calls).toEqual([])
+        expect(w.nextCalls).toEqual([])
+        expect(w.fetches).toEqual([])
+      }
+    })
+  }
   for (const key of ['tools ', 'tools\t', '"tools"', "'tools' ", '"too\\u006cs" ', '"\\x74ools" ']) {
     for (const tools of ['[Read, Grep, Glob]', '# file reads\n  - Read # supplied files\n  # search helpers\n  - Grep\n\n  - Glob']) {
       test(`spaced and quoted keys preserve the read-only allowlist: ${key}; ${tools}`, async () => {
@@ -290,9 +317,15 @@ describe('custom agent tool authority', () => {
     'tools: ["Read", "Bash(git:*)]', 'tools: [Read,, Write]',
     'tools : [Read', '"tools" : null', "'tools : [Read]", '"tools : [Read]',
     'tools: [Read]\n"tools" : [Write]', 'disallowedTools : {deny: Bash}',
+    '  tools: [Read]', '{tools: [Read]}', "  'tools' : [Read]",
+    '{"disallowedTools" : [Bash]}', '  "too\\x6cs": [Read]',
+    '  model: haiku', '{model: haiku}', 'model: "ha\\qiku"',
+    'model: |\n  haiku',
+    'description: |\n  Review the supplied changes.\n  tools: Bash\n  model: opus',
+    'metadata:\n  tools: [Bash]\n  model: opus\n  tags: [review, "code: changes"]',
   ]) {
     test(`ambiguous policy frontmatter never reaches an executor: ${fields}`, async () => {
-      const w = world({ definition: `---\nmodel: haiku\n${fields}\n---\nPerform the task.` })
+      const w = world({ definition: `---\n${fields}\n---\nPerform the task.` })
       expect(text(await w.agent({ subagent_type: 'reviewer' }))).toStartWith('FAIL | router |')
       expect(w.calls).toEqual([])
       expect(w.nextCalls).toEqual([])
@@ -316,9 +349,9 @@ describe('custom agent tool authority', () => {
     "description: 'Review the user''s changes'",
     'description: Review the supplied changes\n  and report the results.',
     'description: "Review the supplied changes\n  and report the results."',
-    'description: |\n  Review the supplied changes.\n  tools: Bash\n  model: opus',
+    'description: |\n  Review the supplied changes.\n  Report the results.',
     'description: >-\n  Review the supplied changes\n  and report the results.',
-    'metadata:\n  tools: [Bash]\n  model: opus\n  tags: [review, "code: changes"]',
+    'metadata:\n  tags: [review, "code: changes"]',
     'metadata: {tags: [review, "code: changes"]}',
     '"\\x64escription": Review the supplied changes',
     'defaults: &defaults {description: Review changes}\n<<: *defaults',

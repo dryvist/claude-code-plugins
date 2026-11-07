@@ -327,7 +327,11 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
   let definition: AgentDefinition | undefined
   let customSandbox: Sandbox | undefined
   if (e.subagent_type && !isGenericType(e)) {
-    definition = await customAgentDefinition($, e.subagent_type)
+    try {
+      definition = await customAgentDefinition($, e.subagent_type)
+    } catch {
+      return failure(e, 'custom agent model or tool restrictions could not be read')
+    }
     if (!definition) return failure(e, 'custom agent definition could not be verified')
     if (forbiddenModel(definition.model)) return failure(e, 'Sonnet, Opus and Fable subagents are forbidden')
     customSandbox = customAgentSandbox(definition)
