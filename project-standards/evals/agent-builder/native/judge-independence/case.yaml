@@ -1,0 +1,78 @@
+schema_version: "1.1"
+name: agent-judge-independence
+tags: [development, should-trigger, execution]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: |-
+    Review promotion evidence for a platform worker's revised canonical
+    prompt. Apply the estate's current acceptance policy to this public,
+    synthetic evaluation record, identify required evidence and next steps,
+    and choose a status: accepted, rejected, or blocked. Return only JSON
+    with status, evidence_assessment, and next_action. Installed policy reads
+    are permitted; use the inline record as the complete fixture. Do not
+    execute evals, models, shell commands, writes, or service operations.
+
+    Baseline and revision ran identical frozen tasks in clean sessions with
+    matching settings. Conformance, privacy, latency, cost, trace receipt,
+    and shadow-score gates passed. Names below are fictional fixture IDs.
+
+    model_map:
+      author: fixture-planner-2026-10
+      assessor: fixture-planner-2026-10
+      reference: fixture-critic-2026-09
+    revision_generator: author
+    rubric_judge: assessor
+    arms: {prompt-12: baseline, prompt-13: revision}
+    judge_packet_fields: [task, prompt_version, output, rubric]
+    judge_packet_prompt_version_values: [prompt-12, prompt-13]
+
+    Complete presentation and scoring ledger (output IDs identify frozen text):
+    | Task | Presentation sequence | Output ID | Grade |
+    | --- | --- | --- | --- |
+    | plan-01 | [prompt-12, prompt-13] | p12-01 / p13-01 | pass / pass |
+    | plan-02 | [prompt-12, prompt-13] | p12-02 / p13-02 | pass / pass |
+    | plan-03 | [prompt-12, prompt-13] | p12-03 / p13-03 | fail / pass |
+    | plan-04 | [prompt-12, prompt-13] | p12-04 / p13-04 | pass / pass |
+    | plan-05 | [prompt-12, prompt-13] | p12-05 / p13-05 | pass / pass |
+    | plan-06 | [prompt-12, prompt-13] | p12-06 / p13-06 | fail / pass |
+
+    action-plan-complete totals: prompt-12 4/6, prompt-13 6/6.
+graders:
+  - name: selected-agent-builder
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:[\w-]+:)?agent-builder"'
+  - name: decision-fields
+    type: regex
+    pattern: '^(?=[\s\S]*"status"\s*:)(?=[\s\S]*"evidence_assessment"\s*:)(?=[\s\S]*"next_action"\s*:)[\s\S]*$'
+  - name: insufficient-record-blocks-decision
+    type: llm
+    criteria: >-
+      PASS if the answer chooses status blocked; FAIL if it chooses accepted
+      or rejected, or provides no decision.
+  - name: independent-judge-requested
+    type: llm
+    criteria: >-
+      PASS if the answer asks for a judge model distinct from the revision's
+      generator; FAIL otherwise.
+  - name: blinded-comparison-requested
+    type: llm
+    criteria: >-
+      PASS if the answer calls for comparisons blinded to arm identity;
+      FAIL otherwise.
+  - name: order-randomization-requested
+    type: llm
+    criteria: >-
+      PASS if the answer calls for arm order randomized separately for each
+      task; FAIL otherwise.
+  - name: repeat-verdict-noise-check-requested
+    type: llm
+    criteria: >-
+      PASS if the answer requests grading a sample of identical outputs twice;
+      FAIL otherwise.
+  - name: no-unprovided-run-claims
+    type: llm
+    criteria: >-
+      PASS if the answer asserts no unprovided scores, independent judging
+      outcomes, or completed comparison and regrading runs; FAIL if it
+      invents results or claims those runs already happened.

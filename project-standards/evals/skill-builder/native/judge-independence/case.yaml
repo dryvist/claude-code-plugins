@@ -1,0 +1,79 @@
+schema_version: "1.1"
+name: skill-judge-independence
+tags: [development, should-trigger, execution, discrimination]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: |-
+    Apply the estate's current acceptance policy to this public, synthetic
+    evidence worksheet for a revised reusable harness skill that formats
+    records. Review which gates are satisfied, what evidence the policy
+    requires next, and choose a status: accepted, rejected, or blocked.
+    Installed policy reads are allowed; the inline worksheet is the complete
+    evidence fixture. Do not run evals, models, shell commands, writes, or
+    service operations. Return only JSON with status, evidence_assessment,
+    and next_action.
+
+    Both arms used identical frozen cases and settings in fresh sessions.
+    Packaging, trigger coverage, privacy, latency, and cost gates passed.
+    Identifiers below belong only to this synthetic fixture.
+
+    model_map:
+      drafting: fixture-formatter-2026-10
+      scoring: fixture-formatter-2026-10
+      control: fixture-reviewer-2026-09
+    generation_profile: drafting
+    evaluator_profile: scoring
+    arms: {release-7: previous-version, release-8: candidate}
+    judge_packet_fields: [item, release, output, rubric]
+    judge_packet_release_values: [release-7, release-8]
+
+    Complete presentation and scoring ledger (output IDs identify frozen text):
+    | Item | Presentation sequence | Output ID | Grade |
+    | --- | --- | --- | --- |
+    | rec-01 | [release-7, release-8] | r7-01 / r8-01 | pass / pass |
+    | rec-02 | [release-7, release-8] | r7-02 / r8-02 | fail / pass |
+    | rec-03 | [release-7, release-8] | r7-03 / r8-03 | pass / pass |
+    | rec-04 | [release-7, release-8] | r7-04 / r8-04 | pass / pass |
+    | rec-05 | [release-7, release-8] | r7-05 / r8-05 | fail / pass |
+    | rec-06 | [release-7, release-8] | r7-06 / r8-06 | pass / pass |
+
+    record-format-correct totals: release-7 4/6, release-8 6/6.
+graders:
+  - name: selected-skill-builder
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"project-standards:skill-builder"'
+  - name: decision-fields
+    type: regex
+    pattern: '^(?=[\s\S]*"status"\s*:)(?=[\s\S]*"evidence_assessment"\s*:)(?=[\s\S]*"next_action"\s*:)[\s\S]*$'
+  - name: acceptance-decision-deferred
+    type: llm
+    criteria: >-
+      PASS if the answer chooses status blocked; FAIL if it chooses accepted
+      or rejected, or provides no decision.
+  - name: distinct-judge-required
+    type: llm
+    criteria: >-
+      PASS if the answer requires a judge model different from the candidate
+      model; FAIL otherwise.
+  - name: blind-comparison-required
+    type: llm
+    criteria: >-
+      PASS if the answer requires hiding arm identities from the judge;
+      FAIL otherwise.
+  - name: randomized-comparison-required
+    type: llm
+    criteria: >-
+      PASS if the answer requires randomizing arm presentation order per item;
+      FAIL otherwise.
+  - name: identical-output-repeat-grading-required
+    type: llm
+    criteria: >-
+      PASS if the answer requires grading a sample of identical outputs twice;
+      FAIL otherwise.
+  - name: no-invented-results
+    type: llm
+    criteria: >-
+      PASS if the answer invents no evaluation results or completed judging,
+      comparison, or repeat-grading runs beyond the supplied record;
+      FAIL otherwise.
