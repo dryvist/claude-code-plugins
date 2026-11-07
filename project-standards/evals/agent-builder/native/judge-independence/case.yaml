@@ -1,0 +1,62 @@
+schema_version: "1.1"
+name: agent-judge-independence
+tags: [development, should-trigger, execution]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: |-
+    Review the following public, synthetic platform-agent prompt evaluation
+    record. Should this revision be accepted or rejected? State the decision
+    and next steps as JSON with status, evidence_assessment, and next_action.
+    Installed policy reads are permitted. Treat this inline record as the
+    complete fixture; execute no evals, models, shell commands, file writes,
+    or service calls.
+
+    Baseline and revision ran identical frozen tasks in clean sessions with
+    matching settings. Every other acceptance gate is recorded as satisfied.
+    These model names are fictional identifiers used only for this fixture.
+
+    revision_generator: fixture-planner
+    rubric_judge: fixture-planner
+    visible_arm_labels: baseline, revision
+    judge_input_order: baseline then revision for every task
+    order_randomized: false
+    grades_per_identical_output: 1
+    action-plan-complete: baseline 15/20, revision 19/20
+
+    There are no further judging or comparison runs in this record.
+graders:
+  - name: selected-agent-builder
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:[\w-]+:)?agent-builder"'
+  - name: decision-fields
+    type: regex
+    pattern: '^\s*\{(?=[\s\S]*"status"\s*:)(?=[\s\S]*"evidence_assessment"\s*:)(?=[\s\S]*"next_action"\s*:)[\s\S]*\}\s*$'
+  - name: insufficient-record-blocks-decision
+    type: llm
+    criteria: >-
+      PASS if the answer defers both acceptance and rejection of the revision
+      until the judging record is corrected; FAIL if it selects either outcome
+      based on these scores.
+  - name: independent-judge-requested
+    type: llm
+    criteria: >-
+      PASS if the answer asks for a judge model distinct from the revision's
+      generator and records that judge's identity with the run; FAIL otherwise.
+  - name: blinded-order-randomization-requested
+    type: llm
+    criteria: >-
+      PASS if the answer calls for comparisons blinded to arm identity with
+      arm order randomized separately for each task; FAIL otherwise.
+  - name: repeat-verdict-noise-check-requested
+    type: llm
+    criteria: >-
+      PASS if the answer requests twice grading a sample of the same unchanged
+      outputs and fixing disagreement between repeat verdicts as grader noise
+      before deciding; FAIL otherwise.
+  - name: no-unprovided-run-claims
+    type: llm
+    criteria: >-
+      PASS if the answer asserts no unprovided scores, independent judging
+      outcomes, or completed comparison and regrading runs; FAIL if it
+      invents results or claims those runs already happened.

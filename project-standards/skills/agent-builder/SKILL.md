@@ -134,6 +134,9 @@ coverage manifest; ensure the new suite actually enters the executable matrix.
   from timeouts, truncation, grader variance, and stale state.
 
 Check every grader's pass rates in both arms before accepting or rejecting a revision.
+Require a judge model different from the candidate; record the judge's name with the run.
+Blind the judge to arm identities and randomize arm order for each item.
+Grade identical outputs twice on a sample; resolve repeat-verdict disagreement as grader noise before deciding.
 At 0% in both or 100% in both, a grader gives no signal toward either decision.
 Inspect its outputs, fix it to grade one requirement, and rerun both arms before deciding.
 Run the repo-documented promptfoo command for both development and held-out
