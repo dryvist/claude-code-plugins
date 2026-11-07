@@ -19,12 +19,12 @@ execution:
     name: task-recipe-notes
     description: >-
       Turn task requests into repeatable recipes by finding suitable installed
-      capabilities and recording their entrypoints. Use when the next action
+      capabilities and noting their entrypoints. Use when the next action
       is unclear or a successful invocation needs saving for reuse.
     ---
     # Task recipe notes
     Identify a suitable installed capability for the supplied task, or use
-    the successful invocation in the supplied transcript. Return a recipe
+    the successful invocation in the supplied transcripts. Return a recipe
     with inputs, invocation, expected output, and unverified assumptions.
     Execute no recipe and infer no successful outcome from a command alone.
 graders:
@@ -50,7 +50,7 @@ graders:
   - name: resolves-before-spending
     type: llm
     criteria: >-
-      PASS if the response supplies a narrowed description scoped to recording
+      PASS if the response supplies a narrowed description scoped to saving
       supplied successful invocations, or proposes merging the overlapping
       discovery responsibility into skills-registry, and makes rerun trigger
       tests a prerequisite for spending on execution trials. FAIL if it keeps
