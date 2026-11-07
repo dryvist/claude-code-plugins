@@ -40,7 +40,7 @@ reports outside the checkout, and keep publishing disabled:
 builder_evidence=$(mktemp -d /private/tmp/builder-evidence.XXXXXX)
 for builder in agent-builder skill-builder; do
   claude plugin eval ./project-standards \
-    --eval-dir "skills/$builder/evals/native" \
+    --eval-dir "evals/$builder/native" \
     --runs 3 --ablation with-without --threshold 1 --no-publish \
     --model "${EVAL_BUILDER_MODEL:?set the permitted evaluation model}" \
     --judge-model "${EVAL_BUILDER_JUDGE:?set the permitted judge model}" \
@@ -59,11 +59,11 @@ builder_baseline=$(mktemp -d /private/tmp/builder-baseline.XXXXXX)
 git archive 2e9447d7a2a95a2ed806727da7505c676b25f021 project-standards |
   tar -x -C "$builder_baseline"
 for builder in agent-builder skill-builder; do
-  mkdir -p "$builder_baseline/project-standards/skills/$builder/evals"
-  cp -R "project-standards/skills/$builder/evals/." \
-    "$builder_baseline/project-standards/skills/$builder/evals/"
+  mkdir -p "$builder_baseline/project-standards/evals/$builder"
+  cp -R "project-standards/evals/$builder/." \
+    "$builder_baseline/project-standards/evals/$builder/"
   claude plugin eval "$builder_baseline/project-standards" \
-    --eval-dir "skills/$builder/evals/native" \
+    --eval-dir "evals/$builder/native" \
     --runs 3 --ablation with-without --threshold 1 --no-publish \
     --model "${EVAL_BUILDER_MODEL:?set the permitted evaluation model}" \
     --judge-model "${EVAL_BUILDER_JUDGE:?set the permitted judge model}" \
@@ -88,14 +88,14 @@ and runs it **once as an acceptance batch**, with repeated clean trials:
 ```sh
 for builder in agent-builder skill-builder; do
   claude plugin eval ./project-standards \
-    --eval-dir "skills/$builder/evals/held-out" \
+    --eval-dir "evals/$builder/held-out" \
     --runs 3 --ablation with-without --threshold 1 --no-publish \
     --model "${EVAL_BUILDER_MODEL:?set the permitted evaluation model}" \
     --judge-model "${EVAL_BUILDER_JUDGE:?set the permitted judge model}" \
     --output-dir "$builder_evidence/held-out-candidate-$builder" \
     --trust-plugin
   claude plugin eval "$builder_baseline/project-standards" \
-    --eval-dir "skills/$builder/evals/held-out" \
+    --eval-dir "evals/$builder/held-out" \
     --runs 3 --ablation with-without --threshold 1 --no-publish \
     --model "${EVAL_BUILDER_MODEL:?set the permitted evaluation model}" \
     --judge-model "${EVAL_BUILDER_JUDGE:?set the permitted judge model}" \

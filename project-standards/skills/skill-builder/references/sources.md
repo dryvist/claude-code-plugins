@@ -57,8 +57,8 @@ tables across the builders. Both directories ship in the same plugin.
 
 ## Evaluation evidence boundary
 
-[Native development cases](../evals/native/) specify observable expectations, with
-baseline revision and acceptance criteria in [the eval contract](../evals/contract.md).
+[Native development cases](../../../evals/skill-builder/native/) specify observable expectations, with
+baseline revision and acceptance criteria in [the eval contract](../../../evals/skill-builder/contract.md).
 Trigger selection, actual task execution, schema/lint validation, and deployed
 performance are different measurements. A review of instructions or a hand-run
 case does not establish target-harness trigger precision or a held-out result.

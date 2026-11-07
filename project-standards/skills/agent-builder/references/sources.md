@@ -60,9 +60,9 @@ skill-specific records live in [skill-builder sources](../../skill-builder/refer
 - Render/evaluate: A3, G1; the existing promptfoo and Langfuse gates remain
   local requirements. Import/shadow/promotion and reporting retain those gates;
   O3 supports typed final/error results. Static validation proves structure only.
-- Builder [native development cases](../evals/native/) are visible to the
+- Builder [native development cases](../../../evals/agent-builder/native/) are visible to the
   author. Independent evaluation owns the unseen acceptance cases and runs
-  them through the [shared native protocol](../../skill-builder/evals/contract.md).
+  them through the [shared native protocol](../../../evals/skill-builder/contract.md).
 
 ## Conflicts retained explicitly
 
