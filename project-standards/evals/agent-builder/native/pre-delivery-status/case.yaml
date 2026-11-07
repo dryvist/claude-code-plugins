@@ -16,9 +16,9 @@ execution:
     returns these verification results:
     - item-a: initially awaiting review; now awaiting a dependency, still open.
       Its own html_url is https://example.com/records/canonical-a?view=current
-    - item-b: initially awaiting review; now resolved.
+    - item_b: initially awaiting review; now resolved.
       Its own html_url is https://example.com/records/canonical-b
-    - item-c: initially awaiting review; verification returns unavailable.
+    - item_c: initially awaiting review; verification returns unavailable.
       Its earlier html_url was https://example.com/records/canonical-c
 graders:
   - name: verify-every-item-before-delivery
@@ -40,14 +40,14 @@ graders:
   - name: drop-resolved-item
     type: llm
     criteria: >-
-      PASS if item-b is omitted from report_items after resolution;
+      PASS if item_b is omitted from report_items after resolution;
       FAIL otherwise.
   - name: drop-unverifiable-item
     type: llm
     criteria: >-
-      PASS if item-c is omitted from report_items; FAIL otherwise.
+      PASS if item_c is omitted from report_items; FAIL otherwise.
   - name: record-unverifiable-cut
     type: llm
     criteria: >-
-      PASS if cuts records item-c with its unavailable verification result;
+      PASS if cuts records item_c with its unavailable verification result;
       FAIL otherwise.
