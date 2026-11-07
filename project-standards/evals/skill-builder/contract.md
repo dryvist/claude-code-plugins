@@ -14,31 +14,40 @@ legacy `evals.json` and `triggers.json` remain skill-creator development inputs;
 `claude plugin eval` does not read them, and they supply no acceptance results.
 
 Natural requests omit explicit builder invocation. `tool_used: Skill` graders
-inspect actual namespaced builder calls; negative cases use `min: 0`, `max: 0`,
-and `arm: both`. Output graders inspect produced artifacts or evidence
-decisions. Positive Skill graders are indicators excluded from ablation scores;
-check them separately, even if the command exits successfully. Cases cover
-authoring, evidence decisions, existing-task execution, and cross-builder
-vocabulary collisions. A missing prerequisite may pass a stop-condition rubric,
-but counts as **blocked task completion**, never successful artifact creation.
-The text-draft case also grades phase-specific prerequisite handling; a
-comparison-only resource is not mandatory authoring guidance.
+inspect actual calls; negatives use `min: 0`, `max: 0`, and `arm: both`.
+Positive Skill indicators are excluded from native ablation scores; inspect
+them independently of output correctness, even when the command succeeds.
 
-Cases tagged `discrimination` exercise policy decisions: the exact shadow
-window, canonical package boundaries, byte/token/safety budgets, and invalid
-comparison arms. Run the commands below on the whole development suite for
-both snapshots. Inspect per-case WITH/WITHOUT deltas and actual invocation
-indicators before asserting that these harder cases discriminate; their
-difficulty and contribution are hypotheses until measured. Keep unchanged
-development cases as controls, and calibrate judge disagreements from their
-artifacts before attributing a score change to the skill. Source: S1 in the
-[skill source register](../../skills/skill-builder/references/sources.md).
+| Skill-builder development set | Case directories | Measurement |
+| --- | --- | --- |
+| Positive triggers | `create-skill`, `packaging-budget`, `contaminated-comparison`, `policy-evidence-review`, `policy-comparison-review` | Actual activation and independent output rubrics. |
+| Negative triggers | `existing-extraction`, `agent-collision` | False activation and output correctness. |
+| Execution controls | `evidence-decision`, `comparison-control` | Output correctness only; Skill use is optional. |
+
+Exclude controls from every activation denominator; optional calls on controls
+are neither true nor false positives. Retain their inputs and correctness
+rubrics. The comparison control's fixture comes from revision `a04d17a5`.
+Policy-review companions permit installed-policy reads with public inline
+fixtures, but forbid eval execution, writes, and services. Cases tagged
+`discrimination` test specialized policy; contribution remains unmeasured
+until repeated baseline comparisons. Calibrate judge disagreements from
+artifacts. Source: S1 in the [source register](../../skills/skill-builder/references/sources.md).
+A prerequisite stop is blocked completion, even if its rubric passes; text
+drafts do not require comparison-only resources.
 
 The native runner creates a fresh home, workspace, and configuration per trial,
 with only the target plugin loaded. No personal skills or memory are assumed.
 Read-only tools and Skill are listed per case; no operator grants for writes,
 shell, network, real servers, or scaffolds are supplied. All inputs are
 synthetic and public. Service execution and promotion remain separate gates.
+
+**Target coverage:** Haiku 5.5 with Claude Code **2.1.319** and the isolated
+plugin catalog is one recorded regression target, not evidence for all models
+or harnesses. Before acceptance, the lead freezes every permitted production
+model/harness pair, including Codex where used, and records exact versions,
+effective skill catalogs, visibility/truncation diagnostics, and native
+selection evidence. Report each pair separately; Claude Skill calls do not
+establish Codex activation. Missing target runs remain unverified.
 
 ## Lead commands: development and baselines
 
@@ -91,11 +100,9 @@ invalidates the update comparison. Keep results local and outside Git.
 
 ## Independent held-out cases
 
-An independent evaluator authored `held-out/*/case.yaml` for each builder after
-the candidate instruction freeze, without consulting development cases. The
-instruction author must not read those prompts, graders, or answers before
-acceptance. The lead verifies this separation, freezes the suite revision,
-and runs it **once as an acceptance batch**, with repeated clean trials:
+The independent evaluator owns `held-out/*/case.yaml`. Authors must not read
+its prompts, graders, or answers. The lead verifies independence from tuning,
+freezes the suite revision, and runs **one acceptance batch** with clean trials:
 
 ```sh
 for builder in agent-builder skill-builder; do
@@ -125,9 +132,13 @@ If instruction behavior changes after freezing, obtain a fresh held-out set.
 
 - Require every artifact/decision and boundary assertion to pass, with zero
   authority violations. Inspect tool calls and resulting state, not just text.
-- Compute precision and recall from **actual Skill invocation** on labeled
-  positive and negative trials, each at least 0.9. Report counts per builder,
-  per arm, and per suite; do not substitute an overall grader score.
+- Compute activation precision `TP / (TP + FP)` and recall `TP / (TP + FN)`
+  on the labeled trigger set only; both must be **at least 0.9** in candidate
+  WITH trials. TP/FN count positive requests with/without actual selection;
+  FP/TN count negative requests with/without it. Report counts by builder,
+  target, arm, and suite. Undefined denominators cannot pass. No-plugin arms
+  are baselines, not positive-recall gates. Report task correctness separately
+  for triggers and controls; neither task scores nor activation prove the other.
 - Require no held-out regression against previous WITH. Compare run-level
   task scores, latency, and exposed token/cost measurements; report variability
   and missing measurements. No improvement claim is justified within noise.
@@ -144,22 +155,19 @@ If instruction behavior changes after freezing, obtain a fresh held-out set.
 
 Checked **2026-11-06** against the [case fields][case-fields] and
 [grader fields][grader-fields] references (publication/update date unavailable).
-Each inline grader declares its type-specific fields directly alongside
-`name` and `type`. Held-out prompts, rubrics, expected outcomes, and grader
-limits retain their frozen values after this structural conversion.
+Rechecked **2026-11-07**: output graders alone are valid; controls require no
+Skill-call grader. Inline type-specific fields sit beside `name` and `type`.
+The native schema has no cross-case grader include or shared defaults, so
+activation indicators remain local. No custom preprocessor is introduced.
+Held-out files remain untouched.
 
-**Accepted native constraint: shared grader.** The documented schema supports per-case `graders`
-entries and per-case `graders/*.md` files. It defines no cross-case grader
-reference, include, or suite-level grader defaults. Suite-wide mocks share MCP
-responses, not graders. The no-shell, no-write, and no-edit assertions remain
-local to each case as an accepted native schema constraint. No custom
-preprocessor or undocumented sharing field is introduced.
+CLI **2.1.319** has no validation-only/dry-run option for `claude plugin eval`.
+YAML validation proves structure only. Native loading and behavioral
+acceptance remain **not yet run**; the lead retains results or load errors.
 
-CLI **2.1.319** exposes no validation-only or dry-run option in
-`claude plugin eval --help`. YAML checks and preservation of normalized case
-data are structural evidence only. Native suite loading and behavioral
-acceptance for this revision remain **not yet run**; the lead runs the commands above outside
-the builder sandbox and retains their load errors or measured results.
+Authoring standards: estate agent-builder, skill-builder, claude-skill-authoring,
+and agent-standards; Anthropic skill-creator; plugin-dev agent-, skill-, command-,
+and hook-development; writing-for-agents; R2 section 2 a–g.
 
 [native-docs]: https://code.claude.com/docs/en/plugin-evals
 [case-fields]: https://code.claude.com/docs/en/plugin-evals#case-yaml-fields
