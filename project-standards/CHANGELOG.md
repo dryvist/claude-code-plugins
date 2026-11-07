@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.7.3](https://github.com/dryvist/claude-code-plugins/compare/project-standards-v6.7.2...project-standards-v6.7.3) (2026-11-07)
+
+
+### Bug Fixes
+
+* **project-standards:** check each grader's signal before eval decisions ([#716](https://github.com/dryvist/claude-code-plugins/issues/716)) ([ea6b8cd](https://github.com/dryvist/claude-code-plugins/commit/ea6b8cd798ee3cbdff89d2e89d60e387d1891462))
+
 ## [6.7.2](https://github.com/dryvist/claude-code-plugins/compare/project-standards-v6.7.1...project-standards-v6.7.2) (2026-11-07)
 
 
