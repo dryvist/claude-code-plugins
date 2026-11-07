@@ -104,6 +104,9 @@ and failures. Distinguish candidate failures from infrastructure failures,
 truncation, grader disagreement, and run contamination. Calibrate open-ended
 judges against human-reviewed examples. Report baseline deltas and variance;
 do not claim an improvement that remains within noise.
+Before accepting or rejecting a revision, check each grader's pass rate in both arms.
+A grader at 0% in both or 100% in both gives no signal; count it neither for nor against.
+Read its outputs, recalibrate to one requirement per grader, and rerun both arms before deciding.
 
 Keep held-out prompts and answers outside the author's tuning context. Have
 the evaluator report aggregate results after the candidate is frozen. Do not
