@@ -10,7 +10,8 @@ execution:
     execution are verified, and correlated trace receipts and baseline scores
     cover the whole interval without score decline or missing coverage. The
     uninterrupted shadow interval starts 2026-11-01T03:00:00Z and the latest
-    evidence ends 2026-11-08T02:00:00Z. Return only JSON with status,
+    evidence ends 2026-11-08T02:00:00Z. Treat this as a hypothetical record
+    assessed at that evidence end time. Return only JSON with status,
     earliest_review_time, remaining_hours, and next_action. Assess only these
     supplied facts; no file changes or operations are authorized.
 graders:

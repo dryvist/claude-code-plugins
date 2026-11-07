@@ -72,3 +72,20 @@ disclose reference material only. The local byte/token budgets take precedence
 over upstream character/word recommendations; see E1 in the skill register.
 SDK guardrails are reference semantics, not a mandate to add SDK code: use the
 platform's existing enforcement and stop if it cannot enforce the boundary.
+
+## Review guidance trace
+
+Review guidance checked **2026-11-07** against A1 (2026-07-24), O1
+(2026-09-11), and local policy E2 (2026-11-06). Proposal reviews map supplied
+actions to the inline canonical-input policies. Evidence reviews preserve
+the supplied assessment time and distinguish elapsed shadow coverage,
+eligibility for promotion-review, and a lead-merged mode-change PR. These
+are review branches of the existing policy, not additional deployment grants.
+Descriptions name these request types and retain report-processing and
+harness-skill exclusions.
+
+The native promotion-eligibility case exercises the exact completed interval
+and review-only authority. Existing incomplete-evidence cases remain controls.
+All package and promotion rubric requirements remain in place. Behavioral
+and trigger improvements require the lead's native runs; source review and
+static checks establish no measured gain.

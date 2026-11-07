@@ -1,10 +1,9 @@
 ---
 name: agent-builder
 description: >-
-  This skill applies when authoring platform agents, prompts, or evals, or
-  reviewing promotion evidence and go-live decisions, even without edits.
-  It excludes running existing agents, processing their reports, and harness
-  skill authoring.
+  Guides platform agent creation, package reviews, and promotion decisions,
+  including evidence-only reviews. Applies to agent prompts and evals;
+  excludes running existing agents, processing their reports, and harness skills.
 ---
 
 # Agent builder
@@ -18,11 +17,21 @@ Follow the shared [eval contract](../../evals/skill-builder/contract.md) for com
 
 ## Establish the contract
 
-For evidence-only reviews, apply the inline promotion and acceptance gates to
-the supplied record. Return the requested decision with missing evidence;
-do not require authoring schemas or templates, search for unsupplied artifacts,
-or run deployment operations. Authoring prerequisites apply when changing a
-definition, prompt, or evaluation package. Sources: A1, O1; local policy E2.
+For reviews, select the requested decision before applying authoring steps:
+
+- Package proposals: map each proposed placement, credential path, code action,
+  routing rule, and export path to the canonical-input and rendering policies
+  below. Name the canonical repository and runtime roles explicitly; a generic
+  recommendation to centralize or secure the package does not define its boundary.
+  Correct supplied violations without treating unmentioned fields as missing.
+- Promotion records: apply the inline shadow and acceptance gates to supplied
+  evidence. Use its stated assessment time for a hypothetical record; distinguish
+  an earliest eligible review time from evidence actually received by that time.
+
+Return the requested decision and corrections or missing evidence. Require no
+authoring schemas/templates, unsupplied artifacts, or deployment operations
+for a review. Authoring prerequisites apply when changing a definition, prompt,
+or evaluation package. Sources: A1, O1; local policy E2.
 
 For authoring, read repository instructions, v2 schema, standards, connector roster,
 template inputs, evaluation runner, and import guide.
@@ -155,12 +164,17 @@ execution separately.
 Every event carries `agent`, `tier`, `privacy_class`, `model`, and `accelerator`.
 Sim and Langflow shadows must suppress external side effects.
 
-Promote only when promptfoo evals pass and **7 days in shadow show no drop in
-Langfuse scores** against the versioned baseline. Missing scores or insufficient
-coverage block promotion. Submit the evidence and `mode` change through the
-promotion-review PR workflow; the supervising lead reviews and merges it.
-Regression produces the reverse PR for demotion. Every mode flip is recorded
-through the task connector. Keep ongoing sampled evaluation enabled.
+Require passing promptfoo evals and **7 full elapsed days (168 hours) in shadow
+with no drop in Langfuse scores** against the versioned baseline. Compute the
+earliest review time from the interval's start; require continuous score and
+trace coverage through that time. Missing scores or coverage block eligibility.
+Once eligible, route evidence to the promotion-review agent, which proposes
+the `mode` change through a PR; the supervising lead reviews and merges it.
+State that complete handoff in the next action, including when waiting for
+more evidence. Eligibility authorizes a review request, not a direct mode flip
+or publication. In a review-only task, describe the handoff without executing
+it. Regression follows the same route with a reverse PR for demotion. Record
+every mode flip through the task connector. Keep sampled evaluation enabled.
 
 ## Acceptance evidence
 

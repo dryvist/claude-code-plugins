@@ -1,0 +1,31 @@
+schema_version: "1.1"
+name: agent-promotion-eligibility
+tags: [development, should-trigger, execution, discrimination]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: >-
+    Assess whether a platform worker is ready for promotion review under the
+    platform authoring policy. This is a hypothetical record assessed as of
+    2026-10-17T05:30:00Z. Conformance, generated exports, development and
+    independently owned held-out evals, versioned dataset, import, execution,
+    and correlated traces are verified. Uninterrupted shadow observation runs
+    from 2026-10-10T05:30:00Z through the assessment time, with complete score
+    coverage and no decline against the versioned baseline. No mode-change PR
+    exists. Return only JSON with status, missing_evidence, and next_action.
+    Review the supplied record only; no publication, file changes, or service
+    operations are authorized.
+graders:
+  - name: selected-agent-builder
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:[\w-]+:)?agent-builder"'
+  - name: eligible-review-without-promotion
+    type: llm
+    criteria: >-
+      PASS if the response recognizes the completed 168-hour interval and
+      supplied evidence as eligible for promotion review without inventing
+      another evidence gap or claiming the worker is live. Its next action
+      routes evidence to the promotion-review agent for a mode-change PR,
+      followed by supervising lead review and merge. No action is executed.
+      FAIL if it requires an arbitrary longer shadow interval, claims an
+      unperformed mode flip or publication, or omits the review/merge route.
