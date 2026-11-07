@@ -143,6 +143,56 @@ describe('policy', () => {
 })
 
 describe('custom agent tool authority', () => {
+  for (const key of ['tools ', 'tools\t', '"tools"', "'tools' ", '"too\\u006cs" ', '"\\x74ools" ']) {
+    for (const tools of ['[Read, Grep, Glob]', '# file reads\n  - Read # supplied files\n  # search helpers\n  - Grep\n\n  - Glob']) {
+      test(`spaced and quoted keys preserve the read-only allowlist: ${key}; ${tools}`, async () => {
+        const definition = `---\nmodel: haiku\n${key}: ${tools}\n---\nRead the supplied files.`
+        expect(parseAgentDefinition(definition).tools).toEqual(['Read', 'Grep', 'Glob'])
+        for (const quota of [0, 1]) {
+          const w = world({ quota, env: gateways, definition })
+          await w.agent({ ...coding, description: `[class: standard] ${coding.description}`, subagent_type: 'reviewer' })
+          if (quota === 0) {
+            expect(runs(w)).toHaveLength(1)
+            expect(runs(w)[0].argv).toContain('read-only')
+            expect(runs(w)[0].argv).not.toContain('workspace-write')
+            expect(w.nextCalls).toEqual([])
+          } else {
+            expect(runs(w)).toEqual([])
+            expect(w.nextCalls[0]).toMatchObject({ subagent_type: 'reviewer', model: 'haiku', effort: 'xhigh' })
+          }
+          expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
+          expect(w.fetches).toEqual([])
+        }
+      })
+    }
+  }
+  for (const key of ['disallowedTools ', '"disallowedTools" ', "'disallowedTools'\t"]) {
+    for (const tools of ['[Bash]', '# no shell\n  - Bash # retain native enforcement']) {
+      test(`spaced and quoted denials remove Bash from a write-capable agent: ${key}; ${tools}`, async () => {
+        const definition = `---\nmodel: haiku\ntools: [Read, Bash]\n${key}: ${tools}\n---\nPerform the task.`
+        expect(parseAgentDefinition(definition).disallowedTools).toEqual(['Bash'])
+        for (const quota of [0, 1]) {
+          const w = world({ quota, env: gateways, definition })
+          const call = { ...coding, subagent_type: 'worker' }
+          await w.agent(call)
+          expect(runs(w)).toEqual([])
+          expect(w.nextCalls).toEqual([{ tool: 'Agent', ...call }])
+          expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
+          expect(w.fetches).toEqual([])
+        }
+      })
+    }
+  }
+  for (const key of ['model ', '"model" ', "'model'\t"]) {
+    test(`spaced and quoted model keys retain the forbidden-model guard: ${key}`, async () => {
+      const definition = `---\n${key}: opus\ntools: [Read]\n---\nRead the supplied files.`
+      expect(parseAgentDefinition(definition).model).toBe('opus')
+      const w = world({ definition })
+      expect(text(await w.agent({ subagent_type: 'reviewer' }))).toContain('subagents are forbidden')
+      expect(w.calls).toEqual([])
+      expect(w.nextCalls).toEqual([])
+    })
+  }
   for (const tools of ['Read, Grep, Glob', '"Read, Grep, Glob"', '[Read, Grep, Glob]', '["Read", "Grep", "Glob"]', "['Read', 'Grep', 'Glob']", '\n  - Read\n  - Grep\n  - Glob', '# file reads\n  - Read\n  - Grep\n  - Glob']) {
     test(`read-only allowlist selects the Codex read-only sandbox: ${tools}`, async () => {
       const w = world({ definition: `---\nmodel: haiku\ntools: ${tools}\n---\nRead the supplied files.` })
@@ -238,6 +288,8 @@ describe('custom agent tool authority', () => {
     'tools: [Read]\n  disallowedTools: Bash',
     'tools: mcp__tracker__get*unexpected', 'tools: Read,', 'tools: Bash(git:*',
     'tools: ["Read", "Bash(git:*)]', 'tools: [Read,, Write]',
+    'tools : [Read', '"tools" : null', "'tools : [Read]", '"tools : [Read]',
+    'tools: [Read]\n"tools" : [Write]', 'disallowedTools : {deny: Bash}',
   ]) {
     test(`ambiguous policy frontmatter never reaches an executor: ${fields}`, async () => {
       const w = world({ definition: `---\nmodel: haiku\n${fields}\n---\nPerform the task.` })
@@ -268,6 +320,7 @@ describe('custom agent tool authority', () => {
     'description: >-\n  Review the supplied changes\n  and report the results.',
     'metadata:\n  tools: [Bash]\n  model: opus\n  tags: [review, "code: changes"]',
     'metadata: {tags: [review, "code: changes"]}',
+    '"\\x64escription": Review the supplied changes',
     'defaults: &defaults {description: Review changes}\n<<: *defaults',
   ]) {
     for (const tools of ['', 'tools: [Read, Grep, Glob]\n', 'tools:\n  - Read\n  - Grep\n  - Glob\n']) {

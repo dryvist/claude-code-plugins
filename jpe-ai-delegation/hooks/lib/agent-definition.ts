@@ -4,6 +4,17 @@ export type AgentDefinition = { model?: string; prompt: string; tools?: string[]
 const WRITERS = ['Edit', 'Write', 'NotebookEdit', 'Bash']
 const CODEX_TOOLS = ['Read', 'Grep', 'Glob', ...WRITERS]
 
+// Decode quoted YAML keys before identifying the policy fields.
+function fieldName(raw: string): string {
+  if (!raw.startsWith('"')) return raw.startsWith("'") ? raw.slice(1, -1).replace(/''/g, "'") : raw
+  const escapes: Record<string, string> = { '0': '\0', a: '\x07', b: '\b', t: '\t', n: '\n', v: '\v', f: '\f', r: '\r', e: '\x1b', ' ': ' ', '"': '"', '/': '/', '\\': '\\', N: '\x85', _: '\u00a0', L: '\u2028', P: '\u2029' }
+  return raw.slice(1, -1).replace(/\\(x[\da-fA-F]{2}|u[\da-fA-F]{4}|U[\da-fA-F]{8}|.)/g, (_, escaped: string) => {
+    if (/^[xuU]/.test(escaped)) return String.fromCodePoint(parseInt(escaped.slice(1), 16))
+    if (!(escaped in escapes)) throw new Error('invalid quoted agent key')
+    return escapes[escaped]
+  })
+}
+
 // The hook VM exposes neither Bun.YAML nor package imports; parse only policy keys.
 // Leave unrelated metadata to Claude Code's YAML parser.
 function scalar(raw: string, tool = false): string {
@@ -70,13 +81,16 @@ export function parseAgentDefinition(text: string): AgentDefinition {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
     if (!line.trim() || /^\s*#/.test(line)) continue
-    const field = line.match(/^(?:([\w-]+)|"([\w-]+)"|'([\w-]+)'):[ \t]*(.*)$/)
-    if (!field) continue
-    const key = field[1] ?? field[2] ?? field[3]
+    const field = line.match(/^([\w-]+|"(?:[^"\\]|\\.)*"|'(?:[^']|'')*')[ \t]*:[ \t]*(.*)$/)
+    if (!field) {
+      if (/^(?:\?[ \t]+)?["']?(?:tools|disallowedTools|model)\b/.test(line)) throw new Error('invalid agent policy key')
+      continue
+    }
+    const key = fieldName(field[1])
     if (key !== 'model' && key !== 'tools' && key !== 'disallowedTools') continue
     if (seen.has(key)) throw new Error('duplicate agent frontmatter key')
     seen.add(key)
-    const value = field[4].trim().replace(/^#.*$/, '')
+    const value = field[2].trim().replace(/^#.*$/, '')
     const toolField = key === 'tools' || key === 'disallowedTools'
     if (toolField && !value) {
       const tools: string[] = []
