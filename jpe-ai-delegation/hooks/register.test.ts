@@ -237,12 +237,22 @@ describe('custom agent tool authority', () => {
       expect(w.nextCalls).toEqual([])
     })
   }
-  for (const tool of ['Edit', 'Write', 'NotebookEdit', 'Bash']) {
-    test(`${tool} permits workspace-write while advisory work stays read-only`, async () => {
+  for (const tools of ['Bash', 'Edit, Bash', 'Write, Bash', 'NotebookEdit, Bash']) {
+    test(`${tools} permits workspace-write while advisory work stays read-only`, async () => {
       for (const label of ['standard', 'plan']) {
-        const w = world({ definition: `---\nmodel: haiku\ntools: [Read, ${tool}]\n---\nPerform the task.` })
+        const w = world({ definition: `---\nmodel: haiku\ntools: [Read, ${tools}]\n---\nPerform the task.` })
         await w.agent({ subagent_type: 'worker', description: `[class: ${label}]` })
         expect(runs(w)[0].argv).toContain(label === 'plan' ? 'read-only' : 'workspace-write')
+      }
+    })
+  }
+  for (const tool of ['Edit', 'Write', 'NotebookEdit']) {
+    test(`${tool} without Bash stays native because workspace-write carries a shell`, async () => {
+      for (const quota of [0, 1]) {
+        const w = world({ quota, definition: `---\nmodel: haiku\ntools: [Read, ${tool}]\n---\nPerform the task.` })
+        await w.agent({ subagent_type: 'worker' })
+        expect(runs(w)).toEqual([])
+        expect(w.nextCalls[0]).toMatchObject({ subagent_type: 'worker', prompt: 'Implement the change.' })
       }
     })
   }
@@ -282,7 +292,7 @@ describe('custom agent tool authority', () => {
       expect(w.nextCalls[0]).toMatchObject({ subagent_type: 'reviewer' })
     })
   }
-  for (const fields of ['tools: [Read, Grep, Glob]', 'tools: [Read, Write]']) {
+  for (const fields of ['tools: [Read, Grep, Glob]', 'tools: [Read, Write, Bash]']) {
     test(`capped restricted agents retain their type and skip sandbox jobs: ${fields}`, async () => {
       const w = world({ quota: 1, env: gateways, definition: `---\nmodel: inherit\n${fields}\n---\nFollow the custom instructions.` })
       await w.agent({ ...coding, subagent_type: 'reviewer' })

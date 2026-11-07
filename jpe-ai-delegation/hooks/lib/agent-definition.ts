@@ -121,7 +121,8 @@ export function customAgentSandbox(definition: AgentDefinition): Sandbox | undef
   // Codex cannot enforce per-tool denials or selectors; core retains those policies.
   if (definition.disallowedTools?.length) return undefined
   if (definition.tools === undefined) return 'workspace-write'
-  const sandbox = definition.tools.some((tool) => WRITERS.includes(tool.split('(')[0])) ? 'workspace-write' : 'read-only'
   if (!definition.tools.length || definition.tools.some((tool) => !CODEX_TOOLS.includes(tool))) return undefined
-  return sandbox
+  // Codex's workspace-write always carries a shell, so only a definition granting Bash may have it.
+  if (definition.tools.includes('Bash')) return 'workspace-write'
+  return definition.tools.some((tool) => WRITERS.includes(tool)) ? undefined : 'read-only'
 }
