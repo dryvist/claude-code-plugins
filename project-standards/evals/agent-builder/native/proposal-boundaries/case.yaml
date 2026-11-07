@@ -18,14 +18,78 @@ graders:
     type: tool_used
     tool: Skill
     input_match: '"skill"\s*:\s*"(?:[\w-]+:)?agent-builder"'
-  - name: package-boundaries
+  - name: canonical-inputs-location
     type: llm
     criteria: >-
-      PASS only if all five corrections appear: canonical prompt/definition in
-      ai-llm-prompts (or authorized private twin), deployment roles accept
-      parameters only; the sole credential-holding connector is called by name
-      over A2A through agentgateway with verified identity; code work runs in
-      agent-sandbox jobs; tier 2 stays local and may wait 12 hours without cloud
-      fallback; one shared template renders all three exports, with Dify live
-      and Sim/Langflow shadow. FAIL for missing corrections, invented model
-      choices, a second credential path, or claimed execution.
+      PASS if the answer places the canonical prompt and definition in
+      ai-llm-prompts or its authorized private twin; FAIL otherwise.
+  - name: deployment-parameters-only
+    type: llm
+    criteria: >-
+      PASS if the answer corrects deployment roles to accept parameters only;
+      FAIL otherwise.
+  - name: connector-sole-credential-holder
+    type: llm
+    criteria: >-
+      PASS if the answer makes the connector the sole credential holder;
+      FAIL otherwise.
+  - name: connector-called-by-name
+    type: llm
+    criteria: >-
+      PASS if the answer requires calling the connector by name;
+      FAIL otherwise.
+  - name: connector-a2a-gateway-route
+    type: llm
+    criteria: >-
+      PASS if the answer routes connector calls over A2A through agentgateway;
+      FAIL otherwise.
+  - name: connector-verified-identity
+    type: llm
+    criteria: >-
+      PASS if the answer requires verified identity for connector calls;
+      FAIL otherwise.
+  - name: sandbox-code-work
+    type: llm
+    criteria: >-
+      PASS if the answer places code work in agent-sandbox jobs;
+      FAIL otherwise.
+  - name: tier-2-local-only
+    type: llm
+    criteria: >-
+      PASS if the answer keeps tier 2 local without cloud fallback;
+      FAIL otherwise.
+  - name: tier-2-12-hour-wait
+    type: llm
+    criteria: >-
+      PASS if the answer states that tier 2 may wait 12 hours;
+      FAIL otherwise.
+  - name: shared-template-exports
+    type: llm
+    criteria: >-
+      PASS if the answer requires one shared template to render all three
+      exports; FAIL otherwise.
+  - name: dify-live-home
+    type: llm
+    criteria: >-
+      PASS if the answer assigns Dify the live home; FAIL otherwise.
+  - name: sim-shadow-copy
+    type: llm
+    criteria: >-
+      PASS if the answer assigns Sim a shadow copy; FAIL otherwise.
+  - name: langflow-shadow-copy
+    type: llm
+    criteria: >-
+      PASS if the answer assigns Langflow a shadow copy; FAIL otherwise.
+  - name: no-invented-model-choices
+    type: llm
+    criteria: >-
+      PASS if the answer does not invent model choices; FAIL if it does.
+  - name: no-second-credential-path
+    type: llm
+    criteria: >-
+      PASS if the answer does not introduce a second credential path;
+      FAIL if it does.
+  - name: no-claimed-execution
+    type: llm
+    criteria: >-
+      PASS if the answer does not claim execution; FAIL if it does.
