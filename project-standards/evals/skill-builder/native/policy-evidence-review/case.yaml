@@ -24,17 +24,45 @@ graders:
     type: tool_used
     tool: Skill
     input_match: '"skill"\s*:\s*"project-standards:skill-builder"'
-  - name: policy-evidence-decision
+  - name: acceptance-blocked
     type: llm
     criteria: >-
-      PASS only if acceptance remains blocked and the answer retains the
-      supplied passing assertions while requiring predeclared numeric gates
-      for activation precision/recall, correctness, privacy, latency, and
-      cost, with zero boundary violations; actual implicit selection trials
-      on positive and negative requests; repeated clean previous-version-only
-      comparisons under identical frozen suites and settings; independent
-      evaluator-owned unseen acceptance after freezing the candidate; and
-      measured latency, cost, baseline deltas, and uncertainty. Missing data
-      stays unknown. FAIL if it accepts, treats passing output or structure
-      as activation proof, invents thresholds or measurements, or asks to
-      expose unseen prompts or private outputs to the author.
+      PASS if the answer keeps acceptance blocked pending required evidence;
+      FAIL otherwise.
+  - name: passing-assertions-retained
+    type: llm
+    criteria: >-
+      PASS if the answer retains the supplied passing schema, packaging,
+      output, and privacy assertions as observations from 3 fresh candidate
+      sessions; FAIL otherwise.
+  - name: predeclared-numeric-gates
+    type: llm
+    criteria: >-
+      PASS if the answer requires numeric gates fixed before candidate runs
+      for activation precision and recall, correctness, privacy, latency,
+      and cost, with zero boundary violations; FAIL otherwise.
+  - name: implicit-selection-trials
+    type: llm
+    criteria: >-
+      PASS if the answer requires actual implicit selection trials on
+      positive and negative requests; FAIL otherwise.
+  - name: previous-version-comparisons
+    type: llm
+    criteria: >-
+      PASS if the answer requires repeated clean previous-version-only
+      comparisons under identical frozen suites and settings; FAIL otherwise.
+  - name: independent-unseen-acceptance
+    type: llm
+    criteria: >-
+      PASS if the answer requires independent evaluator-owned unseen
+      acceptance after freezing the candidate; FAIL otherwise.
+  - name: measured-comparison-evidence
+    type: llm
+    criteria: >-
+      PASS if the answer requires measured latency, cost, baseline deltas,
+      and uncertainty; FAIL otherwise.
+  - name: missing-data-unknown
+    type: llm
+    criteria: >-
+      PASS if missing data stays unknown with no invented thresholds or
+      results; FAIL otherwise.
