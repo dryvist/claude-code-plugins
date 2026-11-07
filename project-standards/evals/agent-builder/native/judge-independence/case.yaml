@@ -13,18 +13,30 @@ execution:
     execute evals, models, shell commands, writes, or service operations.
 
     Baseline and revision ran identical frozen tasks in clean sessions with
-    matching settings. Every other acceptance gate is recorded as satisfied.
-    These model names are fictional identifiers used only for this fixture.
+    matching settings. Conformance, privacy, latency, cost, trace receipt,
+    and shadow-score gates passed. Names below are fictional fixture IDs.
 
-    revision_generator: fixture-planner
-    rubric_judge: fixture-planner
-    visible_arm_labels: baseline, revision
-    judge_input_order: baseline then revision for every task
-    order_randomized: false
-    grades_per_identical_output: 1
-    action-plan-complete: baseline 15/20, revision 19/20
+    model_map:
+      author: fixture-planner-2026-10
+      assessor: fixture-planner-2026-10
+      reference: fixture-critic-2026-09
+    revision_generator: author
+    rubric_judge: assessor
+    arms: {prompt-12: baseline, prompt-13: revision}
+    judge_packet_fields: [task, prompt_version, output, rubric]
+    judge_packet_prompt_version_values: [prompt-12, prompt-13]
 
-    There are no further judging or comparison runs in this record.
+    Complete presentation and scoring ledger (output IDs identify frozen text):
+    | Task | Presentation sequence | Output ID | Grade |
+    | --- | --- | --- | --- |
+    | plan-01 | [prompt-12, prompt-13] | p12-01 / p13-01 | pass / pass |
+    | plan-02 | [prompt-12, prompt-13] | p12-02 / p13-02 | pass / pass |
+    | plan-03 | [prompt-12, prompt-13] | p12-03 / p13-03 | fail / pass |
+    | plan-04 | [prompt-12, prompt-13] | p12-04 / p13-04 | pass / pass |
+    | plan-05 | [prompt-12, prompt-13] | p12-05 / p13-05 | pass / pass |
+    | plan-06 | [prompt-12, prompt-13] | p12-06 / p13-06 | fail / pass |
+
+    action-plan-complete totals: prompt-12 4/6, prompt-13 6/6.
 graders:
   - name: selected-agent-builder
     type: tool_used
@@ -43,11 +55,16 @@ graders:
     criteria: >-
       PASS if the answer asks for a judge model distinct from the revision's
       generator; FAIL otherwise.
-  - name: blinded-order-randomization-requested
+  - name: blinded-comparison-requested
     type: llm
     criteria: >-
-      PASS if the answer calls for comparisons blinded to arm identity with
-      arm order randomized separately for each task; FAIL otherwise.
+      PASS if the answer calls for comparisons blinded to arm identity;
+      FAIL otherwise.
+  - name: order-randomization-requested
+    type: llm
+    criteria: >-
+      PASS if the answer calls for arm order randomized separately for each
+      task; FAIL otherwise.
   - name: repeat-verdict-noise-check-requested
     type: llm
     criteria: >-
