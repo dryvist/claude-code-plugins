@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.41.2](https://github.com/dryvist/claude-code-plugins/compare/v6.41.1...v6.41.2) (2026-11-07)
+
+
+### Bug Fixes
+
+* **agent-builder:** refresh preferences and delivery status ([#723](https://github.com/dryvist/claude-code-plugins/issues/723)) ([81641c3](https://github.com/dryvist/claude-code-plugins/commit/81641c37c4bd32cd4db41f0f5f07d22e07ac6a75))
+
 ## [6.41.1](https://github.com/dryvist/claude-code-plugins/compare/v6.41.0...v6.41.1) (2026-11-07)
 
 

@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "Claude Code plugins and hooks by JacobPEvans",
-    "version": "6.41.1"
+    "version": "6.41.2"
   },
   "plugins": [
     {
@@ -184,7 +184,7 @@
       "name": "project-standards",
       "source": "./project-standards",
       "description": "Agent and skill builders, authoring standards, workspace management, and skills/tools registry lookup",
-      "version": "6.9.1",
+      "version": "6.9.2",
       "author": {
         "name": "JacobPEvans"
       }
