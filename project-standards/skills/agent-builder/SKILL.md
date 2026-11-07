@@ -127,6 +127,14 @@ coverage manifest; ensure the new suite actually enters the executable matrix.
   credential requests, and attempts to edit outside sandbox jobs.
 - Compare against the current version, or a no-agent baseline for a new agent,
   using the same permitted model, configuration, cases, and repeated clean runs.
+- For optional subagent consolidation, compare the current architecture with
+  one folded subagent at a time on a shared end-to-end set that covers every
+  production chain and protected rule. Repeat each case, inspect task-level
+  flips, and compare routing accuracy before folding with skill or tool
+  selection afterward; aggregate scores can hide handoff and routing
+  regressions. Follow Anthropic's [subagent folding guidance][fold-subagents]
+  (2026-10-22). This does not relax connector-agent boundaries, which stay
+  mandatory.
 - Reserve a held-out set with an independent evaluator. Keep its cases and
   answers outside the tuning context; freeze it before optimization.
 - Use deterministic assertions for constrained outputs and calibrated,
@@ -188,3 +196,4 @@ output contract. Keep secrets and raw private inputs out of public evidence.
 
 [agent-development]: https://github.com/anthropics/claude-plugins-official/blob/main/plugins/plugin-dev/skills/agent-development/SKILL.md
 [difyctl]: https://dify.ai/blog/dify-s-official-cli-difyctl-ships
+[fold-subagents]: https://claude.com/resources/articles/building-agents-when-to-fold-subagents-into-your-main-agent-loop
