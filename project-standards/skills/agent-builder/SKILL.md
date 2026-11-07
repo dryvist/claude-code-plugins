@@ -18,7 +18,13 @@ Follow the shared [eval contract](../../evals/skill-builder/contract.md) for com
 
 ## Establish the contract
 
-Read repository instructions, v2 schema, standards, connector roster,
+For evidence-only reviews, apply the inline promotion and acceptance gates to
+the supplied record. Return the requested decision with missing evidence;
+do not require authoring schemas or templates, search for unsupplied artifacts,
+or run deployment operations. Authoring prerequisites apply when changing a
+definition, prompt, or evaluation package. Sources: A1, O1; local policy E2.
+
+For authoring, read repository instructions, v2 schema, standards, connector roster,
 template inputs, evaluation runner, and import guide.
 Search for an existing agent or native feature that already performs the job.
 Extend it when appropriate; add no custom script where an existing tool works.

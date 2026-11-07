@@ -1,6 +1,10 @@
 # Builder evaluation results
 
-Status: **not yet run**. Updated **2026-11-06**.
+Status: **revised candidate not yet run**. Updated **2026-11-07**.
+
+This record applies to the reviewed head containing the draft-prerequisite,
+description-trigger, and harder development-case changes. Earlier native runs
+belong to their recorded revisions; they do not validate this candidate.
 
 | Measurement | Status |
 | --- | --- |

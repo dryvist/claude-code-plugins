@@ -1,0 +1,31 @@
+schema_version: "1.1"
+name: agent-shadow-boundary
+tags: [development, should-trigger, execution, discrimination]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: >-
+    Review a platform worker's promotion record using the applicable platform
+    authoring policy. All conformance, render-drift, development and independent
+    held-out promptfoo checks pass. The versioned dataset exists, import and
+    execution are verified, and correlated trace receipts and baseline scores
+    cover the whole interval without score decline or missing coverage. The
+    uninterrupted shadow interval starts 2026-11-01T03:00:00Z and the latest
+    evidence ends 2026-11-08T02:00:00Z. Return only JSON with status,
+    earliest_review_time, remaining_hours, and next_action. Assess only these
+    supplied facts; no file changes or operations are authorized.
+graders:
+  - name: selected-agent-builder
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:[\w-]+:)?agent-builder"'
+  - name: exact-shadow-boundary
+    type: regex
+    pattern: '^(?=[\s\S]*"earliest_review_time"\s*:\s*"2026-11-08T03:00:00Z")(?=[\s\S]*"remaining_hours"\s*:\s*1\s*[,}])[\s\S]*$'
+  - name: promotion-review-route
+    type: llm
+    criteria: >-
+      PASS if promotion stays blocked pending the final hour of a 7-day shadow
+      interval with continued coverage and no score drop, followed by the
+      promotion-review PR and supervising lead review/merge of the mode change.
+      FAIL if it promotes now, substitutes an arbitrary longer interval or a
+      live trial, directly publishes a mode flip, or claims future evidence.

@@ -31,7 +31,7 @@ unavailable evaluator blocks acceptance, not drafting. For evidence review,
 judge the supplied facts against the inline gates without searching for
 unsupplied artifacts or running operations. Sources: S1, S4.
 
-Read [claude-skill-authoring](../claude-skill-authoring/SKILL.md) for placement,
+For authoring, read [claude-skill-authoring](../claude-skill-authoring/SKILL.md) for placement,
 description budgets, and the self-contained rule. Use Anthropic's
 [skill-creator][skill-creator] for baseline experiments and trigger evaluation,
 and [plugin-dev:skill-development][skill-development] for plugin packaging.

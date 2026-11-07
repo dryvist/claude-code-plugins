@@ -1,0 +1,33 @@
+schema_version: "1.1"
+name: skill-contaminated-comparison
+tags: [development, should-trigger, execution, discrimination]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: >-
+    Assess release acceptance of a revised reusable skill from this evidence.
+    All format checks and boundary assertions pass. The native runner reports
+    WITH 1.00 and WITHOUT 1.00. Its selected-skill indicator is false on every
+    positive request. The previous-version arm loaded the new candidate too
+    and reused its writable workspace across 3 trials. Latency and cost were
+    not recorded. An evaluator sent the author all held-out prompts and
+    answers, which the author used to tune this candidate; scores remained
+    1.00. Return only JSON with status, valid_claims, and required_reruns.
+    Make an evidence decision only, without running tests or changing files.
+graders:
+  - name: selected-skill-builder
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:[\w-]+:)?skill-builder"'
+  - name: comparison-validity
+    type: llm
+    criteria: >-
+      PASS only if acceptance is blocked and the decision distinguishes all
+      of these: perfect native task scores do not prove positive activation
+      because Skill indicators are excluded from ablation scores; equal WITH
+      and WITHOUT scores show no measured contribution on these cases; the
+      update requires previous-version-only runs and repeated clean sessions
+      with identical settings and suites; exposed held-out cases become
+      development data and need fresh independently owned replacements before
+      acceptance; unmeasured latency and cost remain unknown. Preserve the
+      valid format/boundary observations. FAIL if it accepts, merely reruns
+      the same exposed held-out set, or claims improved quality or efficiency.

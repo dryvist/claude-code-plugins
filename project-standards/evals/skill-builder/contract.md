@@ -1,9 +1,9 @@
 # Builder evaluation contract
 
-Status: **not yet run**. Protocol dated **2026-11-06**. Previous-version
-baseline: `2e9447d7a2a95a2ed806727da7505c676b25f021`. Candidate authoring
-instructions frozen at `eacb30b`; subsequent suite links do not change behavior.
-Record the exact reviewed candidate head before running.
+Status: **revised candidate not yet run**. Protocol updated **2026-11-07**.
+Previous-version baseline: `2e9447d7a2a95a2ed806727da7505c676b25f021`.
+Record the exact reviewed candidate and development-suite heads before running;
+earlier candidate measurements do not establish acceptance for this revision.
 
 ## Native suites and isolation
 
@@ -21,6 +21,18 @@ check them separately, even if the command exits successfully. Cases cover
 authoring, evidence decisions, existing-task execution, and cross-builder
 vocabulary collisions. A missing prerequisite may pass a stop-condition rubric,
 but counts as **blocked task completion**, never successful artifact creation.
+The text-draft case also grades phase-specific prerequisite handling; a
+comparison-only resource is not mandatory authoring guidance.
+
+Cases tagged `discrimination` exercise policy decisions: the exact shadow
+window, canonical package boundaries, byte/token/safety budgets, and invalid
+comparison arms. Run the commands below on the whole development suite for
+both snapshots. Inspect per-case WITH/WITHOUT deltas and actual invocation
+indicators before asserting that these harder cases discriminate; their
+difficulty and contribution are hypotheses until measured. Keep unchanged
+development cases as controls, and calibrate judge disagreements from their
+artifacts before attributing a score change to the skill. Source: S1 in the
+[skill source register](../../skills/skill-builder/references/sources.md).
 
 The native runner creates a fresh home, workspace, and configuration per trial,
 with only the target plugin loaded. No personal skills or memory are assumed.
@@ -126,7 +138,7 @@ If instruction behavior changes after freezing, obtain a fresh held-out set.
 - Structural validation, these authoring/evidence-review tasks, live platform
   execution, and promotion have separate statuses. The old planning smoke
   observations are not acceptance. Until the lead supplies complete native
-  run artifacts, all behavioral measurements remain **not yet run**.
+  run artifacts for this revision, its behavioral measurements remain **not yet run**.
 
 ## Schema compatibility review
 
@@ -136,17 +148,17 @@ Each inline grader declares its type-specific fields directly alongside
 `name` and `type`. Held-out prompts, rubrics, expected outcomes, and grader
 limits retain their frozen values after this structural conversion.
 
-**Blocked: shared grader.** The documented schema supports per-case `graders`
+**Accepted native constraint: shared grader.** The documented schema supports per-case `graders`
 entries and per-case `graders/*.md` files. It defines no cross-case grader
 reference, include, or suite-level grader defaults. Suite-wide mocks share MCP
 responses, not graders. The no-shell, no-write, and no-edit assertions remain
-local to each case pending a documented native sharing mechanism. No custom
+local to each case as an accepted native schema constraint. No custom
 preprocessor or undocumented sharing field is introduced.
 
 CLI **2.1.319** exposes no validation-only or dry-run option in
 `claude plugin eval --help`. YAML checks and preservation of normalized case
 data are structural evidence only. Native suite loading and behavioral
-acceptance remain **not yet run**; the lead runs the commands above outside
+acceptance for this revision remain **not yet run**; the lead runs the commands above outside
 the builder sandbox and retains their load errors or measured results.
 
 [native-docs]: https://code.claude.com/docs/en/plugin-evals
