@@ -1,0 +1,65 @@
+schema_version: "1.1"
+name: skill-description-overlap
+tags: [development, should-trigger, execution, discrimination]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: |-
+    Revise this reusable harness skill and prepare its paid evaluation plan.
+    The previous version captured successful invocations from supplied task
+    transcripts; this revision also helps when the entrypoint is unknown.
+    Keep the revised skill focused on reusable recipe notes. Go ahead with
+    the paid plan: 3 fresh sessions per arm against the previous version,
+    identical inputs and settings, and a frozen suite with independent judges.
+    The installed plugin catalog is available to read. Return proposed skill
+    text and an ordered plan only; no writes, shell, services, or paid calls
+    are authorized here. No trigger or execution results have been supplied.
+
+    Proposed revision:
+    ---
+    name: task-recipe-notes
+    description: >-
+      Turn task requests into repeatable recipes by finding suitable installed
+      capabilities and recording their entrypoints. Use when the next action
+      is unclear or a successful invocation needs saving for reuse.
+    ---
+    # Task recipe notes
+    Identify a suitable installed capability for the supplied task, or use
+    the successful invocation in the supplied transcript. Return a recipe
+    with inputs, invocation, expected output, and unverified assumptions.
+    Execute no recipe and infer no successful outcome from a command alone.
+graders:
+  - name: selected-skill-builder
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:[\w-]+:)?skill-builder"'
+  - name: names-neighbor-overlap
+    type: llm
+    criteria: >-
+      PASS if the response identifies skills-registry as the installed
+      neighbor and explains that discovering suitable capabilities or unknown
+      entrypoints competes with its tools/skills/commands/agents/plugins lookup
+      trigger. FAIL if it only mentions generic ambiguity or unrelated skills.
+  - name: overlap-check-before-paid-trials
+    type: llm
+    criteria: >-
+      PASS if the response compares the proposed description with installed
+      neighbors' descriptions and places trigger tests for intended selection
+      and neighbor selection before any paid execution trial. In this plan-only
+      task, tests may remain pending. FAIL if it starts with paid execution
+      trials or postpones catalog comparison until after them.
+  - name: resolves-before-spending
+    type: llm
+    criteria: >-
+      PASS if the response supplies a narrowed description scoped to recording
+      supplied successful invocations, or proposes merging the overlapping
+      discovery responsibility into skills-registry, and makes rerun trigger
+      tests a prerequisite for spending on execution trials. FAIL if it keeps
+      the competing discovery trigger, merely flags it, or spends before
+      resolving it and rerunning trigger tests.
+  - name: no-invented-results
+    type: llm
+    criteria: >-
+      PASS if trigger and execution outcomes remain explicitly unverified or
+      pending, with no invented activation counts, scores, costs, or completed
+      trials. Reading descriptions and proposing tests are not empirical
+      results. FAIL if any unperformed test or trial is reported as completed.

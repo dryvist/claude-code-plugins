@@ -147,7 +147,9 @@ Express any requested invocation policy in each target harness's native
 metadata; Claude frontmatter and Codex `agents/openai.yaml` are distinct.
 Preserve unrelated metadata. Test effective invocation in each target harness
 rather than assuming one harness's settings apply to another.
-Keep descriptions discriminating rather than matching every related keyword.
+Keep descriptions discriminating; before paid execution trials, compare the
+description with installed neighbors' descriptions and run trigger tests.
+Resolve overlaps by narrowing or merging into the neighbor; rerun trigger tests before spending on trials.
 Put required tool dependencies in the harness's native dependency metadata;
 verify availability without silently installing tooling or granting access.
 
