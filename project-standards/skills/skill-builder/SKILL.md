@@ -1,9 +1,9 @@
 ---
 name: skill-builder
 description: >-
-  Create or revise reusable harness skills, including descriptions and evals.
-  Use for skill authoring and behavior changes; exclude executing an existing
-  skill, platform agent definitions, and ordinary code or documentation edits.
+  This skill applies when creating or revising reusable harness skills,
+  descriptions, behavior, or evals. It excludes executing an existing skill,
+  platform agent definitions, and ordinary code or documentation edits.
 ---
 
 # Skill builder
@@ -101,7 +101,8 @@ outputs stay in the authorized private evidence location.
 
 Create `<plugin>/skills/<name>/SKILL.md` with YAML `name` and `description`.
 Use lowercase hyphenated names matching the directory. State the exact task,
-trigger conditions, and adjacent exclusions in the description. Keep it at
+trigger conditions, and adjacent exclusions in a third-person description
+that states when the skill applies. Keep the description at
 most **1,024 bytes**, targeting about **250 characters**; the public
 specification's character limit is a separate measure.
 
