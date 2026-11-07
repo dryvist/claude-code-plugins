@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.7.1](https://github.com/dryvist/claude-code-plugins/compare/project-standards-v6.7.0...project-standards-v6.7.1) (2026-11-07)
+
+
+### Bug Fixes
+
+* **skill-builder:** calibrate the packaging and policy evidence evals ([#708](https://github.com/dryvist/claude-code-plugins/issues/708)) ([dd80d3d](https://github.com/dryvist/claude-code-plugins/commit/dd80d3d71d40268919f38ff347d4de2c1a17486c))
+
 ## [6.7.0](https://github.com/dryvist/claude-code-plugins/compare/project-standards-v6.6.0...project-standards-v6.7.0) (2026-11-07)
 
 
