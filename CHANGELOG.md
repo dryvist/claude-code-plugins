@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.40.2](https://github.com/dryvist/claude-code-plugins/compare/v6.40.1...v6.40.2) (2026-11-07)
+
+
+### Bug Fixes
+
+* **jpe-ai-delegation:** keep write tools without Bash on native agents ([#728](https://github.com/dryvist/claude-code-plugins/issues/728)) ([5bbbc42](https://github.com/dryvist/claude-code-plugins/commit/5bbbc428c90e84de096069c37732c0515763c4c0))
+
 ## [6.40.1](https://github.com/dryvist/claude-code-plugins/compare/v6.40.0...v6.40.1) (2026-11-07)
 
 

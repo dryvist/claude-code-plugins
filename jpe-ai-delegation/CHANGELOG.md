@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.12.4](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.12.3...jpe-ai-delegation-v1.12.4) (2026-11-07)
+
+
+### Bug Fixes
+
+* **jpe-ai-delegation:** keep write tools without Bash on native agents ([#728](https://github.com/dryvist/claude-code-plugins/issues/728)) ([5bbbc42](https://github.com/dryvist/claude-code-plugins/commit/5bbbc428c90e84de096069c37732c0515763c4c0))
+
 ## [1.12.3](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.12.2...jpe-ai-delegation-v1.12.3) (2026-11-07)
 
 
