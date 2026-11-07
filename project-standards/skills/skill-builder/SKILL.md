@@ -158,6 +158,10 @@ listing. Reuse existing discovery and distribution; do not copy canonical
 content into vendor directories. Keep agent prompts and logic out of Ansible
 repositories, which accept input parameters only.
 
+For Gemini CLI same-name skills, workspace scope overrides user scope; within
+either tier, `.agents/skills/` overrides `.gemini/skills/`. Verify the selected
+resource path and canonical revision before testing a distributed copy. Source: S5.
+
 ## Validate, compare, and deliver
 
 Run the repository's `agentskills validate` loop, progressive-disclosure check,
@@ -165,7 +169,13 @@ plugin/schema validation, markdown lint, and commit hooks. Check UTF-8
 description bytes explicitly if the validator only checks characters.
 Run the frozen trigger and execution suites on the permitted target models
 and harnesses, with candidate and baseline arms and independent held-out
-evaluation. Improve against development cases only, then rerun affected checks.
+evaluation. Use development failure transcripts to derive general fixes; never
+paste failure content or case-specific answers into the optimized prompt or
+skill body. Keep those details in development fixtures. In each optimization
+round, record one hypothesis and propose one attributable change to one surface
+(description, body, tools, or harness). Measure it against the baseline and
+record keep or revert before starting the next round; rerun affected checks.
+Source: A3.
 
 Accept only when structural checks and declared behavioral thresholds pass,
 no authority/privacy boundary is violated, and held-out results show no

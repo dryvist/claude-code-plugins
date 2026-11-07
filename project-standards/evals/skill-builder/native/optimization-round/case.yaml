@@ -1,0 +1,56 @@
+schema_version: "1.1"
+name: skill-optimization-round
+tags: [development, should-trigger, execution, discrimination]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: |-
+    Review this plan to optimize a reusable document-formatting skill.
+    Return a corrected round-by-round plan only. You may read installed
+    policy; no writes, shell, services, or evaluation calls are authorized.
+    The frozen previous-version baseline and independent held-out suite exist.
+    All arms use identical inputs, settings, tools, and calibrated graders.
+    Development transcripts show ambiguous column-label failures.
+
+    Proposed first round: broaden the triggering description, clarify the
+    body's column-selection rule, and add a tool in the harness together.
+    Then measure the combined patch against baseline, leave it in place,
+    and start another round before deciding which edits to keep.
+    Paste the failing transcript and its exact expected answer into the skill
+    so the optimizer can reproduce the development success.
+    No candidate runs or scores have been supplied.
+graders:
+  - name: selected-skill-builder
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:[\w-]+:)?skill-builder"'
+  - name: isolates-one-change
+    type: llm
+    criteria: >-
+      PASS if the corrected first round names one hypothesis and one proposed
+      change on one named surface, deferring the other proposed edits to
+      separate rounds. FAIL if it bundles description, body, tools, or harness
+      changes into a single comparison.
+  - name: measures-against-baseline
+    type: llm
+    criteria: >-
+      PASS if the plan measures the isolated candidate against the frozen
+      previous-version baseline under the supplied identical conditions.
+      FAIL if it relies on candidate-only scores or the combined patch.
+  - name: resolves-round-before-next
+    type: llm
+    criteria: >-
+      PASS if a recorded keep-or-revert decision based on the measured result
+      is required before starting the next round. FAIL if unresolved changes
+      accumulate across rounds.
+  - name: generalizes-failure-evidence
+    type: llm
+    criteria: >-
+      PASS if transcripts inform a reusable rule while failure content and
+      exact case answers remain development fixtures outside the optimized
+      prompt and skill body. FAIL if either receives pasted failure content.
+  - name: preserves-unrun-status
+    type: llm
+    criteria: >-
+      PASS if proposed runs and results remain pending or unverified and
+      no execution or measured improvement is claimed. FAIL if the response
+      invents scores, completed trials, or acceptance.

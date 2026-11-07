@@ -2,7 +2,7 @@
 
 Research cutoff: **2026-11-06**; provenance clarified **2026-11-07**.
 Each record separates publication/revision from retrieval. Existing retrieval
-dates are retained; S4 was rechecked on **2026-11-07**. Undated pages do not
+dates are retained; S4, S5, and A3 were rechecked on **2026-11-07**. Undated pages do not
 establish recency; material over 12 months old is background only.
 No practitioner source is required for this refresh.
 
@@ -14,6 +14,7 @@ No practitioner source is required for this refresh.
 | S2 | OpenAI [Build skills](https://learn.chatgpt.com/docs/build-skills) | Unavailable (undated) | 2026-11-06 | Supplementary native invocation/dependency metadata, focused descriptions, instruction-first packaging. |
 | S3 | Anthropic [Extend Claude with skills](https://code.claude.com/docs/en/skills) | Unavailable (undated) | 2026-11-06 | Supplementary Claude invocation lifecycle, supporting files, and tool pre-approval semantics. |
 | S4 | Anthropic [Test plugins with evals](https://code.claude.com/docs/en/plugin-evals) | Unavailable (undated) | 2026-11-07 | Native case format, output-only controls, actual Skill-call indicators separate from task scores, clean trials, baseline arms, and local reports. CLI help previously verified at 2.1.319 on 2026-11-06. |
+| S5 | Google [Gemini CLI skill precedence](https://geminicli.com/docs/cli/skills/#precedence-and-aliases) | Updated 2026-04-30 | 2026-11-07 | Same-name scope and alias precedence; selected resource path and revision verification. Outside the preferred 4-month window; within 12 months. |
 | E1 | Local [claude-skill-authoring](../../claude-skill-authoring/SKILL.md) | Revised [2026-11-06](https://github.com/dryvist/claude-code-plugins/commit/6790c0dde3767577f543ed7cad9e3bd2af92294c) | 2026-11-06 | 1,024-byte description maximum, approximately 250-character target, canonical placement, self-contained execution, inline safety. |
 
 ## Shared dated sources
@@ -28,6 +29,7 @@ tables across the builders. Both directories ship in the same plugin.
 | Scope, reuse, minimal instructions, description triggers/exclusions | O1 (2026-09-11), A1 (2026-07-24). |
 | Runtime permissions, untrusted inputs, pre-action controls | A2 (2026-10-08), O2 (2026-10-13), G2 (2026-09-22). |
 | Frozen thresholds, clean baseline arms, held-out ownership, uncertainty | A3 (2026-09-28), S1 (2026-03-06). |
+| General fixes from development failures and attributable optimization rounds | A3 (2026-09-28), live publication date confirmed 2026-11-07. |
 | Trigger separation and observable tool/result grading | S1 (2026-03-06), G1 (2026-10-16). |
 | Context accounting, disclosure, compaction and execution limits | A1 (2026-07-24), O3 (2026-09-30), E1 (2026-11-06). |
 | Portable packaging and invocation policy | O1 (2026-09-11), E1 (2026-11-06); S2/S3 supplement harness syntax. |
