@@ -1,9 +1,10 @@
 ---
 name: skill-builder
 description: >-
-  This skill applies when creating or revising reusable harness skills,
-  descriptions, behavior, or evals. It excludes executing an existing skill,
-  platform agent definitions, and ordinary code or documentation edits.
+  This skill applies when authoring reusable skills, tuning triggers, or
+  assessing release acceptance and evaluation evidence, even without edits.
+  It excludes running existing skills, platform agent authoring or promotion,
+  and ordinary code or doc edits.
 ---
 
 # Skill builder

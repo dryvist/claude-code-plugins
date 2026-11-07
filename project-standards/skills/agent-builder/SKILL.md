@@ -1,9 +1,10 @@
 ---
 name: agent-builder
 description: >-
-  This skill applies when creating or revising platform agent definitions,
-  prompts, evals, or promotion evidence in ai-llm-prompts. It excludes ordinary
-  code fixes, running an existing agent, and reusable skill authoring.
+  This skill applies when authoring platform agents, prompts, or evals, or
+  reviewing promotion evidence and go-live decisions, even without edits.
+  It excludes running existing agents, processing their reports, and harness
+  skill authoring.
 ---
 
 # Agent builder
