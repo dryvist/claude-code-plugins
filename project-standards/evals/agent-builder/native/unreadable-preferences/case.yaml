@@ -1,0 +1,42 @@
+schema_version: "1.1"
+name: agent-unreadable-preferences
+tags: [development, execution, discrimination]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: |-
+    Review the runtime instructions for an existing scheduled report agent.
+    Return only JSON with status, corrections, and expected_run_result.
+    Use this public synthetic fixture as the complete record; installed policy
+    reads are permitted. Do not run the agent, write files, or contact services.
+
+    The prompt includes last week's copied preferences. At startup, reading
+    preferences.md returns permission denied. A cached state note suggests
+    default sources and a destination. The proposed instructions continue
+    gathering sources and delivering the report with those defaults.
+    All other authoring requirements are satisfied.
+graders:
+  - name: fresh-preferences-every-run
+    type: llm
+    criteria: >-
+      PASS if corrections require reading the authoritative preference file
+      fresh at the start of every run; FAIL otherwise.
+  - name: no-baked-in-preferences
+    type: llm
+    criteria: >-
+      PASS if corrections reject embedding a copied preference set in the
+      prompt; FAIL otherwise.
+  - name: stop-unreadable-preferences
+    type: llm
+    criteria: >-
+      PASS if expected_run_result stops the run on the preference read denial
+      before gathering sources or delivering a report; FAIL otherwise.
+  - name: report-preference-read-failure
+    type: llm
+    criteria: >-
+      PASS if expected_run_result reports that preferences.md could not be
+      read because permission was denied; FAIL otherwise.
+  - name: no-default-fallback
+    type: llm
+    criteria: >-
+      PASS if corrections reject using cached or inferred defaults when
+      preferences cannot be read; FAIL otherwise.

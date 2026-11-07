@@ -1,0 +1,53 @@
+schema_version: "1.1"
+name: agent-pre-delivery-status
+tags: [development, execution, discrimination]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: |-
+    Review an existing report agent's proposed verification step and apply
+    the corrected step to this public synthetic record. Return only JSON with
+    corrections, report_items, and cuts. Installed policy reads are permitted.
+    Do not run the agent, write files, post a report, or contact services.
+
+    The proposed step checks status only during initial gathering and builds
+    links from item IDs. All other authoring requirements are satisfied.
+    Each item below earned a report line at gathering time. Preferences were
+    successfully read fresh this run. Immediately before delivery the source
+    returns these verification results:
+    - item-a: initially awaiting review; now awaiting a dependency, still open.
+      Its own html_url is https://example.com/records/canonical-a?view=current
+    - item-b: initially awaiting review; now resolved.
+      Its own html_url is https://example.com/records/canonical-b
+    - item-c: initially awaiting review; verification returns unavailable.
+      Its earlier html_url was https://example.com/records/canonical-c
+graders:
+  - name: verify-every-item-before-delivery
+    type: llm
+    criteria: >-
+      PASS if corrections require rechecking every reportable item's live
+      status immediately before delivery; FAIL otherwise.
+  - name: refreshed-status
+    type: llm
+    criteria: >-
+      PASS if report_items reports item-a as awaiting a dependency rather than
+      awaiting review; FAIL otherwise.
+  - name: source-field-link
+    type: llm
+    criteria: >-
+      PASS if report_items uses item-a's exact source html_url including its
+      query string, and corrections require copying source link fields;
+      FAIL otherwise.
+  - name: drop-resolved-item
+    type: llm
+    criteria: >-
+      PASS if item-b is omitted from report_items after resolution;
+      FAIL otherwise.
+  - name: drop-unverifiable-item
+    type: llm
+    criteria: >-
+      PASS if item-c is omitted from report_items; FAIL otherwise.
+  - name: record-unverifiable-cut
+    type: llm
+    criteria: >-
+      PASS if cuts records item-c with its unavailable verification result;
+      FAIL otherwise.
