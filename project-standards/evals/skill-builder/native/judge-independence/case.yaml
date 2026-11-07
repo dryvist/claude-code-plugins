@@ -14,18 +14,30 @@ execution:
     and next_action.
 
     Both arms used identical frozen cases and settings in fresh sessions.
-    All other acceptance gates are recorded as satisfied.
-    Model identifiers below are synthetic fixture labels.
+    Packaging, trigger coverage, privacy, latency, and cost gates passed.
+    Identifiers below belong only to this synthetic fixture.
 
-    candidate_model: fixture-formatter
-    judge_model: fixture-formatter
-    comparison_labels: previous-version, candidate
-    presentation_order: previous-version first, candidate second on every item
-    arm_identities_visible_to_judge: true
-    identical_outputs_regraded: false
-    record-format-correct: previous-version 18/24, candidate 22/24
+    model_map:
+      drafting: fixture-formatter-2026-10
+      scoring: fixture-formatter-2026-10
+      control: fixture-reviewer-2026-09
+    generation_profile: drafting
+    evaluator_profile: scoring
+    arms: {release-7: previous-version, release-8: candidate}
+    judge_packet_fields: [item, release, output, rubric]
+    judge_packet_release_values: [release-7, release-8]
 
-    No independent judging, reordered comparisons, or repeat grading has run.
+    Complete presentation and scoring ledger (output IDs identify frozen text):
+    | Item | Presentation sequence | Output ID | Grade |
+    | --- | --- | --- | --- |
+    | rec-01 | [release-7, release-8] | r7-01 / r8-01 | pass / pass |
+    | rec-02 | [release-7, release-8] | r7-02 / r8-02 | fail / pass |
+    | rec-03 | [release-7, release-8] | r7-03 / r8-03 | pass / pass |
+    | rec-04 | [release-7, release-8] | r7-04 / r8-04 | pass / pass |
+    | rec-05 | [release-7, release-8] | r7-05 / r8-05 | fail / pass |
+    | rec-06 | [release-7, release-8] | r7-06 / r8-06 | pass / pass |
+
+    record-format-correct totals: release-7 4/6, release-8 6/6.
 graders:
   - name: selected-skill-builder
     type: tool_used
@@ -44,11 +56,16 @@ graders:
     criteria: >-
       PASS if the answer requires a judge model different from the candidate
       model; FAIL otherwise.
-  - name: blind-randomized-comparison-required
+  - name: blind-comparison-required
     type: llm
     criteria: >-
-      PASS if the answer requires hiding arm identities from the judge and
-      randomizing arm presentation order per item; FAIL otherwise.
+      PASS if the answer requires hiding arm identities from the judge;
+      FAIL otherwise.
+  - name: randomized-comparison-required
+    type: llm
+    criteria: >-
+      PASS if the answer requires randomizing arm presentation order per item;
+      FAIL otherwise.
   - name: identical-output-repeat-grading-required
     type: llm
     criteria: >-
