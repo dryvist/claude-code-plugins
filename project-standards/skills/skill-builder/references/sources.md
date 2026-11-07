@@ -57,6 +57,14 @@ tables across the builders. Both directories ship in the same plugin.
 
 ## Evaluation evidence boundary
 
+The draft/evidence-review/experiment branches apply S1's staged authoring
+workflow (updated 2026-03-06) and E1's self-contained execution rule. Mandatory
+authoring guides remain prerequisites. Comparison resources load for an
+experiment; source registers load for provenance. S4's isolation reference
+(undated; rechecked 2026-11-07) confirms eval directories are hidden from the
+candidate and personal skills are absent. A draft can be delivered before
+behavioral acceptance, with unrun checks identified separately.
+
 [Native development cases](../../../evals/skill-builder/native/) specify observable expectations, with
 baseline revision and acceptance criteria in [the eval contract](../../../evals/skill-builder/contract.md).
 Trigger selection, actual task execution, schema/lint validation, and deployed

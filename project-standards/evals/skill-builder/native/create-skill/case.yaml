@@ -22,3 +22,12 @@ graders:
       distinction, and no permission to invent or fetch dates; alternatively
       it names an actually unavailable mandatory authoring reference and stops.
       FAIL if it returns only an authoring plan or claims unmeasured evals passed.
+  - name: draft-prerequisite-scope
+    type: llm
+    criteria: >-
+      PASS if the response delivers the requested text artifact or identifies
+      an unavailable mandatory authoring guide with the attempted read or
+      availability evidence. FAIL if it treats the builder's comparison-only
+      eval contract, native suite, source register, or unrun behavioral tests
+      as a prerequisite for drafting. Missing authoring guidance may block a
+      draft; missing comparison resources may block only a comparison.

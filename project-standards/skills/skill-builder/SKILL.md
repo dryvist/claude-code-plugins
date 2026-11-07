@@ -13,15 +13,22 @@ outputs meet a declared evaluation contract. Extend the existing skill when
 its scope already fits. Keep platform agent definitions and runtime prompts
 in ai-llm-prompts; use agent-builder for that work.
 Use the dated [source register](references/sources.md) when checking provenance
-or refreshing guidance, and the [native suite](../../evals/skill-builder/native/) for builder regressions.
-Follow the [eval contract](../../evals/skill-builder/contract.md) when comparing builder revisions.
+or refreshing guidance. Only for builder regression experiments, use the
+[native suite](../../evals/skill-builder/native/) and
+[eval contract](../../evals/skill-builder/contract.md); these are not draft prerequisites.
 
 ## Establish scope and reuse authoring guidance
 
 Identify the authorized repository/worktree, allowed files, target harnesses,
 permitted models, network and service access, side effects, required checks,
 stop conditions, and expected artifacts. A request to author a skill does not
-authorize executing its deployment or privileged operations.
+authorize executing its deployment or privileged operations. Select the requested
+deliverable: draft artifact, evidence review, or authorized evaluation run.
+For a text-only draft, return the complete SKILL.md contents; write no files.
+Keep unrun validation and behavioral acceptance explicitly unverified. An
+unavailable evaluator blocks acceptance, not drafting. For evidence review,
+judge the supplied facts against the inline gates without searching for
+unsupplied artifacts or running operations. Sources: S1, S4.
 
 Read [claude-skill-authoring](../claude-skill-authoring/SKILL.md) for placement,
 description budgets, and the self-contained rule. Use Anthropic's
@@ -30,7 +37,11 @@ and [plugin-dev:skill-development][skill-development] for plugin packaging.
 Load installed copies with their complete resources and record their source
 and version; if unavailable, consult the official sources without installing
 unapproved tooling. Keep this platform's authority limits when applying their
-general advice. Stop if required guidance or a prerequisite cannot be read.
+general advice. If mandatory authoring guidance is unreadable, return its
+exact name/path, the attempted read and denial/unavailability, and the blocked
+authoring step. Stop that step; an authoring plan is not a draft artifact.
+Read comparison resources only for experiments and source registers only for
+provenance work. Their availability is not a gate for unrelated deliverables.
 
 Search the current skill/plugin registry and native tool capabilities before
 adding resources. Prefer instructions and existing native tools. Add no custom
@@ -49,9 +60,11 @@ effective permissions in each harness: skill tool metadata alone is not a
 sandbox, and a final-output check cannot prevent an earlier tool side effect.
 Sources: A2, O2, G2 in the source register.
 
-## Freeze the evaluation contract before tuning
+## Freeze the evaluation contract before experiments
 
-Use the existing evaluator and Anthropic skill-creator formats where supported.
+For tuning or acceptance experiments, use the existing evaluator and Anthropic
+skill-creator formats where supported. Draft requests end with the artifact
+and unrun-check status; they do not require a completed experiment first.
 Store authoring test inputs with the skill's evaluation resources, and retain
 run outputs in the authorized evidence location. Separate these suites:
 
