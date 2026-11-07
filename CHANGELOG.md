@@ -1,5 +1,13 @@
 # Changelog
 
+## [6.39.5](https://github.com/dryvist/claude-code-plugins/compare/v6.39.4...v6.39.5) (2026-11-07)
+
+
+### Bug Fixes
+
+* **agent-builder:** require worker reuse and lead promotion review ([96ff0c1](https://github.com/dryvist/claude-code-plugins/commit/96ff0c12c0d246a52e8ce884b0b59f05747a1130))
+* **agent-builder:** reuse existing workers and route mode changes through lead review ([#715](https://github.com/dryvist/claude-code-plugins/issues/715)) ([96ff0c1](https://github.com/dryvist/claude-code-plugins/commit/96ff0c12c0d246a52e8ce884b0b59f05747a1130))
+
 ## [6.39.4](https://github.com/dryvist/claude-code-plugins/compare/v6.39.3...v6.39.4) (2026-11-07)
 
 
