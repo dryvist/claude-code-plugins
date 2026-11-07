@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.7.5](https://github.com/dryvist/claude-code-plugins/compare/project-standards-v6.7.4...project-standards-v6.7.5) (2026-11-07)
+
+
+### Bug Fixes
+
+* **project-standards:** grade with an independent, blind and repeatable judge ([#719](https://github.com/dryvist/claude-code-plugins/issues/719)) ([7c55743](https://github.com/dryvist/claude-code-plugins/commit/7c55743939debcbfeb8f34008de5dc04413396cb))
+
 ## [6.7.4](https://github.com/dryvist/claude-code-plugins/compare/project-standards-v6.7.3...project-standards-v6.7.4) (2026-11-07)
 
 
