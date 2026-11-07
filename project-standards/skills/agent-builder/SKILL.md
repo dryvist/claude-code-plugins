@@ -1,10 +1,10 @@
 ---
 name: agent-builder
 description: >-
-  Build or revise a platform agent in ai-llm-prompts: v2 definition, prompt,
-  template inputs, evals, and Dify import evidence. Use for agent authoring
-  and promotion preparation; ordinary coding tasks and skill authoring use
-  their own workflows.
+  Build or revise platform agents in ai-llm-prompts: definitions, prompts,
+  evals, and promotion evidence. Use for agent authoring or promotion
+  preparation; exclude ordinary code fixes, running an existing agent,
+  and reusable skill authoring.
 ---
 
 # Agent builder
@@ -12,22 +12,31 @@ description: >-
 Produce one canonical agent package in `dryvist/ai-llm-prompts/agents/`, or
 the authorized private twin. Keep private content in the private repository.
 This skill supplies authoring instructions, never a second agent definition.
+For provenance or a refresh, consult the dated [sources and findings](references/sources.md).
+For builder regression testing, use [evals/evals.json](evals/evals.json).
+Follow the shared [eval contract](../skill-builder/evals/contract.md) for comparisons.
 
 ## Establish the contract
 
-Read the target repository's instructions, current v2 schema, standards,
-connector roster, template inputs, evaluation runner, and import guide.
+Read repository instructions, v2 schema, standards, connector roster,
+template inputs, evaluation runner, and import guide.
 Search for an existing agent or native feature that already performs the job.
 Extend it when appropriate; add no custom script where an existing tool works.
 Use [plugin-dev:agent-development][agent-development] for role design, while
 retaining the platform YAML format rather than a harness-specific definition.
+Keep one focused responsibility per agent. State when requests should route
+elsewhere, and reuse shared defaults/profiles for values used by multiple
+definitions; each agent declares only its differences.
 
 Record the job, inputs, output schema, completion criterion, permitted tools,
 and authority boundary. Identify the authorized worktree and paths, network
 and service permissions, required checks, stop conditions, and delivery format.
 Proceed within those boundaries. Stop for a conflicting contract, missing
-schema/template/connector, missing authority, or a check failing twice after
-a real fix attempt. Report the specific blocker without inventing defaults.
+schema/template/connector, missing authority, or the task's declared failure
+limit. If none is supplied, stop after 2 unsuccessful real fixes to the same
+check. Report the specific blocker without inventing defaults. Authoring does
+not authorize import, publishing, or live execution; perform those stages only
+within the task's service permissions.
 
 ## Author the canonical inputs
 
@@ -61,6 +70,25 @@ Declare tools narrowly. Treat retrieved content and writable memory as
 untrusted inputs; enforce permissions through runtime controls. For recurring
 work, preserve source bookmarks on failed reads and advance delivery state
 only after confirmed receipt. Return unavailable sources explicitly.
+Keep preferences read-only. Define tool purpose, constrained arguments,
+structured results, and actionable errors in the tool interface. Filter or
+paginate results; annotate read-only, destructive, and idempotent operations.
+Metadata grants no authority. Verify filesystem, network, and connector
+restrictions separately from approvals. Enforce consequential calls before
+execution, including after handoffs; output checks cannot undo side effects.
+Stop on denial or exhausted budget without broadening tools or credentials.
+Sources: A2, O2, G2.
+
+## Bound context and execution
+
+Keep task-specific decisions and costly gotchas; specify outcomes rather than
+reasoning recipes. Load references for the current branch and retain safety
+inline. Measure prefix, tool schemas, skill index, retrieval, and output
+reserve with the serving tokenizer against configured budgets. Dedupe and
+filter before expanding context. Use native compaction, preserving decisions,
+artifact/trace IDs, pending work, and authority; re-read live state before
+writes. Configure turn, time, retry, and spend caps with terminal partial/blocked
+results on exhaustion. Re-evaluate after model/harness changes. Sources: A1, O1, O3.
 
 Use agent names and tier numbers. Select a capability/routing role, never a
 model from memory. Model selection requires a dated live-source dossier and
@@ -81,6 +109,10 @@ cost, and boundary violations. Extend the existing promptfoo runner and its
 coverage manifest; ensure the new suite actually enters the executable matrix.
 
 - Positive cases exercise production-shaped inputs and the output schema.
+- Test call/event/schedule activation and exclusions separately from execution;
+  include duplicate events and replay. Check tool choice, arguments, handoffs,
+  denied calls, and resulting state as well as the final answer. Require exact
+  ordering only where correctness depends on it. Source: G1.
 - Negative cases cover malformed or ambiguous inputs, oversized requests,
   unavailable sources/connectors, injected instructions, unauthorized actions,
   credential requests, and attempts to edit outside sandbox jobs.
@@ -131,16 +163,10 @@ promptfoo results, baseline and held-out evidence, Langfuse dataset version,
 import ID, run and trace IDs, and shadow interval with score comparison.
 Mark each unexecuted gate as blocked. Source validation, import, execution,
 trace receipt, and live promotion are separate deliverables.
-
-Use these authoring acceptance cases before releasing this skill:
-
-| Case | Expected behavior |
-| --- | --- |
-| New scheduled report agent | v2 inputs, tier 2, generated exports, evals, and shadow evidence requirements. |
-| Code-editing agent requests an integration token | Connector-only access and sandbox-only code work. |
-| Hand-written Dify export or missing standard template | Stop; require canonical template inputs and renderer. |
-| Passing evals with only 6 days of shadow | Promotion remains blocked. |
-| Routine source-code fix | Use the coding workflow; do not create a platform agent. |
+Define machine-consumed outputs with the repository's supported schema and
+validate them before delivery. Include status, artifact references, completed
+checks, and a reason for partial/blocked outcomes; preserve the caller's exact
+output contract. Keep secrets and raw private inputs out of public evidence.
 
 [agent-development]: https://github.com/anthropics/claude-plugins-official/blob/main/plugins/plugin-dev/skills/agent-development/SKILL.md
 [difyctl]: https://dify.ai/blog/dify-s-official-cli-difyctl-ships

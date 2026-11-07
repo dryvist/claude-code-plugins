@@ -1,0 +1,12 @@
+[
+  {"query": "Build a platform agent that turns release events into a digest, reusing the standard definition and renderer.", "should_trigger": true},
+  {"query": "Revise a scheduled platform agent's prompt and add regression cases before its next shadow run.", "should_trigger": true},
+  {"query": "Prepare promotion evidence for an agent whose shadow interval just ended; verify the gates before proposing live mode.", "should_trigger": true},
+  {"query": "We need an event-driven worker definition with connector permissions and generated Dify, Sim, and Langflow exports.", "should_trigger": true},
+  {"query": "Consolidate these two platform agent definitions into one shared profile and role-specific inputs.", "should_trigger": true},
+  {"query": "Run the existing release-digest agent for yesterday without changing its definition.", "should_trigger": false},
+  {"query": "Fix a Python parser bug in the agent sandbox application; no prompt or agent definition changes.", "should_trigger": false},
+  {"query": "Create a reusable harness skill for reviewing agent deployment evidence.", "should_trigger": false},
+  {"query": "Explain the differences between a Dify agent and a reusable skill without authoring either.", "should_trigger": false},
+  {"query": "Edit the README paragraph describing an existing agent's output fields.", "should_trigger": false}
+]
