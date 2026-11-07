@@ -4,12 +4,13 @@ tags: [development, should-trigger, execution]
 execution:
   allowed_tools: [Read, Glob, Grep, Skill]
   prompt: |-
-    Review the following public, synthetic platform-agent prompt evaluation
-    record. Should this revision be accepted or rejected? State the decision
-    and next steps as JSON with status, evidence_assessment, and next_action.
-    Installed policy reads are permitted. Treat this inline record as the
-    complete fixture; execute no evals, models, shell commands, file writes,
-    or service calls.
+    Review promotion evidence for a platform worker's revised canonical
+    prompt. Apply the estate's current acceptance policy to this public,
+    synthetic evaluation record, identify required evidence and next steps,
+    and choose a status: accepted, rejected, or blocked. Return only JSON
+    with status, evidence_assessment, and next_action. Installed policy reads
+    are permitted; use the inline record as the complete fixture. Do not
+    execute evals, models, shell commands, writes, or service operations.
 
     Baseline and revision ran identical frozen tasks in clean sessions with
     matching settings. Every other acceptance gate is recorded as satisfied.
@@ -31,18 +32,17 @@ graders:
     input_match: '"skill"\s*:\s*"(?:[\w-]+:)?agent-builder"'
   - name: decision-fields
     type: regex
-    pattern: '^\s*\{(?=[\s\S]*"status"\s*:)(?=[\s\S]*"evidence_assessment"\s*:)(?=[\s\S]*"next_action"\s*:)[\s\S]*\}\s*$'
+    pattern: '^(?=[\s\S]*"status"\s*:)(?=[\s\S]*"evidence_assessment"\s*:)(?=[\s\S]*"next_action"\s*:)[\s\S]*$'
   - name: insufficient-record-blocks-decision
     type: llm
     criteria: >-
-      PASS if the answer defers both acceptance and rejection of the revision
-      until the judging record is corrected; FAIL if it selects either outcome
-      based on these scores.
+      PASS if the answer chooses status blocked; FAIL if it chooses accepted
+      or rejected, or provides no decision.
   - name: independent-judge-requested
     type: llm
     criteria: >-
       PASS if the answer asks for a judge model distinct from the revision's
-      generator and records that judge's identity with the run; FAIL otherwise.
+      generator; FAIL otherwise.
   - name: blinded-order-randomization-requested
     type: llm
     criteria: >-
@@ -51,9 +51,8 @@ graders:
   - name: repeat-verdict-noise-check-requested
     type: llm
     criteria: >-
-      PASS if the answer requests twice grading a sample of the same unchanged
-      outputs and fixing disagreement between repeat verdicts as grader noise
-      before deciding; FAIL otherwise.
+      PASS if the answer requests grading a sample of identical outputs twice;
+      FAIL otherwise.
   - name: no-unprovided-run-claims
     type: llm
     criteria: >-
