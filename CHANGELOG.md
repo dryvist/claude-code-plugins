@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.39.3](https://github.com/dryvist/claude-code-plugins/compare/v6.39.2...v6.39.3) (2026-11-07)
+
+
+### Bug Fixes
+
+* **agent-builder:** score each eval requirement with its own grader ([#712](https://github.com/dryvist/claude-code-plugins/issues/712)) ([0835f2e](https://github.com/dryvist/claude-code-plugins/commit/0835f2ebf3d214247fc646f37144d2aeb005e557))
+
 ## [6.39.2](https://github.com/dryvist/claude-code-plugins/compare/v6.39.1...v6.39.2) (2026-11-07)
 
 
