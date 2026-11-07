@@ -66,3 +66,14 @@ graders:
     criteria: >-
       PASS if missing data stays unknown with no invented thresholds or
       results; FAIL otherwise.
+  - name: structure-not-activation-proof
+    type: llm
+    criteria: >-
+      PASS if the answer does not treat passing output, schema, packaging,
+      or other structural assertions as proof that the skill activates;
+      FAIL if it does.
+  - name: unseen-stays-private
+    type: llm
+    criteria: >-
+      PASS if the answer does not ask to expose unseen evaluation prompts
+      or private outputs to the skill author; FAIL if it does.
