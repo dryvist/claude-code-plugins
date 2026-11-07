@@ -63,6 +63,14 @@ Sources: A2, O2, G2 in the source register.
 
 ## Freeze the evaluation contract before experiments
 
+Before an acceptance decision, require predeclared numeric gates for activation
+precision and recall, task correctness, privacy, latency, and cost, with zero
+boundary violations. Fix the thresholds before candidate runs. If any threshold
+is blank or was chosen after the runs, block acceptance: the first required
+evidence is the completed gate contract declared before new candidate runs,
+followed by results against it. Source: A3; see the source register's
+[evaluation evidence boundary](references/sources.md#evaluation-evidence-boundary).
+
 For tuning or acceptance experiments, use the existing evaluator and Anthropic
 skill-creator formats where supported. Draft requests end with the artifact
 and unrun-check status; they do not require a completed experiment first.
@@ -78,9 +86,7 @@ run outputs in the authorized evidence location. Separate these suites:
 
 Include malformed, ambiguous, oversized, unavailable-source, injected-input,
 and unauthorized-action cases where relevant. Define expected refusal or stop
-behavior as well as successful output. Agree numeric acceptance thresholds
-for trigger precision/recall, task correctness, privacy, latency, and cost
-before the first experiment. Boundary violations must be zero.
+behavior as well as successful output.
 
 Compare the candidate against **no skill** for a new skill, or the **previous
 version** for an update. Use identical task inputs, permitted model settings,

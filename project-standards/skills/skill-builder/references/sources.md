@@ -60,6 +60,11 @@ tables across the builders. Both directories ship in the same plugin.
 
 ## Evaluation evidence boundary
 
+The predeclared-gate prerequisite applies A3's objective-before-optimization
+and noise-aware comparison guidance (published **2026-09-28**, retrieved again
+**2026-11-07**). The entrypoint's required metric coverage, numeric gates,
+and zero-boundary bar are local acceptance policy, not vendor-set thresholds.
+
 The draft/evidence-review/experiment branches apply S1's staged authoring
 workflow (updated 2026-03-06) and E1's self-contained execution rule. Mandatory
 authoring guides remain prerequisites. Comparison resources load for an
