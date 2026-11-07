@@ -110,9 +110,10 @@ completion criteria. Keep essential prerequisites, authority limits, and stop
 conditions inline so loading this skill alone remains safe. Link optional
 references directly from the entrypoint; preserve every referenced resource
 when distributing the directory. Put only task-specific knowledge here.
-Apply the estate's token budget as well as line and byte limits. Measure the
-entrypoint and always-listed description with the target tokenizer; record
-the tokenizer and counts. Load optional detail only for the matching branch,
+Target 1,500 tokens and cap the entrypoint at 3,500, measured with
+`atc -m sonnet`, alongside line and byte limits. Record that count separately
+from serving-tokenizer runtime budgets; mark missing counters unverified.
+Load optional detail only for the matching branch,
 with direct links and navigation for long references. Remove repeated/default
 advice before expanding the budget; preserve inline safety rules even when
 repeated. For long workflows, set context/output reserves, tool-result limits,

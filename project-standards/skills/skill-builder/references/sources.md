@@ -35,9 +35,11 @@ tables across the builders. Both directories ship in the same plugin.
 
 - E1's byte budget is stricter than the public 1,024-character skill format.
   Check UTF-8 bytes independently; the units are not interchangeable.
-- The installed estate authoring standard also sets an on-demand target of
-  1,500 tokens and maximum of 3,500, measured by `atc -m sonnet`; CI adds a
-  500-line limit. These are separate checks, not conversion formulas.
+- The operator-required installed estate authoring standard, version 5.10.0,
+  supplies the on-demand token budget applied on 2026-11-06. Its publication
+  date is unavailable; the current E1 file does not contain those numbers.
+  The entrypoint keeps that binding budget inline; CI separately checks lines.
+  Local policy is not attributed to an upstream vendor or a conversion formula.
 - Keep essential safety inline even when another file repeats it. Upstream
   concision guidance does not override E1's self-contained rule.
 - Preserve existing automatic discovery. Make explicit-only invocation an

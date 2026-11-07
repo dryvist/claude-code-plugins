@@ -1,11 +1,23 @@
 # Authoring-plan smoke results
 
-Run date: **2026-11-06**. Candidate: this refresh. Baseline:
+Run date: **2026-11-06**. Evaluated candidate: `bb66596`. Baseline:
 `2e9447d7a2a95a2ed806727da7505c676b25f021`. Two independent read-only evaluators
 used `gpt-6.1-terra`, effort `high`, one arm each, with identical task prompts.
 Each arm received only its builder entrypoints and prompts, without assertions,
 source findings, or the other arm's outputs. Each produced text/JSON planning
 artifacts for the 6 execution cases; no proposed operation was executed.
+Candidate entrypoint SHA-256 snapshots:
+
+- agent-builder: `21a5d7d81ab2b62b16fac8655144cf9b7f13e8082aec7fb4688627ac32f4ef6c`.
+- skill-builder: `d836535fd47e0ed848c83bd06c085b475102eb1a9ff3ba099f48bb217e1f3c5d`.
+
+The subsequent numeric authoring-budget clarification was not part of this
+smoke pass. The observations below are extracted evidence, not complete raw
+transcripts. Raw responses remain in the authoring session's evaluator tool
+records (`baseline_smoke` and `candidate_smoke`), which are not distributed
+with the plugin. Validation logs likewise remain in that session's tool
+records. The exact candidate commit supports source reproduction; another
+maintainer must rerun the frozen cases to reproduce behavioral observations.
 
 ## Observed artifacts
 
