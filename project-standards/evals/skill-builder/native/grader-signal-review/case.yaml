@@ -1,0 +1,69 @@
+schema_version: "1.1"
+name: skill-grader-signal-review
+tags: [development, should-trigger, execution, discrimination]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: |-
+    Apply the estate's acceptance policy to this public, synthetic evidence
+    worksheet for a revised record-formatting skill. Can the revision be
+    accepted or rejected from these results? State the decision and next steps.
+    Installed policy reads are allowed; this worksheet is the complete evidence
+    fixture. Do not run evals, models, or shell commands, write files, or contact
+    services. Return only JSON with status, evidence_assessment, and next_action.
+
+    Both arms used the same frozen cases and settings in 6 fresh trials each.
+    All other acceptance gates are recorded as satisfied.
+
+    | Grader | Previous version | Candidate |
+    | --- | --- | --- |
+    | record-id-preserved | 0/6 (0%) | 0/6 (0%) |
+    | title-normalized | 4/6 | 5/6 |
+
+    The record-id-preserved requirement is to preserve the input record_id
+    exactly in the output. Sampled input/output pairs:
+    - Previous trial 1: input record_id=rec-01; output {"record_id":"rec-01"}.
+    - Previous trial 2: input record_id=rec-02; output {"record_id":"rec-02"}.
+    - Candidate trial 1: input record_id=rec-03; output {"record_id":"rec-03"}.
+    - Candidate trial 2: input record_id=rec-04; output {"record_id":"rec-04"}.
+
+    No grader repair or subsequent evaluation has been performed.
+graders:
+  - name: selected-skill-builder
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"project-standards:skill-builder"'
+  - name: decision-fields
+    type: regex
+    pattern: '^\s*\{(?=[\s\S]*"status"\s*:)(?=[\s\S]*"evidence_assessment"\s*:)(?=[\s\S]*"next_action"\s*:)[\s\S]*\}\s*$'
+  - name: no-signal-identified
+    type: llm
+    criteria: >-
+      PASS if the answer identifies record-id-preserved as giving no signal
+      because it fails every output in both arms despite compliant samples;
+      FAIL otherwise.
+  - name: uninformative-score-excluded
+    type: llm
+    criteria: >-
+      PASS if the answer counts record-id-preserved neither for nor against
+      the revision; FAIL if it uses that score to accept or reject it.
+  - name: output-inspection-required
+    type: llm
+    criteria: >-
+      PASS if the answer requires reading the graded outputs to diagnose
+      the mismatch with the record-id-preserved requirement; FAIL otherwise.
+  - name: grader-recalibration-required
+    type: llm
+    criteria: >-
+      PASS if the answer requires fixing or recalibrating the grader with
+      one requirement per grader; FAIL otherwise.
+  - name: both-arms-rerun-required
+    type: llm
+    criteria: >-
+      PASS if the answer defers the acceptance or rejection decision until
+      both previous-version and candidate arms are rerun with the repaired
+      grader; FAIL otherwise.
+  - name: no-invented-results
+    type: llm
+    criteria: >-
+      PASS if the answer invents no results, including repaired scores or
+      claims that recalibration or reruns have occurred; FAIL otherwise.
