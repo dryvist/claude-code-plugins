@@ -6,27 +6,29 @@ description: Apply the executor ladder for the maintainer's own setup, including
 # Delegation ladder
 
 Route each delegated task to the first rung that qualifies. Check codex-quota first.
+Rung 1 holds two equal first choices, split by sensitivity; when both qualify,
+send the task to the executor with more quota headroom and spend every
+subscription before it resets (ZCode 5-hour and weekly, OpenCode Go monthly,
+Codex weekly).
 
-1. Codex, while codex-quota exits 0. Pick the model by class:
-   - bulk, reads and triage: Luna `xhigh`.
-   - bulk work that is still somewhat complicated: Luna `max`.
-   - auth, secrets, router, memory and cluster work: Luna `max`. Name `[class: bulk-complex]` in the description.
-   - standard implementation: Terra `medium`.
-   - complex work, plan, and design or architecture review: Terra `high`.
-   Never Terra above high, never Luna above max.
-2. zcode-job sandbox, while Codex is capped. Coding tasks only. Public repos qualify. A private repo qualifies
-   only when it has the repo property `ai-untrusted-ok=true` and its payload passes classification before
-   dispatch. The output is a ready PR labelled `human:review`. Leak-scan it before merge. Never auto-merge it.
-3. Z.ai GLM, then OpenCode Go, while Codex is capped.
-4. Haiku `xhigh`, the last resort, only when rungs 1 to 3 do not qualify.
+1. ZCode or Codex Luna:
+   - ZCode (`zcode-job`): obvious, definitely non-sensitive work in public repos. Coding and coding-adjacent only:
+     code, tests, GitHub automation and workflows, code reviews. Open-internet research needs a separate untrusted, internet-open container.
+     The output is a ready PR labelled `human:review`. Leak-scan it before merge. Never auto-merge it.
+   - Codex Luna: anything even remotely sensitive, or any private repo. Luna `xhigh` default, `max` as needed.
+     Codex qualifies while `codex-quota` exits 0 (more than 5% left). Never Terra.
+     Complicated bulk and mandatory auth, secrets, router, memory and cluster topics take `max` and name `[class: bulk-complex]`.
+2. Other subscriptions where they fit, e.g. OpenCode Go (`zcode-job --tool opencode`) and Z.ai GLM. Public work only.
+3. Haiku `xhigh`, the last resort, only after rungs 1 and 2 are exhausted or do not qualify; even then Haiku runs before the orchestrator works solo.
 
 Never Sonnet, Opus or Fable subagents.
 Never send secrets, credentials, inventory or incident content to any executor.
+Antigravity (`agy`) stays a second-opinion reviewer, never an executor.
 
 | Kind | Ladder | Sandbox eligibility | Use |
 | --- | --- | --- | --- |
-| `code` | Codex -> zcode-job sandbox -> Z.ai GLM -> OpenCode Go -> Haiku xhigh | Public coding tasks | Implementation |
-| `private` | Codex -> zcode-job sandbox -> Z.ai GLM -> OpenCode Go -> Haiku xhigh | Coding, property true, payload classification passed | Private tasks |
+| `code` | zcode-job sandbox -> Codex -> Z.ai GLM -> OpenCode Go -> Haiku xhigh | Public coding tasks | Implementation |
+| `private` | Codex -> Haiku xhigh | Ineligible | Private tasks |
 | `other` | Codex -> Z.ai GLM -> OpenCode Go -> Haiku xhigh | Ineligible | Reads, triage, summaries, review and planning |
 
 ## Dispatch and completion
@@ -37,28 +39,25 @@ systems. The hook screens inline payloads locally before calling any classifier
 or executor; it cannot inspect attachments or files that workers might read.
 The lead must keep prohibited content out of executor-accessible context.
 
-Codex uses the newest listed model of the selected family in its local cache.
-Plan, design and architecture review use the `plan` or `deep` class and a
-read-only sandbox, as do `Explore` and `Plan` agents. Explicit class tags select
-these routes; mandatory bulk-complex topics override model selection while
-preserving an explicit `plan` or `deep` read-only sandbox.
-Explicit models, named agents and worktree isolation cannot bypass the ladder.
-Isolated Codex tasks get a detached worktree, whose path is returned for review.
-Custom-agent instructions are preserved; namespaced plugin agents resolve from
-the local installed-plugin registry. Missing definitions stop dispatch.
-A Codex failure while quota is available stops routing. An unknown quota status
-also stops routing rather than treating an error as exhaustion.
+Codex uses the newest listed Luna slug in its local model cache. Plan, design
+and architecture review use the `plan` or `deep` class and a read-only sandbox,
+as do `Explore` and `Plan` agents. Explicit class tags select these routes;
+mandatory bulk-complex topics override model selection while preserving an
+explicit `plan` or `deep` read-only sandbox. Explicit models, named agents and
+worktree isolation cannot bypass the ladder. Isolated Codex tasks get a
+detached worktree, whose path is returned for review. Custom-agent
+instructions are preserved; namespaced plugin agents resolve from the local
+installed-plugin registry. Missing definitions stop dispatch. A Codex failure
+while quota is available stops routing. An unknown quota status also stops
+routing rather than treating an error as exhaustion.
 
 For sandbox coding, put `[task: code] [repo: owner/repository]` in the
 description. A public-repo tag alone does not establish that work is coding.
-For a private repository, also put `[payload: classified-safe]` in the
-description only after the lead classifies the full payload. The hook reads the
-repository property before dispatch, using the caller's existing GitHub CLI
-identity when unauthenticated metadata is unavailable. It verifies the returned PR belongs to
-the requested repository, is open and non-draft, and has `human:review`.
-A job with no PR or an unverifiable PR fails the handoff; inspect a dispatched
-job before retrying. The hook never merges. Leak-scan the exact PR head before
-any human merge.
+The sandbox takes public repositories only; a private repository stays with
+Codex Luna. The hook verifies the returned PR belongs to the requested
+repository, is open and non-draft, and has `human:review`. A job with no PR or
+an unverifiable PR fails the handoff; inspect a dispatched job before retrying.
+The hook never merges. Leak-scan the exact PR head before any human merge.
 
 The GLM and OpenCode Go rungs use the existing router chat transport. Configure
 `AGENT_ROUTE_GLM_MODEL` and `AGENT_ROUTE_OPENCODE_GO_MODEL` with the approved
@@ -73,10 +72,7 @@ There is no generic small-model executor rung.
 
 Run `agent-route <code|private|other>` from the plugin root to inspect the
 first eligible executor. `code` means public coding; use `other` for read-only
-work even in public repos. For private sandbox eligibility, set
-`AGENT_ROUTE_TASK=code`, `AGENT_ROUTE_REPO_AI_UNTRUSTED_OK=true` and
-`AGENT_ROUTE_PAYLOAD_CLASSIFICATION=safe` only after checking the property and
-classifying the payload. The helper reports a route; it does not dispatch or
+work even in public repos. The helper reports a route; it does not dispatch or
 verify the repository. `AGENT_ROUTE_CODEX_QUOTA=available|exhausted` and
 `AGENT_ROUTE_ZCODE_AVAILABLE=yes|no` are test overrides.
 

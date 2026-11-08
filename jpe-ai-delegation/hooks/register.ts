@@ -11,7 +11,7 @@ const UNAVAILABLE: QuotaLine = 'codex-quota: unavailable'
 const TEXT_EXECUTOR_TIMEOUT_MS = 120_000
 // shortcut: the startup line lives in the module, so a hot reload recomputes it on the next prompt.compose.
 let startupQuota: QuotaLine | undefined
-const PROMPT_POLICY = 'Check codex-quota first. While exit 0: bulk/reads/triage -> Luna xhigh; complicated bulk and auth/secrets/router/memory/cluster -> Luna max, name [class: bulk-complex]; standard implementation -> Terra medium; complex/plan/design/architecture review -> Terra high. Never Terra above high or Luna above max. Only while capped: eligible zcode-job sandbox (coding only; public, or private with ai-untrusted-ok=true and payload classification), then Z.ai GLM, then OpenCode Go, then Haiku xhigh as last resort. zcode must return a ready PR labelled human:review; leak-scan before merge, never auto-merge. Never Sonnet, Opus or Fable subagents. Never send secrets, credentials, inventory or incident content to any executor.'
+const PROMPT_POLICY = 'Check codex-quota first. Rung 1 holds two equal first choices, split by sensitivity; when both qualify, send the task to the executor with more quota headroom and spend every subscription before it resets (ZCode 5-hour and weekly, OpenCode Go monthly, Codex weekly). ZCode (zcode-job): obvious, definitely non-sensitive coding work in public repos; coding and coding-adjacent only: code, tests, GitHub automation and workflows, code reviews; the output is a ready PR labelled human:review; leak-scan it before merge; never auto-merge. Codex Luna: anything even remotely sensitive, or any private repo; Luna xhigh default, max as needed, while codex-quota exits 0; never Terra. Rung 2: other subscriptions where they fit (Z.ai GLM, OpenCode Go); public work only. Rung 3: Haiku xhigh, the last resort, only after rungs 1 and 2 are exhausted or do not qualify. Never Sonnet, Opus or Fable subagents. Never send secrets, credentials, inventory or incident content to any executor. Antigravity stays a second-opinion reviewer, never an executor.'
 
 // The quota helper is installed in the nix per-user profile, which a hook's PATH may omit.
 // Try an explicit CODEX_QUOTA_BIN, then the bare name, then the per-user profile path.
@@ -131,7 +131,7 @@ async function routerTarget($: Engine): Promise<{ url: string; headers: Record<s
   return { url: `${base}/chat/completions`, headers }
 }
 
-// Classification itself follows the Codex-first rule.
+// Classification itself runs on Codex Luna.
 async function classify($: Engine, e: AgentCall): Promise<Label> {
   const mandatory = mandatoryLabel(`${e.description ?? ''}\n${e.prompt}`)
   if (mandatory) return mandatory
@@ -214,12 +214,8 @@ async function runSandboxExecutor($: Engine, e: AgentCall): Promise<unknown | un
     const available = await $.process.run(['which', 'zcode-job'], { timeoutMs: 5_000 })
     if (available.exitCode !== 0) return undefined
     const repository = await github($, repo) as { visibility?: string; private?: boolean }
-    if (repository.visibility === 'private' && repository.private === true) {
-      const properties = await github($, `${repo}/properties/values`) as { property_name: string; value: unknown }[]
-      if (!Array.isArray(properties) || !properties.some((p) => p.property_name === 'ai-untrusted-ok' && (p.value === 'true' || p.value === true))) return undefined
-      // The caller classifies attachments, diffs and logs that the hook cannot inspect.
-      if (!e.description?.includes('[payload: classified-safe]')) return undefined
-    } else if (repository.visibility !== 'public' || repository.private !== false) return undefined
+    // ZCode takes public repositories only; a private repository stays with Codex Luna.
+    if (repository.visibility !== 'public' || repository.private !== false) return undefined
   } catch {
     await logDecision($, 'zcode eligibility could not be verified')
     return undefined
@@ -347,18 +343,19 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
     await logDecision($, 'route: custom tool policy -> native custom agent')
     return next(original as never)
   }
+  const restricted = definition && (definition.tools !== undefined || Boolean(definition.disallowedTools?.length))
+  // Rung 1 splits two equal first choices by sensitivity: eligible public coding takes the sandbox.
+  const sandbox = restricted ? undefined : await runSandboxExecutor($, e)
+  if (sandbox) return sandbox
   if (quota === 'codex-quota: available') {
     if (!(await codexReady($))) return failure(e, 'Codex unavailable while quota is available')
     const label = await classify($, e)
     const advisory = isAdvisory(label) || isAdvisory(explicitLabel(e.description) ?? label)
     if (mandatoryLabel(`${e.description ?? ''}\n${e.prompt}`)) e = { ...e, description: `${e.description ?? ''} [class: bulk-complex]` }
-    const sandbox: Sandbox = advisory || e.subagent_type === 'Explore' || e.subagent_type === 'Plan' || customSandbox === 'read-only' ? 'read-only' : 'workspace-write'
-    const result = await runRoutedCodex($, e, label, CODEX[label], sandbox, `class ${label}`)
+    const codexSandbox: Sandbox = advisory || e.subagent_type === 'Explore' || e.subagent_type === 'Plan' || customSandbox === 'read-only' ? 'read-only' : 'workspace-write'
+    const result = await runRoutedCodex($, e, label, CODEX[label], codexSandbox, `class ${label}`)
     return result ?? codexNoAnswer($, e, label)
   }
-  const restricted = definition && (definition.tools !== undefined || Boolean(definition.disallowedTools?.length))
-  const sandbox = restricted ? undefined : await runSandboxExecutor($, e)
-  if (sandbox) return sandbox
   // Only explicitly self-contained text work qualifies for transports without tools.
   if (!e.isolation && isGenericType(e) && !['Explore', 'Plan'].includes(e.subagent_type ?? '') && !codingTask(e.description) && e.description?.includes('[class: text]')) {
     for (const gateway of ['Z.ai GLM', 'OpenCode Go'] as const) {
