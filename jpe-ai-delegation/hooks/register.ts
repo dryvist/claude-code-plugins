@@ -11,7 +11,7 @@ const UNAVAILABLE: QuotaLine = 'codex-quota: unavailable'
 const TEXT_EXECUTOR_TIMEOUT_MS = 120_000
 // shortcut: the startup line lives in the module, so a hot reload recomputes it on the next prompt.compose.
 let startupQuota: QuotaLine | undefined
-const PROMPT_POLICY = 'Check codex-quota first. Rung 1 holds two equal first choices, split by sensitivity; when both qualify, send the task to the executor with more quota headroom and spend every subscription before it resets (ZCode 5-hour and weekly, OpenCode Go monthly, Codex weekly). ZCode (zcode-job): obvious, definitely non-sensitive coding work in public repos; coding and coding-adjacent only: code, tests, GitHub automation and workflows, code reviews; the output is a ready PR labelled human:review; leak-scan it before merge; never auto-merge. Codex Luna: anything even remotely sensitive, or any private repo; Luna xhigh default, max as needed, while codex-quota exits 0; never Terra. Rung 2: other subscriptions where they fit (Z.ai GLM, OpenCode Go); public work only. Rung 3: Haiku xhigh, the last resort, only after rungs 1 and 2 are exhausted or do not qualify. Never Sonnet, Opus or Fable subagents. Never send secrets, credentials, inventory or incident content to any executor. Antigravity stays a second-opinion reviewer, never an executor.'
+const PROMPT_POLICY = 'Check codex-quota first. Rung 1: small, quick, checkable tasks (summarize, extract, classify, reformat, a first pass over a file or log) go to the router local default or medium capability before any subscription; escalate only after a checked failure. Rung 2 holds two equal first choices, split by sensitivity; when both qualify, send the task to the executor with more quota headroom and spend every subscription before it resets (ZCode 5-hour and weekly, OpenCode Go monthly, Codex weekly). ZCode (zcode-job): obvious, definitely non-sensitive coding work in public repos; coding and coding-adjacent only: code, tests, GitHub automation and workflows, code reviews; the output is a ready PR labelled human:review; leak-scan it before merge; never auto-merge. Codex Luna: anything even remotely sensitive, or any private repo; Luna xhigh default, max as needed, while codex-quota exits 0; never Terra. Rung 3: other subscriptions where they fit (Z.ai GLM, OpenCode Go); public work only, and only while that subscription is at or under its pace for the billing period. Rung 4: Haiku xhigh, the last resort, only after rungs 1, 2 and 3 are exhausted or do not qualify. Never Sonnet, Opus or Fable subagents. Never send secrets, credentials, inventory or incident content to any executor. Antigravity stays a second-opinion reviewer, never an executor.'
 
 // The quota helper is installed in the nix per-user profile, which a hook's PATH may omit.
 // Try an explicit CODEX_QUOTA_BIN, then the bare name, then the per-user profile path.
@@ -344,7 +344,7 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
     return next(original as never)
   }
   const restricted = definition && (definition.tools !== undefined || Boolean(definition.disallowedTools?.length))
-  // Rung 1 splits two equal first choices by sensitivity: eligible public coding takes the sandbox.
+  // Rung 2 splits two equal first choices by sensitivity: eligible public coding takes the sandbox.
   const sandbox = restricted ? undefined : await runSandboxExecutor($, e)
   if (sandbox) return sandbox
   if (quota === 'codex-quota: available') {

@@ -6,20 +6,23 @@ description: Apply the executor ladder for the maintainer's own setup, including
 # Delegation ladder
 
 Route each delegated task to the first rung that qualifies. Check codex-quota first.
-Rung 1 holds two equal first choices, split by sensitivity; when both qualify,
+Rung 2 holds two equal first choices, split by sensitivity; when both qualify,
 send the task to the executor with more quota headroom and spend every
 subscription before it resets (ZCode 5-hour and weekly, OpenCode Go monthly,
 Codex weekly).
 
-1. ZCode or Codex Luna:
+1. Small, quick, checkable tasks (summarize, extract, classify, reformat, a first pass over a file or log) go to
+   the router local default or medium capability before any subscription; escalate only after a checked failure.
+2. ZCode or Codex Luna:
    - ZCode (`zcode-job`): obvious, definitely non-sensitive work in public repos. Coding and coding-adjacent only:
      code, tests, GitHub automation and workflows, code reviews. Open-internet research needs a separate untrusted, internet-open container.
      The output is a ready PR labelled `human:review`. Leak-scan it before merge. Never auto-merge it.
    - Codex Luna: anything even remotely sensitive, or any private repo. Luna `xhigh` default, `max` as needed.
      Codex qualifies while `codex-quota` exits 0 (more than 5% left). Never Terra.
      Complicated bulk and mandatory auth, secrets, router, memory and cluster topics take `max` and name `[class: bulk-complex]`.
-2. Other subscriptions where they fit, e.g. OpenCode Go (`zcode-job --tool opencode`) and Z.ai GLM. Public work only.
-3. Haiku `xhigh`, the last resort, only after rungs 1 and 2 are exhausted or do not qualify; even then Haiku runs before the orchestrator works solo.
+3. Other subscriptions where they fit, e.g. OpenCode Go (`zcode-job --tool opencode`) and Z.ai GLM. Public work only,
+   and only while that subscription is at or under its pace for the billing period.
+4. Haiku `xhigh`, the last resort, only after rungs 1, 2 and 3 are exhausted or do not qualify; even then Haiku runs before the orchestrator works solo.
 
 Never Sonnet, Opus or Fable subagents.
 Never send secrets, credentials, inventory or incident content to any executor.
@@ -68,7 +71,7 @@ work with `[class: text]` in the description to qualify for these chat transport
 Supply all required text in the prompt. Work requiring repository access, edits,
 tests or other tools continues to a tool-capable executor. Coding tags, custom
 agents, `Explore`, `Plan` and isolated tasks do not qualify for chat transports.
-There is no generic small-model executor rung.
+There is no generic small-model executor rung beyond the first step.
 
 Run `agent-route <code|private|other>` from the plugin root to inspect the
 first eligible executor. `code` means public coding; use `other` for read-only
