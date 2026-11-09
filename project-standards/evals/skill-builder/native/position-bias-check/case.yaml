@@ -1,0 +1,68 @@
+schema_version: "1.1"
+name: skill-position-bias-check
+tags: [development, should-trigger, execution, discrimination]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: |-
+    Apply the estate's acceptance policy to this public, synthetic evidence
+    worksheet for a revised record-formatting skill. Can the revision be
+    accepted or rejected from these results? State the decision and next
+    steps. Installed policy reads are allowed; this worksheet is the
+    complete evidence fixture. Do not run evals, models, or shell commands,
+    write files, or contact services. Return only JSON with status,
+    evidence_assessment, and next_action.
+
+    Both arms used the same frozen cases and settings in 6 fresh trials
+    each. The judge is a distinct named model, packets are blind to arm
+    identity, and each item's presentation order was drawn independently.
+    The ledger records one judging pass per item. All other acceptance
+    gates are recorded as satisfied. Identifiers below belong only to this
+    synthetic fixture.
+
+    | Item | Presentation order | Verdict |
+    | --- | --- | --- |
+    | rec-01 | release-7 first | release-8 |
+    | rec-02 | release-7 first | release-7 |
+    | rec-03 | release-8 first | release-8 |
+    | rec-04 | release-7 first | release-8 |
+    | rec-05 | release-8 first | release-8 |
+    | rec-06 | release-7 first | release-8 |
+
+    record-format-correct totals: release-7 1/6, release-8 5/6.
+
+    No reversed-order rejudging or grader repair has been performed.
+graders:
+  - name: selected-skill-builder
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:[\w-]+:)?skill-builder"'
+  - name: decision-fields
+    type: regex
+    pattern: '^\s*\{(?=[\s\S]*"status"\s*:)(?=[\s\S]*"evidence_assessment"\s*:)(?=[\s\S]*"next_action"\s*:)[\s\S]*\}\s*$'
+  - name: decision-deferred-pending-reversal
+    type: llm
+    criteria: >-
+      PASS if the answer defers the acceptance or rejection decision until
+      every comparison is re-presented with the arm order reversed; FAIL if
+      it decides from the single-order ledger, or provides no decision.
+  - name: reversed-order-repeat-required
+    type: llm
+    criteria: >-
+      PASS if the answer requires repeating each comparison with the arm
+      order reversed; FAIL otherwise.
+  - name: verdict-kept-only-if-position-stable
+    type: llm
+    criteria: >-
+      PASS if a verdict is kept only when it holds in both presentation
+      positions; FAIL otherwise.
+  - name: flip-treated-as-position-bias
+    type: llm
+    criteria: >-
+      PASS if a verdict that flips with position is treated as position bias
+      to repair in the grader before deciding, not as a task win;
+      FAIL otherwise.
+  - name: no-invented-results
+    type: llm
+    criteria: >-
+      PASS if the answer invents no reversed-order outcomes, repaired
+      scores, or claims that rejudging has occurred; FAIL otherwise.

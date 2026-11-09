@@ -1,0 +1,36 @@
+schema_version: "1.1"
+name: skill-argument-comparison-modes
+tags: [development, should-trigger, execution, discrimination]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: >-
+    Review an evaluation plan for a report-generation skill whose graders
+    check tool arguments. Every argument check uses one blanket assertion
+    that the arguments "are correct", with no declared comparison mode:
+    output path checks treat capitalization differences inconsistently
+    across cases, a 12.50-credit cost ceiling is compared as an exact string
+    so an equivalent report of 12.5 fails, and a free-form summary is
+    compared by exact string equality with no equivalence judgment. Return
+    only JSON with status and corrections covering the argument checks.
+    Decide from these supplied facts; do not create files, run evaluations,
+    or contact services.
+graders:
+  - name: selected-skill-builder
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:[\w-]+:)?skill-builder"'
+  - name: explicit-comparison-modes
+    type: llm
+    criteria: >-
+      PASS if each tool-argument check gets an explicit comparison mode:
+      exact, case-insensitive, numeric tolerance, or semantic; FAIL if the
+      blanket "arguments are correct" assertion or undeclared modes are
+      accepted.
+  - name: modes-match-checked-values
+    type: llm
+    criteria: >-
+      PASS if the corrected checks give the cost ceiling a numeric tolerance
+      comparison, the free-form summary a semantic comparison, and each path
+      check an explicit exact or case-insensitive decision; FAIL if exact
+      string comparison of the ceiling and summary or inconsistent
+      capitalization handling stands.

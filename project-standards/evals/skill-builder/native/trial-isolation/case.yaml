@@ -1,0 +1,35 @@
+schema_version: "1.1"
+name: skill-trial-isolation
+tags: [development, should-trigger, execution, discrimination]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: >-
+    Review a trial setup for a candidate skill. Grading scripts and answer
+    keys sit in the working directory the tested agent reads during trials,
+    and the author inspects the produced artifacts between trials in the
+    same session. Efficiency is cited as the reason both shortcuts stay.
+    Return only JSON with status and corrections covering trial isolation.
+    Decide from these supplied facts; do not create files, run evaluations,
+    or contact services.
+graders:
+  - name: selected-skill-builder
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:[\w-]+:)?skill-builder"'
+  - name: answer-keys-outside-reach
+    type: llm
+    criteria: >-
+      PASS if fixtures, grading scripts, and answer keys are moved outside
+      the tested agent's reachable workspace during trials; FAIL if the
+      in-workspace keys are accepted.
+  - name: separate-verifier-required
+    type: llm
+    criteria: >-
+      PASS if a separate verifier inspects artifacts after the agent exits;
+      FAIL if author-side in-session inspection is accepted.
+  - name: efficiency-never-offsets-checks
+    type: llm
+    criteria: >-
+      PASS if the efficiency justification is rejected because it never
+      offsets a failed correctness or security check; FAIL if efficiency
+      is accepted as grounds for the shortcuts.

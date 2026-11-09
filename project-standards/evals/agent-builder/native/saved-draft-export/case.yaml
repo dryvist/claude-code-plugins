@@ -1,0 +1,35 @@
+schema_version: "1.1"
+name: agent-saved-draft-export
+tags: [development, should-trigger, execution, discrimination]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: >-
+    Review an export plan for a published platform app. The operator plans
+    to export whatever the editor currently has open, the editor holds an
+    unfinished prompt rewrite in saved draft form, and the bundle embeds the
+    connector's API key so imports need no rebinding, with the full export
+    pasted into the run log for review. Return only JSON with status and
+    corrections covering the export intent and secret handling. Decide from
+    these supplied facts; do not create files, run exports, or contact
+    services.
+graders:
+  - name: selected-agent-builder
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:[\w-]+:)?agent-builder"'
+  - name: published-version-exported-explicitly
+    type: llm
+    criteria: >-
+      PASS if the plan exports the intended published version explicitly;
+      FAIL if exporting the editor's current state is accepted.
+  - name: saved-draft-changes-excluded
+    type: llm
+    criteria: >-
+      PASS if the exported artifact is checked to contain no saved draft
+      changes; FAIL if carrying the unfinished draft rewrite into the
+      published export is accepted.
+  - name: secrets-stay-out-of-exports-and-logs
+    type: llm
+    criteria: >-
+      PASS if secret values stay out of the export bundle and the run log;
+      FAIL if embedding or pasting the connector API key is accepted.

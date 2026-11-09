@@ -1,0 +1,51 @@
+schema_version: "1.1"
+name: agent-delivery-ledger-reconciliation
+tags: [development, should-trigger, execution, discrimination]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: >-
+    Review a proposed recurring platform agent that posts a collected report
+    to a tracker destination on a schedule. The design keeps no delivery
+    ledger, so each run cannot see what earlier runs already sent; a failed
+    source read restarts collection from the beginning instead of resuming
+    from a bookmark; when a post times out, the agent immediately resends
+    the full report without checking what the destination already received;
+    a post whose receipt cannot be confirmed is recorded as delivered; and
+    delivery state advances when the request is submitted rather than when
+    receipt is confirmed. Return only JSON with status and corrections
+    covering delivery bookkeeping. Decide from these supplied facts; do not
+    create files, run the agent, or contact services.
+graders:
+  - name: selected-agent-builder
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:[\w-]+:)?agent-builder"'
+  - name: delivery-ledger-retained
+    type: llm
+    criteria: >-
+      PASS if recurring work retains a delivery ledger recording what each
+      run already sent to the destination; FAIL if untracked deliveries are
+      accepted.
+  - name: bookmarks-preserve-failed-reads
+    type: llm
+    criteria: >-
+      PASS if source bookmarks are preserved so a failed read resumes where
+      collection stopped; FAIL if restarting collection from the beginning
+      is accepted.
+  - name: reconcile-before-retry
+    type: llm
+    criteria: >-
+      PASS if the destination is reconciled before retrying an unconfirmed
+      delivery so already-received items are not duplicated; FAIL if
+      immediately resending the full report is accepted.
+  - name: ambiguous-delivery-recorded-separately
+    type: llm
+    criteria: >-
+      PASS if a delivery whose receipt cannot be confirmed is recorded
+      separately as ambiguous rather than as delivered; FAIL if counting it
+      as delivered is accepted.
+  - name: state-advances-on-confirmed-receipt
+    type: llm
+    criteria: >-
+      PASS if delivery state advances only after confirmed receipt, never
+      on submission; FAIL if submit-time advancement is accepted.

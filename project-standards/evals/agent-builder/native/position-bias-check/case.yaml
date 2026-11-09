@@ -1,0 +1,71 @@
+schema_version: "1.1"
+name: agent-position-bias-check
+tags: [development, should-trigger, execution, discrimination]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: |-
+    Review promotion evidence for a platform worker's revised canonical
+    prompt. Apply the estate's current acceptance policy to this public,
+    synthetic evaluation record, identify required evidence and next steps,
+    and choose a status: accepted, rejected, or blocked. Return only JSON
+    with status, evidence_assessment, and next_action. Installed policy reads
+    are permitted; use the inline record as the complete fixture. Do not
+    execute evals, models, shell commands, writes, or service operations.
+
+    Baseline and revision ran identical frozen tasks in clean sessions with
+    matching settings. The rubric judge is a distinct named model, packets
+    are blind to arm identity, and each task's presentation order was drawn
+    independently. The ledger records one judging pass per task. All other
+    acceptance gates are recorded as satisfied. Identifiers below belong
+    only to this synthetic fixture.
+
+    arms: {prompt-12: baseline, prompt-13: revision}
+    judge_packet_fields: [task, prompt_version, output, rubric]
+
+    | Task | Presentation order | Verdict |
+    | --- | --- | --- |
+    | plan-01 | prompt-12 first | prompt-13 |
+    | plan-02 | prompt-12 first | prompt-12 |
+    | plan-03 | prompt-13 first | prompt-13 |
+    | plan-04 | prompt-12 first | prompt-13 |
+    | plan-05 | prompt-13 first | prompt-13 |
+    | plan-06 | prompt-12 first | prompt-13 |
+
+    action-plan-complete totals: prompt-12 2/6, prompt-13 4/6.
+
+    No reversed-order rejudging or grader repair has been performed.
+graders:
+  - name: selected-agent-builder
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:[\w-]+:)?agent-builder"'
+  - name: decision-fields
+    type: regex
+    pattern: '^(?=[\s\S]*"status"\s*:)(?=[\s\S]*"evidence_assessment"\s*:)(?=[\s\S]*"next_action"\s*:)[\s\S]*$'
+  - name: decision-blocked-pending-reversal
+    type: llm
+    criteria: >-
+      PASS if the answer chooses status blocked until every comparison is
+      re-presented with the arm order reversed; FAIL if it accepts or
+      rejects from the single-order ledger, or provides no decision.
+  - name: reversed-order-repeat-required
+    type: llm
+    criteria: >-
+      PASS if the answer requires repeating each comparison with the arm
+      order reversed; FAIL otherwise.
+  - name: verdict-kept-only-if-position-stable
+    type: llm
+    criteria: >-
+      PASS if a verdict is kept only when it holds in both presentation
+      positions; FAIL otherwise.
+  - name: flip-treated-as-position-bias
+    type: llm
+    criteria: >-
+      PASS if a verdict that flips with position is treated as position bias
+      to repair in the grader before deciding, not as a task win;
+      FAIL otherwise.
+  - name: no-invented-results
+    type: llm
+    criteria: >-
+      PASS if the answer asserts no unprovided reversed-order outcomes or
+      completed rejudging runs; FAIL if it invents any.
