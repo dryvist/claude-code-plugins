@@ -5,17 +5,22 @@ Each record separates publication/revision from retrieval. Existing retrieval
 dates are retained; S4, S5, and A3 were rechecked on **2026-11-07**. Undated pages do not
 establish recency; material over 12 months old is background only.
 No practitioner source is required for this refresh.
+Reverified **2026-11-09**: S1–S5, E1, and the shared A1–A3/O1–O3 records
+match their registered dates and pinned revisions, and no current source
+contradicts the applied rules; the entries below record what the recheck
+added.
 
 ## Skill-specific register
 
 | ID | Source | Published or revised | Retrieved | Applied guidance |
 | --- | --- | --- | --- | --- |
 | S1 | Anthropic [skill-creator](https://github.com/anthropics/skills/blob/b0cbd3df1533b396d281a6886d5132f623393a9c/skills/skill-creator/SKILL.md) | Revised [2026-03-06](https://github.com/anthropics/skills/commit/b0cbd3df1533b396d281a6886d5132f623393a9c) | 2026-11-06 | Previous-version/no-skill baseline, observable artifacts, independent trigger testing, repeated experiments. Outside the preferred 4-month window; within 12 months. |
-| S2 | OpenAI [Build skills](https://learn.chatgpt.com/docs/build-skills) | Unavailable (undated) | 2026-11-06 | Supplementary native invocation/dependency metadata, focused descriptions, instruction-first packaging. |
-| S3 | Anthropic [Extend Claude with skills](https://code.claude.com/docs/en/skills) | Unavailable (undated) | 2026-11-06 | Supplementary Claude invocation lifecycle, supporting files, and tool pre-approval semantics. |
+| S2 | OpenAI [Build skills](https://learn.chatgpt.com/docs/build-skills) | Unavailable (undated) | 2026-11-06; rechecked 2026-11-09 | Supplementary native invocation/dependency metadata, focused descriptions, instruction-first packaging. The live page (canonical [Agent Skills](https://developers.openai.com/codex/skills)) documents `agents/openai.yaml` interface metadata with `policy.allow_implicit_invocation` and `dependencies.tools`, a skill-list budget of about 2% of the context window (8,000 characters) with descriptions shortened first, and front-loading trigger words. |
+| S3 | Anthropic [Extend Claude with skills](https://code.claude.com/docs/en/skills) | Unavailable (undated); page updated 2026-11-04 | 2026-11-06; rechecked 2026-11-09 | Supplementary Claude invocation lifecycle, supporting files, and tool pre-approval semantics. The recheck documents the optional `when_to_use` trigger field, a 1,536-character combined `description` plus `when_to_use` cap in the skill listing, `disable-model-invocation`, and compaction that retains only each skill's first 5,000 tokens within a shared 25,000-token budget. |
 | S4 | Anthropic [Test plugins with evals](https://code.claude.com/docs/en/plugin-evals) | Unavailable (undated) | 2026-11-07 | Native case format, output-only controls, actual Skill-call indicators separate from task scores, clean trials, baseline arms, and local reports. CLI help previously verified at 2.1.319 on 2026-11-06. |
 | S5 | Google [Gemini CLI skill precedence](https://geminicli.com/docs/cli/skills/#precedence-and-aliases) | Updated 2026-04-30 | 2026-11-07 | Same-name scope and alias precedence; selected resource path and revision verification. Outside the preferred 4-month window; within 12 months. |
 | E1 | Local [claude-skill-authoring](../../claude-skill-authoring/SKILL.md) | Revised [2026-11-06](https://github.com/dryvist/claude-code-plugins/commit/6790c0dde3767577f543ed7cad9e3bd2af92294c) | 2026-11-06 | 1,024-byte description maximum, approximately 250-character target, canonical placement, self-contained execution, inline safety. |
+| S6 | Anthropic Agent Skills [overview](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview) and [best practices](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices) | Unavailable (undated current documentation) | 2026-11-09 | Specification limits: name up to 64 characters lowercase/hyphenated, description up to 1,024 characters non-empty; SKILL.md body under 500 lines; references one level deep with a table of contents in files over 100 lines; avoid time-sensitive wording. |
 
 ## Shared dated sources
 

@@ -120,17 +120,25 @@ outputs stay in the authorized private evidence location.
 ## Author the smallest portable skill
 
 Create `<plugin>/skills/<name>/SKILL.md` with YAML `name` and `description`.
-Use lowercase hyphenated names matching the directory. State the exact task,
+Use lowercase hyphenated names matching the directory, up to 64 characters
+(S6). State the exact task,
 trigger conditions, and adjacent exclusions in a third-person description
-that states when the skill applies. Keep the description at
+that states when the skill applies; Claude Code also accepts an optional
+`when_to_use` field carrying trigger conditions (S3). Keep the description at
 most **1,024 bytes**, targeting about **250 characters**; the public
-specification's character limit is a separate measure.
+specification's character limit is a separate measure. Front-load the key
+use case and trigger words: Claude Code truncates the combined
+`description` and `when_to_use` at 1,536 characters in its skill listing,
+and Codex keeps its skill list within about 2% of the context window
+(8,000 characters), shortening descriptions first (S2, S3).
 
 Keep the skill body **under 500 lines**. Write concrete steps with observable
 completion criteria. Keep essential prerequisites, authority limits, and stop
 conditions inline so loading this skill alone remains safe. Link optional
 references directly from the entrypoint; preserve every referenced resource
 when distributing the directory. Put only task-specific knowledge here.
+Avoid time-sensitive wording such as "current" or "latest" that silently
+expires and forces a refresh (S6).
 Target 1,500 tokens and cap the entrypoint at 3,500, measured with
 `atc -m sonnet`, alongside line and byte limits. Record that count separately
 from serving-tokenizer runtime budgets; mark missing counters unverified.
@@ -144,7 +152,9 @@ then re-read live state before writes. Sources: A1, O1, O3; local policy E1.
 
 Keep automatic discovery unless the user requests explicit-only invocation.
 Express any requested invocation policy in each target harness's native
-metadata; Claude frontmatter and Codex `agents/openai.yaml` are distinct.
+metadata, such as Claude Code's `disable-model-invocation` frontmatter field
+or Codex's `policy.allow_implicit_invocation` in `agents/openai.yaml`;
+those surfaces stay distinct (S2, S3).
 Preserve unrelated metadata. Test effective invocation in each target harness
 rather than assuming one harness's settings apply to another.
 Keep descriptions discriminating; before paid execution trials, compare the
