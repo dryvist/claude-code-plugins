@@ -1,0 +1,50 @@
+{
+  "skill_name": "ship",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Ship my current work. Two uncommitted files fix a nil-pointer crash tracked in issue #512. We are on the default branch of a trunk repo, the tree is dirty, and nothing is pushed. Walk through every action from a cold start through the final status report.",
+      "expected_output": "Claim check, Git Town branch off the default branch, selective staging and one conventional commit, simplify-amend, local validation, push, PR creation without arming auto-merge, sequential finalization, and live gate re-verification before any PR is listed ready.",
+      "files": [],
+      "assertions": [
+        "Searches open PRs for a competing claim before creating a PR and stops on an earlier claim instead of duplicating it.",
+        "Creates a `{type}/{sid8}-{description}` branch when on the default branch and stages selected files without `-A`.",
+        "Never arms auto-merge and never assumes the PR merged; live state is verified before reporting.",
+        "Invokes /finalize-pr via the Skill tool and does not run /resolve-pr-threads separately."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Ship what is outstanding. The tree is clean, but my current branch already has PR #88 open and PR #91 from another session was mentioned earlier today.",
+      "expected_output": "Both PR numbers are discovered and deduplicated, a context brief is built, and each PR is finalized sequentially through /finalize-pr with gates re-verified per PR before the Ship Summary.",
+      "files": [],
+      "assertions": [
+        "Processes the PRs sequentially and never dispatches parallel subagents across multiple PRs.",
+        "Builds a context brief covering purpose, key decisions, intentional patterns, and scope boundaries before finalization agents run.",
+        "Emits the Ship Summary with Section 1 listing the PRs targeted by this invocation and Section 2 listing all open PRs in the repo."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Ship the pending changes. Your working directory is a scratch folder whose worktree was cleaned up after the last PR merge.",
+      "expected_output": "The `git rev-parse --git-dir` check fails, the skill stops immediately with the cleaned-up-worktree report, and no recovery, directory change, or later step runs.",
+      "files": [],
+      "assertions": [
+        "Verifies the working directory before anything else and stops immediately when the check fails.",
+        "Does not attempt recovery, `cd` elsewhere, or fall through to scope detection after the failed check.",
+        "Reports that the worktree was likely cleaned up after a merge and directs to starting a new session with a worktree."
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Our repo uses Git Flow with `develop` as the default branch. The feature PR has just merged into `develop` and validation passed. Ship what is left so the fix reaches customers.",
+      "expected_output": "The remaining develop-to-main promotion is routed to /promote-release and recorded as a mandatory active-session checklist item; ship itself does not perform the promotion.",
+      "files": [],
+      "assertions": [
+        "Routes the develop-to-main promotion to /promote-release rather than merging into main itself.",
+        "Adds the promotion to the active session checklist as mandatory, not optional, before completing the session.",
+        "Does not promote with squash or rebase."
+      ]
+    }
+  ]
+}

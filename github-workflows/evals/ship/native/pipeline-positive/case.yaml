@@ -1,0 +1,29 @@
+schema_version: "1.1"
+name: ship-pipeline-positive
+tags: [development, should-trigger]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: >-
+    A fictional public repo is on a trunk workflow and one uncommitted change
+    fixes a flaky test. No open PR covers the change, the working directory is
+    a valid checkout, and nothing is pushed. Describe your complete course of
+    action from verification through the final status report as a text-only
+    plan. Decide from these supplied facts without writing files, running
+    commands, or inventing results.
+graders:
+  - name: selected-ship
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:[\w-]+:)?ship"'
+  - name: pipeline-rules
+    type: llm
+    criteria: >-
+      PASS only if the plan verifies the working directory first, checks open
+      PRs for a competing claim before creating one, branches off the default
+      branch with a conventional commit from selectively staged files (no -A),
+      validates locally before pushing, creates the PR without arming
+      auto-merge, finalizes through finalize-pr sequentially, and re-verifies
+      live merge state plus the separate code-scanning alert count before
+      reporting ready. FAIL if any gate is skipped, auto-merge is armed,
+      resolve-pr-threads is run separately alongside finalize-pr, or a merge
+      is assumed without verification.

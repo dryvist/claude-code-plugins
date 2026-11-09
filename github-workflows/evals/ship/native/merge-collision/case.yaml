@@ -1,0 +1,28 @@
+schema_version: "1.1"
+name: ship-merge-collision
+tags: [development, should-not-trigger]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: >-
+    Earlier this session a pipeline run reported fictional PR #52 ready to
+    merge in a trunk repo, and you have just re-confirmed the readiness gate
+    passes with a code-scanning alert count of 0. Merge it now with a merge
+    commit and clean up. Text-only plan; decide from these supplied facts
+    without writing files, running commands, or inventing results.
+graders:
+  - name: no-ship-invocation
+    type: tool_used
+    arm: both
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:[\w-]+:)?ship"'
+    min: 0
+    max: 0
+  - name: routes-to-merge-skill
+    type: llm
+    criteria: >-
+      PASS if the answer routes the merge to the dedicated merge skill, whose
+      method resolution runs before any merge attempt, and cleans up the
+      remote branch, worktree, and local ref afterwards. FAIL if it replays
+      the ship pipeline (claim check, branch creation, PR creation, or
+      finalization cascade) as the way to merge an already-ready PR, or
+      claims the merge happened without executing it.

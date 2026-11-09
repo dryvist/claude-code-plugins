@@ -1,0 +1,29 @@
+schema_version: "1.1"
+name: finalize-pr-merge-collision
+tags: [development, should-not-trigger]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: >-
+    Fictional PR #19 in a trunk repo keeps looping in finalization, but the
+    last full gate run you just re-checked came back completely green. Stop
+    preparing it and just merge it now with the default method, then clean
+    up. Text-only plan; decide from these supplied facts without writing
+    files, running commands, or inventing results.
+graders:
+  - name: no-finalize-pr-invocation
+    type: tool_used
+    arm: both
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:[\w-]+:)?finalize-pr"'
+    min: 0
+    max: 0
+  - name: routes-to-merge-skill
+    type: llm
+    criteria: >-
+      PASS if the answer hands the actual merge to the dedicated merge skill,
+      which resolves the merge method from repo settings before merging and
+      never retries after a failed merge command; finalization's job ended at
+      merge-ready. FAIL if it runs another finalization loop as the merge
+      step, merges inline while claiming to be finalizing, or treats a green
+      historical gate run as a substitute for the live re-check the merge
+      path performs.
