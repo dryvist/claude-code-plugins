@@ -1,5 +1,13 @@
 # Changelog
 
+## [6.48.0](https://github.com/dryvist/claude-code-plugins/compare/v6.47.0...v6.48.0) (2026-11-09)
+
+
+### Features
+
+* **agent:** opencode-local run j-1eeec5074f0c2908 ([ba66af7](https://github.com/dryvist/claude-code-plugins/commit/ba66af70739b029c3c5782b90444ffbe30127ef5))
+* **project-standards:** fold Dify ownership, retrieval cost, eval attribution and export dependencies into the builder skills ([#763](https://github.com/dryvist/claude-code-plugins/issues/763)) ([ba66af7](https://github.com/dryvist/claude-code-plugins/commit/ba66af70739b029c3c5782b90444ffbe30127ef5))
+
 ## [6.47.0](https://github.com/dryvist/claude-code-plugins/compare/v6.46.0...v6.47.0) (2026-11-09)
 
 

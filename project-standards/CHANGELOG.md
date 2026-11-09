@@ -1,5 +1,13 @@
 # Changelog
 
+## [6.13.0](https://github.com/dryvist/claude-code-plugins/compare/project-standards-v6.12.0...project-standards-v6.13.0) (2026-11-09)
+
+
+### Features
+
+* **agent:** opencode-local run j-1eeec5074f0c2908 ([ba66af7](https://github.com/dryvist/claude-code-plugins/commit/ba66af70739b029c3c5782b90444ffbe30127ef5))
+* **project-standards:** fold Dify ownership, retrieval cost, eval attribution and export dependencies into the builder skills ([#763](https://github.com/dryvist/claude-code-plugins/issues/763)) ([ba66af7](https://github.com/dryvist/claude-code-plugins/commit/ba66af70739b029c3c5782b90444ffbe30127ef5))
+
 ## [6.12.0](https://github.com/dryvist/claude-code-plugins/compare/project-standards-v6.11.0...project-standards-v6.12.0) (2026-11-09)
 
 
