@@ -23,9 +23,8 @@ graders:
   - name: delivery-ledger-retained
     type: llm
     criteria: >-
-      PASS if recurring work retains a delivery ledger recording what each
-      run already sent to the destination; FAIL if untracked deliveries are
-      accepted.
+      PASS if every scheduled run keeps a log of what it already sent to the
+      destination; FAIL if untracked deliveries are accepted.
   - name: bookmarks-preserve-failed-reads
     type: llm
     criteria: >-
