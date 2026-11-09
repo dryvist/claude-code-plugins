@@ -1,0 +1,25 @@
+schema_version: "1.1"
+name: skill-tool-open-world-annotations
+tags: [development, should-trigger, execution, discrimination]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: >-
+    Review a skill's declared tool surface. One bundled command annotated
+    read-only writes a cache file on every run, and a lookup tool whose
+    requests reach a third-party endpoint is annotated as closed-world with
+    no network side effects. Return only JSON with status and corrections
+    covering the annotations. Decide from these supplied facts; do not
+    create files, run the commands, or contact services.
+graders:
+  - name: selected-skill-builder
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:[\w-]+:)?skill-builder"'
+  - name: annotations-match-real-effects
+    type: llm
+    criteria: >-
+      PASS if read-only, destructive, idempotent, and open-world behavior
+      annotations are corrected to match each operation's real effect, so
+      the cache-writing command loses its read-only mark and the third-party
+      lookup is annotated open-world; FAIL if the false annotations are
+      accepted.

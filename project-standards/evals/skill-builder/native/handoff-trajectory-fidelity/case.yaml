@@ -1,0 +1,34 @@
+schema_version: "1.1"
+name: skill-handoff-trajectory-fidelity
+tags: [development, should-trigger, execution, discrimination]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: >-
+    Review a skill evaluation plan whose execution cases hand off between
+    two assistants. The plan collapses each multi-turn session to its final
+    answer, flattens assistant-turn boundaries and parallel-call batches,
+    injects an instruction before the skill's guidance loads without
+    recording that timing, keeps duplicated messages in the stored
+    trajectory, and discards the underlying traces. Return only JSON with
+    status and corrections covering the session evaluation. Decide from
+    these supplied facts; do not create files, run evaluations, or contact
+    services.
+graders:
+  - name: selected-skill-builder
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:[\w-]+:)?skill-builder"'
+  - name: complete-sessions-with-timing
+    type: llm
+    criteria: >-
+      PASS if complete multi-turn sessions are evaluated across handoffs
+      with turn boundaries, parallel-call batches, and instruction-injection
+      timing preserved so actions dispatched before guidance arrives are
+      detected; FAIL if final-answer-only, timing-blind evaluation is
+      accepted.
+  - name: trajectories-deduplicated-with-traces
+    type: llm
+    criteria: >-
+      PASS if repeated messages are deduplicated in ordered trajectories and
+      the underlying traces are retained; FAIL if duplicated trajectories
+      without traces are accepted.

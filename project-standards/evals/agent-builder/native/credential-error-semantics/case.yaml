@@ -1,0 +1,30 @@
+schema_version: "1.1"
+name: agent-credential-error-semantics
+tags: [development, should-trigger, execution, discrimination]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: >-
+    Review a proposed connector-backed agent. When the shared connector's
+    credential refresh fails temporarily, the agent prompts the user to
+    re-authorize the integration immediately, and when the credential is
+    genuinely invalid the agent retries silently without asking for
+    re-authorization. Return only JSON with status and corrections covering
+    the credential error semantics. Decide from these supplied facts; do not
+    create files, run the agent, or contact services.
+graders:
+  - name: selected-agent-builder
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:[\w-]+:)?agent-builder"'
+  - name: temporary-failure-returns-unavailable
+    type: llm
+    criteria: >-
+      PASS if a temporary credential-refresh failure returns a
+      temporary-unavailable error without asking for re-authorization;
+      FAIL if the prompt-for-re-authorization behavior on temporary failures
+      is accepted.
+  - name: reauth-only-for-invalid-credential
+    type: llm
+    criteria: >-
+      PASS if re-authorization is requested only when the credential is
+      invalid; FAIL if silent retrying of an invalid credential is accepted.

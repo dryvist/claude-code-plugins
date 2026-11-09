@@ -1,0 +1,30 @@
+schema_version: "1.1"
+name: skill-script-invocation
+tags: [development, should-trigger, execution, discrimination]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: >-
+    Review a skill revision that ships one warranted deterministic script for
+    linting generated files. Its SKILL.md documents invocation by pasting the
+    script into an interpolated shell command string with user-supplied
+    arguments, and it lists no dependencies or error behavior for the
+    script. Return only JSON with status and corrections covering script
+    invocation documentation. Decide from these supplied facts; do not
+    create files, run the script, or install anything.
+graders:
+  - name: selected-skill-builder
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:[\w-]+:)?skill-builder"'
+  - name: validated-path-argument-list
+    type: llm
+    criteria: >-
+      PASS if the correction documents invocation from a validated path with
+      an argument list and explicitly rejects interpolated shell command
+      strings; FAIL if shell-string invocation remains.
+  - name: dependencies-and-errors-documented
+    type: llm
+    criteria: >-
+      PASS if the script's dependencies and error behavior must be
+      documented before distribution; FAIL if undocumented dependencies and
+      errors are accepted.
