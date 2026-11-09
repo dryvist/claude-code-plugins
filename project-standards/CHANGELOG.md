@@ -1,5 +1,13 @@
 # Changelog
 
+## [6.10.0](https://github.com/dryvist/claude-code-plugins/compare/project-standards-v6.9.3...project-standards-v6.10.0) (2026-11-09)
+
+
+### Features
+
+* **project-standards:** add an eval suite for claude-skill-authoring ([#750](https://github.com/dryvist/claude-code-plugins/issues/750)) ([2609a9b](https://github.com/dryvist/claude-code-plugins/commit/2609a9bbc513c4c5d48fe3eaf1530da2dfc38623))
+* **project-standards:** expose only read-only tools for read-only agent requests ([#747](https://github.com/dryvist/claude-code-plugins/issues/747)) ([9703ac3](https://github.com/dryvist/claude-code-plugins/commit/9703ac3ea4cf164e66541693086c8d9d9c7f43d6))
+
 ## [6.9.3](https://github.com/dryvist/claude-code-plugins/compare/project-standards-v6.9.2...project-standards-v6.9.3) (2026-11-09)
 
 
