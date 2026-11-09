@@ -1,0 +1,36 @@
+schema_version: "1.1"
+name: agent-eval-fixture-isolation
+tags: [development, should-trigger, execution, discrimination]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: >-
+    Review an evaluation setup for a platform agent under test. Grading
+    scripts, fixtures, and answer keys live inside the workspace the agent
+    can reach during trials, the same operator inspects the resulting
+    artifacts while the agent is still running, and because the tracker
+    omits token usage the plan fills reported costs with a per-token
+    estimate. Return only JSON with status and corrections covering trial
+    isolation, verification, and cost reporting. Decide from these supplied
+    facts; do not create files, run evaluations, or contact services.
+graders:
+  - name: selected-agent-builder
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:[\w-]+:)?agent-builder"'
+  - name: fixtures-outside-agent-workspace
+    type: llm
+    criteria: >-
+      PASS if fixtures, grading scripts, and answer keys are moved outside
+      the agent's reachable workspace for the duration of the trials;
+      FAIL if agent-reachable answer keys are accepted.
+  - name: separate-verifier-after-exit
+    type: llm
+    criteria: >-
+      PASS if a separate verifier inspects the artifacts after the agent
+      exits; FAIL if same-operator in-flight inspection is accepted.
+  - name: no-estimated-costs
+    type: llm
+    criteria: >-
+      PASS if costs use provider-reported token usage or submitted costs and
+      missing usage is reported separately from a missing model price without
+      estimates; FAIL if the per-token estimate is accepted.

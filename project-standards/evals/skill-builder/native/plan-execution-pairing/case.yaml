@@ -1,0 +1,29 @@
+schema_version: "1.1"
+name: skill-plan-execution-pairing
+tags: [development, should-trigger, execution, discrimination]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: >-
+    Review an evaluation plan for a report-generation skill. Every case is
+    plan-only: the skill returns a written plan and the graders score the
+    plan text, with no authorized disposable sandbox execution anywhere in
+    the suite, so actual tool arguments, produced artifacts, and unauthorized
+    side effects are never graded. Return only JSON with status and
+    corrections covering the suite design. Decide from these supplied facts;
+    do not create files, run evaluations, or contact services.
+graders:
+  - name: selected-skill-builder
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:[\w-]+:)?skill-builder"'
+  - name: plan-cases-paired-with-sandbox
+    type: llm
+    criteria: >-
+      PASS if plan-only cases are paired with authorized disposable sandbox
+      execution; FAIL if an all-plan-only suite is accepted.
+  - name: actual-effects-graded-separately
+    type: llm
+    criteria: >-
+      PASS if actual tool arguments, produced artifacts, and unauthorized
+      effects are graded separately from the plan text; FAIL if plan-text
+      scoring alone is accepted as evidence of correct behavior.
