@@ -13,8 +13,9 @@ O1 is unchanged, O2 (`f53c624`, 2026-10-13) and O3 (`9d2b318`,
 2026-10-22 subagent-folding article is unchanged. The current Agent Skills
 documentation (see S6 in the [skill-builder register](../../skill-builder/references/sources.md))
 confirms the name/description limits and body-length guidance this estate
-applies to skills. No current source contradicts or extends this skill's
-rules, so its SKILL.md text is unchanged by this refresh.
+applies to skills. No registered source contradicts this skill's rules. The
+recheck also registered O4, revised **2026-11-09** and dated after this
+refresh, and SKILL.md now applies its read-only tool-surface rule.
 
 ## Dated source register
 
@@ -26,6 +27,7 @@ rules, so its SKILL.md text is unchanged by this refresh.
 | O1 | OpenAI, [skills and prompts](https://learn.chatgpt.com/blog/rethinking-skills-and-prompts-for-gpt-6-astra) | Published 2026-09-11 | 2026-11-06 | Narrow descriptions, outcome-driven instructions, measure changes instead of accumulating rules. |
 | O2 | OpenAI Agents SDK, [guardrails](https://github.com/openai/openai-agents-python/blob/f53c62451c7f34c15f0c87fa745e05404025420f/docs/guardrails.md) | Revised [2026-10-13](https://github.com/openai/openai-agents-python/commit/f53c62451c7f34c15f0c87fa745e05404025420f) | 2026-11-06 | Input/output checks have different boundaries; use pre-action enforcement, verify handoffs and tool coverage. |
 | O3 | OpenAI Agents SDK, [running agents](https://github.com/openai/openai-agents-python/blob/9d2b318dd034e5c0333c88e60ed6c704cbbbd04b/docs/running_agents.md) | Revised [2026-09-30](https://github.com/openai/openai-agents-python/commit/9d2b318dd034e5c0333c88e60ed6c704cbbbd04b) | 2026-11-06 | Bound turns and timeouts, shape history, handle terminal errors, preserve resumable state and validate final output. |
+| O4 | OpenAI Agents SDK, [agents](https://github.com/openai/openai-agents-python/blob/21ec412130103e7ffcc3fdf4c1368caba7fe9fe1/docs/agents.md) | Revised [2026-11-09](https://github.com/openai/openai-agents-python/commit/21ec412130103e7ffcc3fdf4c1368caba7fe9fe1) | 2026-11-09 | For a read-only request, expose only read-only tools; forcing a call over write-capable tools can change state on the first use. Leave the agent able to answer without calling a tool. |
 | G1 | Google ADK, [agent evaluation](https://github.com/google/adk-docs/blob/628ed49787f83414995efd1b68f927778bad673f/docs/evaluate/index.md) | Revised [2026-10-16](https://github.com/google/adk-docs/commit/628ed49787f83414995efd1b68f927778bad673f) | 2026-11-06 | Evaluate observable tool trajectories and final response separately; choose metrics appropriate to the task. |
 | G2 | Google ADK, [safety and security](https://github.com/google/adk-docs/blob/3a29a8df6e30ca5e36793b91a5249607104f8ccb/docs/safety/index.md) | Revised [2026-09-22](https://github.com/google/adk-docs/commit/3a29a8df6e30ca5e36793b91a5249607104f8ccb) | 2026-11-06 | Constrain identity, tool actions, and network access; treat injected content as untrusted. |
 
@@ -58,6 +60,7 @@ skill-specific records live in [skill-builder sources](../../skill-builder/refer
 | Validated terminal and partial output contracts | O3 | 2026-09-30 | partly | A/S include schema checks, artifact references, and blocked reasons. |
 | Shared definition defaults and focused roles | A1; E2 below | 2026-07-24; 2026-11-06 | partly | A extends shared-prefix reuse to profiles and defaults. |
 | Dated rule provenance and refresh evidence | A3, O1 | 2026-09-28; 2026-09-11 | no | A/S add source registers and versioned development evals. |
+| Read-only tool surface for read-only requests | O4 | 2026-11-09 | no | A exposes only read-only tools for read-only requests and leaves a no-tool answer available. |
 
 ## Rule trace and local policy
 
@@ -69,7 +72,7 @@ skill-specific records live in [skill-builder sources](../../skill-builder/refer
   policy revision **2026-11-06**, retrieved **2026-11-06**; its linked platform rules identify that policy and
   the R2 a–g source families. Shared defaults follow the operator's DRY ruling
   of the same date. This refresh does not change the platform architecture.
-- Tool/permission decisions: A2, O2, G2. Context and execution: A1, O1, O3.
+- Tool/permission decisions: A2, O2, O4, G2. Context and execution: A1, O1, O3.
   Numerical runtime budgets come from the task/runtime owner, not these sources.
 - Render/evaluate: A3, G1; the existing promptfoo and Langfuse gates remain
   local requirements. Import/shadow/promotion and reporting retain those gates;

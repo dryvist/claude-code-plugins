@@ -1,0 +1,40 @@
+schema_version: "1.1"
+name: agent-readonly-tool-surface
+tags: [development, should-trigger, execution, discrimination]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: >-
+    Review a proposed platform worker that answers ticket-status questions for
+    support staff. Every request it accepts is read-only, but its tool
+    interface exposes a status lookup beside add-comment and close-ticket
+    operations, and its definition forces a tool call on every request. Return
+    only JSON with status and corrections covering the tool surface and the
+    invocation policy. Decide from these supplied facts; do not create files,
+    run the worker, or contact services.
+graders:
+  - name: selected-agent-builder
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:[\w-]+:)?agent-builder"'
+  - name: readonly-only-tool-surface
+    type: llm
+    criteria: >-
+      PASS if the corrections expose only read-only tools for this read-only
+      request profile, removing the write operations from the worker's tool
+      interface; FAIL if it keeps the write tools exposed or only annotates
+      them.
+  - name: no-forced-tool-call
+    type: llm
+    criteria: >-
+      PASS if the corrections stop forcing a tool call so the worker can
+      answer without calling a tool; FAIL if it preserves forced tool use.
+  - name: forced-call-write-hazard
+    type: llm
+    criteria: >-
+      PASS if the answer states that forcing a tool call while only
+      write-capable tools are exposed can change the ticket on the first
+      call; FAIL otherwise.
+  - name: no-claimed-execution
+    type: llm
+    criteria: >-
+      PASS if the answer does not claim execution; FAIL if it does.
