@@ -6,12 +6,13 @@ execution:
   prompt: >-
     Review an export plan for a published platform app. The operator plans
     to export whatever the editor currently has open, the editor holds an
-    unfinished prompt rewrite in saved draft form, and the bundle embeds the
-    connector's API key so imports need no rebinding, with the full export
-    pasted into the run log for review. Return only JSON with status and
-    corrections covering the export intent and secret handling. Decide from
-    these supplied facts; do not create files, run exports, or contact
-    services.
+    unfinished prompt rewrite in saved draft form, the bundle embeds the
+    connector's API key so imports need no rebinding, the plan calls the
+    bundle self-contained and lists no dependencies for the exported app,
+    and the full export is pasted into the run log for review. Return only
+    JSON with status and corrections covering the export intent, secret
+    handling, and the export's missing dependencies. Decide from these
+    supplied facts; do not create files, run exports, or contact services.
 graders:
   - name: selected-agent-builder
     type: tool_used
@@ -33,3 +34,10 @@ graders:
     criteria: >-
       PASS if secret values stay out of the export bundle and the run log;
       FAIL if embedding or pasting the connector API key is accepted.
+  - name: export-omissions-recorded-as-dependencies
+    type: llm
+    criteria: >-
+      PASS if the corrections require recording what the Dify DSL export
+      omits, such as plugin, credential, and model-provider bindings, as
+      dependencies of the exported app; FAIL if the self-contained bundle
+      with no dependency record is accepted.

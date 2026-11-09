@@ -55,7 +55,7 @@ tables across the builders. Both directories ship in the same plugin.
 | Accurate open-world behavior annotations on declared tools | A18 (undated official source page; retrieved 2026-11-09). |
 | Hard-case difficulty with saturation and scaling diagnostics | A3 (2026-09-28). |
 | Complete-session trajectory fidelity, injection timing, deduplication, and trace retention | G5 (2026-10-16), C1 (2026-09-24). |
-| Skill trace attribution to the canonical revision | F5 (2026-11-03), O9 (2026-10-29). |
+| Skill trace attribution to the canonical revision, with loaded skill versions, resource paths read, and per-turn and per-tool-span attribution | F5 (2026-11-03), O9 (2026-10-29). |
 | Structural checks, regression gates, outputs and future refresh | A3 (2026-09-28), G1 (2026-10-16), O3 (2026-09-30); local CI owns commands. |
 
 ## Retained policy and conflict resolutions
