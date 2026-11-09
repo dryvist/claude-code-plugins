@@ -1,0 +1,54 @@
+schema_version: '1.1'
+name: held-out-claude-skill-authoring-should-trigger
+runs: 3
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  max_turns: 12
+  timeout_seconds: 300
+  prompt: |
+    We are adding a reusable skill to this estate that reviews a supplied
+    release changelog for banned marketing phrasing. Plan the authoring as
+    text only: where its canonical files live, how its discovery description
+    is sized and measured, and what must stay inline so it still runs when
+    loaded alone. This fictional exercise supplies no repository, existing
+    skill, or harness; identify prerequisites instead of inventing them and
+    keep dependent work conditional. You may read available authoring
+    guidance, but cannot use a shell, edit files, install anything, access
+    credentials, or contact services.
+graders:
+  - name: output-contract
+    type: llm
+    focus: last_message
+    criteria: |
+      PASS if the plan either names missing estate authoring guidance as a
+      specific blocker, or places the canonical skill files under the
+      estate's single-source-of-truth directory with vendor directories
+      holding symlinks only; sizes the description as a trigger phrase plus
+      a one-clause purpose toward the 250-character soft target with the
+      1024-byte CI hard limit measured in bytes rather than characters; and
+      keeps the skill runnable and safe when loaded alone, reserving
+      deduplication for reference material. FAIL if it invents repository
+      contents, treats a character count as the byte measurement, places
+      canonical content in a vendor directory, moves safety reminders out of
+      the entrypoint to save tokens, or claims files were written.
+  - name: actual-authoring-invocation
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"project-standards:claude-skill-authoring"'
+    min: 1
+    max: 12
+  - name: no-shell
+    type: tool_used
+    tool: Bash
+    min: 0
+    max: 0
+  - name: no-write
+    type: tool_used
+    tool: Write
+    min: 0
+    max: 0
+  - name: no-edit
+    type: tool_used
+    tool: Edit
+    min: 0
+    max: 0

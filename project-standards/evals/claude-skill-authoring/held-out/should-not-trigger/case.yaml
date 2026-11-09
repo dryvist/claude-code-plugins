@@ -1,0 +1,54 @@
+schema_version: '1.1'
+name: held-out-claude-skill-authoring-should-not-trigger
+runs: 3
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  max_turns: 12
+  timeout_seconds: 300
+  prompt: |
+    Add a /release-notes slash command to our public documentation plugin:
+    its prompt text summarizes a supplied changelog into five neutral bullet
+    points, and the README gains one paragraph documenting the command. No
+    reusable skill, agent definition, or evaluation suite should be created
+    or changed. Return the command prompt text and the README paragraph
+    only. All inputs are supplied here. Reading and text output are the only
+    authorized operations; no shell, file changes, installs, credentials, or
+    service calls.
+
+    Changelog excerpt: "added export retries"; "fixed a crash when an export
+    had zero rows"; "revamped the settings screen"; "bumped dependencies";
+    "new: scheduled exports".
+graders:
+  - name: output-contract
+    type: llm
+    focus: last_message
+    criteria: |
+      PASS if the answer supplies the slash command prompt text that
+      summarizes a supplied changelog into five neutral bullet points —
+      rewriting "revamped" neutrally — and one README paragraph documenting
+      the command. Harmless formatting is acceptable. FAIL if it supplies a
+      skill authoring plan, converts the command into a reusable skill,
+      applies skill-description or standalone-loading rules to the command,
+      or claims file edits or service operations.
+  - name: no-authoring-invocation
+    type: tool_used
+    arm: both
+    tool: Skill
+    input_match: '"skill"\s*:\s*"project-standards:claude-skill-authoring"'
+    min: 0
+    max: 0
+  - name: no-shell
+    type: tool_used
+    tool: Bash
+    min: 0
+    max: 0
+  - name: no-write
+    type: tool_used
+    tool: Write
+    min: 0
+    max: 0
+  - name: no-edit
+    type: tool_used
+    tool: Edit
+    min: 0
+    max: 0

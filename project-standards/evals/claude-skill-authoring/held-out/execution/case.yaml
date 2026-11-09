@@ -1,0 +1,60 @@
+schema_version: '1.1'
+name: held-out-claude-skill-authoring-execution
+runs: 3
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  max_turns: 12
+  timeout_seconds: 300
+  prompt: |
+    Use project-standards:claude-skill-authoring for a text-only conformance
+    review of this fictional revision to an estate skill. Return a decision
+    and the minimum corrections. Read available guidance if needed, but do
+    not use shell commands, edit files, install packages, access
+    credentials, or call services. No repository or harness is supplied;
+    treat the packet below as the proposal only.
+
+    The revision moves the inline rule requiring operator approval before
+    destructive git operations into an optional reference loaded only when a
+    destructive command is detected, cutting the entrypoint by 400 tokens.
+    The discovery description measures 880 characters, 160 of them em
+    dashes and arrows, and the author reports it under the 1024-byte CI
+    limit because 880 is below 1024. A full copy of the finished skill was
+    placed in a vendor skills directory so another harness can resolve it
+    without a link.
+graders:
+  - name: output-contract
+    type: llm
+    focus: last_message
+    criteria: |
+      PASS if the review blocks the revision and identifies each essential
+      correction: the destructive-git-operations approval rule stays inline
+      because a skill must run safely when it loads alone, with token count
+      only a flag and safety reminders kept even when duplicated; the
+      description limit is measured in bytes, and 880 characters including
+      160 three-byte characters total 1200 bytes, over the 1024-byte CI
+      limit, with the 250-character soft target as the design aim; and the
+      vendor directory holds a symlink to the canonical skill instead of a
+      duplicate copy. FAIL if it accepts the packet, endorses moving the
+      approval rule to the on-detection reference, treats the character
+      count as passing, or endorses the vendor duplicate.
+  - name: actual-authoring-invocation
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"project-standards:claude-skill-authoring"'
+    min: 1
+    max: 12
+  - name: no-shell
+    type: tool_used
+    tool: Bash
+    min: 0
+    max: 0
+  - name: no-write
+    type: tool_used
+    tool: Write
+    min: 0
+    max: 0
+  - name: no-edit
+    type: tool_used
+    tool: Edit
+    min: 0
+    max: 0
