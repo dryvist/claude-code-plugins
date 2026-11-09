@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.13.0](https://github.com/dryvist/claude-code-plugins/compare/ai-delegation-v6.12.0...ai-delegation-v6.13.0) (2026-11-09)
+
+
+### Features
+
+* **delegation:** route ZCode or Codex by sensitivity, other subscriptions, then Haiku; the orchestrator never works solo ([#736](https://github.com/dryvist/claude-code-plugins/issues/736)) ([c90adc5](https://github.com/dryvist/claude-code-plugins/commit/c90adc50445e8a60229bf12e50d2c2743cd7c439))
+
 ## [6.12.0](https://github.com/dryvist/claude-code-plugins/compare/ai-delegation-v6.11.0...ai-delegation-v6.12.0) (2026-11-01)
 
 
