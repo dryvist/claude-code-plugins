@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.31.0](https://github.com/dryvist/claude-code-plugins/compare/ai-cli-harness-better-practices-v4.30.0...ai-cli-harness-better-practices-v4.31.0) (2026-11-09)
+
+
+### Features
+
+* **evals:** add eval suites for local-subagents, premium-agent-orchestration, goal, and replan ([#743](https://github.com/dryvist/claude-code-plugins/issues/743)) ([968a84a](https://github.com/dryvist/claude-code-plugins/commit/968a84a4652a868fa0c1a0285f1b666256a83f5d))
+
 ## [4.30.0](https://github.com/dryvist/claude-code-plugins/compare/ai-cli-harness-better-practices-v4.29.0...ai-cli-harness-better-practices-v4.30.0) (2026-10-24)
 
 

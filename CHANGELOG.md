@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.44.0](https://github.com/dryvist/claude-code-plugins/compare/v6.43.0...v6.44.0) (2026-11-09)
+
+
+### Features
+
+* **evals:** add eval suites for local-subagents, premium-agent-orchestration, goal, and replan ([#743](https://github.com/dryvist/claude-code-plugins/issues/743)) ([968a84a](https://github.com/dryvist/claude-code-plugins/commit/968a84a4652a868fa0c1a0285f1b666256a83f5d))
+
 ## [6.43.0](https://github.com/dryvist/claude-code-plugins/compare/v6.42.1...v6.43.0) (2026-11-09)
 
 
