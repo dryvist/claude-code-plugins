@@ -1,0 +1,51 @@
+{
+  "skill_name": "finalize-pr",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Finalize PR #204. The CI rollup is fully green and every review thread is resolved, but the canonical code-scanning alert query still returns two open alerts on files this PR touches. Get it merge-ready.",
+      "expected_output": "CodeQL is treated as a gate separate from CI: return to Phase 2, invoke /resolve-codeql fix, validate locally, then re-run the live Phase 3 gates; the PR is not ready while any alert is open.",
+      "files": [],
+      "assertions": [
+        "Treats open code-scanning alerts as a Phase 2 blocker even with a green CI rollup.",
+        "Invokes /resolve-codeql fix, validates locally, and re-runs the live Phase 3 gates before reporting ready.",
+        "Never reports ready while the canonical code-scanning alert count is nonzero."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Run finalize-pr in org mode across our org's repos. Include everything open, no matter who authored it. One dependency-bump PR was authored by a bot — do not skip it. The local tree here is dirty.",
+      "expected_output": "Org discovery enumerates repos with per-repo and total caps, tags and processes bot PRs identically to human PRs, confirms the batch on a clean tree, loops Phases 2-5 per PR in sequence, and aggregates in Phase 6 across the discovered repos without crossing the org boundary.",
+      "files": [],
+      "assertions": [
+        "Processes bot-authored PRs identically to human PRs instead of filtering them.",
+        "Applies the per-repo and total discovery caps and carries the repository field for checkouts in org mode.",
+        "Verifies the working tree is clean before the batch and restores the original branch afterwards.",
+        "Keeps all discovery and fixes inside the org boundary the current repo implies."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Finalize PR #77. The readiness query shows mergeable MERGEABLE and mergeStateStatus BEHIND; CI is passing, threads are resolved, and an hour ago in this session the same PR already passed the full gate.",
+      "expected_output": "MERGEABLE means git-conflict-free only; a BEHIND merge state is fixed in Phase 2 by syncing the PR branch, and Phase 3 is re-run against live API state on this invocation regardless of the earlier verification.",
+      "files": [],
+      "assertions": [
+        "Rejects the hour-old verification and re-runs the Phase 3 gate against live API state.",
+        "Updates the BEHIND branch via the Git Town rule before continuing.",
+        "Does not conflate mergeable MERGEABLE with full merge readiness."
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "PR #15 is finally green, conflict-free, approved, and CodeQL-clean with all threads resolved. Finish the finalization for it. The PR description still says WIP and there is an existing Zammad ticket reference in the body. Our repo's default branch is develop.",
+      "expected_output": "Phase 4 regenerates the title and description through a delegate and applies them together, carrying the Zammad reference forward verbatim; the mandatory develop-to-main /promote-release checklist item is recorded for this Git Flow repo; then the Canonical PR Status Summary titled PR Status is emitted.",
+      "files": [],
+      "assertions": [
+        "Regenerates the title in conventional commit format under 70 characters and the description with Summary, Changes, and Test Plan sections through a delegate.",
+        "Carries the existing Zammad reference forward verbatim and links related issues.",
+        "Adds the post-merge develop-to-main promotion via /promote-release to the session checklist as mandatory on this Git Flow repo.",
+        "Reports ready only after the live Phase 3 gates passed on this invocation, not on earlier verification."
+      ]
+    }
+  ]
+}

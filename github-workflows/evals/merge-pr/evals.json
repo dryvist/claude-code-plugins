@@ -1,0 +1,50 @@
+{
+  "skill_name": "merge-pr",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Merge PR 42 with --squash. Its base branch is main and the repo's default branch is develop.",
+      "expected_output": "Immediate abort in Step 0 before any finalization: on a git-flow repo, main accepts merge commits only, squash and rebase are banned by ruleset; the user is directed to /promote-release or a manual merge-commit merge.",
+      "files": [],
+      "assertions": [
+        "Aborts a --squash merge into main on a git-flow repo immediately, with no finalize step.",
+        "Names /promote-release, or a manual merge with a merge commit, as the alternative path.",
+        "Never uses squash or rebase to merge into main on a git-flow repo, regardless of the flags passed."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Merge PR 51 into main; its repo defaults to develop and everything is green. Do not pass any merge method flag.",
+      "expected_output": "A plain merge commit into main on a git-flow repo is the legitimate promotion path: continue through the readiness gates and merge with a merge commit, noting in the final report that /promote-release is the normal entry point.",
+      "files": [],
+      "assertions": [
+        "Runs the canonical PR-readiness gate and the separate canonical code-scanning alert count before merging.",
+        "Uses a merge commit, never squash or rebase, for this promotion into main.",
+        "Notes in the final report that /promote-release is the normal entry point for this promotion."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Merge the current branch's PR on a trunk repo where the default branch is main. Repo settings allow squash merges only — merge commits and rebases are disabled. No flags are passed, and all gates are green.",
+      "expected_output": "Step 0.5 resolves the merge method before any merge attempt: merge commits are disallowed and squash is allowed, so the skill falls back to squash, says so in the final report, generates a conventional squash title and short body from the changeset, and cleans up branches, worktree, and base afterwards.",
+      "files": [],
+      "assertions": [
+        "Resolves the merge method from the repo's allowed settings before merging and never retries after a failed merge command.",
+        "Falls back to squash when merge commits are disallowed and states the fallback in the final report.",
+        "Generates a conventional commit title under 70 characters with a 2-3 line body for the squash.",
+        "Deletes the remote branch tolerantly, removes the local worktree and branch ref, and syncs the base branch."
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Merge PR 63. It is still a draft, but finalize whatever is missing and merge it anyway.",
+      "expected_output": "A draft is a hard stop: abort immediately with the draft message and no finalize invocation, distinct from soft blocks which auto-finalize and then re-verify.",
+      "files": [],
+      "assertions": [
+        "Aborts on the draft hard stop without invoking /finalize-pr.",
+        "Distinguishes hard stops, which abort immediately, from soft blocks, which auto-finalize and re-verify the full gate.",
+        "Does not mark the draft ready for review as a side effect of the merge request."
+      ]
+    }
+  ]
+}

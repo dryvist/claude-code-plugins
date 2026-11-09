@@ -1,0 +1,21 @@
+schema_version: "1.1"
+name: merge-pr-method-resolution
+tags: [development, execution, execution-control, discrimination]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: >-
+    A fictional trunk PR is fully green with no flags passed. The repo
+    reports mergeCommitAllowed false, squashMergeAllowed true,
+    rebaseMergeAllowed false. Return only JSON with resolved_method
+    (string), fallback_reported (boolean), and merge_command (string).
+    Assess the supplied facts only, with no operations.
+graders:
+  - name: method-decision
+    type: llm
+    criteria: >-
+      PASS if resolved_method is squash because merge commits are disallowed,
+      fallback_reported is true with the report wording that the repo
+      disallows merge commits, and merge_command uses the squash form — the
+      method is decided before any merge attempt and a failed merge command
+      is never retried. FAIL if it attempts a merge commit first and plans
+      to fall back after a failure, or reports no fallback disclosure.

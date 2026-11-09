@@ -1,0 +1,25 @@
+schema_version: "1.1"
+name: ship-gate-decision
+tags: [development, execution, execution-control, discrimination]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: >-
+    Two PRs in a fictional trunk repo were reported ready by finalization
+    agents; you have re-fetched live state. PR #7: mergeStateStatus CLEAN,
+    code-scanning alert count 0, all required contexts reported. PR #8:
+    mergeStateStatus CLEAN, CI rollup SUCCESS, but the required context
+    security/codeql is absent from statusCheckRollup.contexts and the
+    code-scanning alert count is 0. Return only JSON with per-PR objects
+    containing pr, ready, and blocker. Assess the supplied live snapshot only,
+    with no operations.
+graders:
+  - name: separate-quality-trigger-and-efficiency
+    type: llm
+    criteria: >-
+      PASS if PR #7 is ready and PR #8 is blocked with the reason that a
+      required check never reported: security/codeql, to be handled through
+      the silent-failures diagnostic rather than treated as green because CI
+      passed. Absent contexts and failed gates are distinct failures; a
+      self-report snapshot is never sufficient without the live re-check this
+      packet represents. FAIL if PR #8 is listed ready off the passing CI
+      rollup alone, or both PRs are blocked for the same reason.

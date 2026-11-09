@@ -1,0 +1,29 @@
+schema_version: "1.1"
+name: merge-pr-rebase-collision
+tags: [development, should-not-trigger]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: >-
+    Fictional PR #24 in a trunk repo has forty carefully curated commit
+    messages, and the author wants every one of them to land on main exactly
+    as written. Rebase-merge it for me. Text-only plan; decide from these
+    supplied facts without writing files, running commands, or inventing
+    results.
+graders:
+  - name: no-merge-pr-invocation
+    type: tool_used
+    arm: both
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:[\w-]+:)?merge-pr"'
+    min: 0
+    max: 0
+  - name: routes-to-rebase-skill
+    type: llm
+    criteria: >-
+      PASS if the answer routes a history-preserving rebase merge to the
+      dedicated rebase skill, noting that the merge skill resolves only
+      between a merge commit and a squash and never performs a rebase merge.
+      FAIL if it executes a rebase merge through the merge skill's method
+      resolution, squashes while claiming commits are preserved, or treats
+      the curated-history requirement as satisfied by a merge commit that
+      rewrites nothing but also preserves no individual messages on main.

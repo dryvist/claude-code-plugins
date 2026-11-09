@@ -1,0 +1,25 @@
+schema_version: "1.1"
+name: finalize-pr-readiness-gate
+tags: [development, execution, execution-control, discrimination]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: >-
+    A fictional PR was queried live just now: state OPEN, mergeable MERGEABLE,
+    mergeStateStatus BLOCKED, isDraft false, reviewDecision null,
+    statusCheckRollup state SUCCESS but the required context coverage/required
+    is absent from statusCheckRollup.contexts, all review threads resolved, and
+    the canonical code-scanning alert count is 0. Return only JSON with ready
+    (boolean), failing_fields (array), and next_action (string). Assess the
+    supplied live snapshot only, with no operations.
+graders:
+  - name: gate-field-decision
+    type: llm
+    criteria: >-
+      PASS if ready is false, failing_fields names mergeStateStatus BLOCKED
+      and the required check never reported: coverage/required, and
+      next_action returns to the fix loop and the silent-failures diagnostic
+      rather than merging, because BLOCKED means branch protection still sees
+      a blocker and a passing CI rollup does not satisfy an unreported
+      required context. FAIL if ready is true off the green rollup, BLOCKED
+      is conflated with BEHIND, or the missing context is dropped from the
+      failure list.

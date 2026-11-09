@@ -1,0 +1,54 @@
+schema_version: '1.1'
+name: held-out-merge-pr-should-not-trigger
+runs: 3
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  max_turns: 12
+  timeout_seconds: 300
+  prompt: |
+    Time to cut version 4.2.0 of our fictional public repo, which uses Git
+    Flow with develop as the default branch. Confirm the release-please PR
+    has finished merging into develop, then get develop into main with a
+    merge commit so release-please can tag the release. Do not squash
+    anything. Return a text-only plan, not files or executed commands. This
+    fictional exercise supplies no repository, remote, permission config, or
+    CI. Identify prerequisites instead of inventing them, and keep dependent
+    steps conditional. You may read available workflow guidance, but cannot
+    use a shell, edit files, install anything, access credentials, or
+    contact services.
+graders:
+  - name: output-contract
+    type: llm
+    focus: last_message
+    criteria: |
+      PASS if the answer routes this to the release promotion workflow
+      (promote-release): confirm the release-please PR landed on develop
+      before promoting, validate develop, promote with a merge commit only,
+      and let release-please tag the promoted commit on main — never
+      inventing a version, writing a CHANGELOG entry, or tagging by hand.
+      It may note the workflow refuses on trunk repos. FAIL if it treats
+      this as an ordinary PR merge without the release-please confirmation
+      gate, plans a squash or rebase of the promotion, or performs any
+      release preparation (versions, CHANGELOG, tags) manually.
+  - name: no-skill-invocation
+    type: tool_used
+    arm: both
+    tool: Skill
+    input_match: '"skill"\s*:\s*"github-workflows:merge-pr"'
+    min: 0
+    max: 0
+  - name: no-shell
+    type: tool_used
+    tool: Bash
+    min: 0
+    max: 0
+  - name: no-write
+    type: tool_used
+    tool: Write
+    min: 0
+    max: 0
+  - name: no-edit
+    type: tool_used
+    tool: Edit
+    min: 0
+    max: 0
