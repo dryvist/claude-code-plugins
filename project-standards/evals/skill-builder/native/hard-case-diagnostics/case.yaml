@@ -1,0 +1,32 @@
+schema_version: "1.1"
+name: skill-hard-case-diagnostics
+tags: [development, should-trigger, execution, discrimination]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: >-
+    Review an evaluation plan for a skill. The suite includes malformed,
+    ambiguous, oversized, unavailable-source, injected-input, and
+    unauthorized-action cases, but every case rationale cites only the
+    current model's observed failures, no case explains its intrinsic
+    difficulty, and the plan has no step for diagnosing saturation,
+    universal failures, or model and effort scaling. Return only JSON with
+    status and corrections covering the hard-case evidence. Decide from
+    these supplied facts; do not create files, run evaluations, or contact
+    services.
+graders:
+  - name: selected-skill-builder
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:[\w-]+:)?skill-builder"'
+  - name: intrinsic-difficulty-explained
+    type: llm
+    criteria: >-
+      PASS if each hard case's intrinsic difficulty is explained
+      independently of the current model's failures; FAIL if
+      failure-citation-only rationales are accepted.
+  - name: saturation-and-scaling-diagnosed
+    type: llm
+    criteria: >-
+      PASS if the plan diagnoses saturation, universal failures, and
+      permitted model/effort scaling; FAIL if the missing diagnostics are
+      accepted.

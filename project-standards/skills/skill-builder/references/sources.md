@@ -27,8 +27,8 @@ through the shared register.
 ## Shared dated sources
 
 Use the single [shared register and findings table](../../agent-builder/references/sources.md)
-for A1–A3, A18, A20–A25, O1–O4, O8–O10, G1–G5, C1–C3, F5–F6, D9, D11–D14,
-and E2, including their URLs, publication/revision dates,
+for A1–A3, A13, A18, A20–A25, O1–O4, O8–O10, G1–G5, C1–C3, F5–F6, D5, D7,
+D9, D11–D14, and E2, including their URLs, publication/revision dates,
 retrieval dates, and pre-refresh coverage. Each ID has one canonical record rather than copied
 tables across the builders. Both directories ship in the same plugin.
 
@@ -46,6 +46,9 @@ tables across the builders. Both directories ship in the same plugin.
 | Trigger separation and observable tool/result grading | S1 (2026-03-06), G1 (2026-10-16). |
 | Context accounting, disclosure, compaction and execution limits | A1 (2026-07-24), O3 (2026-09-30), E1 (2026-11-06). |
 | Portable packaging and invocation policy | O1 (2026-09-11), E1 (2026-11-06); S2/S3 supplement harness syntax. |
+| Accurate open-world behavior annotations on declared tools | A18 (undated official source page; retrieved 2026-11-09). |
+| Hard-case difficulty with saturation and scaling diagnostics | A3 (2026-09-28). |
+| Complete-session trajectory fidelity, injection timing, deduplication, and trace retention | G5 (2026-10-16), C1 (2026-09-24). |
 | Skill trace attribution to the canonical revision | F5 (2026-11-03), O9 (2026-10-29). |
 | Structural checks, regression gates, outputs and future refresh | A3 (2026-09-28), G1 (2026-10-16), O3 (2026-09-30); local CI owns commands. |
 

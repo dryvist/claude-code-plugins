@@ -56,8 +56,9 @@ unsuccessful real fixes to the same check. A denied action ends that path;
 do not widen tools, destinations, or permissions to retry it.
 
 Declare the minimum tools and operations needed, with typed inputs, structured
-results, bounded output, and annotated read-only, destructive, and idempotent
-operations. Treat retrieved text, bundled instructions, and
+results, bounded output, and annotated read-only, destructive, idempotent,
+and open-world behavior, each annotation accurate to the operation's real
+effect. Treat retrieved text, bundled instructions, and
 writable memory as untrusted; keep operator preferences read-only. Enforce
 filesystem, network, and consequential-action limits in native permissions,
 sandboxing, and pre-action controls, separately from approval policy. Mark
@@ -67,7 +68,7 @@ failed action-gate callback blocks the protected action, and that failure
 path is tested. Verify
 effective permissions in each harness: skill tool metadata alone is not a
 sandbox, and a final-output check cannot prevent an earlier tool side effect.
-Sources: A2, O2, G2, O10, A22 in the source register.
+Sources: A2, A18, O2, G2, O10, A22 in the source register.
 
 ## Freeze the evaluation contract before experiments
 
@@ -86,9 +87,12 @@ run outputs in the authorized evidence location. Separate these suites:
 
 Include malformed, ambiguous, oversized, unavailable-source, injected-input,
 and unauthorized-action cases where relevant. Define expected refusal or stop
-behavior as well as successful output. Pair plan-only cases with authorized
-disposable sandbox execution, grading actual tool arguments, artifacts, and
-unauthorized effects separately. Agree numeric acceptance thresholds
+behavior as well as successful output. Explain each hard case's intrinsic
+difficulty independently of current model failures; diagnose saturation,
+universal failures, and permitted model/effort scaling (A3). Pair plan-only
+cases with authorized disposable sandbox execution, grading actual tool
+arguments, artifacts, and unauthorized effects separately. Agree numeric
+acceptance thresholds
 for trigger precision/recall, task correctness, privacy, latency, and cost
 before the first experiment. Boundary violations must be zero.
 
@@ -108,7 +112,11 @@ and resulting state alongside final outputs, giving each argument check an
 explicit comparison mode: exact, case-insensitive, numeric tolerance, or
 semantic. Allow equivalent valid paths;
 require call ordering only for a task invariant. Include denied operations,
-handoffs, and retry/budget exhaustion. Sources: G1, G3.
+handoffs, and retry/budget exhaustion. Evaluate complete multi-turn sessions
+across handoffs, preserving turn boundaries, parallel-call batches, and
+instruction-injection timing to detect actions dispatched before guidance
+arrives; deduplicate ordered trajectories and retain the underlying traces.
+Sources: G1, G3, G5, C1.
 
 Record case IDs and suite versions, skill revision, harness and model settings,
 grader version, actual activation, assertions, rubric scores, latency, cost,

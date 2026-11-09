@@ -84,9 +84,11 @@ Write only the role-specific prompt and reuse the canonical shared prefix.
 Declare tools narrowly. Treat retrieved content and writable memory as
 untrusted inputs; enforce permissions through runtime controls. Give each
 learned or stored rule an evidence reference, a confirmed or unconfirmed
-status, and an authorized correction path; keep one writer per shared memory
-record, appending to the writer's own record without rewriting shared
-summaries. For recurring work, retain a delivery ledger, preserve bookmarks
+status, and a correction path that names the authority authorized to correct
+or retire the rule and how the change is checked against its source; keep
+one writer per shared memory record, preserve key facts exactly (numbers,
+names, dates, links), appending to the writer's own record without rewriting
+shared summaries. For recurring work, retain a delivery ledger, preserve bookmarks
 on failed reads, reconcile with the destination before retrying, record
 ambiguous delivery separately, and advance delivery state only after
 confirmed receipt. Return unavailable sources explicitly.
@@ -98,25 +100,28 @@ fields, never assemble them.
 Keep preferences read-only and read them fresh at the start of every run;
 never bake them into prompts or infer defaults. If preferences cannot be
 read, stop the run and report the unreadable source without using defaults.
-Define tool purpose, constrained arguments,
-structured results, and actionable errors in the tool interface at
-caller-workflow granularity. Filter or paginate results; offload large
+Define tool purpose, applicability, parameters, limitations, constrained
+arguments, structured results, and actionable errors in the tool interface at
+caller-workflow granularity, with consistent discoverable action names that
+preserve composability. Filter or paginate results; offload large
 retrieval payloads behind pointers with source URLs and dates retained;
-annotate read-only, destructive, and idempotent operations.
+annotate read-only, destructive, idempotent, and open-world behavior
+accurately.
 For a read-only request, expose only read-only tools so a forced first call
 cannot change state; when the agent can answer without calling a tool, do not
 force a tool call.
 Metadata grants no authority. Verify filesystem, network, and connector
 restrictions separately from approvals. Enforce consequential calls before
 execution, including after handoffs; output checks cannot undo side effects.
-Mark commands that must never run unattended as managed checkpoints needing
-fresh approval on every run; never reuse an earlier approval.
+Managed-checkpoint approval for commands that must never run unattended is
+owned by [skill-builder's enforcement guidance](../skill-builder/SKILL.md)
+(O10) and applies from there.
 Stop on denial or exhausted budget without broadening tools or credentials.
 When a safeguard stops a subagent, retry with a narrower prompt or report
 the stop, never doing the blocked work in the parent; set each subagent's or
 side job's effort explicitly for its job, and background long shell commands
 so the prompt cache survives the foreground turn.
-Sources: A2, A18, A20, O2, O4, O10, A23, A24, A25, G2, C2, D12, D13, D14.
+Sources: A2, A13, A18, A20, O2, O4, A23, A24, A25, G2, C2, D12, D13, D14.
 
 ## Bound context and execution
 
@@ -150,23 +155,21 @@ coverage manifest; ensure the new suite actually enters the executable matrix.
 - Positive cases exercise production-shaped inputs and the output schema.
 - Test call/event/schedule activation and exclusions separately from execution;
   include duplicate events and replay. Check tool choice, arguments, handoffs,
-  denied calls, and resulting state as well as the final answer, with an
-  explicit comparison mode per argument check (exact, case-insensitive,
-  numeric tolerance, or semantic). Evaluate complete multi-turn sessions
-  across handoffs with turn boundaries, call batches, and injection timing
-  preserved to detect actions dispatched before guidance arrives;
-  deduplicate ordered trajectories and retain the traces. Require exact
-  ordering only where correctness depends on it. Sources: G1, G3, G5, C1.
+  denied calls, and resulting state as well as the final answer. Require exact
+  ordering only where correctness depends on it. Source: G1.
 - Negative cases cover malformed or ambiguous inputs, oversized requests,
   unavailable sources/connectors, injected instructions, unauthorized actions,
-  credential requests, and attempts to edit outside sandbox jobs. Explain each
-  hard case's intrinsic difficulty independently of current model failures;
-  diagnose saturation, universal failures, and model/effort scaling. Source: A3.
+  credential requests, and attempts to edit outside sandbox jobs.
 - Compare against the current version, or a no-agent baseline for a new agent,
   using the same permitted model, configuration, cases, and repeated clean runs.
-- Pair plan-only cases with authorized disposable sandbox execution, grading
-  arguments, artifacts, and unauthorized effects separately (G5); compare
-  persistent memory with retrieval alone before adding it, reporting
+- Shared evaluation-conduct rules live once in skill-builder's
+  [evaluation contract](../skill-builder/SKILL.md#freeze-the-evaluation-contract-before-experiments)
+  and apply from there: hard-case difficulty with saturation and scaling
+  diagnostics (A3), explicit argument comparison modes (G3), complete-session
+  trajectory fidelity with injection timing, call batches, deduplication, and
+  trace retention (G5, C1), plan-only pairing (G5), trial isolation (G4), and
+  provider-reported cost usage (F6).
+- Compare persistent memory with retrieval alone before adding it, reporting
   accuracy, citation consistency, latency, and full update cost (C3).
 - Prefer one agent with progressively disclosed
   skills and tools; keep a subagent only for measured context bloat,
@@ -180,10 +183,7 @@ coverage manifest; ensure the new suite actually enters the executable matrix.
   (2026-10-22). This does not relax connector-agent boundaries, which stay
   mandatory. Source: A21.
 - Reserve a held-out set with an independent evaluator. Keep its cases and
-  answers outside the tuning context; freeze it before optimization. During
-  trials, keep fixtures, grading scripts, and answer keys outside the
-  agent's reachable workspace and let a separate verifier inspect artifacts
-  after exit; efficiency never offsets a failed check. Source: G4.
+  answers outside the tuning context; freeze it before optimization. Source: A3.
 - Use deterministic assertions for constrained outputs and calibrated,
   human-reviewed rubric judges for open outputs. Distinguish model failures
   from timeouts, truncation, grader variance, and stale state.
@@ -196,10 +196,7 @@ At 0% in both or 100% in both, a grader gives no signal toward either decision.
 Inspect its outputs, fix it to grade one requirement, and rerun both arms before deciding.
 Run the repo-documented promptfoo command for both development and held-out
 suites. Record prompt, dataset, model, evaluator, and configuration versions,
-baseline deltas, uncertainty, and trace-linked results. Cost evaluations use
-provider-reported token usage or submitted costs; report missing usage
-separately from a missing price, never estimating either (F6). Through the
-authorized
+baseline deltas, uncertainty, and trace-linked results. Through the authorized
 integration path, create a versioned Langfuse dataset with matching case IDs,
 inputs, expected outputs, and scores; keep held-out answers evaluator-only.
 An offline fixture is preparation, not evidence that the dataset exists.
@@ -214,6 +211,8 @@ substitute custom API glue. Record the app ID and imported artifact version.
 
 Check provider bindings, connector permissions, omitted resources, triggers,
 output contracts, failure routes, pause/resume behavior, and rollback version.
+Pin application and sandbox contracts together, and preserve build snapshots
+and skill versions for reproducibility (D5, D7).
 Test the draft before publishing a shadow version with `mode: shadow`, then
 verify its published trigger subscriptions before starting the shadow interval.
 Export the intended published version explicitly — workflow, agent, and
