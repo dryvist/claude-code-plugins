@@ -7,6 +7,14 @@ the named document; copyright, crawl, and retrieval dates do not establish
 publication. Existing retrieval records are retained. Undated documentation
 is supplementary. Sources older than 12 months are background only; none
 supplies a new rule here. No practitioner sources are used.
+Reverified **2026-11-09**: A1–A3 match their registered publication dates,
+O1 is unchanged, O2 (`f53c624`, 2026-10-13) and O3 (`9d2b318`,
+2026-09-30) remain the latest revisions touching those documents, and the
+2026-10-22 subagent-folding article is unchanged. The current Agent Skills
+documentation (see S6 in the [skill-builder register](../../skill-builder/references/sources.md))
+confirms the name/description limits and body-length guidance this estate
+applies to skills. No current source contradicts or extends this skill's
+rules, so its SKILL.md text is unchanged by this refresh.
 
 ## Dated source register
 

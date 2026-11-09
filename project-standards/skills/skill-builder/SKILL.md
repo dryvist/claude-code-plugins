@@ -120,17 +120,25 @@ outputs stay in the authorized private evidence location.
 ## Author the smallest portable skill
 
 Create `<plugin>/skills/<name>/SKILL.md` with YAML `name` and `description`.
-Use lowercase hyphenated names matching the directory. State the exact task,
+Use lowercase hyphenated names matching the directory, up to 64 characters
+per the current specification. State the exact task,
 trigger conditions, and adjacent exclusions in a third-person description
-that states when the skill applies. Keep the description at
+that states when the skill applies; Claude Code also accepts an optional
+`when_to_use` field carrying trigger conditions. Keep the description at
 most **1,024 bytes**, targeting about **250 characters**; the public
-specification's character limit is a separate measure.
+specification's character limit is a separate measure. Front-load the key
+use case and trigger words: Claude Code truncates the combined
+`description` and `when_to_use` at 1,536 characters in its skill listing,
+and Codex keeps its skill list within about 2% of the context window
+(8,000 characters), shortening descriptions first.
 
 Keep the skill body **under 500 lines**. Write concrete steps with observable
 completion criteria. Keep essential prerequisites, authority limits, and stop
 conditions inline so loading this skill alone remains safe. Link optional
 references directly from the entrypoint; preserve every referenced resource
 when distributing the directory. Put only task-specific knowledge here.
+Avoid time-sensitive wording such as "current" or "latest" that silently
+expires and forces a refresh.
 Target 1,500 tokens and cap the entrypoint at 3,500, measured with
 `atc -m sonnet`, alongside line and byte limits. Record that count separately
 from serving-tokenizer runtime budgets; mark missing counters unverified.
@@ -144,7 +152,9 @@ then re-read live state before writes. Sources: A1, O1, O3; local policy E1.
 
 Keep automatic discovery unless the user requests explicit-only invocation.
 Express any requested invocation policy in each target harness's native
-metadata; Claude frontmatter and Codex `agents/openai.yaml` are distinct.
+metadata, such as Claude Code's `disable-model-invocation` frontmatter field
+or Codex's `policy.allow_implicit_invocation` in `agents/openai.yaml`;
+those surfaces stay distinct.
 Preserve unrelated metadata. Test effective invocation in each target harness
 rather than assuming one harness's settings apply to another.
 Keep descriptions discriminating; before paid execution trials, compare the
@@ -199,3 +209,22 @@ while keeping held-out answers separate. Sources: A3, O3, G1.
 [skill-development]: https://github.com/anthropics/claude-plugins-official/blob/main/plugins/plugin-dev/skills/skill-development/SKILL.md
 [antigravity-migration]: https://antigravity.google/docs/cli/gcli-migration
 [antigravity-transition]: https://developers.googleblog.com/an-important-update-transitioning-gemini-cli-to-antigravity-cli/
+
+## Sources
+
+Rules changed or added in this refresh cite these pages; all reverified
+2026-11-09.
+
+- Anthropic, Agent Skills [overview](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview)
+  and [best practices](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices)
+  (current official documentation, undated): name up to 64 characters,
+  description up to 1,024 characters, body under 500 lines, references one
+  level deep, avoid time-sensitive wording.
+- Anthropic, Claude Code [Extend Claude with skills](https://code.claude.com/docs/en/skills)
+  (updated 2026-11-04): optional `when_to_use` field, 1,536-character
+  combined `description` plus `when_to_use` listing cap,
+  `disable-model-invocation`.
+- OpenAI, Codex [Agent Skills](https://developers.openai.com/codex/skills)
+  (current official documentation, undated): `agents/openai.yaml`
+  `policy.allow_implicit_invocation`, about 2%-of-context skill-list budget
+  (8,000 characters) with descriptions shortened first.
