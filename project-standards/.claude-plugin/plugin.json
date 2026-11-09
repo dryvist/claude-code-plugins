@@ -1,6 +1,6 @@
 {
   "name": "project-standards",
-  "version": "6.9.3",
+  "version": "6.10.0",
   "description": "Agent and skill builders, authoring standards, workspace management, and skills/tools registry lookup",
   "author": {
     "name": "JacobPEvans"
