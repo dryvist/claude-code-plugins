@@ -154,8 +154,9 @@ outputs stay in the authorized private evidence location.
 ## Author the smallest portable skill
 
 Create `<plugin>/skills/<name>/SKILL.md` with YAML `name` and `description`.
-Use lowercase hyphenated names matching the directory, up to 64 characters
-(S6). State the exact task,
+Use lowercase hyphenated names matching the directory, up to 64 characters;
+the spec reserves the words `anthropic` and `claude` for names and forbids
+XML tags in names and descriptions (S6). State the exact task,
 trigger conditions, and adjacent exclusions in a third-person description
 that states when the skill applies; Claude Code also accepts an optional
 `when_to_use` field carrying trigger conditions (S3). Keep the description at
@@ -245,3 +246,16 @@ while keeping held-out answers separate. Sources: A3, O3, G1.
 [skill-development]: https://github.com/anthropics/claude-plugins-official/blob/main/plugins/plugin-dev/skills/skill-development/SKILL.md
 [antigravity-migration]: https://antigravity.google/docs/cli/gcli-migration
 [antigravity-transition]: https://developers.googleblog.com/an-important-update-transitioning-gemini-cli-to-antigravity-cli/
+
+## Sources
+
+Changed rules cite these pages; full provenance lives in the
+[reference registers](references/sources.md).
+
+- Anthropic, Agent Skills
+  [overview](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview)
+  and
+  [best practices](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices)
+  — current official documentation (undated pages), retrieved 2026-11-09:
+  names cannot contain the reserved words `anthropic` or `claude`, and names
+  and descriptions cannot contain XML tags.
