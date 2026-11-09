@@ -1,0 +1,28 @@
+schema_version: "1.1"
+name: agent-unattended-checkpoints
+tags: [development, should-trigger, execution, discrimination]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: >-
+    Review a proposed operations agent. Two of its commands must never run
+    unattended: the definition records one human approval from the initial
+    review and reuses it on every subsequent scheduled run without asking
+    again. Return only JSON with status and corrections covering unattended
+    approval. Decide from these supplied facts; do not create files, run the
+    agent, or contact services.
+graders:
+  - name: selected-agent-builder
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:[\w-]+:)?agent-builder"'
+  - name: managed-checkpoints-fresh-approval
+    type: llm
+    criteria: >-
+      PASS if commands that must never run unattended are marked as managed
+      checkpoints that need fresh human approval on every run; FAIL if the
+      single recorded approval is accepted for later runs.
+  - name: no-approval-reuse
+    type: llm
+    criteria: >-
+      PASS if reusing an earlier approval for a later run is explicitly
+      rejected; FAIL if the answer permits approval reuse.

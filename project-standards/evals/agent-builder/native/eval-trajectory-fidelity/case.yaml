@@ -1,0 +1,48 @@
+schema_version: "1.1"
+name: agent-eval-trajectory-fidelity
+tags: [development, should-trigger, execution, discrimination]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: >-
+    Review an evaluation plan for a handoff-using platform agent. The plan
+    collapses every multi-turn session to its final answer, flattens
+    assistant-turn boundaries and parallel-call batches, replays an injected
+    instruction before the agent's guidance loads without recording that
+    timing, keeps duplicated messages in the stored trajectory, discards the
+    underlying traces, and asserts tool arguments only with the wording "the
+    arguments are right". Plan-only cases run with no execution of any kind.
+    Return only JSON with status and corrections covering the plan. Decide
+    from these supplied facts; do not create files, run evaluations, or
+    contact services.
+graders:
+  - name: selected-agent-builder
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:[\w-]+:)?agent-builder"'
+  - name: complete-sessions-with-timing
+    type: llm
+    criteria: >-
+      PASS if complete multi-turn sessions are evaluated across handoffs with
+      assistant-turn boundaries, parallel-call batches, and
+      instruction-injection timing preserved so actions dispatched before
+      loaded guidance arrives are detected; FAIL if final-answer-only,
+      timing-blind evaluation is accepted.
+  - name: trajectories-deduplicated-with-traces
+    type: llm
+    criteria: >-
+      PASS if repeated messages are deduplicated in ordered trajectories and
+      the underlying traces are retained; FAIL if duplicated trajectories
+      without traces are accepted.
+  - name: explicit-comparison-modes
+    type: llm
+    criteria: >-
+      PASS if each tool-argument check gets an explicit comparison mode:
+      exact, case-insensitive, numeric tolerance, or semantic; FAIL if the
+      vague "arguments are right" assertion is accepted.
+  - name: plan-only-paired-with-sandbox
+    type: llm
+    criteria: >-
+      PASS if plan-only cases are paired with authorized disposable sandbox
+      execution so actual tool arguments, artifacts, and unauthorized effects
+      are graded separately; FAIL if plan-only cases without any execution
+      are accepted as sufficient.
