@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.43.0](https://github.com/dryvist/claude-code-plugins/compare/v6.42.1...v6.43.0) (2026-11-09)
+
+
+### Features
+
+* **github-workflows:** add trigger and execution eval suites for ship, finalize-pr and merge-pr ([#740](https://github.com/dryvist/claude-code-plugins/issues/740)) ([146ce26](https://github.com/dryvist/claude-code-plugins/commit/146ce262defe7e8c4f51bf0d4ecc3bc9379a9b24))
+
 ## [6.42.1](https://github.com/dryvist/claude-code-plugins/compare/v6.42.0...v6.42.1) (2026-11-09)
 
 
