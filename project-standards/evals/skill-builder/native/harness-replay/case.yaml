@@ -1,0 +1,30 @@
+schema_version: "1.1"
+name: skill-harness-replay
+tags: [development, should-trigger, execution, discrimination]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: >-
+    Review a debugging plan for a skill that passes its Claude Code suite but
+    fails the same frozen cases in a second harness. The plan's first step is
+    to edit the skill body instructions to work around the failures, and the
+    shared fixtures are never replayed through the second harness's own
+    runner. Return only JSON with status and corrections covering the
+    debugging order. Decide from these supplied facts; do not create files,
+    run evaluations, or contact services.
+graders:
+  - name: selected-skill-builder
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:[\w-]+:)?skill-builder"'
+  - name: fixtures-replayed-through-runners
+    type: llm
+    criteria: >-
+      PASS if the shared fixtures are first replayed through each available
+      runner type, including the installed harness's own runner; FAIL if the
+      plan skips fixture replay.
+  - name: availability-diagnosed-before-editing
+    type: llm
+    criteria: >-
+      PASS if guidance and tool-availability differences across harnesses are
+      located and ruled in or out before any instruction edit; FAIL if the
+      plan edits instructions first.

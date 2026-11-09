@@ -1,0 +1,31 @@
+schema_version: "1.1"
+name: agent-retrieval-pointers
+tags: [development, should-trigger, execution, discrimination]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: >-
+    Review a proposed research agent. Its retrieval tool inlines full document
+    payloads into context, drops the source URLs and retrieval dates from the
+    returned records, and its evaluation plan checks only the final answer
+    without testing that report claims cite and match the retrieved material.
+    Return only JSON with status and corrections covering the retrieval
+    interface and the citation check. Decide from these supplied facts; do
+    not create files, run the agent, or contact services.
+graders:
+  - name: selected-agent-builder
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:[\w-]+:)?agent-builder"'
+  - name: payloads-offloaded-behind-pointers
+    type: llm
+    criteria: >-
+      PASS if large retrieved payloads are offloaded behind pointers instead
+      of being inlined into context, with source URLs and dates preserved
+      alongside the results; FAIL if full-payload inlining without source
+      URLs and dates is accepted.
+  - name: citation-match-tested
+    type: llm
+    criteria: >-
+      PASS if the evaluation plan is extended to test that report claims cite
+      and match the retrieved material; FAIL if the final-answer-only check
+      is accepted.
