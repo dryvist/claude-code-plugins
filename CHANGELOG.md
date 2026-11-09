@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.44.1](https://github.com/dryvist/claude-code-plugins/compare/v6.44.0...v6.44.1) (2026-11-09)
+
+
+### Bug Fixes
+
+* **ci:** guard merge gate runner for fork pull requests ([#745](https://github.com/dryvist/claude-code-plugins/issues/745)) ([cec1002](https://github.com/dryvist/claude-code-plugins/commit/cec1002c61718a05bbc4898ee167fb7fb4e4a14b))
+
 ## [6.44.0](https://github.com/dryvist/claude-code-plugins/compare/v6.43.0...v6.44.0) (2026-11-09)
 
 
