@@ -16,6 +16,10 @@ confirms the name/description limits and body-length guidance this estate
 applies to skills. No registered source contradicts this skill's rules. The
 recheck also registered O4, revised **2026-11-09** and dated after this
 refresh, and SKILL.md now applies its read-only tool-surface rule.
+Refreshed **2026-11-09** against the **2026-11-08** agent-standards
+revision: its source IDs resolve through per-publisher Anthropic, OpenAI,
+ecosystem, and platform files, and the rules below were registered and
+folded into SKILL.md where this skill did not already carry them.
 
 ## Dated source register
 
@@ -28,8 +32,31 @@ refresh, and SKILL.md now applies its read-only tool-surface rule.
 | O2 | OpenAI Agents SDK, [guardrails](https://github.com/openai/openai-agents-python/blob/f53c62451c7f34c15f0c87fa745e05404025420f/docs/guardrails.md) | Revised [2026-10-13](https://github.com/openai/openai-agents-python/commit/f53c62451c7f34c15f0c87fa745e05404025420f) | 2026-11-06 | Input/output checks have different boundaries; use pre-action enforcement, verify handoffs and tool coverage. |
 | O3 | OpenAI Agents SDK, [running agents](https://github.com/openai/openai-agents-python/blob/9d2b318dd034e5c0333c88e60ed6c704cbbbd04b/docs/running_agents.md) | Revised [2026-09-30](https://github.com/openai/openai-agents-python/commit/9d2b318dd034e5c0333c88e60ed6c704cbbbd04b) | 2026-11-06 | Bound turns and timeouts, shape history, handle terminal errors, preserve resumable state and validate final output. |
 | O4 | OpenAI Agents SDK, [agents](https://github.com/openai/openai-agents-python/blob/21ec412130103e7ffcc3fdf4c1368caba7fe9fe1/docs/agents.md) | Revised [2026-11-09](https://github.com/openai/openai-agents-python/commit/21ec412130103e7ffcc3fdf4c1368caba7fe9fe1) | 2026-11-09 | For a read-only request, expose only read-only tools; forcing a call over write-capable tools can change state on the first use. Leave the agent able to answer without calling a tool. |
+| O8 | OpenAI, [harness-aware evaluation of plugins](https://developers.openai.com/cookbook/examples/partners/harness_aware_plugin_evals/harness_aware_plugin_evals) | Published 2026-09-23 | 2026-11-09 | Replay shared fixtures through each runner type; locate guidance and tool-availability differences before editing instructions. |
+| O9 | OpenAI, [Codex CLI 0.166.0 release notes](https://github.com/openai/codex/releases/tag/rust-v0.166.0) | Released 2026-10-29 | 2026-11-09 | Trace available skills, exact loaded versions, and loaded resource paths; attribute spans to turn, tool call, and skill. |
+| O10 | OpenAI, [Codex CLI 0.167.0 release notes](https://github.com/openai/codex/releases/tag/rust-v0.167.0) | Released 2026-11-06 | 2026-11-09 | Commands that must never run unattended are managed checkpoints needing fresh approval on every run; never reuse an earlier approval. |
 | G1 | Google ADK, [agent evaluation](https://github.com/google/adk-docs/blob/628ed49787f83414995efd1b68f927778bad673f/docs/evaluate/index.md) | Revised [2026-10-16](https://github.com/google/adk-docs/commit/628ed49787f83414995efd1b68f927778bad673f) | 2026-11-06 | Evaluate observable tool trajectories and final response separately; choose metrics appropriate to the task. |
 | G2 | Google ADK, [safety and security](https://github.com/google/adk-docs/blob/3a29a8df6e30ca5e36793b91a5249607104f8ccb/docs/safety/index.md) | Revised [2026-09-22](https://github.com/google/adk-docs/commit/3a29a8df6e30ca5e36793b91a5249607104f8ccb) | 2026-11-06 | Constrain identity, tool actions, and network access; treat injected content as untrusted. |
+| G3 | Google, [ADK Python v2.14.0 release notes](https://github.com/google/adk-python/releases/tag/v2.14.0) | Released 2026-11-04 | 2026-11-09 | Run skill scripts from validated paths with an argument list; give each tool-argument check an explicit comparison mode: exact, case-insensitive, numeric tolerance, or semantic. |
+| G4 | Google Cloud, [five rules for evaluating agent skills](https://cloud.google.com/blog/topics/developers-practitioners/evaluate-agent-skills-before-they-bloat-your-context-window) | Published 2026-11-03 | 2026-11-09 | Keep fixtures, grading scripts, and answer keys outside the tested agent's workspace with a separate verifier; reject revisions without measured gain over the previous version. |
+| G5 | Google Cloud, [four eval engineering lessons](https://cloud.google.com/blog/topics/developers-practitioners/four-eval-engineering-lessons) | Published 2026-10-16 | 2026-11-09 | Pair plan-only cases with authorized disposable sandbox execution; preserve turn boundaries, parallel-call batches, and injection timing. |
+| C1 | LangChain, [LangSmith trajectories](https://www.langchain.com/blog/langsmith-trajectories-tracing) | Published 2026-09-24 | 2026-11-09 | Evaluate complete multi-turn sessions; deduplicate repeated messages in ordered trajectories and retain the underlying traces. |
+| C2 | LangChain, [context engineering starts with retrieval](https://www.langchain.com/blog/context-engineering-starts-with-retrieval) | Published 2026-10-23 | 2026-11-09 | Offload large retrieval payloads behind pointers; preserve source URLs and dates with results; test that claims cite and match retrieved material. |
+| C3 | LangChain, [evidence-grounded agent memory](https://www.langchain.com/blog/building-agent-memory-openwiki-graphs) | Published 2026-10-28 | 2026-11-09 | Compare persistent memory with retrieval alone before adopting it; report accuracy, citation consistency, latency, and full update cost. |
+| F5 | Langfuse, [skill management](https://langfuse.com/changelog/2026-11-03-skill-management) | Published 2026-11-03 | 2026-11-09 | Link skill observations to the canonical skill revision without creating another source of truth. |
+| F6 | Langfuse, [see when token usage is missing](https://langfuse.com/changelog/2026-11-06-retiring-tokenization) | Published 2026-11-06 | 2026-11-09 | Use provider-reported token usage or submitted costs; report missing usage separately from a missing price; never estimate either. |
+| A18 | Anthropic, [mcp-builder](https://github.com/anthropics/skills/blob/main/skills/mcp-builder/SKILL.md) | Undated official source page | 2026-11-09 | Consistent action names, constrained schemas, structured outputs; tool granularity matched to caller workflows; accurate behavior annotations. |
+| A20 | Anthropic, [components of agent memory](https://www.anthropic.com/research/components-of-agent-memory) | Published 2026-11-06 | 2026-11-09 | Stored rules carry evidence references and confirmed/unconfirmed status with an authorized correction path; one writer per shared source record; key facts preserved exactly. |
+| A21 | Anthropic, [subagent folding](https://claude.com/resources/articles/building-agents-when-to-fold-subagents-into-your-main-agent-loop) | Published 2026-10-22 | 2026-11-09 | Prefer one agent with progressively disclosed skills and tools; keep a subagent only for measured context bloat, fresh-context parallelism, selection conflicts, or permission boundaries. |
+| A22 | Anthropic, [Claude Code v2.1.317 release notes](https://github.com/anthropics/claude-code/releases/tag/v2.1.317) | Released 2026-11-03 | 2026-11-09 | A failed action-gate callback blocks the protected action where the harness supports it; test that failure path. |
+| A23 | Anthropic, [Claude Code 2.1.319](https://code.claude.com/docs/en/changelog#2-1-319) | Released 2026-11-06 | 2026-11-09 | A safeguard-stopped subagent is retried with a narrower prompt or reported; the parent never performs the blocked work. |
+| A24 | Anthropic, [Claude Code v2.1.316 release notes](https://github.com/anthropics/claude-code/releases/tag/v2.1.316) | Released 2026-10-31 | 2026-11-09 | Set a subagent's or forked side job's effort explicitly for its job instead of inheriting the session's level. |
+| A25 | Anthropic, [Claude Code v2.1.318 release notes](https://github.com/anthropics/claude-code/releases/tag/v2.1.318) | Released 2026-11-04 | 2026-11-09 | Run a subagent's long shell commands in the background so its foreground turn does not block while the prompt cache expires. |
+| D9 | Dify, [export and import apps](https://docs.dify.ai/en/self-host/use-dify/workspace/export-import-apps) | Updated 2026-11-04 | 2026-11-09 | Export the intended published version explicitly; workflow, agent, and skill exports carry saved draft changes; record dependencies exports omit. |
+| D11 | Dify, [skills](https://docs.dify.ai/en/self-host/use-dify/build/skills) | Updated 2026-10-26 | 2026-11-09 | Skill exports can contain saved draft changes; export the intended version explicitly. |
+| D12 | Dify, [agent node](https://docs.dify.ai/en/cloud/use-dify/nodes/agent) | Updated 2026-10-28 | 2026-11-09 | Define exhaustive agent routes, an otherwise route, and failure handling for invalid results. |
+| D13 | Dify, [AI agent or workflow](https://www.dify.ai/de/blog/ai-agent-or-workflow-how-to-choose-the-right-approach) | Published 2026-10-16 | 2026-11-09 | Workflows own schedules, branches, checks, approvals, and recovery; keep the agent to the bounded, evaluable variable step of a mostly fixed process. |
+| D14 | Dify, [1.19.0 release notes](https://github.com/langgenius/dify/releases/tag/1.19.0) | Released 2026-11-04 | 2026-11-09 | Temporary credential-refresh failures return temporary-unavailable errors; request re-authorization only when the credential is invalid. |
 
 Rendered Google guides: [evaluation](https://adk.dev/evaluate/) and
 [safety](https://adk.dev/safety/), both undated and retrieved **2026-11-06**.
@@ -61,6 +88,19 @@ skill-specific records live in [skill-builder sources](../../skill-builder/refer
 | Shared definition defaults and focused roles | A1; E2 below | 2026-07-24; 2026-11-06 | partly | A extends shared-prefix reuse to profiles and defaults. |
 | Dated rule provenance and refresh evidence | A3, O1 | 2026-09-28; 2026-09-11 | no | A/S add source registers and versioned development evals. |
 | Read-only tool surface for read-only requests | O4 | 2026-11-09 | no | A exposes only read-only tools for read-only requests and leaves a no-tool answer available. |
+| Subagent effort, background commands, and safeguard stops | A23, A24, A25 | 2026-10-31; 2026-11-04; 2026-11-06 | no | A contains safeguard-stopped work outside the parent, sets subagent effort explicitly, and backgrounds long commands. |
+| Stored-rule evidence and single-writer memory | A20 | 2026-11-06 | no | A requires evidence references, status, authorized correction, and one writer per shared record. |
+| Managed checkpoints needing fresh approval | O10 | 2026-11-06 | no | A/S mark unattended-forbidden commands as per-run checkpoints. |
+| Workflow-versus-agent boundary and complete routing | D13; D12 | 2026-10-16; 2026-10-28 | no | A assigns schedules, branches, approvals, and recovery to workflows and requires exhaustive routes with an otherwise route. |
+| Credential error semantics | D14 | 2026-11-04 | no | A returns temporary-unavailable for refresh failures; re-auth only for invalid credentials. |
+| Retrieval pointers and citation matching | C2, A18 | 2026-10-23 | no | A offloads payloads behind pointers, keeps source URLs/dates, and tests citation matching. |
+| Explicit tool-argument comparison modes | G3 | 2026-11-04 | no | A/S name exact, case-insensitive, numeric-tolerance, or semantic checks. |
+| Plan-only cases paired with sandbox execution | G5 | 2026-10-16 | no | A/S grade actual arguments, artifacts, and unauthorized effects from paired runs. |
+| Trajectory fidelity across sessions | C1, G5 | 2026-09-24; 2026-10-16 | no | A evaluates full sessions with preserved timing and deduplicated traces. |
+| Trial workspace isolation and separate verification | G4 | 2026-11-03 | no | A/S keep fixtures and keys outside the tested agent's reach with a separate verifier. |
+| Memory-versus-retrieval comparison | C3 | 2026-10-28 | no | A compares persistent memory with retrieval and reports the full cost. |
+| Provider-reported cost usage | F6 | 2026-11-06 | no | A/S never estimate missing usage or a missing model price. |
+| Export intent and draft contamination | D9, D11 | 2026-11-04; 2026-10-26 | no | A exports the intended published version explicitly. |
 
 ## Rule trace and local policy
 
@@ -69,12 +109,15 @@ skill-specific records live in [skill-builder sources](../../skill-builder/refer
   code work, tracing fields, and the 7-day promotion gate are retained local
   platform policy, not requirements attributed to a vendor.
 - E2: [agent standards](https://github.com/dryvist/ai-llm-prompts/blob/main/auto-ai-agent/instructions/agentsmd/rules/on-demand/agent-standards.md),
-  policy revision **2026-11-06**, retrieved **2026-11-06**; its linked platform rules identify that policy and
-  the R2 a–g source families. Shared defaults follow the operator's DRY ruling
-  of the same date. This refresh does not change the platform architecture.
-- Tool/permission decisions: A2, O2, O4, G2. Context and execution: A1, O1, O3.
+  policy revision **2026-11-08**, retrieved **2026-11-09**; source IDs resolve through that
+  policy's per-publisher Anthropic, OpenAI, ecosystem, and platform source files.
+  Shared defaults follow the operator's DRY ruling of 2026-11-06. This refresh
+  does not change the platform architecture.
+- Tool/permission decisions: A2, A18, A20, O2, O4, O10, A23–A25, G2, C2, D14.
+  Context and execution: A1, O1, O3. Subagent structure: A21.
   Numerical runtime budgets come from the task/runtime owner, not these sources.
-- Render/evaluate: A3, G1; the existing promptfoo and Langfuse gates remain
+- Render/evaluate: A3, G1, G3, G4, G5, C1, C3, F6; the existing promptfoo and
+  Langfuse gates remain
   local requirements. Import/shadow/promotion and reporting retain those gates;
   O3 supports typed final/error results. Static validation proves structure only.
 - Builder [native development cases](../../../evals/agent-builder/native/) are visible to the

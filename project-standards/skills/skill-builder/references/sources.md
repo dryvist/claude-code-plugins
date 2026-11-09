@@ -8,7 +8,9 @@ No practitioner source is required for this refresh.
 Reverified **2026-11-09**: S1–S5, E1, and the shared A1–A3/O1–O4 records
 match their registered dates and pinned revisions, and no current source
 contradicts the applied rules; the entries below record what the recheck
-added.
+added. The same recheck refreshed against the **2026-11-08** agent-standards
+revision, registering the rules this skill lacked; SKILL.md now applies them
+through the shared register.
 
 ## Skill-specific register
 
@@ -25,7 +27,8 @@ added.
 ## Shared dated sources
 
 Use the single [shared register and findings table](../../agent-builder/references/sources.md)
-for A1–A3, O1–O4, G1–G2, and E2, including their URLs, publication/revision dates,
+for A1–A3, A18, A20–A25, O1–O4, O8–O10, G1–G5, C1–C3, F5–F6, D9, D11–D14,
+and E2, including their URLs, publication/revision dates,
 retrieval dates, and pre-refresh coverage. Each ID has one canonical record rather than copied
 tables across the builders. Both directories ship in the same plugin.
 
@@ -33,11 +36,17 @@ tables across the builders. Both directories ship in the same plugin.
 | --- | --- |
 | Scope, reuse, minimal instructions, description triggers/exclusions | O1 (2026-09-11), A1 (2026-07-24). |
 | Runtime permissions, untrusted inputs, pre-action controls | A2 (2026-10-08), O2 (2026-10-13), G2 (2026-09-22). |
+| Managed checkpoints and fail-closed action gates | O10 (2026-11-06), A22 (2026-11-03). |
+| Validated-path script invocation and explicit comparison modes | G3 (2026-11-04). |
 | Frozen thresholds, clean baseline arms, held-out ownership, uncertainty | A3 (2026-09-28), S1 (2026-03-06). |
+| No-gain rejection, retirement review, trial isolation, usage honesty | G4 (2026-11-03), F6 (2026-11-06). |
+| Plan-only cases paired with disposable sandbox execution | G5 (2026-10-16). |
 | General fixes from development failures and attributable optimization rounds | A3 (2026-09-28), live publication date confirmed 2026-11-07. |
+| Harness-aware fixture replay before instruction edits | O8 (2026-09-23). |
 | Trigger separation and observable tool/result grading | S1 (2026-03-06), G1 (2026-10-16). |
 | Context accounting, disclosure, compaction and execution limits | A1 (2026-07-24), O3 (2026-09-30), E1 (2026-11-06). |
 | Portable packaging and invocation policy | O1 (2026-09-11), E1 (2026-11-06); S2/S3 supplement harness syntax. |
+| Skill trace attribution to the canonical revision | F5 (2026-11-03), O9 (2026-10-29). |
 | Structural checks, regression gates, outputs and future refresh | A3 (2026-09-28), G1 (2026-10-16), O3 (2026-09-30); local CI owns commands. |
 
 ## Retained policy and conflict resolutions
