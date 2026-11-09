@@ -1,5 +1,17 @@
 # Changelog
 
+## [6.12.0](https://github.com/dryvist/claude-code-plugins/compare/project-standards-v6.11.0...project-standards-v6.12.0) (2026-11-09)
+
+
+### Features
+
+* **agent:** opencode-local run j-7ecef13ddd10e814 ([dde8512](https://github.com/dryvist/claude-code-plugins/commit/dde8512aed9bd9f01759069faf8bc6f7a4e6f280))
+
+
+### Bug Fixes
+
+* **project-standards:** refresh agent-builder and skill-builder from current guidance ([#760](https://github.com/dryvist/claude-code-plugins/issues/760)) ([dde8512](https://github.com/dryvist/claude-code-plugins/commit/dde8512aed9bd9f01759069faf8bc6f7a4e6f280))
+
 ## [6.11.0](https://github.com/dryvist/claude-code-plugins/compare/project-standards-v6.10.0...project-standards-v6.11.0) (2026-11-09)
 
 
