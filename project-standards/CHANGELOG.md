@@ -1,5 +1,13 @@
 # Changelog
 
+## [6.14.0](https://github.com/dryvist/claude-code-plugins/compare/project-standards-v6.13.0...project-standards-v6.14.0) (2026-11-09)
+
+
+### Features
+
+* **agent:** autonomous zcode run j-509df8fc8bc237cd ([#765](https://github.com/dryvist/claude-code-plugins/issues/765)) ([23c1ce3](https://github.com/dryvist/claude-code-plugins/commit/23c1ce35ab11badd2dac82843f5148c581154bd3))
+* **agent:** zcode run j-509df8fc8bc237cd ([23c1ce3](https://github.com/dryvist/claude-code-plugins/commit/23c1ce35ab11badd2dac82843f5148c581154bd3))
+
 ## [6.13.0](https://github.com/dryvist/claude-code-plugins/compare/project-standards-v6.12.0...project-standards-v6.13.0) (2026-11-09)
 
 
