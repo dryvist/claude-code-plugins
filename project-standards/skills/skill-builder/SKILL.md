@@ -130,12 +130,17 @@ judges against human-reviewed examples. Report baseline deltas and variance;
 do not claim an improvement that remains within noise. Reject a revision with
 no measured gain over the previous version, and consider a skill with no
 measured gain over no skill for retirement (A3, G4).
-Before accepting or rejecting a revision, check each grader's pass rate in both arms.
-Use a judge model distinct from the candidate and name it in the run record.
-Compare arms blind to identity, randomizing their order per item.
-Grade a sample of identical outputs twice; fix disagreeing repeat verdicts as grader noise before deciding.
-A grader at 0% in both or 100% in both gives no signal; count it neither for nor against.
-Read its outputs, recalibrate to one requirement per grader, and rerun both arms before deciding.
+Before accepting or rejecting a revision, apply the grader-calibration
+protocol; it lives once here and agent-builder applies it by reference.
+Check each grader's pass rate in both arms. Use a judge model distinct from
+the candidate and name it in the run record. Compare arms blind to identity,
+randomizing their order per item; then repeat each comparison with the arm
+order reversed and keep a verdict only when it holds in both positions,
+treating a flip as position bias to repair in the grader before deciding
+(R1). Grade a sample of identical outputs twice; fix disagreeing repeat
+verdicts as grader noise before deciding. A grader at 0% in both or 100% in
+both gives no signal; count it neither for nor against. Read its outputs,
+recalibrate to one requirement per grader, and rerun both arms before deciding.
 
 Keep held-out prompts and answers outside the author's tuning context. Have
 the evaluator report aggregate results after the candidate is frozen. During

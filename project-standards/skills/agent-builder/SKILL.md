@@ -167,8 +167,9 @@ coverage manifest; ensure the new suite actually enters the executable matrix.
   and apply from there: hard-case difficulty with saturation and scaling
   diagnostics (A3), explicit argument comparison modes (G3), complete-session
   trajectory fidelity with injection timing, call batches, deduplication, and
-  trace retention (G5, C1), plan-only pairing (G5), trial isolation (G4), and
-  provider-reported cost usage (F6).
+  trace retention (G5, C1), plan-only pairing (G5), trial isolation (G4),
+  provider-reported cost usage (F6), and grader calibration with its
+  reversed-order position-bias check (R1).
 - Compare persistent memory with retrieval alone before adding it, reporting
   accuracy, citation consistency, latency, and full update cost (C3).
 - Prefer one agent with progressively disclosed
@@ -188,12 +189,6 @@ coverage manifest; ensure the new suite actually enters the executable matrix.
   human-reviewed rubric judges for open outputs. Distinguish model failures
   from timeouts, truncation, grader variance, and stale state.
 
-Check every grader's pass rates in both arms before accepting or rejecting a revision.
-Require a judge model different from the candidate; record the judge's name with the run.
-Blind the judge to arm identities and randomize arm order for each item.
-Grade identical outputs twice on a sample; resolve repeat-verdict disagreement as grader noise before deciding.
-At 0% in both or 100% in both, a grader gives no signal toward either decision.
-Inspect its outputs, fix it to grade one requirement, and rerun both arms before deciding.
 Run the repo-documented promptfoo command for both development and held-out
 suites. Record prompt, dataset, model, evaluator, and configuration versions,
 baseline deltas, uncertainty, and trace-linked results. Through the authorized

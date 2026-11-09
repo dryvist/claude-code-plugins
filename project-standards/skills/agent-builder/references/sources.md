@@ -29,7 +29,9 @@ ecosystem, and platform files, and the rules below were registered and
 folded into SKILL.md where this skill did not already carry them. The same
 pass registered A13, D5, and D7 for the applied rules, and the shared
 evaluation-conduct rules are owned once by skill-builder and applied here
-by reference.
+by reference; the same pass registered R1 for the calibration position-bias
+check and moved the grader-calibration protocol's single home into
+skill-builder.
 
 ## Dated source register
 
@@ -70,6 +72,7 @@ by reference.
 | D12 | Dify, [agent node](https://docs.dify.ai/en/cloud/use-dify/nodes/agent) | Updated 2026-10-28 | 2026-11-09 | Define exhaustive agent routes, an otherwise route, and failure handling for invalid results. |
 | D13 | Dify, [AI agent or workflow](https://www.dify.ai/de/blog/ai-agent-or-workflow-how-to-choose-the-right-approach) | Published 2026-10-16 | 2026-11-09 | Workflows own schedules, branches, checks, approvals, and recovery; keep the agent to the bounded, evaluable variable step of a mostly fixed process. |
 | D14 | Dify, [1.19.0 release notes](https://github.com/langgenius/dify/releases/tag/1.19.0) | Released 2026-11-04 | 2026-11-09 | Temporary credential-refresh failures return temporary-unavailable errors; request re-authorization only when the credential is invalid. |
+| R1 | Shi, Ma, Liang, Diao, Ma, and Vosoughi, [Judging the Judges: A Systematic Study of Position Bias in LLM-as-a-Judge](https://arxiv.org/abs/2406.07791) | Preprint 2024-06-12 (background); revised [2025-11-11](https://arxiv.org/abs/2406.07791v9) for AACL-IJCNLP 2025 | 2026-11-09 | Judge verdicts can follow presentation position; re-present each comparison with the arm order reversed and keep verdicts that hold in both positions, measuring position consistency before trusting a randomized comparison. |
 
 Rendered Google guides: [evaluation](https://adk.dev/evaluate/) and
 [safety](https://adk.dev/safety/), both undated and retrieved **2026-11-06**.
@@ -116,6 +119,7 @@ skill-specific records live in [skill-builder sources](../../skill-builder/refer
 | Accurate action naming, applicability, composability, and open-world annotations | A13, A18 | undated official pages; retrieved 2026-11-09 | partly | A/S name actions consistently, declare applicability and limitations, preserve composability, and annotate open-world behavior. |
 | Paired app/sandbox contract pins and reproducibility snapshots | D5, D7 | undated release pages; retrieved 2026-11-09 | no | A pins application and sandbox contracts together and preserves build snapshots and skill versions. |
 | Export intent and draft contamination | D9, D11 | 2026-11-04; 2026-10-26 | no | A exports the intended published version explicitly. |
+| Randomized judge order with a reversed-order position-bias check | R1 | 2025-11-11 | partly | A/S randomized arm order; S adds the position-bias check and owns grader calibration for both builders. |
 
 ## Rule trace and local policy
 
@@ -132,8 +136,9 @@ skill-specific records live in [skill-builder sources](../../skill-builder/refer
   managed checkpoints (O10) apply from skill-builder's enforcement guidance.
   Context and execution: A1, O1, O3. Subagent structure: A21.
   Numerical runtime budgets come from the task/runtime owner, not these sources.
-- Render/evaluate: A3, G1, G3, G4, G5, C1, C3, F6; shared evaluation-conduct
-  rules apply from skill-builder's evaluation contract. Import/shadow/promotion
+- Render/evaluate: A3, G1, G3, G4, G5, C1, C3, F6, R1; shared evaluation-conduct
+  rules, including grader calibration with the position-bias check, apply from
+  skill-builder's evaluation contract. Import/shadow/promotion
   and reporting retain those gates, with D5/D7 contract pins and reproducibility
   snapshots; O3 supports typed final/error results. Static validation proves
   structure only.

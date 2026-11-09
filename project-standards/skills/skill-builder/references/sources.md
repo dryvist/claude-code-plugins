@@ -28,7 +28,7 @@ through the shared register.
 
 Use the single [shared register and findings table](../../agent-builder/references/sources.md)
 for A1–A3, A13, A18, A20–A25, O1–O4, O8–O10, G1–G5, C1–C3, F5–F6, D5, D7,
-D9, D11–D14, and E2, including their URLs, publication/revision dates,
+D9, D11–D14, R1, and E2, including their URLs, publication/revision dates,
 retrieval dates, and pre-refresh coverage. Each ID has one canonical record rather than copied
 tables across the builders. Both directories ship in the same plugin.
 
@@ -40,6 +40,7 @@ tables across the builders. Both directories ship in the same plugin.
 | Validated-path script invocation and explicit comparison modes | G3 (2026-11-04). |
 | Frozen thresholds, clean baseline arms, held-out ownership, uncertainty | A3 (2026-09-28), S1 (2026-03-06). |
 | No-gain rejection, retirement review, trial isolation, usage honesty | G4 (2026-11-03), F6 (2026-11-06). |
+| Blind randomized judge comparisons with a reversed-order position-bias check | R1 (revised 2025-11-11); the calibration protocol is owned here and agent-builder applies it by reference. |
 | Plan-only cases paired with disposable sandbox execution | G5 (2026-10-16). |
 | General fixes from development failures and attributable optimization rounds | A3 (2026-09-28), live publication date confirmed 2026-11-07. |
 | Harness-aware fixture replay before instruction edits | O8 (2026-09-23). |
