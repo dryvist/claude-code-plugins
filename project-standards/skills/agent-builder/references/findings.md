@@ -40,18 +40,18 @@ records live in [skill-builder sources](../../skill-builder/references/sources.m
 | Discriminating subagent descriptions within the description budget | A26 | 2026-11-03 | no | A writes each subagent description to single out that subagent with a when-not-to-use note and keeps the combined set within the harness budget. |
 | Stored-rule evidence and single-writer memory | A20 | 2026-11-06 | no | A requires evidence references, status, authorized correction, and one writer per shared record. |
 | Managed checkpoints needing fresh approval | O10 | 2026-11-06 | no | S owns the per-run checkpoint rule; A applies it through skill-builder's enforcement guidance. |
-| Workflow-versus-agent boundary and complete routing | D13; D12 | 2026-10-16; 2026-10-28 | no | A assigns schedules, branches, approvals, and recovery to workflows and requires exhaustive routes with an otherwise route. |
+| Workflow-versus-agent boundary and complete routing | D13; D12 | 2026-10-16; 2026-10-28 | no | A assigns schedules, branches, approvals, and recovery to the scheduled-execution setting, the IF/ELSE node, the Human Input node, and node error handling, and requires exhaustive routes with an otherwise route on the Agent node. |
 | Credential error semantics | D14 | 2026-11-04 | no | A returns temporary-unavailable for refresh failures; re-auth only for invalid credentials. |
 | Retrieval pointers and citation matching | C2, A18 | 2026-10-23 | no | A offloads payloads behind pointers, keeps source URLs/dates, and tests citation matching. |
 | Explicit tool-argument comparison modes | G3 | 2026-11-04 | no | S owns the comparison-mode rule; A applies it through skill-builder's evaluation contract. |
 | Plan-only cases paired with sandbox execution | G5 | 2026-10-16 | no | S owns plan-only pairing; A applies it through skill-builder's evaluation contract. |
 | Trajectory fidelity across sessions | C1, G5 | 2026-09-24; 2026-10-16 | no | S owns session-fidelity rules; A applies them through skill-builder's evaluation contract. |
 | Trial workspace isolation and separate verification | G4 | 2026-11-03 | no | S owns trial isolation; A applies it through skill-builder's evaluation contract. |
-| Memory-versus-retrieval comparison | C3 | 2026-10-28 | no | A compares persistent memory with retrieval and reports the full cost. |
+| Memory-versus-retrieval comparison | C3 | 2026-10-28 | no | A compares persistent memory with retrieval on matched simple-lookup and cross-source tasks and reports the full cost of creating and updating the memory. |
 | Provider-reported cost usage | F6 | 2026-11-06 | no | S owns usage honesty; A applies it through skill-builder's evaluation contract. |
 | Accurate action naming, applicability, composability, and open-world annotations | A13, A18 | undated official pages; retrieved 2026-11-09 | partly | A/S name actions consistently, declare applicability and limitations, preserve composability, and annotate open-world behavior. |
 | Paired app/sandbox contract pins and reproducibility snapshots | D5, D7 | undated release pages; retrieved 2026-11-09 | no | A pins application and sandbox contracts together and preserves build snapshots and skill versions. |
-| Export intent and draft contamination | D9, D11 | 2026-11-04; 2026-10-26 | no | A exports the intended published version explicitly. |
+| Export intent and draft contamination | D9, D11 | 2026-11-04; 2026-10-26 | no | A exports the intended published version explicitly and records what the export omits, such as plugin, credential, and model-provider bindings, as dependencies of the exported app. |
 | Randomized judge order with a reversed-order position-bias check | R1 | 2025-11-11 | partly | A/S randomized arm order; S adds the position-bias check and owns grader calibration for both builders. |
 
 ## Rule trace and local policy

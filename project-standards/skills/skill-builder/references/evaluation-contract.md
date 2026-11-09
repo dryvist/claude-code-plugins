@@ -49,9 +49,10 @@ Sources: G1, G3, G5, C1.
 Record case IDs and suite versions, skill revision, harness and model settings,
 grader version, actual activation, assertions, rubric scores, latency, cost,
 and failures, attributing each span to its turn, tool call, and skill, linked
-to the canonical revision without a second source of truth (F5, O9); cost
-comparisons use provider-reported usage or submitted costs, reporting missing
-usage separately from a missing price without estimates (F6). Distinguish candidate failures from infrastructure failures,
+to the canonical revision without a second source of truth and carrying the
+loaded skill version and the resource paths read (F5, O9); cost comparisons
+use provider-reported usage or submitted costs, reporting missing usage
+separately from a missing price without estimates (F6). Distinguish candidate failures from infrastructure failures,
 truncation, grader disagreement, and run contamination. Calibrate open-ended
 judges against human-reviewed examples. Report baseline deltas and variance;
 do not claim an improvement that remains within noise. Reject a revision with
