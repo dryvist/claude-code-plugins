@@ -5,7 +5,7 @@ Each record separates publication/revision from retrieval. Existing retrieval
 dates are retained; S4, S5, and A3 were rechecked on **2026-11-07**. Undated pages do not
 establish recency; material over 12 months old is background only.
 No practitioner source is required for this refresh.
-Reverified **2026-11-09**: S1–S5, E1, and the shared A1–A3/O1–O3 records
+Reverified **2026-11-09**: S1–S5, E1, and the shared A1–A3/O1–O4 records
 match their registered dates and pinned revisions, and no current source
 contradicts the applied rules; the entries below record what the recheck
 added.
@@ -25,7 +25,7 @@ added.
 ## Shared dated sources
 
 Use the single [shared register and findings table](../../agent-builder/references/sources.md)
-for A1–A3, O1–O3, G1–G2, and E2, including their URLs, publication/revision dates,
+for A1–A3, O1–O4, G1–G2, and E2, including their URLs, publication/revision dates,
 retrieval dates, and pre-refresh coverage. Each ID has one canonical record rather than copied
 tables across the builders. Both directories ship in the same plugin.
 

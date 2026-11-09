@@ -90,11 +90,14 @@ read, stop the run and report the unreadable source without using defaults.
 Define tool purpose, constrained arguments,
 structured results, and actionable errors in the tool interface. Filter or
 paginate results; annotate read-only, destructive, and idempotent operations.
+For a read-only request, expose only read-only tools so a forced first call
+cannot change state; when the agent can answer without calling a tool, do not
+force a tool call.
 Metadata grants no authority. Verify filesystem, network, and connector
 restrictions separately from approvals. Enforce consequential calls before
 execution, including after handoffs; output checks cannot undo side effects.
 Stop on denial or exhausted budget without broadening tools or credentials.
-Sources: A2, O2, G2.
+Sources: A2, O2, O4, G2.
 
 ## Bound context and execution
 
