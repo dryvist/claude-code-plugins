@@ -1,0 +1,29 @@
+schema_version: "1.1"
+name: premium-agent-orchestration-reset-positive
+tags: [development, should-trigger]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: >-
+    Fictional mid-task state: four background jobs outstanding, three
+    delegate reports of varying credibility, and a context window that is
+    nearly full. Reset this session to lean orchestrator mode and tell me
+    what is still open. Text-only plan; decide from these supplied facts
+    without writing files, running commands, or inventing results.
+graders:
+  - name: selected-premium-agent-orchestration
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:[\w-]+:)?premium-agent-orchestration"'
+  - name: reset-sequence-rules
+    type: llm
+    criteria: >-
+      PASS only if the reset re-reads the goal and success criteria, lists
+      every in-flight delegate and background job with its state, judges each
+      finished result against its named yes/no check instead of trusting the
+      reports, re-plans from live state, fans out ready independent tasks in
+      parallel to the cheapest capable executor per task, keeps goals, gates,
+      design, integration, and final review in the parent, and closes with a
+      brief user answer. FAIL if delegate claims are accepted without their
+      checks, volume work is absorbed into the parent, any task is sent to a
+      peer at the parent's own tier, or the user gets an unbounded status
+      dump instead of a brief.

@@ -1,0 +1,58 @@
+schema_version: '1.1'
+name: held-out-premium-agent-orchestration-execution
+runs: 3
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  max_turns: 12
+  timeout_seconds: 300
+  prompt: |
+    Use ai-delegation:premium-agent-orchestration for a text-only reset
+    review of this fictional snapshot. Goal: ship the v2 importer. In flight:
+    (1) the delegate "extract field list" returned a table; its brief's check
+    was "every public endpoint appears exactly once", and the table lists the
+    /orders endpoint twice. (2) The delegate "diff the two schemas" returned
+    a result; its brief named no check. (3) The background job "run the
+    migration dry-run" has produced nothing for thirty minutes against an
+    expected ten. Ready work: summarize the three open review threads, all
+    public data. Read available guidance if needed, but do not use shell
+    commands, edit files, install packages, access credentials, or call
+    services. Return: the judgment on each in-flight result, what gets fanned
+    out and to which rung, what stays with the parent, and the brief to the
+    user.
+graders:
+  - name: output-contract
+    type: llm
+    focus: last_message
+    criteria: |
+      PASS if result (1) is judged against its named check and failed, going
+      back with the duplicate /orders entry as the specific shortfall and the
+      next check to pass; result (2) is not trusted as-is because its brief
+      named no check, and a check is defined before its output is used; job
+      (3) gets a bounded wait with a clear stop condition and is re-planned
+      rather than polled forever or absorbed; the ready summary task is
+      fanned out to a local/free or low-cost rung because it is checkable
+      public-data work; the parent keeps the reserved judgment and the user
+      gets a brief state answer. FAIL if unreviewed output is accepted, the
+      no-check result is trusted without one, the stalled job is silently
+      absorbed, or any task is escalated to a peer at the parent's own tier.
+  - name: actual-skill-invocation
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"ai-delegation:premium-agent-orchestration"'
+    min: 1
+    max: 12
+  - name: no-shell
+    type: tool_used
+    tool: Bash
+    min: 0
+    max: 0
+  - name: no-write
+    type: tool_used
+    tool: Write
+    min: 0
+    max: 0
+  - name: no-edit
+    type: tool_used
+    tool: Edit
+    min: 0
+    max: 0

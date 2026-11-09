@@ -1,0 +1,38 @@
+{
+  "skill_name": "premium-agent-orchestration",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Three workstreams are running, five background jobs are outstanding, and this session's context is nearly full. Two delegates just reported 'done' without any evidence attached. Reset this session to orchestrator mode.",
+      "expected_output": "Run the reset: re-read the goal and success criteria, list every in-flight delegate and job, judge each finished result against its named yes/no check, re-plan from live state, fan out ready independent tasks in parallel to the cheapest capable executor, keep reserved judgment in the parent, and answer the user briefly.",
+      "files": [],
+      "assertions": [
+        "Runs the reset in order: goal re-read, in-flight delegates and jobs listed, finished results judged against named checks.",
+        "Re-plans from live state and fans out ready independent tasks in parallel, each to the cheapest capable executor with a one-outcome brief and check.",
+        "Keeps goals, design, gates, integration, and final review in the parent and answers the user briefly."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Fan out this sprint's backlog: rotate the service credentials across staging, extract the field definitions from our published API documentation, and decide the migration that drops the legacy column.",
+      "expected_output": "Credential rotation never goes to an unapproved executor; the public-docs extraction goes to a public-data-only tier; the migration decision is reserved to the parent with only its evidence gathering delegated; every executor is chosen strictly below the parent's own tier.",
+      "files": [],
+      "assertions": [
+        "Keeps credential handling out of every executor unless one is explicitly approved for secrets.",
+        "Sends the public-docs extraction to a public-data-only tier and holds the migration design decision in the parent while delegating only its evidence gathering.",
+        "Chooses each executor strictly below the parent's own tier, never a peer at the same tier, and never makes Haiku the first pick."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "A delegate reports 'backfill complete, all rows migrated', but its brief's check was a row-count equality that the red CI job just failed. Another background task has been silent for twenty minutes past its expected window. What happens now?",
+      "expected_output": "The report is a claim, and its check failed: it goes back with the specific shortfall and the next check to pass; the stalled task gets a bounded wait with a clear stop condition, the failure is recorded, and the work is re-planned or moved to the next eligible executor instead of being absorbed into the parent.",
+      "files": [],
+      "assertions": [
+        "Fails the delegate's claim against the named yes/no check instead of accepting the report or silently absorbing the work.",
+        "Returns the failure with the specific shortfall and the next check to pass.",
+        "Gives the stalled task a bounded wait with a clear stop condition, records the failure, and re-plans or picks the next eligible executor."
+      ]
+    }
+  ]
+}

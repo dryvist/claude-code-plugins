@@ -1,0 +1,23 @@
+schema_version: "1.1"
+name: local-subagents-placement-control
+tags: [development, execution, execution-control, discrimination]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: >-
+    A public 900-record CSV needs its category column re-mapped to a new
+    taxonomy; a validator diffs the output against the taxonomy. Menu packet:
+    entry A, free, capability small, speed fast, best_for "classification";
+    entry B, paid, capability small, speed fast, quality one class higher than
+    A; both advertise context windows far larger than the input. Which entry
+    takes the batch, and why? Return only the choice and the reasoning;
+    assess the supplied packet only, with no operations.
+graders:
+  - name: placement-decision
+    type: llm
+    criteria: >-
+      PASS if entry A takes the batch: the subtask is classification, the
+      capability matches, the data is public so no caveat forbids it, and
+      free before paid wins before speed breaks ties, with the validator named
+      as the per-item check. FAIL if it picks entry B for quality without a
+      checked failure at A first, or treats the choice as needing a higher
+      tier because the parent task matters.

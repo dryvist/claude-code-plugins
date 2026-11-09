@@ -1,0 +1,27 @@
+schema_version: "1.1"
+name: local-subagents-delegation-positive
+tags: [development, should-trigger]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: >-
+    Fictional batch: 400 short reviews need a positive/negative label, and a
+    script can check every label afterwards. My context should stay lean.
+    Describe how you would place this work and keep it verifiable, as a
+    text-only plan; decide from these supplied facts without writing files,
+    running commands, or inventing results.
+graders:
+  - name: selected-local-subagents
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:[\w-]+:)?local-subagents"'
+  - name: cheap-first-escalation-rules
+    type: llm
+    criteria: >-
+      PASS only if the batch goes to the cheapest capable router tier with a
+      schema-bound prompt carrying a row cap and hard STOP, per-item
+      verification runs against the script, only failing items re-run exactly
+      one tier up, escalation stops after one step with remaining failures
+      returned, every call carries a timeout and fan-out stays bounded, and
+      the final report names the alias that produced each result. FAIL if the
+      batch is absorbed into the assistant's context, all items re-run at the
+      higher tier, or escalation jumps straight to the top tier.
