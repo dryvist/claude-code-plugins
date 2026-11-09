@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.42.1](https://github.com/dryvist/claude-code-plugins/compare/v6.42.0...v6.42.1) (2026-11-09)
+
+
+### Bug Fixes
+
+* **project-standards:** refresh agent-builder and skill-builder from current guidance ([#738](https://github.com/dryvist/claude-code-plugins/issues/738)) ([adea1d7](https://github.com/dryvist/claude-code-plugins/commit/adea1d7b16730bdbf6649505d1da5b433d027998))
+
 ## [6.42.0](https://github.com/dryvist/claude-code-plugins/compare/v6.41.2...v6.42.0) (2026-11-09)
 
 
