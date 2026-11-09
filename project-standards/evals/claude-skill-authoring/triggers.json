@@ -1,0 +1,12 @@
+[
+  {"query": "Draft a new estate skill that reviews supplied Terraform plans for missing cost tags and keeps its safety boundaries inline.", "should_trigger": true},
+  {"query": "Edit this estate's incident-response skill so its description meets the estate's length rules without losing its trigger phrase.", "should_trigger": true},
+  {"query": "Where should a skill in this estate live canonically, and what belongs in the vendor directories?", "should_trigger": true},
+  {"query": "Move a skill's command catalog into supporting references without breaking its standalone execution under the estate's authoring rules.", "should_trigger": true},
+  {"query": "Write the SKILL.md for an estate skill that lints supplied JSON configs, with the description sized to the estate's limits.", "should_trigger": true},
+  {"query": "Define a platform agent that posts weekly release digests, with its role prompt and generated exports.", "should_trigger": false},
+  {"query": "Add a /triage slash command that routes supplied bug reports; no reusable skill is involved.", "should_trigger": false},
+  {"query": "Rewrite the plugin README's installation section for clarity.", "should_trigger": false},
+  {"query": "Run the existing incident-response skill on this supplied incident timeline without changing the skill.", "should_trigger": false},
+  {"query": "Explain what Agent Skills are; do not create, revise, or evaluate any skill, agent, or command.", "should_trigger": false}
+]

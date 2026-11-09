@@ -1,0 +1,23 @@
+schema_version: "1.1"
+name: authoring-description-control
+tags: [development, execution, execution-control, discrimination]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: >-
+    Decide, from the estate's skill authoring rules only, whether this
+    proposed discovery description passes: it measures 840 characters, 120
+    of which are three-byte arrows and em dashes, and its author reports it
+    under the CI limit. State the measurement the estate requires and the
+    passing or failing value. Return the decision and reason as text only,
+    with no operations; loading guidance is optional.
+graders:
+  - name: byte-limit-decision
+    type: llm
+    criteria: >-
+      PASS if the decision is that the description fails the CI limit: the
+      estate counts bytes, so 720 single-byte characters plus 120 three-byte
+      characters measure 1080 bytes, over the 1024-byte hard limit, whatever
+      the 840-character count suggests; noting that it also exceeds the
+      250-character soft target is acceptable. FAIL if it accepts the
+      description on the character count, equates characters with bytes, or
+      blocks for a reason the supplied arithmetic does not support.

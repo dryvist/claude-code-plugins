@@ -1,0 +1,31 @@
+schema_version: "1.1"
+name: authoring-skill-positive
+tags: [development, should-trigger]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: >-
+    Draft the SKILL.md for a new skill in this estate that checks a supplied
+    invoice export for duplicate invoice numbers. Return its contents and
+    canonical placement as text, with no file changes. Its discovery
+    description must follow the estate's sizing rules, and its safety
+    boundaries must stay in the entrypoint. If the estate's authoring
+    guidance cannot be read, return the specific prerequisite blocker
+    instead.
+graders:
+  - name: selected-claude-skill-authoring
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:[\w-]+:)?claude-skill-authoring"'
+  - name: layout-and-description-rules
+    type: llm
+    criteria: >-
+      PASS if the SKILL.md draft carries a third-person description sized as
+      a trigger phrase plus a one-clause purpose within the 250-character
+      soft target, states that the 1024-byte CI hard limit is counted in
+      bytes not characters, places the canonical file under the estate's
+      agentsmd/ skills directory with vendor directories as symlinks only,
+      and keeps duplicate-number boundaries inline in the entrypoint;
+      alternatively it names an actually unavailable estate authoring guide
+      and stops. FAIL if it counts characters for the byte limit, places the
+      canonical file in a vendor directory, puts safety boundaries in an
+      optional reference, or claims files were written.

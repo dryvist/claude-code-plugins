@@ -1,0 +1,38 @@
+{
+  "skill_name": "claude-skill-authoring",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Draft a new estate skill that reviews a supplied Terraform plan for missing cost tags. Return its SKILL.md contents and canonical placement as text with no file changes, sized to the estate's description limits and runnable when loaded alone.",
+      "expected_output": "A SKILL.md whose canonical home is under agentsmd/ with vendor directories linked, a discovery description sized as a trigger phrase plus a one-clause purpose against the 250-character soft target and the 1024-byte CI hard limit counted in bytes, and safety boundaries kept inline in the entrypoint.",
+      "files": [],
+      "assertions": [
+        "Places the canonical skill under agentsmd/ and describes vendor directories as symlinks only, with no duplicate copies.",
+        "Sizes the description as a trigger phrase plus a one-clause purpose, states the 250-character soft target, and enforces the 1024-byte CI hard limit measured in bytes rather than characters.",
+        "Keeps the skill's safety boundaries inline so it runs correctly and safely when loaded alone, deduplicating only reference material."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Review this proposed revision to an estate skill before it ships: the merge-readiness gate moved from the entrypoint into an optional reference loaded only when a merge is attempted, to cut entrypoint tokens; the description measures 950 characters, 50 of them three-byte symbols, and the author calls it under the 1024-byte CI limit; and a full copy of the finished skill was placed in a vendor directory so another harness can resolve it. Return a text-only review with the corrections needed.",
+      "expected_output": "The safety gate returns inline for safe standalone loading; the description fails CI at 1050 bytes despite 950 characters because the estate counts bytes; and the vendor copy is replaced with a symlink to the canonical agentsmd/ skill.",
+      "files": [],
+      "assertions": [
+        "Requires the merge-readiness gate back inline, since safety reminders stay inline even when duplicated and token count is only a flag.",
+        "Rejects the character count as the CI measurement and computes the description at 1050 bytes, over the 1024-byte hard limit.",
+        "Replaces the vendor-directory duplicate with a symlink so agentsmd/ stays the single source of truth."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "A teammate's new estate skill passes YAML and frontmatter validation. Its description is 300 ASCII characters of dense feature prose, and they report it ready to ship. No standalone-load check or vendor-link check has been run. Return a compact review with check, evidence, and status fields.",
+      "expected_output": "The byte-level CI limit passes at 300 bytes, but the description misses the 250-character soft target for a trigger phrase plus a one-clause purpose; ship status stays blocked until the standalone-load and vendor-link checks exist.",
+      "files": [],
+      "assertions": [
+        "Marks the 1024-byte CI limit as passing on the stated 300 ASCII bytes.",
+        "Flags the description against the 250-character soft target as needing a trigger phrase plus a one-clause purpose.",
+        "Keeps ship status blocked pending the standalone-load check and the vendor symlink check rather than structural validation alone."
+      ]
+    }
+  ]
+}
