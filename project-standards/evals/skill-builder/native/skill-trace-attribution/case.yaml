@@ -5,12 +5,12 @@ execution:
   allowed_tools: [Read, Glob, Grep, Skill]
   prompt: >-
     Review an evaluation record for a released skill. It reports aggregate
-    scores, and its spans cannot be attributed to any turn or tool call.
-    The record also invents a second registry that restates the canonical
-    skill revision with its own version numbers. Return only JSON with
-    status and corrections covering traceability. Decide from these
-    supplied facts; do not create files, run evaluations, or contact
-    services.
+    scores, its spans cannot be attributed to any turn or tool call, it
+    carries neither the loaded skill version nor the resource paths read,
+    and it invents a second registry that restates the canonical skill
+    revision with its own version numbers. Return only JSON with status and
+    corrections covering traceability. Decide from these supplied facts; do
+    not create files, run evaluations, or contact services.
 graders:
   - name: selected-skill-builder
     type: tool_used
@@ -27,3 +27,9 @@ graders:
       PASS if observations link to the canonical skill revision without
       creating a second source of truth; FAIL if the invented parallel
       registry is accepted.
+  - name: record-carries-version-and-paths
+    type: llm
+    criteria: >-
+      PASS if the corrections require the record to carry the loaded skill
+      version and the resource paths read; FAIL if the record is accepted
+      without the loaded skill version or the resource paths read.

@@ -5,12 +5,13 @@ execution:
   allowed_tools: [Read, Glob, Grep, Skill]
   prompt: >-
     Review a proposed Dify agent definition for a nightly pipeline. The agent
-    prompt implements fixed branching, approval, and failure recovery across
-    nine mostly deterministic steps, and its router lists three partial
-    routes with no route for unmatched requests and no handling for invalid
-    router results. Return only JSON with status and corrections covering
-    the agent-versus-workflow boundary and the route table. Decide from these
-    supplied facts; do not create files, run the agent, or contact services.
+    prompt implements its own nightly schedule, fixed branching, approval,
+    and failure recovery across nine mostly deterministic steps, and its
+    router lists three partial routes with no route for unmatched requests
+    and no handling for invalid router results. Return only JSON with status
+    and corrections covering the agent-versus-workflow boundary and the
+    route table. Decide from these supplied facts; do not create files, run
+    the agent, or contact services.
 graders:
   - name: selected-agent-builder
     type: tool_used
@@ -29,3 +30,12 @@ graders:
       PASS if the route table is exhaustive, defines an otherwise route, and
       adds failure handling for invalid results; FAIL if the partial route
       list without an otherwise route or invalid-result handling is accepted.
+  - name: native-workflow-features-named
+    type: llm
+    criteria: >-
+      PASS if the corrections name the native Dify features carrying each
+      boundary rule — the scheduled-execution setting for scheduling, the
+      IF/ELSE node for branching, the Human Input node for approval, and
+      node error handling for recovery — and keep routing and failure
+      handling on the Agent node; FAIL if they only say to move the fixed
+      steps to a workflow without naming the native features.

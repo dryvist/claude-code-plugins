@@ -1,0 +1,24 @@
+schema_version: "1.1"
+name: agent-memory-retrieval-comparison
+tags: [development, should-trigger, execution, discrimination]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: >-
+    Review a proposed platform agent that adds a compiled persistent
+    memory. The proposal justifies the memory only by cheaper reads,
+    measures it on simple lookups alone, and reports no cost for
+    creating or updating the memory. Return only JSON with status and
+    corrections for the memory decision. Decide from these supplied
+    facts; do not create files, run the agent, or contact services.
+graders:
+  - name: selected-agent-builder
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:[\w-]+:)?agent-builder"'
+  - name: memory-retrieval-comparison
+    type: llm
+    criteria: >-
+      PASS if the corrections require comparing the memory with
+      retrieval alone on matched simple-lookup and cross-source tasks
+      and reporting the cost of creating and updating the memory;
+      FAIL if read cost on simple lookups alone is accepted.
