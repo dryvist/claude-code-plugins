@@ -1,0 +1,37 @@
+schema_version: "1.1"
+name: skill-no-gain-acceptance
+tags: [development, should-trigger, execution, discrimination]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: >-
+    Review a completed comparison for a skill revision. Measured task success
+    moved from 61 to 62 percent against the previous version with overlapping
+    confidence intervals, and the skill's no-skill arm scored the same 61
+    percent. The run's cost table shows no provider-reported token usage, so
+    the report fills costs with an estimated per-call figure and asks for
+    release anyway. Return only JSON with status and the acceptance decision.
+    Decide from these supplied facts; do not create files, run evaluations,
+    or contact services.
+graders:
+  - name: selected-skill-builder
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:[\w-]+:)?skill-builder"'
+  - name: revision-without-gain-rejected
+    type: llm
+    criteria: >-
+      PASS if the revision is rejected because its gain over the previous
+      version is not established beyond noise; FAIL if the revision is
+      accepted on a within-noise delta.
+  - name: retirement-reviewed
+    type: llm
+    criteria: >-
+      PASS if the answer raises that a skill showing no measured gain over
+      no skill is a candidate for retirement; FAIL if the no-skill parity is
+      not acted on or flagged.
+  - name: usage-not-estimated
+    type: llm
+    criteria: >-
+      PASS if missing provider-reported token usage is reported separately
+      from any missing model price and never filled with an estimate;
+      FAIL if the estimated cost figure is accepted.

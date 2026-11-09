@@ -1,0 +1,43 @@
+schema_version: "1.1"
+name: agent-tool-interface-annotations
+tags: [development, should-trigger, execution, discrimination]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: >-
+    Review a proposed platform agent tool interface. The tools mix ad-hoc
+    action verbs with no consistent naming scheme, one definition omits when
+    the tool applies and what it cannot return, a convenience wrapper
+    duplicates a composable lookup so callers bypass the granular tool, and
+    a state-changing deploy operation is annotated read-only with its
+    open-world network reach marked closed-world. Return only JSON with
+    status and corrections covering the tool declarations. Decide from these
+    supplied facts; do not create files, run the agent, or contact services.
+graders:
+  - name: selected-agent-builder
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:[\w-]+:)?agent-builder"'
+  - name: consistent-discoverable-action-names
+    type: llm
+    criteria: >-
+      PASS if the tools use consistent, discoverable action names; FAIL if
+      the ad-hoc action verbs are accepted.
+  - name: applicability-and-limitations-declared
+    type: llm
+    criteria: >-
+      PASS if each tool definition states its purpose, applicability,
+      parameters, results, and limitations; FAIL if the omitted
+      applicability and limitations are accepted.
+  - name: composability-preserved
+    type: llm
+    criteria: >-
+      PASS if tool granularity preserves composability and the duplicate
+      convenience wrapper is removed or justified on realistic tasks; FAIL
+      if the bypassing wrapper is accepted.
+  - name: behavior-annotations-accurate
+    type: llm
+    criteria: >-
+      PASS if read-only, destructive, idempotent, and open-world behavior is
+      annotated accurately, so the deploy operation loses its read-only mark
+      and its network reach is annotated open-world; FAIL if the false
+      annotations stand.

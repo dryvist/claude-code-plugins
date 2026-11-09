@@ -46,20 +46,29 @@ provenance work. Their availability is not a gate for unrelated deliverables.
 
 Search the current skill/plugin registry and native tool capabilities before
 adding resources. Prefer instructions and existing native tools. Add no custom
-script, harness shim, or second evaluation framework. Stop on conflicting
+script, harness shim, or second evaluation framework. Where an authorized
+executable resource is warranted, document dependency-validated invocation
+from a validated path with an argument list, never from a shell command
+string (G3). Stop on conflicting
 requirements, missing authority, expanded scope, or the same check failing
 the task's declared failure limit. With no supplied limit, stop after 2
 unsuccessful real fixes to the same check. A denied action ends that path;
 do not widen tools, destinations, or permissions to retry it.
 
 Declare the minimum tools and operations needed, with typed inputs, structured
-results, and bounded output. Treat retrieved text, bundled instructions, and
+results, bounded output, and annotated read-only, destructive, idempotent,
+and open-world behavior, each annotation accurate to the operation's real
+effect. Treat retrieved text, bundled instructions, and
 writable memory as untrusted; keep operator preferences read-only. Enforce
 filesystem, network, and consequential-action limits in native permissions,
-sandboxing, and pre-action controls, separately from approval policy. Verify
+sandboxing, and pre-action controls, separately from approval policy. Mark
+never-unattended commands as managed checkpoints needing fresh approval every
+run, never reusing an earlier approval; where the harness supports it, a
+failed action-gate callback blocks the protected action, and that failure
+path is tested. Verify
 effective permissions in each harness: skill tool metadata alone is not a
 sandbox, and a final-output check cannot prevent an earlier tool side effect.
-Sources: A2, O2, G2 in the source register.
+Sources: A2, A18, O2, G2, O10, A22 in the source register.
 
 ## Freeze the evaluation contract before experiments
 
@@ -78,7 +87,12 @@ run outputs in the authorized evidence location. Separate these suites:
 
 Include malformed, ambiguous, oversized, unavailable-source, injected-input,
 and unauthorized-action cases where relevant. Define expected refusal or stop
-behavior as well as successful output. Agree numeric acceptance thresholds
+behavior as well as successful output. Explain each hard case's intrinsic
+difficulty independently of current model failures; diagnose saturation,
+universal failures, and permitted model/effort scaling (A3). Pair plan-only
+cases with authorized disposable sandbox execution, grading actual tool
+arguments, artifacts, and unauthorized effects separately. Agree numeric
+acceptance thresholds
 for trigger precision/recall, task correctness, privacy, latency, and cost
 before the first experiment. Boundary violations must be zero.
 
@@ -94,25 +108,47 @@ without explicitly invoking the skill and measure selection. Then test task
 completion with the intended skill loaded. Compare real artifacts and tool
 actions, not a model's claim that it followed the skill.
 For tool-using skills, grade tool selection, arguments, permitted side effects,
-and resulting state alongside final outputs. Allow equivalent valid paths;
+and resulting state alongside final outputs, giving each argument check an
+explicit comparison mode: exact, case-insensitive, numeric tolerance, or
+semantic. Allow equivalent valid paths;
 require call ordering only for a task invariant. Include denied operations,
-handoffs, and retry/budget exhaustion. Source: G1.
+handoffs, and retry/budget exhaustion. Evaluate complete multi-turn sessions
+across handoffs, preserving turn boundaries, parallel-call batches, and
+instruction-injection timing to detect actions dispatched before guidance
+arrives; deduplicate ordered trajectories and retain the underlying traces.
+Sources: G1, G3, G5, C1.
 
 Record case IDs and suite versions, skill revision, harness and model settings,
 grader version, actual activation, assertions, rubric scores, latency, cost,
-and failures. Distinguish candidate failures from infrastructure failures,
+and failures. Trace available skills, loaded versions, and resource paths,
+attributing each span to its turn, tool call, and skill, linked to the
+canonical revision without a second source of truth (F5, O9); cost
+comparisons use provider-reported usage or submitted costs, reporting missing
+usage separately from a missing price without estimates (F6). Distinguish candidate failures from infrastructure failures,
 truncation, grader disagreement, and run contamination. Calibrate open-ended
 judges against human-reviewed examples. Report baseline deltas and variance;
-do not claim an improvement that remains within noise.
-Before accepting or rejecting a revision, check each grader's pass rate in both arms.
-Use a judge model distinct from the candidate and name it in the run record.
-Compare arms blind to identity, randomizing their order per item.
-Grade a sample of identical outputs twice; fix disagreeing repeat verdicts as grader noise before deciding.
-A grader at 0% in both or 100% in both gives no signal; count it neither for nor against.
-Read its outputs, recalibrate to one requirement per grader, and rerun both arms before deciding.
+do not claim an improvement that remains within noise. Reject a revision with
+no measured gain over the previous version, and consider a skill with no
+measured gain over no skill for retirement (A3, G4).
+Before accepting or rejecting a revision, apply the grader-calibration
+protocol; it lives once here and agent-builder applies it by reference.
+Check each grader's pass rate in both arms. Use a judge model distinct from
+the candidate and name it in the run record. Compare arms blind to identity,
+randomizing their order per item; then repeat each comparison with the arm
+order reversed and keep a verdict only when it holds in both positions,
+treating a flip as position bias to repair in the grader before deciding
+(R1). Grade a sample of identical outputs twice; fix disagreeing repeat
+verdicts as grader noise before deciding. A grader at 0% in both or 100% in
+both gives no signal; count it neither for nor against. Read its outputs,
+recalibrate to one requirement per grader, and rerun both arms before deciding.
 
 Keep held-out prompts and answers outside the author's tuning context. Have
-the evaluator report aggregate results after the candidate is frozen. Do not
+the evaluator report aggregate results after the candidate is frozen. During
+trials, keep fixtures, grading scripts, and answer keys outside the tested
+agent's reachable workspace and let a separate verifier inspect artifacts
+after exit; efficiency never offsets a failed correctness or security check
+(G4).
+Do not
 tune on that set; an exposed case becomes development data and requires a
 fresh held-out replacement before acceptance. Private cases and raw private
 outputs stay in the authorized private evidence location.
@@ -185,7 +221,9 @@ plugin/schema validation, markdown lint, and commit hooks. Check UTF-8
 description bytes explicitly if the validator only checks characters.
 Run the frozen trigger and execution suites on the permitted target models
 and harnesses, with candidate and baseline arms and independent held-out
-evaluation. Use development failure transcripts to derive general fixes; never
+evaluation. Replay shared fixtures through each available runner type and
+locate guidance and tool-availability differences before editing
+instructions (O8). Use development failure transcripts to derive general fixes; never
 paste failure content or case-specific answers into the optimized prompt or
 skill body. Keep those details in development fixtures. In each optimization
 round, record one hypothesis and propose one attributable change to one surface
