@@ -1,0 +1,50 @@
+schema_version: '1.1'
+name: held-out-replan-should-not-trigger
+runs: 3
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  max_turns: 12
+  timeout_seconds: 300
+  prompt: |
+    Coming back after the weekend: my plan was verified accurate at the end
+    of last session and nothing external has changed since. Pick the work
+    back up from the next unchecked item and keep going. Text-only plan; no
+    repository, git history, or services are supplied; identify
+    prerequisites instead of inventing them. You may read available
+    guidance, but cannot use a shell, edit files, install anything, access
+    credentials, or contact services.
+graders:
+  - name: output-contract
+    type: llm
+    focus: last_message
+    criteria: |
+      PASS if this is treated as continuation from the plan as written: start
+      from the next open item after a light verify-before-trust check, with
+      no re-derivation sweep across artifacts and git, no checkbox
+      reclassification, and no rewrite of the plan file, since nothing
+      indicates the plan is stale. It may name the resume skill as the
+      fitting owner for cold continuation. FAIL if it runs the full replan
+      reconciliation anyway, rewrites or restructures the plan, or re-derives
+      merged history for a plan nothing indicates has drifted.
+  - name: no-skill-invocation
+    type: tool_used
+    arm: both
+    tool: Skill
+    input_match: '"skill"\s*:\s*"ai-cli-harness-better-practices:replan"'
+    min: 0
+    max: 0
+  - name: no-shell
+    type: tool_used
+    tool: Bash
+    min: 0
+    max: 0
+  - name: no-write
+    type: tool_used
+    tool: Write
+    min: 0
+    max: 0
+  - name: no-edit
+    type: tool_used
+    tool: Edit
+    min: 0
+    max: 0

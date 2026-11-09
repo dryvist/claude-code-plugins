@@ -1,0 +1,53 @@
+schema_version: '1.1'
+name: held-out-goal-should-trigger
+runs: 3
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  max_turns: 12
+  timeout_seconds: 300
+  prompt: |
+    We pivoted twice today: first off the parser rewrite onto a wrapper for
+    the old CLI, then again onto hardening that wrapper's error paths. I have
+    lost the thread. What am I actually trying to do right now? Return the
+    statement as text. This text-only exercise supplies no plan file block,
+    task list, or shell; derive from the pivots described here and state how
+    the 4000-character cap would be measured rather than inventing a count.
+    You may read available guidance, but cannot use a shell, edit files,
+    install anything, access credentials, or contact services.
+graders:
+  - name: output-contract
+    type: llm
+    focus: last_message
+    criteria: |
+      PASS if the answer emits exactly one self-contained goal statement
+      derived from the most recent pivot rather than the morning's original
+      objective, with an objective plus explicit boundary, numbered
+      verifiable success criteria whose last is end-to-end verification, and
+      a persistence line; states that the cap is measured with
+      LC_ALL=en_US.UTF-8 wc -m over a heredoc (or a substitute UTF-8 locale)
+      instead of fabricating a count it could not measure; and prints nothing
+      beyond the statement plus at most the allowed one-line notes. FAIL if
+      it anchors on the abandoned parser rewrite, emits steps instead of end
+      conditions, includes a heading or blockquote in the body, or reports a
+      measured character count without a measurement.
+  - name: actual-skill-invocation
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"ai-cli-harness-better-practices:goal"'
+    min: 1
+    max: 12
+  - name: no-shell
+    type: tool_used
+    tool: Bash
+    min: 0
+    max: 0
+  - name: no-write
+    type: tool_used
+    tool: Write
+    min: 0
+    max: 0
+  - name: no-edit
+    type: tool_used
+    tool: Edit
+    min: 0
+    max: 0

@@ -1,0 +1,25 @@
+schema_version: "1.1"
+name: replan-reconciliation-control
+tags: [development, execution, execution-control, discrimination]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: >-
+    Classify each plan item from its live evidence, not its checkbox: (a)
+    unchecked; the feature commit is merged to the default branch and its
+    test passes. (b) checked; the step's approach was banned by a recorded
+    decision two days ago. (c) unchecked; still valid, but the PR number it
+    cites was renumbered after a rebase. (d) not in the plan; live logs show
+    a required schema backfill nobody planned. Return only the classification
+    per item with the action it triggers; assess the supplied evidence only,
+    with no operations.
+graders:
+  - name: reconciliation-decision
+    type: llm
+    criteria: >-
+      PASS if (a) is marked done from the merged commit and passing test
+      without being carried forward; (b) is struck with the banning decision
+      as its one-line why; (c) is kept as valid and open with the PR number
+      refreshed; and (d) is added as newly required. Each classification
+      cites the live evidence rather than the checkbox state. FAIL if any
+      classification follows the checkbox over the evidence, the struck item
+      is kept as open, or the unplanned backfill is dropped.

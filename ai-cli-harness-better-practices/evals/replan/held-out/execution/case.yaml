@@ -1,0 +1,55 @@
+schema_version: '1.1'
+name: held-out-replan-execution
+runs: 3
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  max_turns: 12
+  timeout_seconds: 300
+  prompt: |
+    Use ai-cli-harness-better-practices:replan for a text-only reconciliation
+    of this fictional packet. Plan items: (1) "Deploy the flag service" —
+    unchecked; the packet's live probe shows the staging endpoint answering
+    /healthz with 200. (2) "Rename enrich() to enrichRecord()" — checked;
+    the rename test still fails on two call sites. (3) "Adopt the
+    queue-based retry" — open; a recorded decision last week banned
+    queue-based retries. (4) Nothing in the plan covers the rate-limit header
+    the API review just made mandatory. Read available guidance if needed,
+    but do not use shell commands, edit files, install packages, access
+    credentials, or call services. Classify each item from the live evidence,
+    then give the rewrite rules you would apply and the delta.
+graders:
+  - name: output-contract
+    type: llm
+    focus: last_message
+    criteria: |
+      PASS if item (1) is marked done from the live endpoint answer rather
+      than the unchecked box; item (2) stays open with the two failing call
+      sites as evidence, because the checkbox is not trusted over the failing
+      test; item (3) is struck with the banning decision as its one-line why;
+      item (4) is added as newly required; and the delta is stated in the
+      Replanned format across marked done, struck, still open, and newly
+      added, with the rewrite rules cutting invalidated guidance while
+      preserving evidence and decisions. FAIL if any classification follows
+      the checkbox instead of the live evidence, the struck item is carried
+      forward without its why, or the newly required gap is dropped.
+  - name: actual-skill-invocation
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"ai-cli-harness-better-practices:replan"'
+    min: 1
+    max: 12
+  - name: no-shell
+    type: tool_used
+    tool: Bash
+    min: 0
+    max: 0
+  - name: no-write
+    type: tool_used
+    tool: Write
+    min: 0
+    max: 0
+  - name: no-edit
+    type: tool_used
+    tool: Edit
+    min: 0
+    max: 0

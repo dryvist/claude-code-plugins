@@ -1,0 +1,38 @@
+{
+  "skill_name": "replan",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Resuming a week-old plan for our importer. The plan marks the staging deploy step checked off, but the staging endpoint has never answered a request. /resume also flagged two contradictions between the plan and the merge log. Rebuild the plan.",
+      "expected_output": "Ground truth is re-derived from the artifact and the running system first — the endpoint itself, not the deploy flag — then items are reclassified from live evidence, the plan is rewritten to match, and the delta is reported with marked-done, struck, and open items.",
+      "files": [],
+      "assertions": [
+        "Treats the plan's prose and checkboxes as unverified and re-derives state from the artifact and the running system.",
+        "Checks the live endpoint itself rather than treating the deploy configuration as proof the capability is live.",
+        "Rewrites the plan from the reconciled state and reports the delta with struck, done, and open items."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Rebuild this month-old plan: three PRs have merged since it was written, and the checkbox inventory plus merge log alone is huge. Keep my own context out of it.",
+      "expected_output": "Version control is re-derived as one shell block with a bounded log and merged work recorded; the bulk read goes to the router's cheapest capable tier with capped input, and reasoning happens over the returned table; if the router is unreachable, the step runs in-house and says so in the delta.",
+      "files": [],
+      "assertions": [
+        "Resolves the default branch and lists shipped and in-flight work as one shell block with a bounded log.",
+        "Delegates the capped bulk read to the cheapest capable router tier and reasons over the returned table instead of the raw dump.",
+        "Records what shipped so no one redoes it, and states the in-house fallback plainly in the delta if the router is unreachable."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "During the rebuild, the metrics endpoint times out and gh is not authenticated in this environment. The plan still instructs steps that last week's design review invalidated. Finish the replan anyway.",
+      "expected_output": "The timed-out endpoint and unauthenticated gh are recorded as unknowns rather than treated as absence; the invalidated steps are cut from the rewritten plan with the reversal stated plainly; evidence, decisions, and links are preserved with full URLs and absolute paths; the delta confirms what changed.",
+      "files": [],
+      "assertions": [
+        "Records the timed-out endpoint and the unauthenticated gh as unknowns rather than as absence.",
+        "Cuts the invalidated steps and states plainly that the correction reverses earlier guidance.",
+        "Preserves evidence, decisions, and links using full URLs and absolute paths, and confirms the delta."
+      ]
+    }
+  ]
+}
