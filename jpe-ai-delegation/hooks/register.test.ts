@@ -108,7 +108,7 @@ const textTask = { description: '[class: text]', prompt: 'Summarize this supplie
 
 describe('policy', () => {
   test('exact class routes and newest listed model per family', () => {
-    expect(CODEX).toEqual({ bulk: { family: 'luna', effort: 'xhigh' }, 'bulk-complex': { family: 'luna', effort: 'max' }, standard: { family: 'terra', effort: 'medium' }, complex: { family: 'terra', effort: 'high' }, plan: { family: 'terra', effort: 'high' }, deep: { family: 'terra', effort: 'high' } })
+    expect(CODEX).toEqual({ bulk: { family: 'luna', effort: 'xhigh' }, 'bulk-complex': { family: 'luna', effort: 'max' }, standard: { family: 'luna', effort: 'xhigh' }, complex: { family: 'luna', effort: 'max' }, plan: { family: 'luna', effort: 'xhigh' }, deep: { family: 'luna', effort: 'xhigh' } })
     expect(newestModel(CACHE, 'luna')).toBe('gpt-newer-luna')
     expect(newestModel(CACHE, 'terra')).toBe('gpt-newer-terra')
     expect(newestModel(CACHE, 'missing')).toBeUndefined()
@@ -121,12 +121,10 @@ describe('policy', () => {
       expect(argv.slice(-3)).toEqual(['-o', '/tmp/out', '-'])
     })
   }
-  test('command builder rejects family mismatch, unsupported efforts and missing output', () => {
-    for (const family of ['luna', 'terra'] as const) {
-      for (const effort of ['', 'ultra', ...(family === 'terra' ? ['xhigh', 'max'] : ['high', 'medium'])]) expect(() => codexArgv('read-only', { family, effort }, `gpt-${family}`, '/tmp/out')).toThrow()
-      for (const model of [undefined, '', 'gpt-sol', `gpt-${family}-mini`]) expect(() => codexArgv('read-only', CODEX[family === 'terra' ? 'standard' : 'bulk'], model, '/tmp/out')).toThrow()
-    }
-    expect(() => codexArgv('read-only', { family: 'sol', effort: 'high' } as never, 'gpt-sol', '/tmp/out')).toThrow()
+  test('command builder rejects any non-Luna family, unsupported efforts and missing output', () => {
+    for (const effort of ['', 'ultra', 'high', 'medium']) expect(() => codexArgv('read-only', { family: 'luna', effort }, 'gpt-luna', '/tmp/out')).toThrow()
+    for (const model of [undefined, '', 'gpt-sol', 'gpt-luna-mini']) expect(() => codexArgv('read-only', CODEX.bulk, model, '/tmp/out')).toThrow()
+    expect(() => codexArgv('read-only', { family: 'terra', effort: 'high' } as never, 'gpt-terra', '/tmp/out')).toThrow()
     expect(() => codexArgv('read-only', CODEX.bulk, 'gpt-terra', '/tmp/out')).toThrow()
     expect(() => codexArgv('read-only', CODEX.bulk, 'gpt-luna', '')).toThrow()
   })
@@ -146,9 +144,8 @@ describe('custom agent tool authority', () => {
     test(`YAML model escapes preserve inherited routing: ${model}`, async () => {
       for (const quota of [0, 1]) {
         const w = world({ quota, definition: `---\nmodel: ${model}\n---\nImplement the requested change.` })
-        const result = text(await w.agent({ ...coding, subagent_type: 'worker' }))
-        if (quota === 0) expect(runs(w)[1].argv).toContain('workspace-write')
-        else expect(result).toContain('routed: zcode-job sandbox')
+        expect(text(await w.agent({ ...coding, subagent_type: 'worker' }))).toContain('routed: zcode-job sandbox')
+        expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(true)
       }
     })
   }
@@ -301,15 +298,11 @@ describe('custom agent tool authority', () => {
       expect(w.fetches).toEqual([])
     })
   }
-  test('omitting tools keeps inherited Codex write access and unrestricted sandbox eligibility', async () => {
+  test('omitting tools keeps unrestricted sandbox eligibility at every quota', async () => {
     for (const quota of [0, 1]) {
       const w = world({ quota, definition: '---\nmodel: haiku\n---\nImplement the requested change.' })
-      const result = text(await w.agent({ ...coding, subagent_type: 'worker' }))
-      if (quota === 0) {
-        expect(runs(w)).toHaveLength(2)
-        expect(runs(w)[1].argv).toContain('workspace-write')
-        expect(runs(w)[1].stdin).toContain('Implement the requested change.')
-      } else expect(result).toContain('routed: zcode-job sandbox')
+      expect(text(await w.agent({ ...coding, subagent_type: 'worker' }))).toContain('routed: zcode-job sandbox')
+      expect(w.calls.find((c) => c.argv[0] === 'zcode-job')?.argv.slice(0, 3)).toEqual(['zcode-job', 'start', 'owner/project'])
     }
   })
   for (const model of ['sonnet', 'opus', 'fable', 'inherit', undefined]) {
@@ -391,7 +384,7 @@ describe('custom agent tool authority', () => {
   }
 })
 
-describe('Codex first', () => {
+describe('Codex rung', () => {
   for (const [label, route] of Object.entries(CODEX)) {
     test(`${label} executes its assigned model and sandbox`, async () => {
       const w = world()
@@ -421,14 +414,18 @@ describe('Codex first', () => {
       expect(runs(w)[0].argv).not.toContain('workspace-write')
     })
   }
-  for (const description of ['[class: public] [repo: owner/project] [task: code]', '[class: text]']) {
-    test(`${description} cannot bypass Codex`, async () => {
-      const w = world({ env: gateways })
-      expect(text(await w.agent({ description }))).toContain('codex terra medium')
-      expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
-      expect(w.fetches.filter((f) => !f.url.endsWith('/systemone'))).toEqual([])
-    })
-  }
+  test('tagged public coding takes the sandbox rung before Codex', async () => {
+    const w = world()
+    expect(text(await w.agent(coding))).toContain('routed: zcode-job sandbox')
+    expect(runs(w)).toEqual([])
+    expect(w.fetches.map((f) => f.url)).toEqual(['https://api.github.com/repos/owner/project', 'https://api.github.com/repos/owner/project/pulls/12'])
+  })
+  test('untagged public work still classifies onto Codex Luna', async () => {
+    const w = world({ env: gateways })
+    expect(text(await w.agent({ description: '[class: public] [repo: owner/project]' }))).toContain('codex luna xhigh')
+    expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
+    expect(w.fetches.filter((f) => !f.url.endsWith('/systemone'))).toEqual([])
+  })
   test('untagged reads and triage use classifier bulk and Luna xhigh', async () => {
     const w = world({ label: 'bulk' })
     expect(text(await w.agent({ description: 'read and triage', prompt: 'Read the README.' }))).toContain('codex luna xhigh')
@@ -437,22 +434,22 @@ describe('Codex first', () => {
   })
   test('classification itself stays on Codex while quota is available', async () => {
     const w = world({ env: gateways, label: 'complex' })
-    expect(text(await w.agent({ description: 'coordinated change' }))).toContain('codex terra high')
+    expect(text(await w.agent({ description: 'coordinated change' }))).toContain('codex luna max')
     expect(runs(w)).toHaveLength(2)
     expect(runs(w)[0].argv).toContain('gpt-newer-luna')
-    expect(runs(w)[1].argv).toContain('gpt-newer-terra')
+    expect(runs(w)[1].argv).toContain('gpt-newer-luna')
     expect(w.fetches).toEqual([])
     expect(w.calls[0].argv).toEqual(['codex-quota'])
   })
   for (const subagent_type of ['Explore', 'Plan']) {
-    test(`${subagent_type} remains read-only`, async () => {
+    test(`${subagent_type} remains read-only on Luna xhigh`, async () => {
       const w = world()
       await w.agent({ description: 'advisory', subagent_type })
       expect(runs(w)[0].argv).toContain('read-only')
-      expect(runs(w)[0].argv).toContain(subagent_type === 'Plan' ? 'gpt-newer-terra' : 'gpt-newer-luna')
+      expect(runs(w)[0].argv).toContain('gpt-newer-luna')
     })
   }
-  test('worktree isolation creates an isolated checkout and keeps Codex first', async () => {
+  test('worktree isolation creates an isolated checkout on Codex', async () => {
     const w = world()
     expect(text(await w.agent({ isolation: 'worktree' }))).toContain('worktree /tmp/worktree')
     expect(w.calls.find((c) => c.argv[0] === 'git')?.argv).toEqual(['git', '-C', '/workspace', 'worktree', 'add', '--detach', '/tmp/worktree', 'HEAD'])
@@ -490,12 +487,12 @@ describe('model and payload guards', () => {
   }
   test('explicit Haiku and named spawns still follow the class route', async () => {
     const w = world()
-    expect(text(await w.agent({ model: 'haiku', name: 'worker', effort: 'max' }))).toContain('codex terra medium')
+    expect(text(await w.agent({ model: 'haiku', name: 'worker', effort: 'max' }))).toContain('codex luna xhigh')
     expect(w.nextCalls).toEqual([])
   })
   test('custom Haiku instructions are preserved on Codex', async () => {
     const w = world({ definition: '---\nmodel: haiku\n---\nFollow the review rubric.' })
-    expect(text(await w.agent({ subagent_type: 'reviewer' }))).toContain('codex terra medium')
+    expect(text(await w.agent({ subagent_type: 'reviewer' }))).toContain('codex luna xhigh')
     expect(runs(w)[0].stdin).toContain('Follow the review rubric.')
   })
   test('missing or unreadable custom definitions fail closed', async () => {
@@ -526,7 +523,7 @@ describe('model and payload guards', () => {
         '/plugins/codeql-resolver/agents/codeql-permissions-auditor.md': `---\nname: CodeQL Permissions Auditor\n${model ? `model: ${model}\n` : ''}---\nFollow the plugin review rubric.`,
       } })
       const r = await w.agent({ subagent_type: 'codeql-resolver:codeql-permissions-auditor' })
-      expect(text(r)).toContain(model !== 'sonnet' ? 'codex terra medium' : 'subagents are forbidden')
+      expect(text(r)).toContain(model !== 'sonnet' ? 'codex luna xhigh' : 'subagents are forbidden')
       if (model !== 'sonnet') expect(runs(w)[0].stdin).toContain('Follow the plugin review rubric.')
       else expect(w.calls).toEqual([])
       expect(w.nextCalls).toEqual([])
@@ -558,7 +555,7 @@ describe('model and payload guards', () => {
       '/plugins/user/agents/codeql-permissions-auditor.md': '---\nmodel: sonnet\n---\nWrong installation.',
       '/plugins/project/agents/codeql-permissions-auditor.md': '---\nmodel: haiku\n---\nFollow the project plugin rubric.',
     } })
-    expect(text(await w.agent({ subagent_type: 'codeql-resolver:codeql-permissions-auditor' }))).toContain('codex terra medium')
+    expect(text(await w.agent({ subagent_type: 'codeql-resolver:codeql-permissions-auditor' }))).toContain('codex luna xhigh')
     expect(runs(w)[0].stdin).toContain('Follow the project plugin rubric.')
   })
   test('project custom definition still precedes plugin discovery', async () => {
@@ -566,7 +563,7 @@ describe('model and payload guards', () => {
       '/workspace/.claude/agents/codeql-resolver:codeql-permissions-auditor.md': '---\nmodel: haiku\n---\nFollow the local rubric.',
       '/home/test/.claude/plugins/installed_plugins.json': '{',
     } })
-    expect(text(await w.agent({ subagent_type: 'codeql-resolver:codeql-permissions-auditor' }))).toContain('codex terra medium')
+    expect(text(await w.agent({ subagent_type: 'codeql-resolver:codeql-permissions-auditor' }))).toContain('codex luna xhigh')
     expect(runs(w)[0].stdin).toContain('Follow the local rubric.')
   })
 })
@@ -601,30 +598,16 @@ describe('capped ladder', () => {
     expect(w.fetches.map((f) => f.url)).toEqual(['https://api.github.com/repos/owner/project', 'https://api.github.com/repos/owner/project/pulls/12'])
     expect(w.nextCalls).toEqual([])
   })
-  for (const properties of [[], [{ property_name: 'ai-untrusted-ok', value: 'false' }], [{ property_name: 'ai-untrusted-ok', value: 'true' }]]) {
-    for (const classified of [false, true]) {
-      test(`private coding requires property and payload classification: ${JSON.stringify(properties)}, ${classified}`, async () => {
-        const w = world({ quota: 1, repository: { visibility: 'private', private: true }, properties, env: gateways })
-        const r = await w.agent({ ...coding, description: `${coding.description}${classified ? ' [payload: classified-safe]' : ''}` })
-        const eligible = classified && properties[0]?.value === 'true'
-        expect(text(r)).toContain(eligible ? 'routed: zcode-job sandbox' : 'haiku result')
-        expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(eligible)
-        if (!eligible) expect(w.fetches.some((f) => f.url.endsWith('/chat/completions'))).toBe(false)
-      })
-    }
+  for (const options of [{ repository: { visibility: 'private', private: true } }, { repository: { visibility: 'private', private: true }, properties: [{ property_name: 'ai-untrusted-ok', value: 'true' }] }, { githubError: true }, { githubInvalidJson: true }]) {
+    test(`private or unverifiable repositories never dispatch zcode: ${JSON.stringify(options)}`, async () => {
+      const w = world({ quota: 1, env: gateways, ...options })
+      const r = await w.agent({ ...coding, description: `${coding.description} [payload: classified-safe]` })
+      expect(text(r)).toContain('haiku result')
+      expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
+      expect(w.fetches.some((f) => f.url.endsWith('/chat/completions'))).toBe(false)
+      expect(w.nextCalls[0]).toMatchObject({ model: 'haiku', effort: 'xhigh' })
+    })
   }
-  test('private metadata uses the existing authenticated CLI after an unauthenticated miss', async () => {
-    const w = world({ quota: 1, githubPrivateAuth: true, repository: { visibility: 'private', private: true }, properties: [{ property_name: 'ai-untrusted-ok', value: 'true' }] })
-    expect(text(await w.agent({ ...coding, description: `${coding.description} [payload: classified-safe]` }))).toContain('routed: zcode-job sandbox')
-    expect(w.calls.filter((c) => c.argv[0] === 'gh').map((c) => c.argv)).toEqual([
-      ['gh', 'api', 'repos/owner/project'], ['gh', 'api', 'repos/owner/project/properties/values'],
-    ])
-  })
-  test('unreadable private metadata never qualifies for zcode', async () => {
-    const w = world({ quota: 1, githubPrivateAuth: true, githubAuthDenied: true, env: gateways })
-    expect(text(await w.agent(coding))).toContain('haiku result')
-    expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
-  })
   for (const options of [{}, { githubError: true }, { githubInvalidJson: true }, { repository: { visibility: 'public', private: true } }, { zcodeAvailable: false }]) {
     test(`ineligible sandbox advances to a tool-capable executor: ${JSON.stringify(options)}`, async () => {
       const w = world({ quota: 1, env: gateways, ...options })
@@ -711,7 +694,7 @@ describe('judge and session policy', () => {
       expect(r.sections).toHaveLength(1)
       const policy = r.sections[0].text
       expect(policy).toStartWith(`codex-quota: ${status}\nCheck codex-quota first.`)
-      for (const fragment of ['Luna xhigh', 'Luna max', '[class: bulk-complex]', 'Terra medium', 'Terra high', 'ai-untrusted-ok=true', 'payload classification', 'then Z.ai GLM, then OpenCode Go, then Haiku xhigh', 'human:review', 'leak-scan', 'never auto-merge', 'Sonnet, Opus or Fable', 'secrets, credentials, inventory or incident content']) expect(policy).toContain(fragment)
+      for (const fragment of ['small, quick, checkable tasks (summarize, extract, classify, reformat, a first pass over a file or log)', 'router local default or medium capability before any subscription', 'escalate only after a checked failure', 'equal first choices, split by sensitivity', 'more quota headroom', 'ZCode 5-hour and weekly, OpenCode Go monthly, Codex weekly', 'obvious, definitely non-sensitive coding work in public repos', 'coding and coding-adjacent only: code, tests, GitHub automation and workflows, code reviews', 'ready PR labelled human:review', 'leak-scan it before merge', 'never auto-merge', 'anything even remotely sensitive, or any private repo', 'Luna xhigh default, max as needed', 'while codex-quota exits 0', 'never Terra', 'other subscriptions where they fit (Z.ai GLM, OpenCode Go); public work only', 'at or under its pace for the billing period', 'Haiku xhigh, the last resort, only after rungs 1, 2 and 3 are exhausted', 'Never Sonnet, Opus or Fable subagents', 'Never send secrets, credentials, inventory or incident content to any executor', 'Antigravity stays a second-opinion reviewer']) expect(policy).toContain(fragment)
     })
   }
 })

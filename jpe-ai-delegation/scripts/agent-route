@@ -53,10 +53,7 @@ while IFS=$'\t' read -r executor gate; do
       [[ $codex_quota == available ]] || continue
       ;;
     always) ;;
-    sandbox|allowlisted)
-      if [[ $gate == allowlisted ]]; then
-        [[ ${AGENT_ROUTE_TASK:-} == code && ${AGENT_ROUTE_REPO_AI_UNTRUSTED_OK:-} == true && ${AGENT_ROUTE_PAYLOAD_CLASSIFICATION:-} == safe ]] || continue
-      fi
+    sandbox)
       if [[ ${AGENT_ROUTE_ZCODE_AVAILABLE:-} != yes ]]; then
         [[ ${AGENT_ROUTE_ZCODE_AVAILABLE:-} != no ]] && command -v zcode-job >/dev/null 2>&1 || continue
       fi

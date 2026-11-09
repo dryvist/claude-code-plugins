@@ -4,12 +4,12 @@
       "visibility": "public",
       "rungs": [
         {
-          "name": "Codex",
-          "gate": "codex"
-        },
-        {
           "name": "zcode-job sandbox",
           "gate": "sandbox"
+        },
+        {
+          "name": "Codex",
+          "gate": "codex"
         },
         {
           "name": "Z.ai GLM",
@@ -31,18 +31,6 @@
         {
           "name": "Codex",
           "gate": "codex"
-        },
-        {
-          "name": "zcode-job sandbox",
-          "gate": "allowlisted"
-        },
-        {
-          "name": "Z.ai GLM",
-          "gate": "glm"
-        },
-        {
-          "name": "OpenCode Go",
-          "gate": "opencode-go"
         },
         {
           "name": "Haiku xhigh",

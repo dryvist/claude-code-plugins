@@ -40,7 +40,8 @@ and a hard decision, delegate the evidence gathering and keep the decision.
 ## Cheapest-capable ladder
 
 Choose an executor for each task, not for the whole project. Start at the
-lowest rung that can meet the check.
+lowest rung that can meet the check. Haiku is the last resort, never the first
+pick.
 
 1. **Inline:** tiny work where handoff costs more than doing it, such as a few
    simple tool calls.

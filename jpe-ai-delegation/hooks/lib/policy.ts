@@ -3,22 +3,23 @@
 export type Label = 'bulk' | 'bulk-complex' | 'standard' | 'complex' | 'plan' | 'deep'
 export type Verdict = { verdict: 'safe' | 'unsafe'; reason: string }
 export type Sandbox = 'read-only' | 'workspace-write'
-export type Family = 'luna' | 'terra'
+// The ladder routes Codex Luna only; Terra is never selected.
+export type Family = 'luna'
 export type Route = { family: Family; effort: string }
 
 // 'bulk-complex' comes before 'bulk' and 'complex' so `pickLabel` matches the longer word first.
 export const LABELS: readonly Label[] = ['bulk-complex', 'bulk', 'standard', 'complex', 'plan', 'deep']
 
-export const CODEX_EFFORTS: Record<Family, readonly string[]> = { luna: ['xhigh', 'max'], terra: ['medium', 'high'] }
+export const CODEX_EFFORTS: Record<Family, readonly string[]> = { luna: ['xhigh', 'max'] }
 
-// Plan and deep are advisory workers (read-only sandbox).
+// Luna `xhigh` default, `max` as needed; plan and deep are advisory workers (read-only sandbox).
 export const CODEX: Record<Label, Route> = {
   bulk: { family: 'luna', effort: 'xhigh' },
   'bulk-complex': { family: 'luna', effort: 'max' },
-  standard: { family: 'terra', effort: 'medium' },
-  complex: { family: 'terra', effort: 'high' },
-  plan: { family: 'terra', effort: 'high' },
-  deep: { family: 'terra', effort: 'high' },
+  standard: { family: 'luna', effort: 'xhigh' },
+  complex: { family: 'luna', effort: 'max' },
+  plan: { family: 'luna', effort: 'xhigh' },
+  deep: { family: 'luna', effort: 'xhigh' },
 }
 
 // The classifier and the permission judge are simple, high-volume calls.
@@ -90,8 +91,8 @@ export function newestModel(cacheText: string, family: string): string | undefin
 // The only way to build a `codex exec` command. Reject mismatched families and unsupported efforts;
 // a missing model throws too, because `codex` would then fall back to its configured default.
 export function codexArgv(sandbox: Sandbox, route: Route, model: string | undefined, outputFile: string): string[] {
-  const { family, effort } = route
-  if (family !== 'luna' && family !== 'terra') throw new Error(`unsupported codex family: ${family}`)
+  const { family, effort } = route as { family: string; effort: string }
+  if (family !== 'luna') throw new Error(`codex model must be the luna family, got ${family}`)
   if (!model || !model.endsWith(`-${family}`)) throw new Error(`codex model must be the ${family} family, got ${model ?? 'none'}`)
   const allowed = CODEX_EFFORTS[family]
   if (!allowed.includes(effort)) throw new Error(`codex ${family} effort must be one of ${allowed.join(', ')}, got ${effort}`)
