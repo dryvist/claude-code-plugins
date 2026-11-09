@@ -47,9 +47,8 @@ provenance work. Their availability is not a gate for unrelated deliverables.
 Search the current skill/plugin registry and native tool capabilities before
 adding resources. Prefer instructions and existing native tools. Add no custom
 script, harness shim, or second evaluation framework. Where an authorized
-executable resource is warranted, document dependency-validated invocation
-from a validated path with an argument list, never from a shell command
-string (G3). Stop on conflicting
+executable resource is warranted, document invocation from a validated path
+with an argument list, never from a shell command string (G3). Stop on conflicting
 requirements, missing authority, expanded scope, or the same check failing
 the task's declared failure limit. With no supplied limit, stop after 2
 unsuccessful real fixes to the same check. A denied action ends that path;
