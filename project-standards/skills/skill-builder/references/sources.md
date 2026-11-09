@@ -10,7 +10,9 @@ match their registered dates and pinned revisions, and no current source
 contradicts the applied rules; the entries below record what the recheck
 added. The same recheck refreshed against the **2026-11-08** agent-standards
 revision, registering the rules this skill lacked; SKILL.md now applies them
-through the shared register.
+through the shared register. A same-day second pass against the S6 pages
+added their reserved-name and no-XML-tag specification limits, which
+SKILL.md now states with the name rule.
 
 ## Skill-specific register
 
@@ -22,7 +24,7 @@ through the shared register.
 | S4 | Anthropic [Test plugins with evals](https://code.claude.com/docs/en/plugin-evals) | Unavailable (undated) | 2026-11-07 | Native case format, output-only controls, actual Skill-call indicators separate from task scores, clean trials, baseline arms, and local reports. CLI help previously verified at 2.1.319 on 2026-11-06. |
 | S5 | Google [Gemini CLI skill precedence](https://geminicli.com/docs/cli/skills/#precedence-and-aliases) | Updated 2026-04-30 | 2026-11-07 | Same-name scope and alias precedence; selected resource path and revision verification. Outside the preferred 4-month window; within 12 months. |
 | E1 | Local [claude-skill-authoring](../../claude-skill-authoring/SKILL.md) | Revised [2026-11-06](https://github.com/dryvist/claude-code-plugins/commit/6790c0dde3767577f543ed7cad9e3bd2af92294c) | 2026-11-06 | 1,024-byte description maximum, approximately 250-character target, canonical placement, self-contained execution, inline safety. |
-| S6 | Anthropic Agent Skills [overview](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview) and [best practices](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices) | Unavailable (undated current documentation) | 2026-11-09 | Specification limits: name up to 64 characters lowercase/hyphenated, description up to 1,024 characters non-empty; SKILL.md body under 500 lines; references one level deep with a table of contents in files over 100 lines; avoid time-sensitive wording. |
+| S6 | Anthropic Agent Skills [overview](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview) and [best practices](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices) | Unavailable (undated current documentation) | 2026-11-09 | Specification limits: name up to 64 characters lowercase/hyphenated and free of the reserved words `anthropic` and `claude`; name and description free of XML tags; description up to 1,024 characters non-empty; SKILL.md body under 500 lines; references one level deep with a table of contents in files over 100 lines; avoid time-sensitive wording. |
 
 ## Shared dated sources
 

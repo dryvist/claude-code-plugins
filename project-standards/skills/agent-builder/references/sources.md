@@ -30,7 +30,9 @@ pass registered A13, D5, and D7 for the applied rules, and the shared
 evaluation-conduct rules are owned once by skill-builder and applied here
 by reference; the same pass registered R1 for the calibration position-bias
 check and moved the grader-calibration protocol's single home into
-skill-builder.
+skill-builder. A same-day second pass registered A26, the Claude Code
+subagents documentation, for the subagent-description rule SKILL.md now
+applies beside the effort, background-command, and safeguard-stop rules.
 
 ## Dated source register
 
@@ -59,6 +61,7 @@ and the rule trace live in [findings](findings.md).
 | A23 | Anthropic, [Claude Code 2.1.319](https://code.claude.com/docs/en/changelog#2-1-319) | Released 2026-11-06 | 2026-11-09 | A safeguard-stopped subagent is retried with a narrower prompt or reported; the parent never performs the blocked work. |
 | A24 | Anthropic, [Claude Code v2.1.316 release notes](https://github.com/anthropics/claude-code/releases/tag/v2.1.316) | Released 2026-10-31 | 2026-11-09 | Set a subagent's or forked side job's effort explicitly for its job instead of inheriting the session's level. |
 | A25 | Anthropic, [Claude Code v2.1.318 release notes](https://github.com/anthropics/claude-code/releases/tag/v2.1.318) | Released 2026-11-04 | 2026-11-09 | Run a subagent's long shell commands in the background so its foreground turn does not block while the prompt cache expires. |
+| A26 | Anthropic, [create custom subagents](https://code.claude.com/docs/en/sub-agents) | Current official page; lastModified 2026-11-03 | 2026-11-09 | Subagent descriptions single out one subagent with an explicit when-not-to-use note; combined subagent descriptions stay within the 15,000-token description budget. |
 
 A2's title, publication date, and `memory` and `agent` guidance were fetched
 live on **2026-11-07**. The official [Claude resources site](https://claude.com/resources/articles)

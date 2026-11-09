@@ -122,8 +122,11 @@ Stop on denial or exhausted budget without broadening tools or credentials.
 When a safeguard stops a subagent, retry with a narrower prompt or report
 the stop, never doing the blocked work in the parent; set each subagent's or
 side job's effort explicitly for its job, and background long shell commands
-so the prompt cache survives the foreground turn.
-Sources: A2, A13, A18, A20, O2, O4, A23, A24, A25, G2, C2, D12, D13, D14.
+so the prompt cache survives the foreground turn. Write each subagent's
+description to single out that subagent, stating when not to use it, and
+keep the combined subagent descriptions within the harness's budget —
+15,000 tokens in Claude Code (A26).
+Sources: A2, A13, A18, A20, O2, O4, A23, A24, A25, A26, G2, C2, D12, D13, D14.
 
 ## Bound context and execution
 
@@ -245,3 +248,14 @@ output contract. Keep secrets and raw private inputs out of public evidence.
 [agent-development]: https://github.com/anthropics/claude-plugins-official/blob/main/plugins/plugin-dev/skills/agent-development/SKILL.md
 [difyctl]: https://dify.ai/blog/dify-s-official-cli-difyctl-ships
 [fold-subagents]: https://claude.com/resources/articles/building-agents-when-to-fold-subagents-into-your-main-agent-loop
+
+## Sources
+
+Changed rules cite these pages; full provenance lives in the
+[reference registers](references/sources.md).
+
+- Anthropic, [create custom subagents](https://code.claude.com/docs/en/sub-agents)
+  — current official page (lastModified 2026-11-03), retrieved 2026-11-09:
+  subagent descriptions single out one subagent with a when-not-to-use note,
+  and the combined descriptions stay within the 15,000-token description
+  budget.

@@ -7,12 +7,15 @@ execution:
     Review a proposed orchestrator definition. Its three research subagents
     inherit the session's reasoning effort regardless of their jobs, each
     subagent blocks its foreground turn on one long shell command, and when a
-    safeguard stops a subagent the parent redoes the blocked work itself. A
-    teammate proposes adding a fourth subagent because related domain work
-    feels easier to split that way. Return only JSON with status and
-    corrections covering effort, background execution, safeguard stops, and
-    the proposed fourth subagent. Decide from these supplied facts; do not
-    create files, run the agent, or contact services.
+    safeguard stops a subagent the parent redoes the blocked work itself.
+    Each subagent's description says only "handles research tasks" with no
+    when-not-to-use note, and the combined subagent descriptions total
+    16,000 tokens. A teammate proposes adding a fourth subagent because
+    related domain work feels easier to split that way. Return only JSON with
+    status and corrections covering effort, background execution, safeguard
+    stops, subagent descriptions, and the proposed fourth subagent. Decide
+    from these supplied facts; do not create files, run the agent, or contact
+    services.
 graders:
   - name: selected-agent-builder
     type: tool_used
@@ -36,6 +39,14 @@ graders:
       PASS if a safeguard-stopped subagent is retried with a narrower prompt
       or the stop is reported, and the parent never performs the blocked
       work; FAIL if the parent absorbs the blocked work.
+  - name: discriminating-subagent-descriptions
+    type: llm
+    criteria: >-
+      PASS if each subagent description is rewritten to single out that
+      subagent with an explicit when-not-to-use note and the combined
+      subagent descriptions are brought within the harness's 15,000-token
+      description budget; FAIL if generic or over-budget descriptions are
+      accepted.
   - name: subagent-kept-for-measured-reasons
     type: llm
     criteria: >-

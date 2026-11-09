@@ -5,15 +5,16 @@ execution:
   allowed_tools: [Read, Glob, Grep, Skill]
   prompt: >-
     Review a reusable skill packaging proposal under the applicable authoring
-    rules. Its description is 600 characters, each encoded as 2 UTF-8 bytes.
-    Its entrypoint is 350 lines and measures 3,400 tokens with atc -m sonnet.
-    To reach the preferred token target, the author proposes moving all
-    authority limits and stop conditions into an optional reference. The user
-    explicitly wants manual-only invocation in both Claude Code and Codex;
-    the proposal sets only Claude's disable-model-invocation. Return only JSON
-    with description_bytes, description_status, body_status, safety_decision,
-    and invocation_correction. Reading installed policy is allowed. Decide
-    from these supplied facts without writing files, running counters, or
+    rules. Its name is claude-skill-checker. Its description is 600
+    characters, each encoded as 2 UTF-8 bytes. Its entrypoint is 350 lines
+    and measures 3,400 tokens with atc -m sonnet. To reach the preferred
+    token target, the author proposes moving all authority limits and stop
+    conditions into an optional reference. The user explicitly wants
+    manual-only invocation in both Claude Code and Codex; the proposal sets
+    only Claude's disable-model-invocation. Return only JSON with name_status,
+    description_bytes, description_status, body_status, safety_decision, and
+    invocation_correction. Reading installed policy is allowed. Decide from
+    these supplied facts without writing files, running counters, or
     inventing results.
 graders:
   - name: selected-skill-builder
@@ -26,11 +27,14 @@ graders:
   - name: portable-packaging-decision
     type: llm
     criteria: >-
-      PASS only if the description fails the 1,024-byte maximum despite its
-      character count; the body satisfies the 500-line and 3,500-token caps
-      while exceeding the 1,500-token target; essential safety stays inline
-      even at the cost of missing that soft target; manual-only invocation
-      needs Codex agents/openai.yaml policy as well as Claude metadata and
-      effective invocation tests in each harness. FAIL if targets become hard
-      limits, byte and character budgets are equated, safety is offloaded,
-      or Claude metadata is assumed to configure Codex.
+      PASS only if the claude-skill-checker name is rejected because the
+      specification reserves the words anthropic and claude for skill names;
+      the description fails the 1,024-byte maximum despite its character
+      count; the body satisfies the 500-line and 3,500-token caps while
+      exceeding the 1,500-token target; essential safety stays inline even at
+      the cost of missing that soft target; manual-only invocation needs
+      Codex agents/openai.yaml policy as well as Claude metadata and
+      effective invocation tests in each harness. FAIL if the reserved-word
+      name is accepted, targets become hard limits, byte and character
+      budgets are equated, safety is offloaded, or Claude metadata is assumed
+      to configure Codex.

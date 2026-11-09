@@ -37,6 +37,7 @@ records live in [skill-builder sources](../../skill-builder/references/sources.m
 | Dated rule provenance and refresh evidence | A3, O1 | 2026-09-28; 2026-09-11 | no | A/S add source registers and versioned development evals. |
 | Read-only tool surface for read-only requests | O4 | 2026-11-09 | no | A exposes only read-only tools for read-only requests and leaves a no-tool answer available. |
 | Subagent effort, background commands, and safeguard stops | A23, A24, A25 | 2026-10-31; 2026-11-04; 2026-11-06 | no | A contains safeguard-stopped work outside the parent, sets subagent effort explicitly, and backgrounds long commands. |
+| Discriminating subagent descriptions within the description budget | A26 | 2026-11-03 | no | A writes each subagent description to single out that subagent with a when-not-to-use note and keeps the combined set within the harness budget. |
 | Stored-rule evidence and single-writer memory | A20 | 2026-11-06 | no | A requires evidence references, status, authorized correction, and one writer per shared record. |
 | Managed checkpoints needing fresh approval | O10 | 2026-11-06 | no | S owns the per-run checkpoint rule; A applies it through skill-builder's enforcement guidance. |
 | Workflow-versus-agent boundary and complete routing | D13; D12 | 2026-10-16; 2026-10-28 | no | A assigns schedules, branches, approvals, and recovery to workflows and requires exhaustive routes with an otherwise route. |
@@ -66,7 +67,7 @@ records live in [skill-builder sources](../../skill-builder/references/sources.m
   does not change the platform architecture.
 - Tool/permission decisions: A2, A13, A18, A20, O2, O4, A23–A25, G2, C2, D14;
   managed checkpoints (O10) apply from skill-builder's enforcement guidance.
-  Context and execution: A1, O1, O3. Subagent structure: A21.
+  Context and execution: A1, O1, O3. Subagent structure: A21, A26.
   Numerical runtime budgets come from the task/runtime owner, not these sources.
 - Render/evaluate: A3, G1, G3, G4, G5, C1, C3, F6, R1; shared evaluation-conduct
   rules, including grader calibration with the position-bias check, apply from
