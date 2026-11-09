@@ -6,11 +6,10 @@ execution:
   prompt: >-
     Review a skill evaluation plan whose execution cases hand off between
     two assistants. The plan collapses each multi-turn session to its final
-    answer, flattens assistant-turn boundaries and parallel-call batches,
-    injects an instruction before the skill's guidance loads without
-    recording that timing, keeps duplicated messages in the stored
-    trajectory, and discards the underlying traces. Return only JSON with
-    status and corrections covering the session evaluation. Decide from
+    answer, loses assistant-turn boundaries and parallel-call batches, adds
+    an instruction mid-session without noting when it arrived, keeps
+    duplicate messages, and discards the underlying traces. Return only JSON
+    with status and corrections covering the session evaluation. Decide from
     these supplied facts; do not create files, run evaluations, or contact
     services.
 graders:

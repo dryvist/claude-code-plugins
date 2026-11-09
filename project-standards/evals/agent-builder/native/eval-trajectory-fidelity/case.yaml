@@ -5,15 +5,14 @@ execution:
   allowed_tools: [Read, Glob, Grep, Skill]
   prompt: >-
     Review an evaluation plan for a handoff-using platform agent. The plan
-    collapses every multi-turn session to its final answer, flattens
-    assistant-turn boundaries and parallel-call batches, replays an injected
-    instruction before the agent's guidance loads without recording that
-    timing, keeps duplicated messages in the stored trajectory, discards the
-    underlying traces, and asserts tool arguments only with the wording "the
-    arguments are right". Plan-only cases run with no execution of any kind.
-    Return only JSON with status and corrections covering the plan. Decide
-    from these supplied facts; do not create files, run evaluations, or
-    contact services.
+    collapses every multi-turn session to its final answer, loses
+    assistant-turn boundaries and parallel-call batches, adds an instruction
+    mid-session without noting when it arrived, keeps duplicate messages,
+    discards the underlying traces, and asserts tool arguments only with a
+    vague correctness statement. Plan-only cases run with no execution of
+    any kind. Return only JSON with status and corrections covering the
+    plan. Decide from these supplied facts; do not create files, run
+    evaluations, or contact services.
 graders:
   - name: selected-agent-builder
     type: tool_used
