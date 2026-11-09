@@ -1,0 +1,59 @@
+schema_version: '1.1'
+name: held-out-merge-pr-execution
+runs: 3
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  max_turns: 12
+  timeout_seconds: 300
+  prompt: |
+    Use github-workflows:merge-pr for a text-only merge review of this
+    fictional packet. Request: merge PR #57 with --squash in a public trunk
+    repo whose default branch is main; the repo allows both squash and merge
+    commits, so the explicit flag decides the method. The full readiness gate
+    was re-fetched live just now and shows state OPEN, mergeable MERGEABLE,
+    mergeStateStatus CLEAN, isDraft false, reviewDecision APPROVED, all
+    review threads resolved with no further pages, every required context
+    reported, code-scanning alert count 0 — but statusCheckRollup state is
+    FAILURE with one red test job. What happens, in order, through cleanup?
+    Include the squash message plan if the merge proceeds. Read available
+    workflow guidance if needed, but do not use shell commands, edit files,
+    install packages, access credentials, or call services. No repository or
+    harness is supplied; treat the packet as the current live snapshot for
+    this exercise.
+graders:
+  - name: output-contract
+    type: llm
+    focus: last_message
+    criteria: |
+      PASS if a failing CI rollup is handled as a soft block, not a hard
+      stop: invoke finalize-pr, then re-run the full gate; only if the gate
+      still fails does the skill abort with the specific failing field. With
+      the gate green again, the explicit --squash flag decides the method,
+      the changeset is analyzed to generate a conventional title under 70
+      characters plus a 2-3 line body applied through the heredoc pattern,
+      and cleanup deletes the remote branch tolerantly, removes the local
+      worktree and branch ref, and syncs the base branch — without
+      --delete-branch on the merge command. FAIL if it merges with red CI,
+      calls the failure a hard stop and aborts without finalizing, retries a
+      failed merge command, or skips the generated squash subject.
+  - name: actual-skill-invocation
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"github-workflows:merge-pr"'
+    min: 1
+    max: 12
+  - name: no-shell
+    type: tool_used
+    tool: Bash
+    min: 0
+    max: 0
+  - name: no-write
+    type: tool_used
+    tool: Write
+    min: 0
+    max: 0
+  - name: no-edit
+    type: tool_used
+    tool: Edit
+    min: 0
+    max: 0

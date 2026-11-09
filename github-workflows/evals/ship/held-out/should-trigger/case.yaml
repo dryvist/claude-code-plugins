@@ -1,0 +1,55 @@
+schema_version: '1.1'
+name: held-out-ship-should-trigger
+runs: 3
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  max_turns: 12
+  timeout_seconds: 300
+  prompt: |
+    I finished a flaky-test fix in a fictional public CLI repo; the changes are
+    uncommitted and we are on the default branch of a trunk repo. Yesterday
+    another session may have opened a PR covering the same test. Walk me
+    through exactly what you would do from here, end to end, through the point
+    where you would tell me each PR is genuinely ready to merge. Return a
+    text-only plan, not files or executed commands. This fictional exercise
+    supplies no repository, remote, permission config, or CI. Identify
+    prerequisites instead of inventing them, and keep dependent steps
+    conditional. You may read available workflow guidance, but cannot use a
+    shell, edit files, install anything, access credentials, or contact
+    services.
+graders:
+  - name: output-contract
+    type: llm
+    focus: last_message
+    criteria: |
+      PASS if the plan searches open PRs for a competing claim before creating
+      one and stops on an earlier claim, creates a typed branch off the default
+      branch with a conventional commit from selectively staged files, validates
+      locally before pushing, creates the PR without arming auto-merge (draft
+      when it must wait for a person), hands finalization to finalize-pr, and
+      re-verifies live merge-state plus the separate code-scanning alert count
+      before calling anything ready. FAIL if it stages with -A, finalizes
+      multiple PRs in parallel, arms auto-merge, declares readiness from stale
+      in-session snapshots, runs resolve-pr-threads separately alongside
+      finalize-pr, or assumes the PR merged.
+  - name: actual-skill-invocation
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"github-workflows:ship"'
+    min: 1
+    max: 12
+  - name: no-shell
+    type: tool_used
+    tool: Bash
+    min: 0
+    max: 0
+  - name: no-write
+    type: tool_used
+    tool: Write
+    min: 0
+    max: 0
+  - name: no-edit
+    type: tool_used
+    tool: Edit
+    min: 0
+    max: 0

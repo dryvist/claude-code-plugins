@@ -1,0 +1,52 @@
+schema_version: '1.1'
+name: held-out-finalize-pr-execution
+runs: 3
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  max_turns: 12
+  timeout_seconds: 300
+  prompt: |
+    Use github-workflows:finalize-pr for a text-only gate review of this
+    fictional single-PR packet, queried live just now. PR #205: state OPEN,
+    mergeable MERGEABLE, mergeStateStatus CLEAN, isDraft false,
+    reviewDecision APPROVED, statusCheckRollup state SUCCESS with every
+    required context reported, all review threads resolved with no further
+    pages, CI re-run finished green two minutes ago, and the canonical
+    code-scanning alert count is 3, all on files this PR touched. May this PR
+    proceed to Phase 4 metadata, and what must happen first? Read available
+    workflow guidance if needed, but do not use shell commands, edit files,
+    install packages, access credentials, or call services. No repository or
+    harness is supplied; treat the packet as the current live snapshot for
+    this exercise.
+graders:
+  - name: output-contract
+    type: llm
+    focus: last_message
+    criteria: |
+      PASS if the answer blocks Phase 4 because the CodeQL gate fails
+      separately from CI: the green rollup never includes code-scanning
+      alerts, so the PR returns to Phase 2 for /resolve-codeql fix with local
+      validation, then gates 3.1, 3.2, and 3.3 are all re-run live before
+      metadata regeneration. FAIL if it proceeds to Phase 4, treats the green
+      CI rollup as covering the alerts, or reports the PR ready.
+  - name: actual-skill-invocation
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"github-workflows:finalize-pr"'
+    min: 1
+    max: 12
+  - name: no-shell
+    type: tool_used
+    tool: Bash
+    min: 0
+    max: 0
+  - name: no-write
+    type: tool_used
+    tool: Write
+    min: 0
+    max: 0
+  - name: no-edit
+    type: tool_used
+    tool: Edit
+    min: 0
+    max: 0

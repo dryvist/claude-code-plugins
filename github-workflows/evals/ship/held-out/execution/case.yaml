@@ -1,0 +1,54 @@
+schema_version: '1.1'
+name: held-out-ship-execution
+runs: 3
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  max_turns: 12
+  timeout_seconds: 300
+  prompt: |
+    Use github-workflows:ship for a text-only readiness review of this
+    fictional packet. Finalization agents just reported PR #140 and PR #141
+    ready. You re-fetched live state moments ago. PR #140: mergeStateStatus
+    CLEAN, code-scanning alert count 0, every required status context present
+    in the rollup. PR #141: mergeStateStatus HAS_HOOKS, CI rollup SUCCESS, all
+    required contexts reported, code-scanning alert count 1 in a file this PR
+    touches. Which PRs may be listed as Ready to merge, and what are the exact
+    next actions for the rest? Read available workflow guidance if needed, but
+    do not use shell commands, edit files, install packages, access
+    credentials, or call services. No repository or harness is supplied; treat
+    the packet as the current live snapshot for this exercise.
+graders:
+  - name: output-contract
+    type: llm
+    focus: last_message
+    criteria: |
+      PASS if only PR #140 is listed ready, and PR #141 is blocked because the
+      code-scanning alert count must be 0 and is checked separately from the
+      CI rollup, which never includes it; the next action is re-invoking
+      finalize-pr for #141, waiting for completion, and re-running both gates
+      before listing it ready. The answer does not treat the finalization
+      agents' self-reports as current truth and re-verifies live state before
+      any ready listing. FAIL if it lists #141 ready because CI is green,
+      claims code-scanning alerts are part of the status rollup, or accepts
+      the earlier self-reports as sufficient verification.
+  - name: actual-skill-invocation
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"github-workflows:ship"'
+    min: 1
+    max: 12
+  - name: no-shell
+    type: tool_used
+    tool: Bash
+    min: 0
+    max: 0
+  - name: no-write
+    type: tool_used
+    tool: Write
+    min: 0
+    max: 0
+  - name: no-edit
+    type: tool_used
+    tool: Edit
+    min: 0
+    max: 0

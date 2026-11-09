@@ -1,0 +1,55 @@
+schema_version: '1.1'
+name: held-out-finalize-pr-should-trigger
+runs: 3
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  max_turns: 12
+  timeout_seconds: 300
+  prompt: |
+    In a fictional public repo, PR #88 on the current branch has a failing
+    lint CI run, one unresolved review thread asking about an empty catch
+    block (it is intentional; the caller handles errors), and a description
+    that still says WIP. Drive this PR to merge-ready without merging it.
+    Return a text-only plan, not files or executed commands. This fictional
+    exercise supplies no repository, remote, permission config, or CI.
+    Identify prerequisites instead of inventing them, and keep dependent
+    steps conditional. You may read available workflow guidance, but cannot
+    use a shell, edit files, install anything, access credentials, or
+    contact services.
+graders:
+  - name: output-contract
+    type: llm
+    focus: last_message
+    criteria: |
+      PASS if the plan starts CI monitoring in the background while running
+      independent fixes in parallel, evaluates the reviewer thread against a
+      context brief that records the empty catch block as an intentional
+      pattern instead of blindly applying the suggestion, fixes the CI
+      failure with local validation, runs simplify once after all other
+      fixes (not before them, and not as a pre-push pass), regenerates the
+      title and description through a delegate, and finishes with a live
+      re-run of every gate field on this invocation. FAIL if it merges,
+      treats a passing mergeable field as full readiness, applies reviewer
+      feedback uncritically, skips metadata regeneration, or declares ready
+      from the state described in the prompt without a fresh gate check.
+  - name: actual-skill-invocation
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"github-workflows:finalize-pr"'
+    min: 1
+    max: 12
+  - name: no-shell
+    type: tool_used
+    tool: Bash
+    min: 0
+    max: 0
+  - name: no-write
+    type: tool_used
+    tool: Write
+    min: 0
+    max: 0
+  - name: no-edit
+    type: tool_used
+    tool: Edit
+    min: 0
+    max: 0
