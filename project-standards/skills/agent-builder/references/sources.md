@@ -62,6 +62,7 @@ and the rule trace live in [findings](findings.md).
 | A24 | Anthropic, [Claude Code v2.1.316 release notes](https://github.com/anthropics/claude-code/releases/tag/v2.1.316) | Released 2026-10-31 | 2026-11-09 | Set a subagent's or forked side job's effort explicitly for its job instead of inheriting the session's level. |
 | A25 | Anthropic, [Claude Code v2.1.318 release notes](https://github.com/anthropics/claude-code/releases/tag/v2.1.318) | Released 2026-11-04 | 2026-11-09 | Run a subagent's long shell commands in the background so its foreground turn does not block while the prompt cache expires. |
 | A26 | Anthropic, [create custom subagents](https://code.claude.com/docs/en/sub-agents) | Current official page; lastModified 2026-11-03 | 2026-11-09 | Subagent descriptions single out one subagent with an explicit when-not-to-use note; combined subagent descriptions stay within the 15,000-token description budget. |
+| A27 | Anthropic, [release notes overview](https://platform.claude.com/docs/en/release-notes/overview) | Published 2026-11-09 | 2026-11-09 | Keep models that require prompt retention off zero-data-retention routes; Fable 5.2 and Mythos 5.2 require 30-day retention unless expressly authorized. Keep the system prompt, tool definitions, and earlier messages unchanged within a conversation — Fable 5.2 rejects a replay whose earlier turns were edited. |
 
 A2's title, publication date, and `memory` and `agent` guidance were fetched
 live on **2026-11-07**. The official [Claude resources site](https://claude.com/resources/articles)

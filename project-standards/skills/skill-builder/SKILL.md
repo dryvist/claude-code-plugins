@@ -122,8 +122,10 @@ verify availability without silently installing tooling or granting access.
 
 Register the directory in the owning plugin's manifest and update its skill
 listing. Reuse existing discovery and distribution; do not copy canonical
-content into vendor directories. Keep agent prompts and logic out of Ansible
-repositories, which accept input parameters only.
+content into vendor directories. Never place skills in a nested
+`.claude/skills` directory under `~/.claude/plugins`; Claude Code 2.1.321
+stopped loading skills from there (S7). Keep agent prompts and logic out of
+Ansible repositories, which accept input parameters only.
 
 For Gemini CLI same-name skills, workspace scope overrides user scope; within
 either tier, `.agents/skills/` overrides `.gemini/skills/`. Verify the selected
@@ -142,11 +144,12 @@ plugin/schema validation, markdown lint, and commit hooks. Check UTF-8
 description bytes explicitly if the validator only checks characters.
 Run the frozen trigger and execution suites on the permitted target models
 and harnesses, with candidate and baseline arms and independent held-out
-evaluation. Replay shared fixtures through each available runner type and
-locate guidance and tool-availability differences before editing
-instructions (O8). Use development failure transcripts to derive general fixes; never
-paste failure content or case-specific answers into the optimized prompt or
-skill body. Keep those details in development fixtures. In each optimization
+evaluation. Set `CLAUDE_CODE_PLUGIN_DIR_WATCH=0` for headless skill trials so
+skills cannot reload mid-trial (S7). Replay shared fixtures through each
+available runner type and locate guidance and tool-availability differences
+before editing instructions (O8). Use development failure transcripts to
+derive general fixes; never paste failure content or case-specific answers
+into the optimized prompt or skill body. Keep those details in development fixtures. In each optimization
 round, record one hypothesis and propose one attributable change to one surface
 (description, body, tools, or harness). Measure it against the baseline and
 record keep or revert before starting the next round; rerun affected checks.
@@ -181,3 +184,7 @@ Changed rules cite these pages; full provenance lives in the
   — current official documentation (undated pages), retrieved 2026-11-09:
   names cannot contain the reserved words `anthropic` or `claude`, and names
   and descriptions cannot contain XML tags.
+- Anthropic, [Claude Code changelog, 2.1.321](https://code.claude.com/docs/en/changelog#2-1-321)
+  — released 2026-11-09, retrieved 2026-11-09: headless skill trials set
+  `CLAUDE_CODE_PLUGIN_DIR_WATCH=0`, and skills are not loaded from a nested
+  `.claude/skills` directory under `~/.claude/plugins`.

@@ -146,7 +146,12 @@ Use agent names and tier numbers. Select a capability/routing role, never a
 model from memory. Model selection requires a dated live-source dossier and
 the shared age policy; an undated or over-12-month-old model fails closed.
 Tier 2 stays local and may wait 12 hours. Tiers 0–1 follow privacy-class cloud
-policy; a key-only request requires zero data retention (ZDR).
+policy; a key-only request requires zero data retention (ZDR). Keep models
+that require prompt retention off ZDR routes; as of 2026-11-09, Fable 5.2 and
+Mythos 5.2 require 30-day retention unless Anthropic expressly authorizes
+zero data retention. Keep the system prompt, tool definitions, and earlier
+messages unchanged within a conversation; Fable 5.2 rejects a replay whose
+earlier turns were edited. Sources: A27.
 
 ## Render and evaluate
 
@@ -226,3 +231,7 @@ Changed rules cite these pages; full provenance lives in the
   — updated 2026-11-04, retrieved 2026-11-09: record what the Dify DSL
   export omits (plugin, credential, and model-provider bindings) as
   dependencies of the exported app.
+- Anthropic, [release notes overview](https://platform.claude.com/docs/en/release-notes/overview)
+  — published 2026-11-09, retrieved 2026-11-09: Fable 5.2 and Mythos 5.2
+  require 30-day retention unless expressly authorized zero data retention,
+  and Fable 5.2 rejects a replay whose earlier turns were edited.
