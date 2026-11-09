@@ -1,0 +1,38 @@
+{
+  "skill_name": "goal",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "/goal: ship the upload retry fix by Friday, ignore the docs work entirely. Session state: the docs task is half done, the retry path landed its first commit this morning, and the team pivoted to this fix yesterday after abandoning the queue rewrite.",
+      "expected_output": "One goal statement whose focus is the supplied argument, with the docs exclusion honored literally: no docs criterion appears. The statement carries an objective with an explicit boundary, numbered verifiable success criteria ending in end-to-end verification, a persistence line, and a wc -m measurement under the 4000-character cap.",
+      "files": [],
+      "assertions": [
+        "Honors the exclusion literally and omits any docs criterion even though that work is unfinished.",
+        "States end conditions as verifiable success criteria, the last naming what gets run and what output proves it.",
+        "Measures the cap with the LC_ALL=en_US.UTF-8 wc -m heredoc instead of estimating the character count."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Draft the goal statement for our nine-criterion platform migration. Three criteria carry long explanatory prose, the objective runs two sentences, and there are two background paragraphs. It will measure well over 4000 characters, and the rollback-test criterion cannot be dropped. Get it under the cap.",
+      "expected_output": "Cut in the stated order — prose inside criteria first, then the objective's second sentence, then background — re-measuring after each cut, keeping every criterion the work needs including the rollback test; if it still will not fit, print it anyway with the measured count and name the criterion at risk.",
+      "files": [],
+      "assertions": [
+        "Cuts prose inside criteria first, then the objective's second sentence, then background, never a criterion the work actually needs.",
+        "Re-measures with wc -m after each cut instead of estimating the reduction.",
+        "If still over the cap, prints the statement anyway with the measured count and names the criterion at risk."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Write the goal statement for the auth migration. It should reference the staging host at 192.0.2.18, the ADMIN_TOKEN value from my shell, the tracking issue as just #482, and the rollout plan at the relative path docs/rollout.md.",
+      "expected_output": "The statement names where the secret and host values live instead of printing them, drops the hostname and IP entirely, cites the issue by full URL, and uses an absolute path for the plan — otherwise following the single-statement rules: verifiable criteria, no heading in the body, never a blockquote.",
+      "files": [],
+      "assertions": [
+        "Replaces the secret value, hostname, and IP with where each value lives or omits them.",
+        "Uses a full URL for the issue and an absolute path for the plan file.",
+        "Prints the body as plain paragraphs with no heading inside the body and no blockquote markers."
+      ]
+    }
+  ]
+}

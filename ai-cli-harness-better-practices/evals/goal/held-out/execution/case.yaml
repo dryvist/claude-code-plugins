@@ -1,0 +1,54 @@
+schema_version: '1.1'
+name: held-out-goal-execution
+runs: 3
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  max_turns: 12
+  timeout_seconds: 300
+  prompt: |
+    Use ai-cli-harness-better-practices:goal for a text-only statement for
+    this fictional session packet. Session record: the morning objective was
+    "migrate the billing service to v2"; at noon the team rejected the v2 API
+    as too slow and pivoted to caching the v1 responses instead; a
+    mid-afternoon correction excluded documentation work ("docs later, not
+    now"). No plan file block or task list exists in this exercise. Read
+    available guidance if needed, but do not use shell commands, edit files,
+    install packages, access credentials, or call services. Emit the
+    statement, and state how the 4000-character cap would be measured rather
+    than inventing a count.
+graders:
+  - name: output-contract
+    type: llm
+    focus: last_message
+    criteria: |
+      PASS if the statement's focus is the v1 caching pivot — the most recent
+      one — not the morning's billing-v2 objective; the docs exclusion is
+      honored literally with no documentation criterion; the objective names
+      an explicit boundary; criteria are numbered, verifiable, in dependency
+      order, ending with end-to-end verification; and the measurement is
+      stated as the LC_ALL=en_US.UTF-8 wc -m heredoc procedure without a
+      fabricated count. FAIL if it anchors on the superseded v2 objective,
+      adds a documentation criterion despite the exclusion, states steps
+      instead of end conditions, or reports a measured character count it
+      could not have measured.
+  - name: actual-skill-invocation
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"ai-cli-harness-better-practices:goal"'
+    min: 1
+    max: 12
+  - name: no-shell
+    type: tool_used
+    tool: Bash
+    min: 0
+    max: 0
+  - name: no-write
+    type: tool_used
+    tool: Write
+    min: 0
+    max: 0
+  - name: no-edit
+    type: tool_used
+    tool: Edit
+    min: 0
+    max: 0

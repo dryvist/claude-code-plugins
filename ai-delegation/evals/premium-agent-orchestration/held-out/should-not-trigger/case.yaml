@@ -1,0 +1,51 @@
+schema_version: '1.1'
+name: held-out-premium-agent-orchestration-should-not-trigger
+runs: 3
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  max_turns: 12
+  timeout_seconds: 300
+  prompt: |
+    One chore, nothing else in flight: pull the fifty merged PR titles from
+    the release log below and give me a one-line digest per title. The
+    router's small tier should be able to handle it cheaply. Return a
+    text-only plan for placing this single read, not files or executed
+    commands. This fictional exercise supplies no repository, router
+    endpoint, or services; identify prerequisites instead of inventing them.
+    You may read available guidance, but cannot use a shell, edit files,
+    install anything, access credentials, or contact services.
+graders:
+  - name: output-contract
+    type: llm
+    focus: last_message
+    criteria: |
+      PASS if the single bulk read is placed with the local/cheap-tier
+      mechanics: cheapest capable entry from a live menu fetch, a
+      schema-bound prompt with a row cap and hard STOP under a per-call
+      timeout, and a reported alias. It does not run an orchestrator reset,
+      enumerate workstreams or in-flight delegates, or build a ladder for one
+      task. FAIL if it invokes a full marathon reset for a one-task request,
+      invents in-flight state to coordinate, or treats a single bulk read as
+      a multi-workstream fan-out.
+  - name: no-skill-invocation
+    type: tool_used
+    arm: both
+    tool: Skill
+    input_match: '"skill"\s*:\s*"ai-delegation:premium-agent-orchestration"'
+    min: 0
+    max: 0
+  - name: no-shell
+    type: tool_used
+    tool: Bash
+    min: 0
+    max: 0
+  - name: no-write
+    type: tool_used
+    tool: Write
+    min: 0
+    max: 0
+  - name: no-edit
+    type: tool_used
+    tool: Edit
+    min: 0
+    max: 0

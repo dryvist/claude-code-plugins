@@ -1,0 +1,54 @@
+schema_version: '1.1'
+name: held-out-replan-should-trigger
+runs: 3
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  max_turns: 12
+  timeout_seconds: 300
+  prompt: |
+    /resume surfaced contradictions: my plan still lists four steps for work
+    that already merged, and one step tells me to edit a file the new design
+    deleted. Get the plan back in line with what is real. Text-only
+    exercise: no repository, git history, or router endpoint is supplied —
+    identify which ground-truth sources you would need instead of inventing
+    their contents, and keep dependent steps conditional. You may read
+    available guidance, but cannot use a shell, edit files, install anything,
+    access credentials, or contact services.
+graders:
+  - name: output-contract
+    type: llm
+    focus: last_message
+    criteria: |
+      PASS if the plan's own prose is treated as the least trustworthy
+      source, ground truth is re-derived from the artifact, the running
+      system, and version control before any classification, unreachable
+      sources are named as unknowns rather than assumed empty, items are
+      classified from live evidence (done marked complete without carrying
+      forward, invalid struck with a one-line why, valid kept with drifted
+      facts refreshed), the rewrite cuts dead steps and records shipped work
+      with full URLs and absolute paths, and the delta is reported in the
+      marked-done/struck/still-open/newly-added format. FAIL if it trusts
+      checkbox states, edits the plan by patching its own prose, treats an
+      unreachable source as empty, or claims to have read git history that
+      was never supplied.
+  - name: actual-skill-invocation
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"ai-cli-harness-better-practices:replan"'
+    min: 1
+    max: 12
+  - name: no-shell
+    type: tool_used
+    tool: Bash
+    min: 0
+    max: 0
+  - name: no-write
+    type: tool_used
+    tool: Write
+    min: 0
+    max: 0
+  - name: no-edit
+    type: tool_used
+    tool: Edit
+    min: 0
+    max: 0

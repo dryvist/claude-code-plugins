@@ -1,0 +1,53 @@
+schema_version: '1.1'
+name: held-out-local-subagents-should-trigger
+runs: 3
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  max_turns: 12
+  timeout_seconds: 300
+  prompt: |
+    A public dataset export dropped 5000 product rows into this workspace and
+    a schema file defines the twelve fields each record must yield. My context
+    cannot hold the file. Plan how to get every row extracted and validated as
+    a text-only plan: where the work goes, which tier, and what comes back to
+    me. This fictional exercise supplies no live router endpoint, credentials,
+    or network access, and the dataset itself is not attached. Identify
+    prerequisites instead of inventing them, and keep dependent steps
+    conditional. You may read available guidance, but cannot use a shell, edit
+    files, install anything, or contact services.
+graders:
+  - name: output-contract
+    type: llm
+    focus: last_message
+    criteria: |
+      PASS if the plan routes the bulk extraction to the cheapest capable
+      router tier rather than the assistant's own context, reads the endpoint
+      from the environment and fetches the live menu before choosing, sends a
+      schema-bound prompt with a row cap and a hard STOP under a per-call
+      timeout, verifies the output against the supplied schema, escalates at
+      most one tier on checked failure, and reports the alias that produced
+      the result. It names the missing endpoint and dataset as prerequisites
+      instead of pretending calls succeeded. FAIL if it reads the rows into
+      its own context, hardcodes a model name, runs an unbounded batch without
+      verification, or claims a live call was made.
+  - name: actual-skill-invocation
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"ai-delegation:local-subagents"'
+    min: 1
+    max: 12
+  - name: no-shell
+    type: tool_used
+    tool: Bash
+    min: 0
+    max: 0
+  - name: no-write
+    type: tool_used
+    tool: Write
+    min: 0
+    max: 0
+  - name: no-edit
+    type: tool_used
+    tool: Edit
+    min: 0
+    max: 0

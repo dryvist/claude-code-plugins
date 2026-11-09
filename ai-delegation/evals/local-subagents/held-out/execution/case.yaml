@@ -1,0 +1,56 @@
+schema_version: '1.1'
+name: held-out-local-subagents-execution
+runs: 3
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  max_turns: 12
+  timeout_seconds: 300
+  prompt: |
+    Use ai-delegation:local-subagents for a text-only placement review of
+    this fictional batch. Input: 1200 log lines, each needing a severity
+    label; a linter cross-checks every label against the log text. The menu
+    packet: entry A, free, capability small, speed fast, best_for
+    "classification", caveat "free tier retains prompts"; entry B, paid,
+    capability small, speed fast, quality one class above A, no caveats;
+    entry C, paid, capability medium, speed slow. The log content is public
+    release notes. Read available guidance if needed, but do not use shell
+    commands, edit files, install packages, access credentials, or call
+    services. Decide: which entry takes the first pass, what the request
+    looks like, how failures are re-run, what gets reported, and whether any
+    rule in the packet changes the answer.
+graders:
+  - name: output-contract
+    type: llm
+    focus: last_message
+    criteria: |
+      PASS if the first pass goes to entry A after weighing its caveat: the
+      input is public data, so the free-tier retention caveat does not forbid
+      it, and free before paid with a capable best_for match wins; failures
+      are re-run one tier up at entry B only, never straight to entry C, and
+      items that passed are never re-run; the request is schema-bound with a
+      row cap and a hard STOP under a per-call timeout; the report names the
+      alias per result and states the choice was made from the supplied
+      hints. FAIL if it starts at entry B or C without a checked failure at
+      A, escalates past one step, re-runs passing items, or ignores the
+      retention caveat while treating the data as sensitive.
+  - name: actual-skill-invocation
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"ai-delegation:local-subagents"'
+    min: 1
+    max: 12
+  - name: no-shell
+    type: tool_used
+    tool: Bash
+    min: 0
+    max: 0
+  - name: no-write
+    type: tool_used
+    tool: Write
+    min: 0
+    max: 0
+  - name: no-edit
+    type: tool_used
+    tool: Edit
+    min: 0
+    max: 0

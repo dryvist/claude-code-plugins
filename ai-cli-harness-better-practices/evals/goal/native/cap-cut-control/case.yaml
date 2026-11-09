@@ -1,0 +1,25 @@
+schema_version: "1.1"
+name: goal-cap-cut-control
+tags: [development, execution, execution-control, discrimination]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: >-
+    A drafted goal statement measures 4500 characters, already confirmed with
+    LC_ALL=en_US.UTF-8 wc -m. Its parts: nine success criteria, three of
+    which carry long explanatory prose after their conditions; a two-sentence
+    objective; and two background paragraphs on why the migration exists. The
+    rollback-test criterion cannot be dropped. Bring it under 4000
+    characters. Return only the cut plan and the order of operations; assess
+    the supplied parts only, with no operations.
+graders:
+  - name: cut-order-decision
+    type: llm
+    criteria: >-
+      PASS if the cut order is: prose inside criteria first (keeping each
+      condition, dropping explanations), then the objective's second
+      sentence, then the background paragraphs, with a re-measure after each
+      cut and the rollback-test criterion retained throughout; if the cuts
+      cannot get under 4000, the statement prints anyway with the measured
+      count and the criterion at risk. FAIL if it drops the rollback-test
+      criterion, cuts whole criteria before exhausting prose, skips the
+      re-measure steps, or estimates counts without measuring.

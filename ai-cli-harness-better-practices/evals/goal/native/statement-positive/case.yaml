@@ -1,0 +1,29 @@
+schema_version: "1.1"
+name: goal-statement-positive
+tags: [development, should-trigger]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: >-
+    Fictional session: the work started as a dashboard rebuild, pivoted at
+    noon to fixing the data exporter it kept uncovering, and the exporter fix
+    is one commit from done. What is the current objective? Text-only
+    statement; decide from these supplied facts without writing files,
+    running commands, or inventing results, and state how the cap would be
+    measured rather than inventing a count.
+graders:
+  - name: selected-goal
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:[\w-]+:)?goal"'
+  - name: statement-rules
+    type: llm
+    criteria: >-
+      PASS only if the answer emits one self-contained goal statement derived
+      from the most recent pivot (the exporter fix, not the dashboard
+      rebuild), with an objective plus explicit boundary, numbered verifiable
+      success criteria whose last is end-to-end verification naming what
+      output proves it, a persistence line, no heading or blockquote in the
+      body, and the LC_ALL=en_US.UTF-8 wc -m heredoc named as the measurement
+      instead of a fabricated count. FAIL if it anchors on the superseded
+      objective, emits steps instead of end conditions, or claims a measured
+      character count without measuring.

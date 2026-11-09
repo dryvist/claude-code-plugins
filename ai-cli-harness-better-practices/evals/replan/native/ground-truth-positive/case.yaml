@@ -1,0 +1,29 @@
+schema_version: "1.1"
+name: replan-ground-truth-positive
+tags: [development, should-trigger]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: >-
+    Fictional resume: the plan's last three items claim tests were added, the
+    staging deploy went live, and the docs rewrite is done — but a teammate
+    says the deploy never shipped and the test commit was reverted. Rebuild
+    the plan. Text-only plan; decide from these supplied facts without
+    writing files, running commands, or inventing results.
+graders:
+  - name: selected-replan
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"(?:[\w-]+:)?replan"'
+  - name: ground-truth-rules
+    type: llm
+    criteria: >-
+      PASS only if the plan's claims are treated as the least trustworthy
+      source, ground truth is re-derived from the artifacts themselves (run
+      the test, hit the endpoint, read the merged log) before any item is
+      classified, claims that cannot be verified are carried as unknowns
+      rather than assumed true or empty, the rewrite cuts instructions the
+      live state invalidated while preserving evidence and decisions, and
+      the delta is confirmed in the marked-done/struck/still-open/newly-added
+      format. FAIL if the plan's checkboxes or prose are trusted as the basis
+      for classification, or the rebuild is described as patching the plan's
+      own claims.

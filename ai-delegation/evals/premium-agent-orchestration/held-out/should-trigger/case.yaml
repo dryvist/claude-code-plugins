@@ -1,0 +1,55 @@
+schema_version: '1.1'
+name: held-out-premium-agent-orchestration-should-trigger
+runs: 3
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  max_turns: 12
+  timeout_seconds: 300
+  prompt: |
+    This session has become a marathon: two workstreams in flight, several
+    background jobs I cannot name from memory, and delegate results that
+    arrived while I was heads-down. My context is ballooning and I no longer
+    trust my own picture of what is done. Get this back to something lean and
+    tell me what is actually still open. Return a text-only reset plan, not
+    files or executed commands. This fictional exercise supplies no
+    repository, delegate outputs, or services. Identify prerequisites instead
+    of inventing them, and keep dependent steps conditional. You may read
+    available guidance, but cannot use a shell, edit files, install anything,
+    access credentials, or contact services.
+graders:
+  - name: output-contract
+    type: llm
+    focus: last_message
+    criteria: |
+      PASS if the reset follows the orchestrator sequence: re-read the goal
+      and success criteria, list every in-flight delegate and background job
+      with its state, judge each finished result against its named yes/no
+      check rather than trusting completion claims, re-plan from live state,
+      fan out ready independent tasks in parallel to the cheapest capable
+      executor for each, and end with a brief answer to the user about state
+      and next step. Reserved judgment (goals, design, gates, integration,
+      final review) stays with the parent. FAIL if it accepts unverified
+      delegate claims as done, absorbs volume work into the parent instead of
+      fanning it out, escalates any task to a peer at the parent's own tier,
+      or produces a status essay instead of a brief.
+  - name: actual-skill-invocation
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"ai-delegation:premium-agent-orchestration"'
+    min: 1
+    max: 12
+  - name: no-shell
+    type: tool_used
+    tool: Bash
+    min: 0
+    max: 0
+  - name: no-write
+    type: tool_used
+    tool: Write
+    min: 0
+    max: 0
+  - name: no-edit
+    type: tool_used
+    tool: Edit
+    min: 0
+    max: 0
