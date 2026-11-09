@@ -26,10 +26,13 @@ through the shared register.
 
 ## Shared dated sources
 
-Use the single [shared register and findings table](../../agent-builder/references/sources.md)
+Use the single shared register and findings table in agent-builder's
+references: [vendor sources](../../agent-builder/references/sources.md) and
+[ecosystem and research sources](../../agent-builder/references/sources-ecosystem.md)
 for A1–A3, A13, A18, A20–A25, O1–O4, O8–O10, G1–G5, C1–C3, F5–F6, D5, D7,
-D9, D11–D14, R1, and E2, including their URLs, publication/revision dates,
-retrieval dates, and pre-refresh coverage. Each ID has one canonical record rather than copied
+D9, D11–D14, and R1, and [findings and rule trace](../../agent-builder/references/findings.md)
+for E2, with their URLs, publication/revision dates, retrieval dates, and
+pre-refresh coverage. Each ID has one canonical record rather than copied
 tables across the builders. Both directories ship in the same plugin.
 
 | Skill-builder rule group | Dated support |
