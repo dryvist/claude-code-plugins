@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.14.0](https://github.com/dryvist/claude-code-plugins/compare/ai-delegation-v6.13.0...ai-delegation-v6.14.0) (2026-11-09)
+
+
+### Features
+
+* **evals:** add eval suites for local-subagents, premium-agent-orchestration, goal, and replan ([#743](https://github.com/dryvist/claude-code-plugins/issues/743)) ([968a84a](https://github.com/dryvist/claude-code-plugins/commit/968a84a4652a868fa0c1a0285f1b666256a83f5d))
+
 ## [6.13.0](https://github.com/dryvist/claude-code-plugins/compare/ai-delegation-v6.12.0...ai-delegation-v6.13.0) (2026-11-09)
 
 
