@@ -50,9 +50,31 @@ explicit `plan` or `deep` read-only sandbox. Explicit models, named agents and
 worktree isolation cannot bypass the ladder. Isolated Codex tasks get a
 detached worktree, whose path is returned for review. Custom-agent
 instructions are preserved; namespaced plugin agents resolve from the local
-installed-plugin registry. Missing definitions stop dispatch. A Codex failure
-while quota is available stops routing. An unknown quota status also stops
-routing rather than treating an error as exhaustion.
+installed-plugin registry. Missing definitions stop dispatch.
+
+The hook places each task in this order and logs one JSON `route` line per
+decision to `~/.claude/ai-delegation.log`:
+
+1. Eligibility. On-host local aliases, Codex and Haiku may see any task. ZCode
+   and OpenCode Go (`zcode-job --tool opencode`) see only non-sensitive
+   `[task: code]` work in a verified public repository.
+2. Local. A generic, non-isolated, non-code spawn marked `[class: text]` goes
+   to the on-host `small` alias, or `local-only` when the prompt is larger.
+   Put all of the task's text in the prompt; the local model has no tools. The token estimate (characters / 3.5 plus 2048 output) must fit in
+   60% of the alias's context window from the router's `/model/info`. An empty
+   answer, a length cut-off, an error or a timeout falls through.
+3. Subscriptions. Quota comes from `quota --json` on `TOKEN_METER_BIN`, else
+   `token-meter-server` on `PATH`, else the runtime that token-meter's
+   installer stages. A token-meter release without `quota` reads as unknown. The hook reads
+   it once per session with a 20-second timeout and refreshes it in the
+   background every 10 minutes; a failure means unknown. An executor with a
+   live window at 95% or more drops out. A positive score (quota that would
+   expire unused at the current pace, per hour left) moves an executor ahead;
+   unknown and non-positive scores keep the order ZCode, OpenCode Go, Codex.
+   `AGENT_ROUTE_ZCODE_TOOLS` (default `zcode opencode`) enables sandbox tools.
+4. Haiku `xhigh` ends every list. A Codex failure, an empty answer or an
+   unknown quota moves to the next executor; only forbidden models, prohibited
+   payloads and a dispatched sandbox job without a verified PR stop routing.
 
 For sandbox coding, put `[task: code] [repo: owner/repository]` in the
 description. A public-repo tag alone does not establish that work is coding.
@@ -62,16 +84,13 @@ repository, is open and non-draft, and has `human:review`. A job with no PR or
 an unverifiable PR fails the handoff; inspect a dispatched job before retrying.
 The hook never merges. Leak-scan the exact PR head before any human merge.
 
-The GLM and OpenCode Go rungs use the existing router chat transport. Configure
-`AGENT_ROUTE_GLM_MODEL` and `AGENT_ROUTE_OPENCODE_GO_MODEL` with the approved
-model identifiers for those routes. Use `LLM_ROUTER_URL` with
-`LLM_ROUTER_TOKEN_FILE`, or `LITELLM_LOCAL_BASE_URL` for the local proxy.
-An unconfigured or unavailable route does not qualify. Mark self-contained text
-work with `[class: text]` in the description to qualify for these chat transports.
-Supply all required text in the prompt. Work requiring repository access, edits,
-tests or other tools continues to a tool-capable executor. Coding tags, custom
-agents, `Explore`, `Plan` and isolated tasks do not qualify for chat transports.
-There is no generic small-model executor rung beyond the first step.
+The permission judge alone uses the GLM and OpenCode Go chat transports, through
+`AGENT_ROUTE_GLM_MODEL` and `AGENT_ROUTE_OPENCODE_GO_MODEL` with `LLM_ROUTER_URL`
+and `LLM_ROUTER_TOKEN_FILE`, or `LITELLM_LOCAL_BASE_URL`. Agent spawns marked
+`[class: text]` go to the local rung instead. Supply all required text in the
+prompt. Work requiring repository access, edits, tests or other tools continues
+to a tool-capable executor. Coding tags, custom agents, `Explore`, `Plan` and
+isolated tasks never take the local rung.
 
 Run `agent-route <code|private|other>` from the plugin root to inspect the
 first eligible executor. `code` means public coding; use `other` for read-only
