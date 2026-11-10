@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.15.0](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.14.0...jpe-ai-delegation-v1.15.0) (2026-11-10)
+
+
+### Features
+
+* **jpe-ai-delegation:** add a Cursor sandbox executor ([#769](https://github.com/dryvist/claude-code-plugins/issues/769)) ([127876f](https://github.com/dryvist/claude-code-plugins/commit/127876f3f23ffe66420da24287ead98c133d8892))
+
 ## [1.14.0](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.13.0...jpe-ai-delegation-v1.14.0) (2026-11-10)
 
 
