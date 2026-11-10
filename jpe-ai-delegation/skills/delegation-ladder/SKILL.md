@@ -71,10 +71,18 @@ decision to `~/.claude/ai-delegation.log`:
    background every 10 minutes; a failure means unknown. An executor with a
    live window at 95% or more drops out. A positive score (quota that would
    expire unused at the current pace, per hour left) moves an executor ahead;
-   unknown and non-positive scores keep the order ZCode, OpenCode Go, Codex,
-   Cursor. Codex and Cursor scores come from their token-meter rows.
-   `AGENT_ROUTE_ZCODE_TOOLS` (default `zcode opencode cursor-agent`) enables
-   sandbox tools.
+   unknown and non-positive scores keep table order. The executor table in
+   `hooks/lib/policy.ts` lists ZCode, OpenCode Go, Codex and Cursor, each with
+   transport, trust, `private_ok`, token-meter quota row, price and peak
+   windows (ZCode costs double Mon–Fri 06:00–10:00 UTC). The effective score is
+   headroom / (price × peak). `~/.config/ai-delegation/executors.json` (a JSON
+   array of rows) overrides rows by `id` and adds new ones; invalid rows are
+   logged and dropped, and only subscription-trusted rows may set
+   `private_ok`. A row with `kind: "promotion"` needs `expires` and sorts
+   first until then. `AGENT_ROUTE_ZCODE_TOOLS`, when set, limits which sandbox
+   tools run; unset runs every table row's tool. Each `route` line lists
+   `skipped` rows with a reason: `ineligible`, `exhausted`, `expired`,
+   `not_installed` or `failed`.
 4. Haiku `xhigh` ends every list. A Codex failure, an empty answer or an
    unknown quota moves to the next executor; only forbidden models, prohibited
    payloads and a dispatched sandbox job without a verified PR stop routing.
