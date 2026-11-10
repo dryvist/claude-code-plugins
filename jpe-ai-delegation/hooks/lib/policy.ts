@@ -99,3 +99,52 @@ export function codexArgv(sandbox: Sandbox, route: Route, model: string | undefi
   if (!outputFile) throw new Error('codex final-message output file is required')
   return ['codex', 'exec', '-s', sandbox, '-c', `model_reasoning_effort="${effort}"`, '--skip-git-repo-check', '-m', model, '-o', outputFile, '-']
 }
+
+// Subscription executors in static order; Haiku is the terminal rung outside this list.
+export type Executor = 'zcode' | 'opencode-go' | 'codex'
+export const EXECUTORS: readonly Executor[] = ['zcode', 'opencode-go', 'codex']
+// No zero-data-retention data exists, so this static table decides who may see a task. On-host local aliases and
+// the Codex and Haiku subscriptions take any work; the sandbox tools take public-repository code only.
+export const PUBLIC_CODE_ONLY: Record<Executor, boolean> = { zcode: true, 'opencode-go': true, codex: false }
+export const eligible = (publicCode: boolean): Executor[] => EXECUTORS.filter((x) => publicCode || !PUBLIC_CODE_ONLY[x])
+
+// On-host router aliases only, smallest first; `*-homelab` aliases leave the host and are never used.
+export const LOCAL_ALIASES = [{ alias: 'small', timeoutMs: 60_000 }, { alias: 'local-only', timeoutMs: 120_000 }] as const
+export const LOCAL_OUTPUT_TOKENS = 2048
+const CHECKABLE = /\b(summari[sz]e|extract|classify|reformat|first pass)\b/i
+// Small and checkable: the lead marks self-contained text, or names bulk work whose verb has a checkable answer.
+export const localTask = (description: string | undefined, prompt: string): boolean =>
+  /\[class: text\]/.test(description ?? '') || (explicitLabel(description) === 'bulk' && CHECKABLE.test(prompt))
+export const estimateTokens = (prompt: string): number => Math.ceil(prompt.length / 3.5) + LOCAL_OUTPUT_TOKENS
+// First alias whose context window holds the estimate with 40% headroom.
+export function pickLocal(estimate: number, windows: Record<string, number | undefined>): (typeof LOCAL_ALIASES)[number] | undefined {
+  return LOCAL_ALIASES.find((l) => (windows[l.alias] ?? 0) * 0.6 >= estimate)
+}
+
+export type QuotaWindow = { used_percent?: unknown; window_seconds?: unknown; reset_at?: unknown }
+export type Score = { score?: number; exhausted: boolean }
+// Quota that would expire unused at the current pace, per hour left in its window. The binding window (lowest score)
+// decides; any live window at 95% or more excludes the executor. No usable window leaves the score unknown.
+export function scoreWindows(windows: QuotaWindow[] | undefined, nowSeconds: number): Score {
+  let score: number | undefined
+  for (const w of windows ?? []) {
+    const { used_percent: used, window_seconds: duration, reset_at: reset } = w
+    if (typeof used !== 'number' || typeof duration !== 'number' || typeof reset !== 'number' || duration <= 0) continue
+    const remaining = reset - nowSeconds
+    if (remaining <= 0 || remaining > duration) continue
+    if (used >= 95) return { exhausted: true }
+    const elapsed = duration - remaining
+    if (elapsed <= 0) continue
+    const unused = 100 - used - (used / elapsed) * remaining
+    const s = unused / Math.max(remaining / 3600, 1)
+    score = score === undefined ? s : Math.min(score, s)
+  }
+  return { score, exhausted: false }
+}
+
+// Positive known scores go first, highest first; everything else keeps the static order. Exhausted executors drop out.
+export function rankExecutors(candidates: readonly Executor[], scores: Partial<Record<Executor, Score>>): Executor[] {
+  const open = candidates.filter((x) => !scores[x]?.exhausted)
+  const positive = open.filter((x) => (scores[x]?.score ?? 0) > 0).sort((a, b) => scores[b]!.score! - scores[a]!.score!)
+  return [...positive, ...open.filter((x) => !positive.includes(x))]
+}

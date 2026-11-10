@@ -1,63 +1,79 @@
 import type { EngineInterface, Register } from 'claude-code'
-import { CLASSIFIER, CODEX, JUDGE, LAST_RESORT, UTILITY, codexArgv, codingTask, explicitLabel, forbiddenModel, isAdvisory, isGenericType, isShellCAsk, mandatoryLabel, newestModel, parseVerdict, pickLabel, safePayload } from './lib/policy'
-import type { Label, Route, Sandbox } from './lib/policy'
+import { CLASSIFIER, CODEX, JUDGE, LAST_RESORT, LOCAL_OUTPUT_TOKENS, UTILITY, codexArgv, codingTask, eligible, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, isGenericType, isShellCAsk, localTask, mandatoryLabel, newestModel, parseVerdict, pickLabel, pickLocal, rankExecutors, safePayload, scoreWindows } from './lib/policy'
+import type { Executor, Label, QuotaWindow, Route, Sandbox, Score } from './lib/policy'
 import { customAgentSandbox, parseAgentDefinition } from './lib/agent-definition'
 import type { AgentDefinition } from './lib/agent-definition'
 
 type Engine = EngineInterface
 type AgentCall = { description?: string; prompt: string; subagent_type?: string; model?: string; effort?: string; name?: string; isolation?: string }
-type QuotaLine = 'codex-quota: available' | 'codex-quota: exhausted' | 'codex-quota: unavailable'
-const UNAVAILABLE: QuotaLine = 'codex-quota: unavailable'
+type QuotaRow = { id?: string; status?: string; windows?: QuotaWindow[] }
 const TEXT_EXECUTOR_TIMEOUT_MS = 120_000
-// shortcut: the startup line lives in the module, so a hot reload recomputes it on the next prompt.compose.
-let startupQuota: QuotaLine | undefined
+const QUOTA_TIMEOUT_MS = 20_000
+const QUOTA_REFRESH_MS = 600_000
+const MODEL_INFO_TIMEOUT_MS = 10_000
 const PROMPT_POLICY = 'Check codex-quota first. Rung 1: small, quick, checkable tasks (summarize, extract, classify, reformat, a first pass over a file or log) go to the router local default or medium capability before any subscription; escalate only after a checked failure. Rung 2 holds two equal first choices, split by sensitivity; when both qualify, send the task to the executor with more quota headroom and spend every subscription before it resets (ZCode 5-hour and weekly, OpenCode Go monthly, Codex weekly). ZCode (zcode-job): obvious, definitely non-sensitive coding work in public repos; coding and coding-adjacent only: code, tests, GitHub automation and workflows, code reviews; the output is a ready PR labelled human:review; leak-scan it before merge; never auto-merge. Codex Luna: anything even remotely sensitive, or any private repo; Luna xhigh default, max as needed, while codex-quota exits 0; never Terra. Rung 3: other subscriptions where they fit (Z.ai GLM, OpenCode Go); public work only, and only while that subscription is at or under its pace for the billing period. Rung 4: Haiku xhigh, the last resort, only after rungs 1, 2 and 3 are exhausted or do not qualify. Never Sonnet, Opus or Fable subagents. Never send secrets, credentials, inventory or incident content to any executor. Antigravity stays a second-opinion reviewer, never an executor.'
 
-// The quota helper is installed in the nix per-user profile, which a hook's PATH may omit.
-// Try an explicit CODEX_QUOTA_BIN, then the bare name, then the per-user profile path.
-async function runCodexQuota($: Engine): Promise<{ exitCode: number }> {
-  const explicit = await $.env.get('CODEX_QUOTA_BIN')
-  if (explicit) return $.process.run([explicit], { timeoutMs: 20_000 })
+// Per-session caches, reset when the module registers. The first quota read is awaited; later reads serve the cache
+// and refresh it in the background at most every QUOTA_REFRESH_MS.
+let quotaRead: Promise<QuotaRow[] | undefined> | undefined
+let quotaAt = 0
+let localWindows: Promise<Record<string, number | undefined>> | undefined
+
+async function withTimeout<T>($: Engine, work: Promise<T>, ms: number): Promise<T> {
+  let timer: { cancel: () => void } | undefined
   try {
-    const bare = await $.process.run(['codex-quota'], { timeoutMs: 20_000 })
-    if (bare.exitCode !== 127) return bare
-  } catch {
-    // Not on PATH; fall through to the profile path.
+    return await Promise.race([work, new Promise<never>((_, reject) => { timer = $.clock.after(ms, () => reject(new Error('timeout'))) })])
+  } finally {
+    timer?.cancel()
   }
-  const user = await $.env.get('USER')
-  if (!user) return { exitCode: 127 }
-  return $.process.run([`/etc/profiles/per-user/${user}/bin/codex-quota`], { timeoutMs: 20_000 })
 }
 
-// Codex is usable only while `codex-quota` exits 0 and the CLI starts.
-async function codexReady($: Engine): Promise<boolean> {
-  let reason: string
+// `token-meter quota --json`; any failure or timeout means the quota is unknown.
+async function readQuota($: Engine): Promise<QuotaRow[] | undefined> {
   try {
-    const quota = await runCodexQuota($)
-    if (quota.exitCode !== 0) {
-      reason = `codex-quota exited ${quota.exitCode}`
-    } else {
-      const cli = await $.process.run(['codex', '--version'], { timeoutMs: 30_000 })
-      if (cli.exitCode === 0) return true
-      reason = `codex --version exited ${cli.exitCode}`
-    }
+    const bin = await $.env.get('TOKEN_METER_BIN')
+    const argv = bin ? [bin, 'quota', '--json'] : ['python3', `${await $.env.get('HOME')}/Library/Application Support/Token Meter/runtime/meter.py`, 'quota', '--json']
+    const r = await $.process.run(argv, { timeoutMs: QUOTA_TIMEOUT_MS })
+    if (r.exitCode !== 0 || r.isStdoutTruncated === true) return undefined
+    const rows = JSON.parse(r.stdout)?.provider_quotas
+    return Array.isArray(rows) ? rows : undefined
   } catch {
-    reason = 'codex readiness probe failed or timed out'
+    return undefined
   }
-  // A silent not-ready reads as a Haiku route with no cause; name it.
-  $.ui.log(`ai-delegation: Codex not ready: ${reason}`)
-  await logDecision($, `codex not ready: ${reason}`)
-  return false
 }
 
-async function codexQuotaStatus($: Engine): Promise<QuotaLine> {
-  try {
-    const result = await runCodexQuota($)
-    if (result.exitCode === 0) return 'codex-quota: available'
-    return result.exitCode === 1 ? 'codex-quota: exhausted' : UNAVAILABLE
-  } catch {
-    return UNAVAILABLE
+async function quotaRows($: Engine): Promise<QuotaRow[] | undefined> {
+  const now = await $.clock.now()
+  if (!quotaRead) {
+    quotaAt = now
+    quotaRead = readQuota($)
+    return quotaRead
   }
+  const current = quotaRead
+  if (now - quotaAt >= QUOTA_REFRESH_MS) {
+    quotaAt = now
+    // An unknown refresh keeps the last rows.
+    void readQuota($).then((rows) => { if (rows) quotaRead = Promise.resolve(rows) })
+  }
+  return current
+}
+
+// Codex score from its token-meter row; undefined when the row is missing, failed or has no usable window.
+function codexScore(rows: QuotaRow[] | undefined, nowSeconds: number): Score | undefined {
+  const row = rows?.find((r) => r.id === 'codex')
+  if (!row || !['ok', 'stale'].includes(row.status ?? '')) return undefined
+  const score = scoreWindows(row.windows, nowSeconds)
+  return score.exhausted || score.score !== undefined ? score : undefined
+}
+
+async function currentCodexScore($: Engine): Promise<Score | undefined> {
+  const rows = await quotaRows($)
+  return codexScore(rows, (await $.clock.now()) / 1000)
+}
+
+function quotaLine(score: Score | undefined): string {
+  if (!score) return 'codex-quota: unavailable'
+  return score.exhausted ? 'codex-quota: exhausted' : 'codex-quota: available'
 }
 
 // One `codex exec`; its final message is read from a temporary output file. The finite stdin string is closed by process.run.
@@ -131,6 +147,42 @@ async function routerTarget($: Engine): Promise<{ url: string; headers: Record<s
   return { url: `${base}/chat/completions`, headers }
 }
 
+// Context windows of the on-host aliases, read once per session from the local router.
+function localModelWindows($: Engine, base: string): Promise<Record<string, number | undefined>> {
+  localWindows ??= (async () => {
+    try {
+      const response = await withTimeout($, $.http.fetch(`${base}/model/info`, { method: 'GET', headers: { accept: 'application/json' } }), MODEL_INFO_TIMEOUT_MS)
+      if (!response.ok) return {}
+      const windows: Record<string, number | undefined> = {}
+      for (const m of JSON.parse(response.text)?.data ?? []) {
+        if (typeof m?.model_name === 'string' && typeof m?.model_info?.max_input_tokens === 'number') windows[m.model_name] = m.model_info.max_input_tokens
+      }
+      return windows
+    } catch {
+      return {}
+    }
+  })()
+  return localWindows
+}
+
+// One chat completion on an on-host alias. An empty answer or a length cut-off is a failed check.
+async function runLocal($: Engine, e: AgentCall, base: string, alias: string, timeoutMs: number): Promise<string | undefined> {
+  try {
+    const response = await withTimeout($, $.http.fetch(`${base}/v1/chat/completions`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ model: alias, max_tokens: LOCAL_OUTPUT_TOKENS, messages: [{ role: 'user', content: e.prompt }] }),
+    }), timeoutMs)
+    if (!response.ok) throw new Error('HTTP failure')
+    const choice = JSON.parse(response.text)?.choices?.[0]
+    const out = choice?.message?.content
+    if (typeof out !== 'string' || !out.trim() || choice?.finish_reason === 'length') throw new Error('failed check')
+    return out.trim()
+  } catch {
+    await logDecision($, `local ${alias} gave no checked answer`)
+    return undefined
+  }
+}
+
 // Classification itself runs on Codex Luna.
 async function classify($: Engine, e: AgentCall): Promise<Label> {
   const mandatory = mandatoryLabel(`${e.description ?? ''}\n${e.prompt}`)
@@ -147,18 +199,27 @@ async function runRoutedCodex($: Engine, e: AgentCall, route: string, codexRoute
   const started = await $.clock.now()
   let cwd: string | undefined
   if (e.isolation) {
-    if (e.isolation !== 'worktree') return failure(e, 'unsupported isolation')
+    if (e.isolation !== 'worktree') return undefined
     const temporary = await $.process.run(['mktemp', '-d'], { timeoutMs: 5_000 })
     cwd = temporary.stdout.trim()
-    if (temporary.exitCode !== 0 || !cwd.startsWith('/')) return failure(e, 'could not create isolated directory')
+    if (temporary.exitCode !== 0 || !cwd.startsWith('/')) return undefined
     const worktree = await $.process.run(['git', '-C', await $.session.cwd(), 'worktree', 'add', '--detach', cwd, 'HEAD'], { timeoutMs: 30_000 })
-    if (worktree.exitCode !== 0) return failure(e, 'could not create isolated worktree')
+    if (worktree.exitCode !== 0) return undefined
     detail += `, worktree ${cwd}`
   }
   const out = await runCodex($, codexRoute, sandbox, e.prompt, 600_000, cwd)
   if (!out) return undefined
   await logDecision($, `route: ${route} -> codex ${codexRoute.family} ${codexRoute.effort} (${sandbox})`)
   return routedResult(e, 'ai-delegation-codex', out, `[routed: codex ${codexRoute.family} ${codexRoute.effort}, ${detail}]`, (await $.clock.now()) - started)
+}
+
+// The Codex rung: classify, pick the sandbox, run. Undefined on any failure so routing continues.
+async function runCodexRung($: Engine, e: AgentCall, customSandbox: Sandbox | undefined): Promise<unknown | undefined> {
+  const label = await classify($, e)
+  const advisory = isAdvisory(label) || isAdvisory(explicitLabel(e.description) ?? label)
+  if (mandatoryLabel(`${e.description ?? ''}\n${e.prompt}`)) e = { ...e, description: `${e.description ?? ''} [class: bulk-complex]` }
+  const codexSandbox: Sandbox = advisory || e.subagent_type === 'Explore' || e.subagent_type === 'Plan' || customSandbox === 'read-only' ? 'read-only' : 'workspace-write'
+  return runRoutedCodex($, e, label, CODEX[label], codexSandbox, `class ${label}`)
 }
 
 function routedResult(e: AgentCall, agentId: string, out: string, footer: string, duration: number): unknown {
@@ -206,51 +267,63 @@ async function github($: Engine, path: string): Promise<unknown> {
   }
 }
 
-async function runSandboxExecutor($: Engine, e: AgentCall): Promise<unknown | undefined> {
+// The tagged repository when the task is non-sensitive coding in a verified public repository; otherwise undefined.
+async function publicCodeRepo($: Engine, e: AgentCall): Promise<string | undefined> {
   const repo = repositoryTag(e.description)
-  if (!codingTask(e.description) || !repo || !safePayload(`${e.description ?? ''}\n${e.prompt}`)) return undefined
+  if (!codingTask(e.description) || !repo || mandatoryLabel(`${e.description ?? ''}\n${e.prompt}`)) return undefined
+  try {
+    const repository = await github($, repo) as { visibility?: string; private?: boolean }
+    return repository.visibility === 'public' && repository.private === false ? repo : undefined
+  } catch {
+    await logDecision($, 'public repository could not be verified')
+    return undefined
+  }
+}
+
+type SandboxTool = 'zcode' | 'opencode'
+const SANDBOX_NAMES: Record<SandboxTool, string> = { zcode: 'zcode-job sandbox', opencode: 'OpenCode Go sandbox' }
+
+// Sandbox tools the operator enables; both by default.
+async function sandboxTools($: Engine): Promise<string[]> {
+  return ((await $.env.get('AGENT_ROUTE_ZCODE_TOOLS')) ?? 'zcode opencode').split(/\s+/).filter(Boolean)
+}
+
+async function runSandboxExecutor($: Engine, e: AgentCall, repo: string, tool: SandboxTool): Promise<unknown | undefined> {
   const started = await $.clock.now()
   try {
     const available = await $.process.run(['which', 'zcode-job'], { timeoutMs: 5_000 })
     if (available.exitCode !== 0) return undefined
-    const repository = await github($, repo) as { visibility?: string; private?: boolean }
-    // ZCode takes public repositories only; a private repository stays with Codex Luna.
-    if (repository.visibility !== 'public' || repository.private !== false) return undefined
   } catch {
-    await logDecision($, 'zcode eligibility could not be verified')
     return undefined
   }
-
+  const name = SANDBOX_NAMES[tool]
   try {
     const prompt = `${e.prompt}\n\nReturn a ready PR labelled human:review. Never auto-merge. The trusted lead must leak-scan the PR before merge.`
-    const response = await $.process.run(['zcode-job', 'start', repo, prompt], { timeoutMs: 300_000 })
+    const argv = tool === 'zcode' ? ['zcode-job', 'start', repo, prompt] : ['zcode-job', 'start', '--tool', tool, repo, prompt]
+    const response = await $.process.run(argv, { timeoutMs: 300_000 })
     const line = response.stdout.replace(/\r?\n$/, '')
     const done = line.match(/^DONE\|(j-[0-9a-f]{16})\|(https:\/\/github\.com\/([A-Za-z0-9-]+\/[A-Za-z0-9._-]+)\/pull\/(\d+))$/)
-    if (response.exitCode !== 0 || response.isStdoutTruncated === true || !done || done[3].toLowerCase() !== repo.toLowerCase()) return failure(e, 'zcode did not return a PR for the requested repository')
+    if (response.exitCode !== 0 || response.isStdoutTruncated === true || !done || done[3].toLowerCase() !== repo.toLowerCase()) return failure(e, `${tool} did not return a PR for the requested repository`)
     const pr = await github($, `${repo}/pulls/${done[4]}`) as { state?: string; draft?: boolean; labels?: { name: string }[]; html_url?: string }
-    if (pr.state !== 'open' || pr.draft !== false || pr.html_url !== done[2] || !pr.labels?.some((l) => l.name === 'human:review')) return failure(e, 'zcode PR is not ready and labelled human:review')
-    await logDecision($, 'route: coding -> zcode-job sandbox (leak scan required before merge)')
-    return routedResult(e, 'ai-delegation-zcode', line, '[routed: zcode-job sandbox; leak-scan before merge; never auto-merge]', (await $.clock.now()) - started)
+    if (pr.state !== 'open' || pr.draft !== false || pr.html_url !== done[2] || !pr.labels?.some((l) => l.name === 'human:review')) return failure(e, `${tool} PR is not ready and labelled human:review`)
+    await logDecision($, `route: coding -> ${name} (leak scan required before merge)`)
+    return routedResult(e, `ai-delegation-${tool}`, line, `[routed: ${name}; leak-scan before merge; never auto-merge]`, (await $.clock.now()) - started)
   } catch {
     // A dispatched job may still be running. Do not start a duplicate executor.
-    return failure(e, 'zcode dispatch or PR verification failed; inspect the job before retrying')
+    return failure(e, `${tool} dispatch or PR verification failed; inspect the job before retrying`)
   }
 }
 
 type Gateway = 'Z.ai GLM' | 'OpenCode Go'
 async function runGateway($: Engine, e: AgentCall, gateway: Gateway): Promise<string | undefined> {
-  let timer: { cancel: () => void } | undefined
   try {
     const model = await $.env.get(gateway === 'Z.ai GLM' ? 'AGENT_ROUTE_GLM_MODEL' : 'AGENT_ROUTE_OPENCODE_GO_MODEL')
     if (!model) return undefined
     const target = await routerTarget($)
-    const response = await Promise.race([
-      $.http.fetch(target.url, {
-        method: 'POST', headers: target.headers,
-        body: JSON.stringify({ model, messages: [{ role: 'user', content: e.prompt }] }),
-      }),
-      new Promise<never>((_, reject) => { timer = $.clock.after(TEXT_EXECUTOR_TIMEOUT_MS, () => reject(new Error('timeout'))) }),
-    ])
+    const response = await withTimeout($, $.http.fetch(target.url, {
+      method: 'POST', headers: target.headers,
+      body: JSON.stringify({ model, messages: [{ role: 'user', content: e.prompt }] }),
+    }), TEXT_EXECUTOR_TIMEOUT_MS)
     if (!response.ok) throw new Error('HTTP failure')
     const out = JSON.parse(response.text)?.choices?.[0]?.message?.content
     if (typeof out !== 'string' || !out.trim()) throw new Error('empty content')
@@ -259,26 +332,7 @@ async function runGateway($: Engine, e: AgentCall, gateway: Gateway): Promise<st
   } catch {
     await logDecision($, `route: ${gateway} unavailable`)
     return undefined
-  } finally {
-    timer?.cancel()
   }
-}
-
-async function codexNoAnswer($: Engine, e: AgentCall, route: string): Promise<unknown> {
-  const started = await $.clock.now()
-  await logDecision($, `route: ${route} codex no answer -> fail (no haiku)`)
-  return {
-    result: {
-      status: 'completed',
-      prompt: e.prompt,
-      agentId: 'ai-delegation-codex',
-      content: [{ type: 'text', text: `FAIL | router | Codex gave no answer for a ${route} task; no Haiku fallback while Codex has quota. Split the task or re-brief.` }],
-      totalToolUseCount: 0,
-      totalDurationMs: (await $.clock.now()) - started,
-      totalTokens: 0,
-      usage: { input_tokens: 0, output_tokens: 0, cache_creation_input_tokens: null, cache_read_input_tokens: null, server_tool_use: null, service_tier: null, cache_creation: null },
-    },
-  } as never
 }
 
 async function customAgentDefinition($: Engine, type: string): Promise<AgentDefinition | undefined> {
@@ -317,6 +371,16 @@ async function customAgentDefinition($: Engine, type: string): Promise<AgentDefi
   return parseAgentDefinition(text)
 }
 
+type RouteEvent = {
+  agent_type: string; local: { alias: string | null; est_tokens: number } | null; eligible: string[]
+  scores: Record<string, { score: number | null; exhausted: boolean } | null>; fell_through_from: string[]
+}
+
+// One JSON telemetry line per routing decision.
+async function logRoute($: Engine, event: RouteEvent, chosen: string, reason: string): Promise<void> {
+  await logDecision($, JSON.stringify({ ts_ms: await $.clock.now(), event: 'route', ...event, chosen, reason }))
+}
+
 async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknown>): Promise<unknown> {
   if (forbiddenModel(e.model) || forbiddenModel(e.subagent_type)) return failure(e, 'Sonnet, Opus and Fable subagents are forbidden')
   const original = e
@@ -334,36 +398,54 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
     if (definition.prompt) e = { ...e, prompt: `Custom agent instructions:\n${definition.prompt}\n\nTask:\n${e.prompt}` }
   }
   if (!safePayload(`${e.description ?? ''}\n${e.prompt}`)) return failure(e, 'payload contains prohibited content')
-  const quota = await codexQuotaStatus($)
-  if (quota === UNAVAILABLE) return failure(e, 'Codex quota status unavailable')
+  const event: RouteEvent = { agent_type: original.subagent_type ?? 'general-purpose', local: null, eligible: [], scores: {}, fell_through_from: [] }
   if (definition && customSandbox === undefined) {
     // An inherited model cannot be verified on a native pass-through.
     const model = original.model ?? definition.model
     if (!model || model === 'inherit') return failure(e, 'custom agent requires an explicit permitted model for native tools')
-    await logDecision($, 'route: custom tool policy -> native custom agent')
+    await logRoute($, event, 'native custom agent', 'custom tool policy')
     return next(original as never)
   }
-  const restricted = definition && (definition.tools !== undefined || Boolean(definition.disallowedTools?.length))
-  // Rung 2 splits two equal first choices by sensitivity: eligible public coding takes the sandbox.
-  const sandbox = restricted ? undefined : await runSandboxExecutor($, e)
-  if (sandbox) return sandbox
-  if (quota === 'codex-quota: available') {
-    if (!(await codexReady($))) return failure(e, 'Codex unavailable while quota is available')
-    const label = await classify($, e)
-    const advisory = isAdvisory(label) || isAdvisory(explicitLabel(e.description) ?? label)
-    if (mandatoryLabel(`${e.description ?? ''}\n${e.prompt}`)) e = { ...e, description: `${e.description ?? ''} [class: bulk-complex]` }
-    const codexSandbox: Sandbox = advisory || e.subagent_type === 'Explore' || e.subagent_type === 'Plan' || customSandbox === 'read-only' ? 'read-only' : 'workspace-write'
-    const result = await runRoutedCodex($, e, label, CODEX[label], codexSandbox, `class ${label}`)
-    return result ?? codexNoAnswer($, e, label)
-  }
-  // Only explicitly self-contained text work qualifies for transports without tools.
-  if (!e.isolation && isGenericType(e) && !['Explore', 'Plan'].includes(e.subagent_type ?? '') && !codingTask(e.description) && e.description?.includes('[class: text]')) {
-    for (const gateway of ['Z.ai GLM', 'OpenCode Go'] as const) {
-      const out = await runGateway($, e, gateway)
-      if (out) return routedResult(e, 'ai-delegation-gateway', out, `[routed: ${gateway}]`, 0)
+
+  // Local rung: small, checkable, self-contained text on an on-host alias.
+  if (!definition && !e.isolation && isGenericType(e) && !['Explore', 'Plan'].includes(e.subagent_type ?? '') && !codingTask(e.description) && localTask(e.description, e.prompt)) {
+    const base = (await $.env.get('LITELLM_LOCAL_BASE_URL'))?.replace(/\/+$/, '')
+    const estimate = estimateTokens(e.prompt)
+    const local = base ? pickLocal(estimate, await localModelWindows($, base)) : undefined
+    event.local = { alias: local?.alias ?? null, est_tokens: estimate }
+    if (base && local) {
+      const out = await runLocal($, e, base, local.alias, local.timeoutMs)
+      if (out) {
+        await logRoute($, event, `local ${local.alias}`, 'checked local answer')
+        return routedResult(e, 'ai-delegation-local', out, `[routed: local ${local.alias}]`, 0)
+      }
+      event.fell_through_from.push(`local ${local.alias}`)
     }
   }
-  await logDecision($, 'route: capped, earlier rungs ineligible -> claude haiku xhigh')
+
+  // Subscription rungs: eligibility, then quota score, then static order; Haiku always ends the list.
+  const restricted = definition && (definition.tools !== undefined || Boolean(definition.disallowedTools?.length))
+  const repo = restricted ? undefined : await publicCodeRepo($, e)
+  const candidates = eligible(Boolean(repo))
+  const codex = await currentCodexScore($)
+  const scores: Partial<Record<Executor, Score>> = codex ? { codex } : {}
+  event.eligible = [...candidates, 'haiku']
+  for (const x of candidates) event.scores[x] = scores[x] ? { score: scores[x]!.score ?? null, exhausted: scores[x]!.exhausted } : null
+  const tools = await sandboxTools($)
+  for (const executor of rankExecutors(candidates, scores)) {
+    let result: unknown | undefined
+    if (executor === 'codex') result = await runCodexRung($, e, customSandbox)
+    else {
+      const tool: SandboxTool = executor === 'zcode' ? 'zcode' : 'opencode'
+      if (repo && tools.includes(tool)) result = await runSandboxExecutor($, e, repo, tool)
+    }
+    if (result) {
+      await logRoute($, event, executor, 'highest-ranked eligible executor that answered')
+      return result
+    }
+    event.fell_through_from.push(executor)
+  }
+  await logRoute($, event, 'haiku', 'terminal rung')
   return next({ ...original, ...LAST_RESORT } as never)
 }
 
@@ -378,10 +460,11 @@ async function judge($: Engine, e: { input: unknown }, next: (e: never) => Promi
   const label = mandatoryLabel(command)
   const judgeRoute = label ? CODEX[label] : UTILITY
   const ask = `${label ? `[class: ${label}]\n` : ''}${JUDGE}\n\nCommand:\n\`\`\`\n${command}\n\`\`\``
-  const ready = await codexReady($)
+  const codex = await currentCodexScore($)
+  const ready = codex !== undefined && !codex.exhausted
   let by = `codex ${judgeRoute.family} ${judgeRoute.effort}`
   let verdict = ready ? parseVerdict(await runCodex($, judgeRoute, 'read-only', ask, 120_000)) : undefined
-  if (!ready && await codexQuotaStatus($) === 'codex-quota: exhausted') {
+  if (codex?.exhausted) {
     for (const gateway of ['Z.ai GLM', 'OpenCode Go'] as const) {
       const out = await runGateway($, { prompt: ask }, gateway)
       verdict = parseVerdict(out)
@@ -403,15 +486,20 @@ async function judge($: Engine, e: { input: unknown }, next: (e: never) => Promi
 }
 
 export const register: Register = (on) => {
+  quotaRead = undefined
+  quotaAt = 0
+  localWindows = undefined
+
+  // Start the first quota read without delaying the session.
   on('session.start', async ($, e, next) => {
-    startupQuota = await codexQuotaStatus($)
+    void quotaRows($)
     return next(e)
   }).catch(($, e, next) => next(e))
 
   on('prompt.compose', async ($, e, next) => {
-    startupQuota ??= await codexQuotaStatus($)
+    const line = quotaLine(await currentCodexScore($))
     const result = await next(e)
-    return { sections: [...result.sections, { id: 'jpe-ai-delegation:codex-quota', text: `${startupQuota}
+    return { sections: [...result.sections, { id: 'jpe-ai-delegation:codex-quota', text: `${line}
 ${PROMPT_POLICY}`, scope: 'session' }] }
   }).catch(($, e, next) => next(e))
 

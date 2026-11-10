@@ -10,9 +10,10 @@ session mechanics.
 
 ## Session mechanics
 
-`codex-quota` exit 0 means Codex is available (more than 5% of the weekly
-budget left); exit 1 means capped; any other exit stops dispatch, as does a
-missing Codex CLI or a failed Codex invocation while quota is available.
+The hook reads Codex quota from `token-meter quota --json`, not `codex-quota`.
+The session status line says `available`, `exhausted` (a live window at 95% or
+more) or `unavailable` (no usable quota row). None of these stops dispatch; a
+failed Codex invocation moves to the next executor.
 
 Mandatory topics override model selection and name `[class: bulk-complex]`;
 explicit `plan` and `deep` tags retain their read-only sandbox. Model
@@ -25,7 +26,7 @@ classification; unresolved definitions fail closed.
 
 The permission judge uses Codex Luna `xhigh` while quota is available (`max`
 for mandatory bulk-complex topics), then configured GLM, OpenCode Go and Haiku
-`xhigh` only while capped. No verdict leaves the core dialog open. Prohibited
+`xhigh` only while exhausted; unknown quota leaves the core dialog. No verdict leaves the core dialog open. Prohibited
 inline content is screened locally before any classifier, judge or executor
 receives it; the lead classifies all remaining context before dispatch.
 
