@@ -55,9 +55,10 @@ installed-plugin registry. Missing definitions stop dispatch.
 The hook places each task in this order and logs one JSON `route` line per
 decision to `~/.claude/ai-delegation.log`:
 
-1. Eligibility. On-host local aliases, Codex and Haiku may see any task. ZCode
-   and OpenCode Go (`zcode-job --tool opencode`) see only non-sensitive
-   `[task: code]` work in a verified public repository.
+1. Eligibility. On-host local aliases, Codex and Haiku may see any task. ZCode,
+   OpenCode Go (`zcode-job --tool opencode`) and Cursor
+   (`zcode-job --tool cursor-agent`) see only non-sensitive `[task: code]` work
+   in a verified public repository; their dispatcher refuses private ones.
 2. Local. A generic, non-isolated, non-code spawn marked `[class: text]` goes
    to the on-host `small` alias, or `local-only` when the prompt is larger.
    Put all of the task's text in the prompt; the local model has no tools. The token estimate (characters / 3.5 plus 2048 output) must fit in
@@ -70,8 +71,10 @@ decision to `~/.claude/ai-delegation.log`:
    background every 10 minutes; a failure means unknown. An executor with a
    live window at 95% or more drops out. A positive score (quota that would
    expire unused at the current pace, per hour left) moves an executor ahead;
-   unknown and non-positive scores keep the order ZCode, OpenCode Go, Codex.
-   `AGENT_ROUTE_ZCODE_TOOLS` (default `zcode opencode`) enables sandbox tools.
+   unknown and non-positive scores keep the order ZCode, OpenCode Go, Codex,
+   Cursor. Codex and Cursor scores come from their token-meter rows.
+   `AGENT_ROUTE_ZCODE_TOOLS` (default `zcode opencode cursor-agent`) enables
+   sandbox tools.
 4. Haiku `xhigh` ends every list. A Codex failure, an empty answer or an
    unknown quota moves to the next executor; only forbidden models, prohibited
    payloads and a dispatched sandbox job without a verified PR stop routing.
