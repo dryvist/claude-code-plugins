@@ -11,7 +11,7 @@ const TEXT_EXECUTOR_TIMEOUT_MS = 120_000
 const QUOTA_TIMEOUT_MS = 20_000
 const QUOTA_REFRESH_MS = 600_000
 const MODEL_INFO_TIMEOUT_MS = 10_000
-const PROMPT_POLICY = 'The jpe-ai-delegation hook places every Agent spawn. Tag self-contained text work [class: text] and put all of its text in the prompt; the hook sends it to an on-host local model first. Every other spawn, and any local answer that fails its check, goes to the subscription executors it is eligible for, ranked by quota. ZCode and OpenCode Go take only non-sensitive coding tagged [task: code] [repo: owner/repository] in a public repository; their output is a ready PR labelled human:review; leak-scan it before merge; never auto-merge. Codex Luna takes any task; never Terra. Haiku xhigh is always last. Nothing stops because an executor is unavailable. Never Sonnet, Opus or Fable subagents. Never send secrets, credentials, inventory or incident content to any executor. Antigravity stays a second-opinion reviewer, never an executor.'
+const PROMPT_POLICY = 'The jpe-ai-delegation hook places every Agent spawn. Tag self-contained text work [class: text] and put all of its text in the prompt; the hook sends it to an on-host local model first. Every other spawn, and any local answer that fails its check, goes to the subscription executors it is eligible for, ranked by quota. ZCode, OpenCode Go and Cursor take only non-sensitive coding tagged [task: code] [repo: owner/repository] in a public repository; their output is a ready PR labelled human:review; leak-scan it before merge; never auto-merge. Codex Luna takes any task; never Terra. Haiku xhigh is always last. Nothing stops because an executor is unavailable. Never Sonnet, Opus or Fable subagents. Never send secrets, credentials, inventory or incident content to any executor. Antigravity stays a second-opinion reviewer, never an executor.'
 
 // Per-session caches, reset when the module registers. The first quota read is awaited; later reads serve the cache
 // and refresh it in the background at most every QUOTA_REFRESH_MS.
@@ -73,17 +73,27 @@ async function quotaRows($: Engine): Promise<QuotaRow[] | undefined> {
   return current
 }
 
-// Codex score from its token-meter row; undefined when the row is missing, failed or has no usable window.
-function codexScore(rows: QuotaRow[] | undefined, nowSeconds: number): Score | undefined {
-  const row = rows?.find((r) => r.id === 'codex')
+// Score from one token-meter provider row; undefined when the row is missing, failed or has no usable window.
+function rowScore(rows: QuotaRow[] | undefined, id: string, nowSeconds: number): Score | undefined {
+  const row = rows?.find((r) => r.id === id)
   if (!row || !['ok', 'stale'].includes(row.status ?? '')) return undefined
   const score = scoreWindows(row.windows, nowSeconds)
   return score.exhausted || score.score !== undefined ? score : undefined
 }
 
-async function currentCodexScore($: Engine): Promise<Score | undefined> {
+async function currentScores($: Engine): Promise<Partial<Record<Executor, Score>>> {
   const rows = await quotaRows($)
-  return codexScore(rows, (await $.clock.now()) / 1000)
+  const now = (await $.clock.now()) / 1000
+  const scores: Partial<Record<Executor, Score>> = {}
+  for (const [executor, id] of [['codex', 'codex'], ['cursor', 'cursor']] as const) {
+    const score = rowScore(rows, id, now)
+    if (score) scores[executor] = score
+  }
+  return scores
+}
+
+async function currentCodexScore($: Engine): Promise<Score | undefined> {
+  return (await currentScores($)).codex
 }
 
 function quotaLine(score: Score | undefined): string {
@@ -295,12 +305,13 @@ async function publicCodeRepo($: Engine, e: AgentCall): Promise<string | undefin
   }
 }
 
-type SandboxTool = 'zcode' | 'opencode'
-const SANDBOX_NAMES: Record<SandboxTool, string> = { zcode: 'zcode-job sandbox', opencode: 'OpenCode Go sandbox' }
+type SandboxTool = 'zcode' | 'opencode' | 'cursor-agent'
+const SANDBOX_NAMES: Record<SandboxTool, string> = { zcode: 'zcode-job sandbox', opencode: 'OpenCode Go sandbox', 'cursor-agent': 'Cursor sandbox' }
+const SANDBOX_TOOL: Record<Exclude<Executor, 'codex'>, SandboxTool> = { zcode: 'zcode', 'opencode-go': 'opencode', cursor: 'cursor-agent' }
 
-// Sandbox tools the operator enables; both by default.
+// Sandbox tools the operator enables; all by default.
 async function sandboxTools($: Engine): Promise<string[]> {
-  return ((await $.env.get('AGENT_ROUTE_ZCODE_TOOLS')) ?? 'zcode opencode').split(/\s+/).filter(Boolean)
+  return ((await $.env.get('AGENT_ROUTE_ZCODE_TOOLS')) ?? 'zcode opencode cursor-agent').split(/\s+/).filter(Boolean)
 }
 
 async function runSandboxExecutor($: Engine, e: AgentCall, repo: string, tool: SandboxTool): Promise<unknown | undefined> {
@@ -442,8 +453,7 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
   const restricted = definition && (definition.tools !== undefined || Boolean(definition.disallowedTools?.length))
   const repo = restricted ? undefined : await publicCodeRepo($, e)
   const candidates = eligible(Boolean(repo))
-  const codex = await currentCodexScore($)
-  const scores: Partial<Record<Executor, Score>> = codex ? { codex } : {}
+  const scores = await currentScores($)
   event.eligible = [...candidates, 'haiku']
   for (const x of candidates) event.scores[x] = scores[x] ? { score: scores[x]!.score ?? null, exhausted: scores[x]!.exhausted } : null
   const tools = await sandboxTools($)
@@ -451,7 +461,7 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
     let result: unknown | undefined
     if (executor === 'codex') result = await runCodexRung($, e, customSandbox)
     else {
-      const tool: SandboxTool = executor === 'zcode' ? 'zcode' : 'opencode'
+      const tool = SANDBOX_TOOL[executor]
       if (repo && tools.includes(tool)) result = await runSandboxExecutor($, e, repo, tool)
     }
     if (result) {

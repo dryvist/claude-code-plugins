@@ -101,11 +101,12 @@ export function codexArgv(sandbox: Sandbox, route: Route, model: string | undefi
 }
 
 // Subscription executors in static order; Haiku is the terminal rung outside this list.
-export type Executor = 'zcode' | 'opencode-go' | 'codex'
-export const EXECUTORS: readonly Executor[] = ['zcode', 'opencode-go', 'codex']
+export type Executor = 'zcode' | 'opencode-go' | 'codex' | 'cursor'
+export const EXECUTORS: readonly Executor[] = ['zcode', 'opencode-go', 'codex', 'cursor']
 // No zero-data-retention data exists, so this static table decides who may see a task. On-host local aliases and
-// the Codex and Haiku subscriptions take any work; the sandbox tools take public-repository code only.
-export const PUBLIC_CODE_ONLY: Record<Executor, boolean> = { zcode: true, 'opencode-go': true, codex: false }
+// the Codex and Haiku subscriptions take any work; the sandbox tools take public-repository code only. Cursor runs as a
+// sandbox tool on the same dispatcher, which refuses private repositories.
+export const PUBLIC_CODE_ONLY: Record<Executor, boolean> = { zcode: true, 'opencode-go': true, codex: false, cursor: true }
 export const eligible = (publicCode: boolean): Executor[] => EXECUTORS.filter((x) => publicCode || !PUBLIC_CODE_ONLY[x])
 
 // On-host router aliases only, smallest first; `*-homelab` aliases leave the host and are never used.

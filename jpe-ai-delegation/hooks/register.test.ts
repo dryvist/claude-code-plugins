@@ -14,7 +14,7 @@ const PR = { html_url: 'https://github.com/owner/project/pull/12', state: 'open'
 const CORE_ASK = { decision: 'ask', reason: 'This shell -c script runs rm.' }
 type Call = { argv: string[]; stdin?: string }
 type World = {
-  quota?: number; meterOnPath?: boolean; codexWindows?: unknown[]; now?: number; gatewayFinish?: string; quotaThrows?: boolean; cache?: boolean; codexExit?: number; answer?: string; label?: string
+  quota?: number; meterOnPath?: boolean; codexWindows?: unknown[]; cursorWindows?: unknown[]; now?: number; gatewayFinish?: string; quotaThrows?: boolean; cache?: boolean; codexExit?: number; answer?: string; label?: string
   env?: Record<string, string>; definition?: string; files?: Record<string, string>; fsThrows?: boolean; worktreeExit?: number; temporaryExit?: number
   repository?: unknown; properties?: unknown; githubPrivateAuth?: boolean; githubAuthDenied?: boolean; pr?: unknown; githubError?: boolean; githubInvalidJson?: boolean
   zcodeExit?: number; zcodeOutput?: string; zcodeAvailable?: boolean; zcodeThrows?: boolean; zcodeTruncated?: boolean
@@ -58,7 +58,7 @@ function world(w: World = {}) {
         if (quota !== 0 && quota !== 1) return { ...RAN, exitCode: quota }
         // Default: Codex available and exactly on pace (score 0); quota 1: exhausted.
         const windows = w.codexWindows ?? [{ kind: 'weekly', used_percent: quota === 1 ? 100 : 50, window_seconds: 2000, reset_at: 2000 }]
-        return { ...RAN, stdout: JSON.stringify({ provider_quotas: [{ id: 'claude', status: 'ok', windows: [] }, { id: 'codex', status: 'ok', windows }] }) }
+        return { ...RAN, stdout: JSON.stringify({ provider_quotas: [{ id: 'claude', status: 'ok', windows: [] }, { id: 'codex', status: 'ok', windows }, ...(w.cursorWindows ? [{ id: 'cursor', status: 'ok', windows: w.cursorWindows }] : [{ id: 'cursor', status: 'error', windows: [] }])] }) }
       }
       if (argv[0] === 'mktemp') return { ...RAN, exitCode: w.temporaryExit ?? 0, stdout: argv[1] === '-d' ? '/tmp/worktree' : '/tmp/final' }
       if (argv[0] === 'git') return { ...RAN, exitCode: w.worktreeExit ?? 0 }
@@ -719,7 +719,7 @@ describe('judge and session policy', () => {
 
 describe('scoring and eligibility policy', () => {
   test('eligibility: sandbox tools see public code only; Codex sees everything', () => {
-    expect(eligible(true)).toEqual(['zcode', 'opencode-go', 'codex'])
+    expect(eligible(true)).toEqual(['zcode', 'opencode-go', 'codex', 'cursor'])
     expect(eligible(false)).toEqual(['codex'])
   })
   test('score is unused-at-pace per hour left, the binding window wins, 95% excludes', () => {
@@ -781,7 +781,7 @@ describe('routing batch', () => {
   test('5: public-repo code with unknown sandbox quota takes ZCode by static order', async () => {
     const w = world({ quota: 1, env: gateways })
     expect(text(await w.agent(coding))).toContain('[routed: zcode-job sandbox;')
-    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'zcode', eligible: ['zcode', 'opencode-go', 'codex', 'haiku'] })
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'zcode', eligible: ['zcode', 'opencode-go', 'codex', 'cursor', 'haiku'] })
   })
   test('6: with ZCode disabled, public-repo code takes OpenCode Go', async () => {
     const w = world({ quota: 1, env: { ...gateways, AGENT_ROUTE_ZCODE_TOOLS: 'opencode' } })
@@ -871,5 +871,46 @@ describe('routing batch', () => {
     const w = world({ quota: 1, env: { TOKEN_METER_BIN: '/opt/token-meter' } })
     await w.agent()
     expect(w.calls[0].argv).toEqual(['/opt/token-meter', 'quota', '--json'])
+  })
+})
+
+describe('cursor executor', () => {
+  const at = (used: number) => [{ used_percent: used, window_seconds: 2000, reset_at: 2000 }]
+  test('Codex exhausted and Cursor available: Cursor is chosen, not Haiku', async () => {
+    const w = world({ quota: 1, env: { ...gateways, AGENT_ROUTE_ZCODE_TOOLS: 'cursor-agent' } })
+    expect(text(await w.agent(coding))).toContain('[routed: Cursor sandbox;')
+    expect(w.calls.find((c) => c.argv[0] === 'zcode-job')?.argv.slice(0, 5)).toEqual(['zcode-job', 'start', '--tool', 'cursor-agent', 'owner/project'])
+    expect(w.nextCalls).toEqual([])
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'cursor', fell_through_from: ['zcode', 'opencode-go'] })
+  })
+  test('Codex and Cursor both fail: Haiku, with both in fell_through_from', async () => {
+    const w = world({ codexExit: 7, zcodeAvailable: false, env: gateways })
+    await w.agent(coding)
+    expect(w.nextCalls[0]).toMatchObject({ model: 'haiku', effort: 'xhigh' })
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'haiku', fell_through_from: ['zcode', 'opencode-go', 'codex', 'cursor'] })
+  })
+  test('Cursor runs after Codex in the static order', async () => {
+    const w = world({ env: { ...gateways, AGENT_ROUTE_ZCODE_TOOLS: 'cursor-agent' } })
+    expect(text(await w.agent(coding))).toContain('codex luna')
+    expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
+  })
+  test('a positive Cursor quota score moves it first; an exhausted one drops it', async () => {
+    const lead = world({ env: gateways, cursorWindows: at(10) })
+    expect(text(await lead.agent(coding))).toContain('[routed: Cursor sandbox;')
+    expect(routeEvents(lead).at(-1).scores.cursor.exhausted).toBe(false)
+    const out = world({ quota: 1, zcodeAvailable: false, env: gateways, cursorWindows: at(100) })
+    await out.agent(coding)
+    expect(routeEvents(out).at(-1)).toMatchObject({ chosen: 'haiku', scores: { cursor: { exhausted: true } }, fell_through_from: ['zcode', 'opencode-go'] })
+  })
+  test('a failed Cursor quota row leaves its score unknown', async () => {
+    const w = world({ quota: 1, env: gateways })
+    await w.agent(coding)
+    expect(routeEvents(w).at(-1).scores.cursor).toBeNull()
+  })
+  test('private repositories never reach the Cursor sandbox', async () => {
+    const w = world({ quota: 1, env: gateways, repository: { visibility: 'private', private: true }, cursorWindows: at(10) })
+    await w.agent(coding)
+    expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
+    expect(routeEvents(w).at(-1)).toMatchObject({ eligible: ['codex', 'haiku'], chosen: 'haiku' })
   })
 })
