@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.50.0](https://github.com/dryvist/claude-code-plugins/compare/v6.49.0...v6.50.0) (2026-11-10)
+
+
+### Features
+
+* **jpe-ai-delegation:** place Agent spawns by eligibility, local fit and quota score ([#767](https://github.com/dryvist/claude-code-plugins/issues/767)) ([91d5657](https://github.com/dryvist/claude-code-plugins/commit/91d56573b12fe60b73065ee767a467ce1bb1e880))
+
 ## [6.49.0](https://github.com/dryvist/claude-code-plugins/compare/v6.48.0...v6.49.0) (2026-11-09)
 
 
