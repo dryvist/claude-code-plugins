@@ -14,7 +14,7 @@ const PR = { html_url: 'https://github.com/owner/project/pull/12', state: 'open'
 const CORE_ASK = { decision: 'ask', reason: 'This shell -c script runs rm.' }
 type Call = { argv: string[]; stdin?: string }
 type World = {
-  quota?: number; codexWindows?: unknown[]; now?: number; gatewayFinish?: string; quotaThrows?: boolean; cache?: boolean; codexExit?: number; answer?: string; label?: string
+  quota?: number; meterOnPath?: boolean; codexWindows?: unknown[]; now?: number; gatewayFinish?: string; quotaThrows?: boolean; cache?: boolean; codexExit?: number; answer?: string; label?: string
   env?: Record<string, string>; definition?: string; files?: Record<string, string>; fsThrows?: boolean; worktreeExit?: number; temporaryExit?: number
   repository?: unknown; properties?: unknown; githubPrivateAuth?: boolean; githubAuthDenied?: boolean; pr?: unknown; githubError?: boolean; githubInvalidJson?: boolean
   zcodeExit?: number; zcodeOutput?: string; zcodeAvailable?: boolean; zcodeThrows?: boolean; zcodeTruncated?: boolean
@@ -70,6 +70,7 @@ function world(w: World = {}) {
         const value = argv[2].endsWith('/properties/values') ? w.properties : w.repository
         return { ...RAN, exitCode: w.githubAuthDenied ? 1 : 0, stdout: JSON.stringify(value) }
       }
+      if (argv[0] === 'which' && argv[1] === 'token-meter-server') return w.meterOnPath === false ? { ...RAN, exitCode: 1 } : { ...RAN, stdout: '/run/bin/token-meter-server\n' }
       if (argv[0] === 'which') return { ...RAN, exitCode: w.zcodeAvailable === false ? 1 : 0 }
       if (argv[0] === 'zcode-job') {
         if (w.zcodeThrows) throw new Error('dispatch failed')
@@ -114,7 +115,9 @@ const runs = (w: ReturnType<typeof world>) => w.calls.filter((c) => c.argv[0] ==
 const gateways = { LITELLM_LOCAL_BASE_URL: 'http://localhost:8000', AGENT_ROUTE_GLM_MODEL: 'configured-glm', AGENT_ROUTE_OPENCODE_GO_MODEL: 'configured-go' }
 const coding = { description: '[class: public] [repo: owner/project] [task: code]', prompt: 'Implement the change.' }
 const textTask = { description: '[class: text]', prompt: 'Summarize this supplied text: A small change.' }
-const QUOTA_ARGV = ['python3', '/home/test/Library/Application Support/Token Meter/runtime/meter.py', 'quota', '--json']
+const QUOTA_ARGV = ['/run/bin/token-meter-server', 'quota', '--json']
+const STAGED_METER = '/home/test/Library/Application Support/Token Meter/runtime/meter.py'
+const quotaCall = (w: ReturnType<typeof world>) => w.calls.find((c) => c.argv.slice(-2).join(' ') === 'quota --json')
 const routeEvents = (w: ReturnType<typeof world>) => w.calls.filter((c) => c.argv[0] === 'tee' && c.stdin?.startsWith('{')).map((c) => JSON.parse(c.stdin!))
 const nonGithub = (w: ReturnType<typeof world>) => w.fetches.filter((f) => !f.url.startsWith('https://api.github.com/'))
 
@@ -404,7 +407,8 @@ describe('Codex rung', () => {
       expect(runs(w)).toHaveLength(1)
       expect(runs(w)[0].argv).toContain(`gpt-newer-${route.family}`)
       expect(runs(w)[0].argv).toContain(isAdvisory(label as never) ? 'read-only' : 'workspace-write')
-      expect(w.calls[0].argv).toEqual(QUOTA_ARGV)
+      expect(w.calls[0].argv).toEqual(['which', 'token-meter-server'])
+      expect(w.calls[1].argv).toEqual(QUOTA_ARGV)
       expect(w.nextCalls).toEqual([])
     })
   }
@@ -451,7 +455,8 @@ describe('Codex rung', () => {
     expect(runs(w)[0].argv).toContain('gpt-newer-luna')
     expect(runs(w)[1].argv).toContain('gpt-newer-luna')
     expect(w.fetches).toEqual([])
-    expect(w.calls[0].argv).toEqual(QUOTA_ARGV)
+    expect(w.calls[0].argv).toEqual(['which', 'token-meter-server'])
+    expect(w.calls[1].argv).toEqual(QUOTA_ARGV)
   })
   for (const subagent_type of ['Explore', 'Plan']) {
     test(`${subagent_type} remains read-only on Luna xhigh`, async () => {
@@ -640,6 +645,7 @@ describe('capped ladder', () => {
     test(`dispatched zcode must yield a verified ready PR: ${JSON.stringify(options)}`, async () => {
       const w = world({ quota: 1, env: gateways, ...options })
       expect(text(await w.agent(coding))).toStartWith('FAIL | router |')
+      expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'zcode', reason: 'sandbox job without a verified PR' })
       expect(w.fetches.some((f) => f.url.endsWith('/chat/completions'))).toBe(false)
       expect(w.nextCalls).toEqual([])
     })
@@ -704,8 +710,9 @@ describe('judge and session policy', () => {
       const r = await w.invoke('prompt.compose', {}, { sections: [] })
       expect(r.sections).toHaveLength(1)
       const policy = r.sections[0].text
-      expect(policy).toStartWith(`codex-quota: ${status}\nCheck codex-quota first.`)
-      for (const fragment of ['small, quick, checkable tasks (summarize, extract, classify, reformat, a first pass over a file or log)', 'router local default or medium capability before any subscription', 'escalate only after a checked failure', 'equal first choices, split by sensitivity', 'more quota headroom', 'ZCode 5-hour and weekly, OpenCode Go monthly, Codex weekly', 'obvious, definitely non-sensitive coding work in public repos', 'coding and coding-adjacent only: code, tests, GitHub automation and workflows, code reviews', 'ready PR labelled human:review', 'leak-scan it before merge', 'never auto-merge', 'anything even remotely sensitive, or any private repo', 'Luna xhigh default, max as needed', 'while codex-quota exits 0', 'never Terra', 'other subscriptions where they fit (Z.ai GLM, OpenCode Go); public work only', 'at or under its pace for the billing period', 'Haiku xhigh, the last resort, only after rungs 1, 2 and 3 are exhausted', 'Never Sonnet, Opus or Fable subagents', 'Never send secrets, credentials, inventory or incident content to any executor', 'Antigravity stays a second-opinion reviewer']) expect(policy).toContain(fragment)
+      expect(policy).not.toContain('Check codex-quota first')
+      expect(policy).toStartWith(`codex-quota: ${status}\nThe jpe-ai-delegation hook places every Agent spawn.`)
+      for (const fragment of ['Tag self-contained text work [class: text]', 'put all of its text in the prompt', 'on-host local model first', 'ranked by quota', 'non-sensitive coding tagged [task: code] [repo: owner/repository] in a public repository', 'ready PR labelled human:review', 'leak-scan it before merge', 'never auto-merge', 'Codex Luna takes any task', 'never Terra', 'Haiku xhigh is always last', 'Nothing stops because an executor is unavailable', 'Never Sonnet, Opus or Fable subagents', 'Never send secrets, credentials, inventory or incident content to any executor', 'Antigravity stays a second-opinion reviewer']) expect(policy).toContain(fragment)
     })
   }
 })
@@ -731,11 +738,11 @@ describe('scoring and eligibility policy', () => {
     expect(rankExecutors(['zcode', 'opencode-go', 'codex'], { codex: { score: 0, exhausted: false } })).toEqual(['zcode', 'opencode-go', 'codex'])
     expect(rankExecutors(['zcode', 'opencode-go', 'codex'], { zcode: { exhausted: true } })).toEqual(['opencode-go', 'codex'])
   })
-  test('local fit: marked text or checkable bulk, smallest alias with 40% headroom', () => {
-    expect(localTask('[class: text]', 'anything')).toBe(true)
-    expect(localTask('[class: bulk]', 'Summarize the supplied log.')).toBe(true)
-    expect(localTask('[class: bulk]', 'Fix the failing build.')).toBe(false)
-    expect(localTask('[class: standard]', 'Summarize the supplied log.')).toBe(false)
+  test('local fit: marked text only, smallest alias with 40% headroom', () => {
+    expect(localTask('[class: text]')).toBe(true)
+    expect(localTask('[class: bulk]')).toBe(false)
+    expect(localTask('[class: standard]')).toBe(false)
+    expect(localTask(undefined)).toBe(false)
     const windows = { small: 32768, 'local-only': 131072, 'small-homelab': 9_999_999 }
     expect(pickLocal(estimateTokens('a'.repeat(10_000)), windows)?.alias).toBe('small')
     expect(pickLocal(estimateTokens('a'.repeat(140_000)), windows)?.alias).toBe('local-only')
@@ -841,6 +848,24 @@ describe('routing batch', () => {
     await w.agent()
     expect(reads()).toBe(2)
     expect(w.nextCalls).toHaveLength(3)
+  })
+  test('a [class: bulk] summarize request needs tools and never goes local', async () => {
+    const w = world({ quota: 1, env: gateways })
+    await w.agent({ description: '[class: bulk]', prompt: 'Summarize the files under src/.' })
+    expect(w.fetches).toEqual([])
+    expect(w.nextCalls[0]).toMatchObject({ model: 'haiku', effort: 'xhigh' })
+    expect(routeEvents(w).at(-1)).toMatchObject({ local: null, chosen: 'haiku' })
+  })
+  test('without token-meter-server on PATH the staged runtime is used when present', async () => {
+    const w = world({ quota: 1, meterOnPath: false, files: { [STAGED_METER]: '' } })
+    await w.agent()
+    expect(quotaCall(w)?.argv).toEqual(['python3', STAGED_METER, 'quota', '--json'])
+  })
+  test('with no token-meter installed, quota is unknown and no quota command runs', async () => {
+    const w = world({ meterOnPath: false })
+    expect(text(await w.agent())).toContain('codex luna xhigh')
+    expect(quotaCall(w)).toBeUndefined()
+    expect(routeEvents(w).at(-1)).toMatchObject({ scores: { codex: null } })
   })
   test('TOKEN_METER_BIN replaces the default meter path', async () => {
     const w = world({ quota: 1, env: { TOKEN_METER_BIN: '/opt/token-meter' } })

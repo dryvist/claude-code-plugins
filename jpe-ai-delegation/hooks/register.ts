@@ -11,7 +11,7 @@ const TEXT_EXECUTOR_TIMEOUT_MS = 120_000
 const QUOTA_TIMEOUT_MS = 20_000
 const QUOTA_REFRESH_MS = 600_000
 const MODEL_INFO_TIMEOUT_MS = 10_000
-const PROMPT_POLICY = 'Check codex-quota first. Rung 1: small, quick, checkable tasks (summarize, extract, classify, reformat, a first pass over a file or log) go to the router local default or medium capability before any subscription; escalate only after a checked failure. Rung 2 holds two equal first choices, split by sensitivity; when both qualify, send the task to the executor with more quota headroom and spend every subscription before it resets (ZCode 5-hour and weekly, OpenCode Go monthly, Codex weekly). ZCode (zcode-job): obvious, definitely non-sensitive coding work in public repos; coding and coding-adjacent only: code, tests, GitHub automation and workflows, code reviews; the output is a ready PR labelled human:review; leak-scan it before merge; never auto-merge. Codex Luna: anything even remotely sensitive, or any private repo; Luna xhigh default, max as needed, while codex-quota exits 0; never Terra. Rung 3: other subscriptions where they fit (Z.ai GLM, OpenCode Go); public work only, and only while that subscription is at or under its pace for the billing period. Rung 4: Haiku xhigh, the last resort, only after rungs 1, 2 and 3 are exhausted or do not qualify. Never Sonnet, Opus or Fable subagents. Never send secrets, credentials, inventory or incident content to any executor. Antigravity stays a second-opinion reviewer, never an executor.'
+const PROMPT_POLICY = 'The jpe-ai-delegation hook places every Agent spawn. Tag self-contained text work [class: text] and put all of its text in the prompt; the hook sends it to an on-host local model first. Every other spawn, and any local answer that fails its check, goes to the subscription executors it is eligible for, ranked by quota. ZCode and OpenCode Go take only non-sensitive coding tagged [task: code] [repo: owner/repository] in a public repository; their output is a ready PR labelled human:review; leak-scan it before merge; never auto-merge. Codex Luna takes any task; never Terra. Haiku xhigh is always last. Nothing stops because an executor is unavailable. Never Sonnet, Opus or Fable subagents. Never send secrets, credentials, inventory or incident content to any executor. Antigravity stays a second-opinion reviewer, never an executor.'
 
 // Per-session caches, reset when the module registers. The first quota read is awaited; later reads serve the cache
 // and refresh it in the background at most every QUOTA_REFRESH_MS.
@@ -28,11 +28,26 @@ async function withTimeout<T>($: Engine, work: Promise<T>, ms: number): Promise<
   }
 }
 
-// `token-meter quota --json`; any failure or timeout means the quota is unknown.
+// Quota command: TOKEN_METER_BIN, else `token-meter-server` on PATH (the Nix package), else the runtime that
+// token-meter's own installer stages. A token-meter without `quota` starts its server instead; the timeout kills it.
+async function quotaArgv($: Engine): Promise<string[] | undefined> {
+  const bin = await $.env.get('TOKEN_METER_BIN')
+  if (bin) return [bin, 'quota', '--json']
+  try {
+    const found = await $.process.run(['which', 'token-meter-server'], { timeoutMs: 5_000 })
+    if (found.exitCode === 0 && found.stdout.trim()) return [found.stdout.trim(), 'quota', '--json']
+  } catch {
+    // Not on PATH; try the staged runtime.
+  }
+  const staged = `${await $.env.get('HOME')}/Library/Application Support/Token Meter/runtime/meter.py`
+  return (await $.fs.exists(staged)) ? ['python3', staged, 'quota', '--json'] : undefined
+}
+
+// Any failure, timeout or missing command means the quota is unknown.
 async function readQuota($: Engine): Promise<QuotaRow[] | undefined> {
   try {
-    const bin = await $.env.get('TOKEN_METER_BIN')
-    const argv = bin ? [bin, 'quota', '--json'] : ['python3', `${await $.env.get('HOME')}/Library/Application Support/Token Meter/runtime/meter.py`, 'quota', '--json']
+    const argv = await quotaArgv($)
+    if (!argv) return undefined
     const r = await $.process.run(argv, { timeoutMs: QUOTA_TIMEOUT_MS })
     if (r.exitCode !== 0 || r.isStdoutTruncated === true) return undefined
     const rows = JSON.parse(r.stdout)?.provider_quotas
@@ -408,7 +423,7 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
   }
 
   // Local rung: small, checkable, self-contained text on an on-host alias.
-  if (!definition && !e.isolation && isGenericType(e) && !['Explore', 'Plan'].includes(e.subagent_type ?? '') && !codingTask(e.description) && localTask(e.description, e.prompt)) {
+  if (!definition && !e.isolation && isGenericType(e) && !['Explore', 'Plan'].includes(e.subagent_type ?? '') && !codingTask(e.description) && localTask(e.description)) {
     const base = (await $.env.get('LITELLM_LOCAL_BASE_URL'))?.replace(/\/+$/, '')
     const estimate = estimateTokens(e.prompt)
     const local = base ? pickLocal(estimate, await localModelWindows($, base)) : undefined
@@ -440,7 +455,8 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
       if (repo && tools.includes(tool)) result = await runSandboxExecutor($, e, repo, tool)
     }
     if (result) {
-      await logRoute($, event, executor, 'highest-ranked eligible executor that answered')
+      const unverified = (result as { result?: { agentId?: string } }).result?.agentId === 'ai-delegation-policy'
+      await logRoute($, event, executor, unverified ? 'sandbox job without a verified PR' : 'highest-ranked eligible executor that answered')
       return result
     }
     event.fell_through_from.push(executor)

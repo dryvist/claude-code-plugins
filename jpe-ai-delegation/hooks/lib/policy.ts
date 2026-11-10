@@ -111,10 +111,8 @@ export const eligible = (publicCode: boolean): Executor[] => EXECUTORS.filter((x
 // On-host router aliases only, smallest first; `*-homelab` aliases leave the host and are never used.
 export const LOCAL_ALIASES = [{ alias: 'small', timeoutMs: 60_000 }, { alias: 'local-only', timeoutMs: 120_000 }] as const
 export const LOCAL_OUTPUT_TOKENS = 2048
-const CHECKABLE = /\b(summari[sz]e|extract|classify|reformat|first pass)\b/i
-// Small and checkable: the lead marks self-contained text, or names bulk work whose verb has a checkable answer.
-export const localTask = (description: string | undefined, prompt: string): boolean =>
-  /\[class: text\]/.test(description ?? '') || (explicitLabel(description) === 'bulk' && CHECKABLE.test(prompt))
+// Only work the lead marks as self-contained text; a chat-only model cannot read files or run tools.
+export const localTask = (description: string | undefined): boolean => /\[class: text\]/.test(description ?? '')
 export const estimateTokens = (prompt: string): number => Math.ceil(prompt.length / 3.5) + LOCAL_OUTPUT_TOKENS
 // First alias whose context window holds the estimate with 40% headroom.
 export function pickLocal(estimate: number, windows: Record<string, number | undefined>): (typeof LOCAL_ALIASES)[number] | undefined {
