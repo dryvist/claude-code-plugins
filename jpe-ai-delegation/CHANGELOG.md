@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.14.0](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.13.0...jpe-ai-delegation-v1.14.0) (2026-11-10)
+
+
+### Features
+
+* **jpe-ai-delegation:** place Agent spawns by eligibility, local fit and quota score ([#767](https://github.com/dryvist/claude-code-plugins/issues/767)) ([91d5657](https://github.com/dryvist/claude-code-plugins/commit/91d56573b12fe60b73065ee767a467ce1bb1e880))
+
 ## [1.13.0](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.12.4...jpe-ai-delegation-v1.13.0) (2026-11-09)
 
 
