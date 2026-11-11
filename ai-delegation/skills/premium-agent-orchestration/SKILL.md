@@ -83,6 +83,10 @@ Stop and report: [the point to stop, or the blocker to report]
 Difficulty and risk: [plain words]
 ```
 
+One agent per tool. The session knows only what the skill says: call this
+agent with these inputs and expect this output. The agent runs on a local
+model and carries the tool's instructions, so no other context does.
+
 ## Judge every result
 
 A delegate's output is a claim until its check passes.

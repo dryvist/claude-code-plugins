@@ -46,6 +46,10 @@ SKILL.md rules below, not prose style.
   work prefers off-peak windows.
 - Every task brief carries one outcome, the exact inputs, and a yes/no check,
   with a static shared prefix first so matching calls can use prefix caching.
+- One agent per tool: the session knows only the call contract — the skill
+  says call this agent with these inputs and expect this output — while the
+  agent runs on a local model and carries the tool's instructions, so no
+  other context does.
 - A delegate's output is a claim until its check passes; failures go back
   with the specific shortfall and the next check; nothing unreviewed ships or
   merges.
