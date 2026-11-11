@@ -194,6 +194,63 @@ export function pickLocal(estimate: number, windows: Record<string, number | und
 }
 
 export type QuotaWindow = { used_percent?: unknown; window_seconds?: unknown; reset_at?: unknown }
+export type QuotaRow = { id: string; status: 'ok'; as_of: number; windows: QuotaWindow[] }
+// Why a quota, or one window of it, is unknown. Unknown is never scored as empty or full.
+export type QuotaReason = 'quota_unconfigured' | 'quota_unreachable' | 'quota_missing' | 'quota_stale'
+export type QuotaRead = { rows: QuotaRow[]; unknown: Record<string, QuotaReason>; sources: Record<string, string> }
+
+// One instant query reads every executor's windows from the metrics store.
+export const QUOTA_SELECTOR = '{__name__=~"agent_quota_(used_percent|window_seconds|reset_timestamp_seconds)"}'
+export const QUOTA_STALE_SECONDS = 900
+const QUOTA_FIELDS: Record<string, keyof QuotaWindow> = {
+  agent_quota_used_percent: 'used_percent',
+  agent_quota_window_seconds: 'window_seconds',
+  agent_quota_reset_timestamp_seconds: 'reset_at',
+}
+type Sample = { value: number; at: number; source: string }
+
+// The result list of a successful instant-query vector, else undefined.
+export function metricsResult(body: unknown): unknown[] | undefined {
+  const b = body as { status?: unknown; data?: { resultType?: unknown; result?: unknown } } | null
+  return b?.status === 'success' && b.data?.resultType === 'vector' && Array.isArray(b.data.result) ? b.data.result : undefined
+}
+
+// Instant-query result list to quota rows, grouped by `executor` and `window`. A window counts only with all three series,
+// each a finite number, and with its oldest sample no more than 15 minutes old. Unknown keys are `executor` (no series)
+// or `executor/window` (incomplete or stale); `sources` names the source of each window used.
+export function quotaFromMetrics(result: readonly unknown[], ids: readonly string[], nowSeconds: number): QuotaRead {
+  const groups = new Map<string, Map<string, Partial<Record<keyof QuotaWindow, Sample>>>>()
+  for (const raw of result) {
+    const { metric, value } = (raw ?? {}) as { metric?: Record<string, unknown>; value?: unknown }
+    const field = QUOTA_FIELDS[String(metric?.__name__)]
+    const [at, text] = Array.isArray(value) ? value : []
+    const number = typeof text === 'string' && text.trim() !== '' ? Number(text) : NaN
+    if (!field || typeof metric?.executor !== 'string' || typeof metric.window !== 'string' || typeof at !== 'number' || !Number.isFinite(number)) continue
+    const windows = groups.get(metric.executor) ?? new Map()
+    groups.set(metric.executor, windows)
+    const window = windows.get(metric.window) ?? {}
+    windows.set(metric.window, window)
+    // Two sources for one series: the newer sample wins.
+    if (!window[field] || window[field]!.at < at) window[field] = { value: number, at, source: String(metric.source ?? '') }
+  }
+  const read: QuotaRead = { rows: [], unknown: {}, sources: {} }
+  for (const id of ids) {
+    const windows = groups.get(id)
+    if (!windows) { read.unknown[id] = 'quota_missing'; continue }
+    const row: QuotaRow = { id, status: 'ok', as_of: 0, windows: [] }
+    for (const [name, w] of windows) {
+      const { used_percent: used, window_seconds: duration, reset_at: reset } = w
+      if (!used || !duration || !reset) { read.unknown[`${id}/${name}`] = 'quota_missing'; continue }
+      const at = Math.min(used.at, duration.at, reset.at)
+      if (nowSeconds - at > QUOTA_STALE_SECONDS) { read.unknown[`${id}/${name}`] = 'quota_stale'; continue }
+      row.windows.push({ used_percent: used.value, window_seconds: duration.value, reset_at: reset.value })
+      row.as_of = Math.max(row.as_of, at)
+      read.sources[`${id}/${name}`] = used.source
+    }
+    if (row.windows.length) read.rows.push(row)
+  }
+  return read
+}
 export type Score = { score?: number; exhausted: boolean }
 // Quota that would expire unused at the current pace, per hour left in its window. The binding window (lowest score)
 // decides; any live window at 95% or more excludes the executor. No usable window leaves the score unknown.

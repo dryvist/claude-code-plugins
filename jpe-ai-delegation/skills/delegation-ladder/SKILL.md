@@ -64,16 +64,22 @@ decision to `~/.claude/ai-delegation.log`:
    Put all of the task's text in the prompt; the local model has no tools. The token estimate (characters / 3.5 plus 2048 output) must fit in
    60% of the alias's context window from the router's `/model/info`. An empty
    answer, a length cut-off, an error or a timeout falls through.
-3. Subscriptions. Quota comes from `quota --json` on `TOKEN_METER_BIN`, else
-   `token-meter-server` on `PATH`, else the runtime that token-meter's
-   installer stages. A token-meter release without `quota` reads as unknown. The hook reads
-   it once per session with a 20-second timeout and refreshes it in the
-   background every 10 minutes; a failure means unknown. An executor with a
+3. Subscriptions. Quota comes from one instant query to the metrics store at
+   `AGENT_QUOTA_QUERY_URL` for the `agent_quota_used_percent`,
+   `agent_quota_window_seconds` and `agent_quota_reset_timestamp_seconds`
+   series, grouped by `executor` and `window`. The plugin ships no default:
+   unset means every quota is unknown and no request is made. The hook reads
+   it once per session with a 3-second timeout and refreshes it in the
+   background every 10 minutes. An unreachable store, a timeout, a non-OK
+   status or bad JSON reads as `quota_unreachable`; a window sampled more than
+   15 minutes ago reads as `quota_stale`; an executor with no series reads as
+   `quota_missing`. Unknown is never scored as empty or full, and the route
+   event lists each reason under `quota_unknown`. An executor with a
    live window at 95% or more drops out. A positive score (quota that would
    expire unused at the current pace, per hour left) moves an executor ahead;
    unknown and non-positive scores keep table order. The executor table in
    `hooks/lib/policy.ts` lists ZCode, OpenCode Go, Codex and Cursor, each with
-   transport, trust, `private_ok`, token-meter quota row, price and peak
+   transport, trust, `private_ok`, quota executor name, price and peak
    windows (ZCode costs double Mon–Fri 06:00–10:00 UTC). The effective score is
    headroom / (price × peak). `~/.config/ai-delegation/executors.json` (a JSON
    array of rows) overrides rows by `id` and adds new ones; invalid rows are
