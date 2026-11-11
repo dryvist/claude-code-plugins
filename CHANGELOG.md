@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.52.0](https://github.com/dryvist/claude-code-plugins/compare/v6.51.0...v6.52.0) (2026-11-11)
+
+
+### Features
+
+* **jpe-ai-delegation:** load executors from a validated table with price, peak and promotions ([#771](https://github.com/dryvist/claude-code-plugins/issues/771)) ([bbcaa17](https://github.com/dryvist/claude-code-plugins/commit/bbcaa1791bf2aab80c6abe3a576427e5b2617bcf))
+
 ## [6.51.0](https://github.com/dryvist/claude-code-plugins/compare/v6.50.0...v6.51.0) (2026-11-10)
 
 
