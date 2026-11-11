@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.17.0](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.16.0...jpe-ai-delegation-v1.17.0) (2026-11-11)
+
+
+### Features
+
+* **jpe-ai-delegation:** read executor quota from the metrics store ([#773](https://github.com/dryvist/claude-code-plugins/issues/773)) ([a3dc41a](https://github.com/dryvist/claude-code-plugins/commit/a3dc41afbf39a4a009f409cf9c02d69ca312f441))
+
 ## [1.16.0](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.15.0...jpe-ai-delegation-v1.16.0) (2026-11-11)
 
 
