@@ -371,7 +371,8 @@ async function jobOutcomes($: Engine, nowMs: number): Promise<JobOutcome[]> {
 }
 
 type SandboxRun = { result?: unknown; record?: JobRecord; state?: JobState }
-// No result and no state: zcode-job is not installed. A state whose `end` is not pr_opened: the job ended without a PR and the
+// No result and no state: zcode-job is not installed. A result with a `cancelled` state: someone cancelled the job, so
+// routing stops for this task. A state alone (any other end but pr_opened): the job ended without a PR and the
 // task moves on. Otherwise the result is the verified PR or a FAIL that stops routing.
 async function runSandboxExecutor($: Engine, e: AgentCall, repo: string, tool: string, executor: string): Promise<SandboxRun> {
   const started = await $.clock.now()
@@ -394,6 +395,7 @@ async function runSandboxExecutor($: Engine, e: AgentCall, repo: string, tool: s
     if (response.exitCode !== 0 || response.isStdoutTruncated === true || !done || done[3].toLowerCase() !== repo.toLowerCase()) {
       // A job still running, or one whose end cannot be read, may yet open a PR: never start a duplicate.
       const state = record ? await jobStatus($, record.job, JOB_STATUS_TIMEOUT_MS) : undefined
+      if (state?.end === 'cancelled') return { record, state, result: failure(e, `${tool} job ${record!.job} was cancelled; routing stops for this task`) }
       if (state && state.end !== 'pr_opened') return { record, state }
       return { record, result: failure(e, `${tool} did not return a PR for the requested repository`) }
     }
@@ -545,6 +547,7 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
   for (const executor of ranked.order) {
     const row = rows.find((r) => r.id === executor)!
     let result: unknown | undefined
+    let cancelled = false
     if (row.transport === 'codex') {
       result = await runCodexRung($, e, customSandbox)
       if (!result) skipped[executor] = 'failed'
@@ -557,11 +560,12 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
       if (run.record) event.jobs.push(run.record)
       if (run.record && run.state) await logOutcomes($, [{ record: run.record, state: run.state }])
       if (!run.result) skipped[executor] = run.state ? 'failed' : 'not_installed'
+      cancelled = run.state?.end === 'cancelled'
       result = run.result
     }
     if (result) {
       const unverified = (result as { result?: { agentId?: string } }).result?.agentId === 'ai-delegation-policy'
-      await logRoute($, event, executor, unverified ? 'sandbox job without a verified PR' : 'highest-ranked eligible executor that answered')
+      await logRoute($, event, executor, cancelled ? 'sandbox job cancelled' : unverified ? 'sandbox job without a verified PR' : 'highest-ranked eligible executor that answered')
       return result
     }
     event.fell_through_from.push(executor)
