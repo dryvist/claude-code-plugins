@@ -123,14 +123,14 @@ export const EXECUTOR_TABLE: readonly ExecutorRow[] = [
   { id: 'codex', transport: 'codex', trust: 'subscription-trusted', private_ok: true, quota: 'codex', price: 1 },
   { id: 'cursor', transport: 'sandbox', tool: 'cursor-agent', trust: 'sandbox-public', private_ok: false, quota: 'cursor', price: 1 },
 ]
-export const EXECUTORS: readonly Executor[] = EXECUTOR_TABLE.map((r) => r.id)
 
 const isPeak = (p: unknown): p is Peak => {
   const v = p as Peak
   return Boolean(v) && Array.isArray(v.days) && v.days.every((d) => Number.isInteger(d) && d >= 0 && d <= 6) &&
     [v.start_utc, v.end_utc].every((h) => typeof h === 'number' && h >= 0 && h <= 24) && typeof v.multiplier === 'number' && v.multiplier > 0
 }
-// A complete row, or undefined. Only a subscription-trusted row may take private work.
+// A complete row, or undefined. A sandbox row is always sandbox-public and never takes private work; only a
+// subscription-trusted row may take private work.
 export function validRow(r: unknown): ExecutorRow | undefined {
   const v = r as ExecutorRow
   if (!v || typeof v.id !== 'string' || !/^[a-z0-9-]{1,40}$/.test(v.id) || v.id === 'haiku') return undefined
@@ -138,6 +138,7 @@ export function validRow(r: unknown): ExecutorRow | undefined {
   if (v.transport === 'sandbox' && (typeof v.tool !== 'string' || !/^[a-z0-9-]{1,40}$/.test(v.tool))) return undefined
   if (v.trust !== 'subscription-trusted' && v.trust !== 'sandbox-public') return undefined
   if (typeof v.private_ok !== 'boolean' || (v.private_ok && v.trust !== 'subscription-trusted')) return undefined
+  if (v.transport === 'sandbox' && (v.trust !== 'sandbox-public' || v.private_ok)) return undefined
   if (v.quota !== undefined && typeof v.quota !== 'string') return undefined
   if (typeof v.price !== 'number' || v.price < 0) return undefined
   if (v.peak !== undefined && (!Array.isArray(v.peak) || !v.peak.every(isPeak))) return undefined
@@ -172,7 +173,6 @@ export function eligibleRows(rows: readonly ExecutorRow[], publicCode: boolean, 
   })
   return { rows: open, skipped }
 }
-export const eligible = (publicCode: boolean): Executor[] => eligibleRows(EXECUTOR_TABLE, publicCode, 0).rows.map((r) => r.id)
 
 // Highest matching peak multiplier at this UTC time, else 1.
 export function peakMultiplier(row: ExecutorRow, nowMs: number): number {
@@ -229,10 +229,4 @@ export function rankRows(rows: readonly ExecutorRow[], scores: Partial<Record<Ex
   const positive = open.filter((r) => r.kind !== 'promotion' && (effective[r.id] ?? 0) > 0).sort((a, b) => effective[b.id]! - effective[a.id]!)
   const rest = open.filter((r) => !promos.includes(r) && !positive.includes(r))
   return { order: [...promos, ...positive, ...rest].map((r) => r.id), skipped, effective }
-}
-
-// Positive known scores go first, highest first; everything else keeps the static order. Exhausted executors drop out.
-export function rankExecutors(candidates: readonly Executor[], scores: Partial<Record<Executor, Score>>): Executor[] {
-  const rows = candidates.map((id) => EXECUTOR_TABLE.find((r) => r.id === id) ?? { id, transport: 'codex', trust: 'subscription-trusted', private_ok: true, price: 1 } as ExecutorRow)
-  return rankRows(rows.map((r) => ({ ...r, peak: undefined })), scores, 0).order
 }

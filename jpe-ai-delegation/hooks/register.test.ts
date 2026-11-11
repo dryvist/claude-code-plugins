@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'claude-code/testing'
 import { register } from './register'
-import { CODEX, EXECUTOR_TABLE, LAST_RESORT, codexArgv, eligible, mergeExecutorRows, peakMultiplier, rankRows, validRow, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, localTask, mandatoryLabel, newestModel, parseVerdict, pickLocal, rankExecutors, safePayload, scoreWindows } from './lib/policy'
+import { CODEX, EXECUTOR_TABLE, LAST_RESORT, codexArgv, eligibleRows, mergeExecutorRows, peakMultiplier, rankRows, validRow, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, localTask, mandatoryLabel, newestModel, parseVerdict, pickLocal, safePayload, scoreWindows } from './lib/policy'
 import { customAgentSandbox, parseAgentDefinition } from './lib/agent-definition'
 
 const RAN = { exitCode: 0, stdout: '', stderr: '', isStdoutTruncated: false }
@@ -720,8 +720,9 @@ describe('judge and session policy', () => {
 
 describe('scoring and eligibility policy', () => {
   test('eligibility: sandbox tools see public code only; Codex sees everything', () => {
-    expect(eligible(true)).toEqual(['zcode', 'opencode-go', 'codex', 'cursor'])
-    expect(eligible(false)).toEqual(['codex'])
+    expect(eligibleRows(EXECUTOR_TABLE, true, 0).rows.map((r) => r.id)).toEqual(['zcode', 'opencode-go', 'codex', 'cursor'])
+    expect(eligibleRows(EXECUTOR_TABLE, false, 0).rows.map((r) => r.id)).toEqual(['codex'])
+    expect(eligibleRows(EXECUTOR_TABLE, false, 0).skipped).toEqual({ zcode: 'ineligible', 'opencode-go': 'ineligible', cursor: 'ineligible' })
   })
   test('score is unused-at-pace per hour left, the binding window wins, 95% excludes', () => {
     const at = (used: number) => ({ used_percent: used, window_seconds: 2000, reset_at: 2000 })
@@ -734,10 +735,12 @@ describe('scoring and eligibility policy', () => {
     expect(scoreWindows(undefined, 1000)).toEqual({ score: undefined, exhausted: false })
   })
   test('positive known scores lead; unknown and non-positive keep static order; exhausted drop', () => {
-    expect(rankExecutors(['zcode', 'opencode-go', 'codex'], {})).toEqual(['zcode', 'opencode-go', 'codex'])
-    expect(rankExecutors(['zcode', 'opencode-go', 'codex'], { codex: { score: 3, exhausted: false } })).toEqual(['codex', 'zcode', 'opencode-go'])
-    expect(rankExecutors(['zcode', 'opencode-go', 'codex'], { codex: { score: 0, exhausted: false } })).toEqual(['zcode', 'opencode-go', 'codex'])
-    expect(rankExecutors(['zcode', 'opencode-go', 'codex'], { zcode: { exhausted: true } })).toEqual(['opencode-go', 'codex'])
+    const rows = EXECUTOR_TABLE.slice(0, 3)
+    const offPeak = Date.parse('2026-11-14T12:00:00Z')
+    expect(rankRows(rows, {}, offPeak).order).toEqual(['zcode', 'opencode-go', 'codex'])
+    expect(rankRows(rows, { codex: { score: 3, exhausted: false } }, offPeak).order).toEqual(['codex', 'zcode', 'opencode-go'])
+    expect(rankRows(rows, { codex: { score: 0, exhausted: false } }, offPeak).order).toEqual(['zcode', 'opencode-go', 'codex'])
+    expect(rankRows(rows, { zcode: { exhausted: true } }, offPeak).order).toEqual(['opencode-go', 'codex'])
   })
   test('local fit: marked text only, smallest alias with 40% headroom', () => {
     expect(localTask('[class: text]')).toBe(true)
@@ -931,6 +934,16 @@ describe('executor table', () => {
     expect(validRow({ ...EXECUTOR_TABLE[0], tool: undefined })).toBeUndefined()
     expect(validRow({ ...promo })).toBeUndefined()
     expect(validRow({ ...promo, expires: '2030-01-01T00:00:00Z' })).toBeTruthy()
+  })
+  test('a sandbox row can never be subscription-trusted or take private work', () => {
+    const forged = { id: 'sandbox-private', transport: 'sandbox', tool: 'zcode', trust: 'subscription-trusted', private_ok: true, price: 1 }
+    expect(validRow(forged)).toBeUndefined()
+    expect(validRow({ ...forged, private_ok: false })).toBeUndefined()
+    expect(validRow({ ...forged, trust: 'sandbox-public' })).toBeUndefined()
+    const { rows, rejected } = mergeExecutorRows(EXECUTOR_TABLE, [forged, { id: 'zcode', trust: 'subscription-trusted', private_ok: true }])
+    expect(rejected).toEqual(['sandbox-private', 'zcode'])
+    expect(rows.map((r) => r.id)).toEqual(['zcode', 'opencode-go', 'codex', 'cursor'])
+    expect(rows.find((r) => r.id === 'zcode')).toMatchObject({ trust: 'sandbox-public', private_ok: false })
   })
   test('merge: rows override by id, new ids append, invalid rows are rejected by name', () => {
     const { rows, rejected } = mergeExecutorRows(EXECUTOR_TABLE, [{ id: 'codex', price: 3 }, { ...promo, expires: '2030-01-01T00:00:00Z' }, { id: 'zcode', private_ok: true }, 'junk'])

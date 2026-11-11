@@ -78,8 +78,10 @@ decision to `~/.claude/ai-delegation.log`:
    headroom / (price × peak). `~/.config/ai-delegation/executors.json` (a JSON
    array of rows) overrides rows by `id` and adds new ones; invalid rows are
    logged and dropped, and only subscription-trusted rows may set
-   `private_ok`. A row with `kind: "promotion"` needs `expires` and sorts
-   first until then. `AGENT_ROUTE_ZCODE_TOOLS`, when set, limits which sandbox
+   `private_ok`; a sandbox row is always `sandbox-public` with `private_ok`
+   false. A row with `kind: "promotion"` needs `expires`, sorts first until
+   then, and, like every row, can only use the `codex` or `sandbox`
+   transport. `AGENT_ROUTE_ZCODE_TOOLS`, when set, limits which sandbox
    tools run; unset runs every table row's tool. Each `route` line lists
    `skipped` rows with a reason: `ineligible`, `exhausted`, `expired`,
    `not_installed` or `failed`.
