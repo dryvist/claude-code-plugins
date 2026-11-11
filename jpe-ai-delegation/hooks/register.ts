@@ -421,13 +421,36 @@ type RouteEvent = {
   quota_unknown: Record<string, QuotaReason>; quota_source: Record<string, string>
 }
 
-// One JSON telemetry line per routing decision.
+// One JSON telemetry line per routing decision. It never throws, so a failed write cannot change the decision.
 async function logRoute($: Engine, event: RouteEvent, chosen: string, reason: string): Promise<void> {
-  await logDecision($, JSON.stringify({ ts_ms: await $.clock.now(), event: 'route', ...event, chosen, reason }))
+  try {
+    await logDecision($, JSON.stringify({ ts_ms: await $.clock.now(), event: 'route', ...event, chosen, reason }))
+  } catch {
+    // The log is advisory.
+  }
+}
+
+// The agent type is logged only when it is a plain name of at most 80 characters.
+const agentType = (type: string | undefined): string => type === undefined ? 'general-purpose' : /^[\w:.-]{1,80}$/.test(type) ? type : 'unrecognized'
+const newEvent = (e: AgentCall): RouteEvent => ({ agent_type: agentType(e.subagent_type), local: null, eligible: [], scores: {}, fell_through_from: [], skipped: {}, quota_unknown: {}, quota_source: {} })
+
+// Every exit that stops routing writes its route line too.
+async function stopRoute($: Engine, e: AgentCall, event: RouteEvent, reason: string): Promise<unknown> {
+  await logRoute($, event, 'stopped', reason)
+  return failure(e, reason)
 }
 
 async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknown>): Promise<unknown> {
-  if (forbiddenModel(e.model) || forbiddenModel(e.subagent_type)) return failure(e, 'Sonnet, Opus and Fable subagents are forbidden')
+  const event = newEvent(e)
+  // The route line is already written when core runs, so a core failure returns FAIL without a second line.
+  const core = async (value: AgentCall): Promise<unknown> => {
+    try {
+      return await next(value as never)
+    } catch {
+      return failure(value, 'routing failed closed')
+    }
+  }
+  if (forbiddenModel(e.model) || forbiddenModel(e.subagent_type)) return stopRoute($, e, event, 'Sonnet, Opus and Fable subagents are forbidden')
   const original = e
   let definition: AgentDefinition | undefined
   let customSandbox: Sandbox | undefined
@@ -435,21 +458,20 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
     try {
       definition = await customAgentDefinition($, e.subagent_type)
     } catch {
-      return failure(e, 'custom agent model or tool restrictions could not be read')
+      return stopRoute($, e, event, 'custom agent model or tool restrictions could not be read')
     }
-    if (!definition) return failure(e, 'custom agent definition could not be verified')
-    if (forbiddenModel(definition.model)) return failure(e, 'Sonnet, Opus and Fable subagents are forbidden')
+    if (!definition) return stopRoute($, e, event, 'custom agent definition could not be verified')
+    if (forbiddenModel(definition.model)) return stopRoute($, e, event, 'Sonnet, Opus and Fable subagents are forbidden')
     customSandbox = customAgentSandbox(definition)
     if (definition.prompt) e = { ...e, prompt: `Custom agent instructions:\n${definition.prompt}\n\nTask:\n${e.prompt}` }
   }
-  if (!safePayload(`${e.description ?? ''}\n${e.prompt}`)) return failure(e, 'payload contains prohibited content')
-  const event: RouteEvent = { agent_type: original.subagent_type ?? 'general-purpose', local: null, eligible: [], scores: {}, fell_through_from: [], skipped: {}, quota_unknown: {}, quota_source: {} }
+  if (!safePayload(`${e.description ?? ''}\n${e.prompt}`)) return stopRoute($, e, event, 'payload contains prohibited content')
   if (definition && customSandbox === undefined) {
     // An inherited model cannot be verified on a native pass-through.
     const model = original.model ?? definition.model
-    if (!model || model === 'inherit') return failure(e, 'custom agent requires an explicit permitted model for native tools')
+    if (!model || model === 'inherit') return stopRoute($, e, event, 'custom agent requires an explicit permitted model for native tools')
     await logRoute($, event, 'native custom agent', 'custom tool policy')
-    return next(original as never)
+    return core(original)
   }
 
   // Local rung: small, checkable, self-contained text on an on-host alias.
@@ -501,6 +523,8 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
       if (!result) skipped[executor] = 'not_installed'
     }
     if (result) {
+      // `chosen` names the executor that received the task; a dispatched sandbox job without a verified PR keeps its
+      // executor as `chosen`, with that reason. `stopped` means no executor received the task.
       const unverified = (result as { result?: { agentId?: string } }).result?.agentId === 'ai-delegation-policy'
       await logRoute($, event, executor, unverified ? 'sandbox job without a verified PR' : 'highest-ranked eligible executor that answered')
       return result
@@ -508,7 +532,7 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
     event.fell_through_from.push(executor)
   }
   await logRoute($, event, 'haiku', 'terminal rung')
-  return next({ ...original, ...LAST_RESORT } as never)
+  return core({ ...original, ...LAST_RESORT })
 }
 
 // Answers core's bypass-immune "shell -c script runs rm" ask. Anything but a clean verdict returns core's own
@@ -567,7 +591,7 @@ ${PROMPT_POLICY}`, scope: 'session' }] }
   }).catch(($, e, next) => next(e))
 
   // An unexpected router failure must not bypass the model and payload guards.
-  on('tool.call', { tool: 'Agent' }, ($, e, next) => route($, e as never, next as never) as never).catch(($, e) => failure(e as never, 'routing failed closed') as never)
+  on('tool.call', { tool: 'Agent' }, ($, e, next) => route($, e as never, next as never) as never).catch(($, e) => stopRoute($, e as never, newEvent(e as never), 'routing failed closed') as never)
 
   // Permission judge for the bypass-immune ask. A failing hook leaves core's ask.
   on('tool.check', { tool: 'Bash' }, ($, e, next) => judge($, e, next as never) as never).catch(($, e, next) => next(e))
