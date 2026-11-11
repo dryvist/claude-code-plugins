@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.19.0](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.18.0...jpe-ai-delegation-v1.19.0) (2026-11-11)
+
+
+### Features
+
+* **jpe-ai-delegation:** rank executors by usage pace ([#785](https://github.com/dryvist/claude-code-plugins/issues/785)) ([d863515](https://github.com/dryvist/claude-code-plugins/commit/d863515597aa77b003c83e996190e3f333659e40))
+
 ## [1.18.0](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.17.1...jpe-ai-delegation-v1.18.0) (2026-11-11)
 
 
