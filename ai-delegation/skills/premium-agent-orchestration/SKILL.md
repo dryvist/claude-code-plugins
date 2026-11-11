@@ -121,12 +121,14 @@ absorb a failed task into the parent.
 Every worker and subagent is working, waiting on a named event with a
 background wake condition while its next item runs, or closed. Idle wastes
 a warm prompt cache, then costs a full re-read when the session wakes
-cold. Sweep the fleet for idle or near-idle sessions on an interval
-shorter than the prompt-cache lifetime, run the sweep on the cheapest
-session that can do it, and ask each worker on a fixed cadence whether it
-uses its full capacity, so no cached context is wasted. Both stop when
-the run ends or every worker is closed. The procedure is
-in `references/fleet-utilization.md`.
+cold. While a job runs, start the next piece of work in the same turn
+and arm a background wait that wakes the session when the job ends.
+Never wake only to say "still waiting". Sweep the fleet for idle or
+near-idle sessions on an interval shorter than the prompt-cache
+lifetime, run the sweep on the cheapest session that can do it, and ask
+each worker on a fixed cadence whether it uses its full capacity, so no
+cached context is wasted. Both stop when the run ends or every worker is
+closed. The procedure is in `references/fleet-utilization.md`.
 
 ## Token discipline
 
