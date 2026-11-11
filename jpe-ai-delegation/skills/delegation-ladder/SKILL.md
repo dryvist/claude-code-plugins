@@ -94,7 +94,7 @@ decision to `~/.claude/ai-delegation.log`:
    subscription-trusted with `private_ok` to see that work. A
    `billing: "paid"` row may name any router model; it carries
    `budget_daily_usd` (finite and positive; it documents the router key's
-   own daily cap, which the router enforces) and `budget_key` (the router
+   own daily cap; the hook does not compare it) and `budget_key` (the router
    key alias), and is never `private_ok`. It runs only on public work and
    only while `litellm_remaining_api_key_budget_metric` for that alias is
    fresh and above zero in the quota query result. Text work carries no

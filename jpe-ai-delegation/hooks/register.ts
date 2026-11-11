@@ -498,6 +498,9 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
     if (row.transport === 'codex') {
       result = await runCodexRung($, e, customSandbox)
       if (!result) skipped[executor] = 'failed'
+    } else if (row.transport === 'router-chat' && event.fell_through_from.includes(`local ${row.model}`)) {
+      // The local rung already sent this prompt to this alias and it failed its check.
+      skipped[executor] = 'failed'
     } else if (row.transport === 'router-chat') {
       // The local rung's chat call and size gate, under the row's router model; never code or tool work. A prompt whose
       // estimate exceeds 60% of the model's window, or a model with no known window, is skipped.

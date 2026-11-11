@@ -1143,7 +1143,7 @@ describe('executor table', () => {
 
 describe('paid rows and router-chat', () => {
   const OVERRIDE = '/home/test/.config/ai-delegation/executors.json'
-  const chat = { id: 'chat-paid', transport: 'router-chat', model: 'paid-chat', trust: 'subscription-trusted', private_ok: false, price: 1, billing: 'paid', budget_daily_usd: 5, budget_key: 'agent-chat' }
+  const chat = { id: 'chat-paid', transport: 'router-chat', model: 'paid-chat', trust: 'sandbox-public', private_ok: false, price: 1, billing: 'paid', budget_daily_usd: 5, budget_key: 'agent-chat' }
   const flat = { id: 'chat-flat', transport: 'router-chat', model: 'local-only', trust: 'subscription-trusted', private_ok: true, price: 1 }
   const budget = (alias: string, remaining: string, age = 60) => ({ metric: { __name__: 'litellm_remaining_api_key_budget_metric', api_key_alias: alias, hashed_api_key: 'hashed' }, value: [1000 - age, remaining] })
   // The local rung fails its check, so text work reaches the subscription rungs.
@@ -1164,6 +1164,22 @@ describe('paid rows and router-chat', () => {
     expect(validRow({ ...chat, private_ok: true })).toBeUndefined()
     expect(validRow({ ...EXECUTOR_TABLE[2], billing: 'paid' })).toBeUndefined()
   })
+  test('validation: only a router-chat row may be paid, even with every paid field set', () => {
+    const paid = { billing: 'paid', budget_daily_usd: 5, budget_key: 'agent-chat', private_ok: false }
+    expect(validRow({ ...EXECUTOR_TABLE[2], ...paid })).toBeUndefined()
+    expect(validRow({ ...EXECUTOR_TABLE[0], ...paid })).toBeUndefined()
+    expect(validRow({ ...chat, ...paid })).toBeTruthy()
+  })
+  test('validation: a paid row is sandbox-public and never a promotion', () => {
+    expect(validRow({ ...chat, trust: 'subscription-trusted' })).toBeUndefined()
+    expect(validRow({ ...chat, kind: 'promotion', expires: '2099-01-01T00:00:00Z' })).toBeUndefined()
+  })
+  test('validation: no router-chat row may name a Sonnet, Opus or Fable model', () => {
+    for (const model of ['anthropic/claude-opus-5', 'claude-sonnet-4-5', 'fable-1']) {
+      expect(validRow({ ...chat, model })).toBeUndefined()
+      expect(validRow({ ...flat, model })).toBeUndefined()
+    }
+  })
   test('validation: an unpaid router-chat row must use an on-host alias', () => {
     expect(validRow({ ...flat })).toBeTruthy()
     expect(validRow({ ...flat, model: 'small' })).toBeTruthy()
@@ -1175,6 +1191,17 @@ describe('paid rows and router-chat', () => {
   test('budget adapter: remaining budget by key alias, only from a fresh finite sample', () => {
     const result = [budget('agent-chat', '3.25'), budget('spent-key', '0'), budget('stale-key', '9', 901), budget('odd-key', 'NaN')]
     expect([...budgetsFromMetrics(result, ['agent-chat', 'spent-key', 'stale-key', 'odd-key', 'absent-key'], 1000)]).toEqual([['agent-chat', 3.25], ['spent-key', 0]])
+  })
+  test('budget adapter: a timestamp that is not finite or lies in the future beyond the skew reads as unknown', () => {
+    expect([...budgetsFromMetrics([budget('agent-chat', '5', -Infinity)], ['agent-chat'], 1000)]).toEqual([])
+    expect([...budgetsFromMetrics([budget('agent-chat', '5', NaN)], ['agent-chat'], 1000)]).toEqual([])
+    expect([...budgetsFromMetrics([budget('agent-chat', '7', -2_592_000)], ['agent-chat'], 1000)]).toEqual([])
+    expect([...budgetsFromMetrics([budget('agent-chat', '7', -61)], ['agent-chat'], 1000)]).toEqual([])
+    expect([...budgetsFromMetrics([budget('agent-chat', '7', -60)], ['agent-chat'], 1000)]).toEqual([['agent-chat', 7]])
+  })
+  test('budget adapter: fresh samples for one alias that disagree read as unknown', () => {
+    expect([...budgetsFromMetrics([budget('agent-chat', '0', 61), budget('agent-chat', '5', 60)], ['agent-chat'], 1000)]).toEqual([])
+    expect([...budgetsFromMetrics([budget('agent-chat', '5', 61), budget('agent-chat', '5', 60)], ['agent-chat'], 1000)]).toEqual([['agent-chat', 5]])
   })
   test('eligibility on public work: a paid row with unknown or spent budget is skipped with its reason', () => {
     const rows = [EXECUTOR_TABLE[2], chat as never]
@@ -1210,6 +1237,13 @@ describe('paid rows and router-chat', () => {
     const sent = w.fetches.filter((f) => f.url === 'http://localhost:8000/v1/chat/completions').map((f) => JSON.parse(f.body!).model)
     expect(sent).toEqual(['small', 'local-only'])
     expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'chat-flat', fell_through_from: ['local small'] })
+  })
+  test('a router-chat row never re-sends the prompt to the alias the local rung just failed', async () => {
+    const w = world({ quota: 1, env: localDown, gatewayStatus: noLocal, files: { [OVERRIDE]: JSON.stringify([{ ...flat, model: 'small' }]) } })
+    await w.agent(textTask)
+    const sent = w.fetches.filter((f) => f.url === 'http://localhost:8000/v1/chat/completions').map((f) => JSON.parse(f.body!).model)
+    expect(sent).toEqual(['small'])
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'haiku', skipped: { 'chat-flat': 'failed' } })
   })
   test('router-chat applies the local size gate: a prompt over 60% of the window is skipped and falls through', async () => {
     const big = { description: '[class: text]', prompt: `Summarize this supplied text: ${'word '.repeat(60_000)}` }
