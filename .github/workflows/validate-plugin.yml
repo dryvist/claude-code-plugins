@@ -116,8 +116,11 @@ jobs:
 
       - name: Install Claude Code for hook tests
         run: |
-          curl -fsSL https://claude.ai/install.sh | bash -s 2.1.299
+          curl -fsSL https://claude.ai/install.sh | bash -s 2.1.322
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Validate jpe-ai-delegation (the hooks module must load)
+        run: claude plugin validate ./jpe-ai-delegation
 
       - name: Run jpe-ai-delegation hook tests
         run: claude plugin test ./jpe-ai-delegation
