@@ -3,7 +3,7 @@ import { register } from './register'
 import { CODEX, EXECUTOR_TABLE, LAST_RESORT, codexArgv, eligibleRows, mergeExecutorRows, metricsResult, peakMultiplier, quotaFromMetrics, rankRows, validRow, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, localTask, mandatoryLabel, newestModel, parseVerdict, pickLocal, safePayload, scoreWindows } from './lib/policy'
 import { customAgentSandbox, parseAgentDefinition } from './lib/agent-definition'
 import { RECORDED_QUOTA } from './fixtures/quota-instant-query'
-import { budgetsFromMetrics } from './lib/policy'
+import { budgetsFromMetrics, forbiddenRowModel } from './lib/policy'
 
 const RAN = { exitCode: 0, stdout: '', stderr: '', isStdoutTruncated: false }
 const CACHE = JSON.stringify({ models: [
@@ -1167,6 +1167,7 @@ describe('paid rows and router-chat', () => {
   test('validation: only a router-chat row may be paid, even with every paid field set', () => {
     const paid = { billing: 'paid', budget_daily_usd: 5, budget_key: 'agent-chat', private_ok: false }
     expect(validRow({ ...EXECUTOR_TABLE[2], ...paid })).toBeUndefined()
+    expect(validRow({ ...EXECUTOR_TABLE[2], ...paid, trust: 'sandbox-public' })).toBeUndefined()
     expect(validRow({ ...EXECUTOR_TABLE[0], ...paid })).toBeUndefined()
     expect(validRow({ ...chat, ...paid })).toBeTruthy()
   })
@@ -1175,7 +1176,7 @@ describe('paid rows and router-chat', () => {
     expect(validRow({ ...chat, kind: 'promotion', expires: '2099-01-01T00:00:00Z' })).toBeUndefined()
   })
   test('validation: no router-chat row may name a Sonnet, Opus or Fable model', () => {
-    for (const model of ['anthropic/claude-opus-5', 'claude-sonnet-4-5', 'fable-1']) {
+    for (const model of ['anthropic/claude-opus-5', 'claude-sonnet-4-5', 'fable-1', 'claude_opus_4', 'claude.opus-4', 'claude:opus', 'claudeopus4', 'claude_sonnet', 'FABLE']) {
       expect(validRow({ ...chat, model })).toBeUndefined()
       expect(validRow({ ...flat, model })).toBeUndefined()
     }
@@ -1198,6 +1199,17 @@ describe('paid rows and router-chat', () => {
     expect([...budgetsFromMetrics([budget('agent-chat', '7', -2_592_000)], ['agent-chat'], 1000)]).toEqual([])
     expect([...budgetsFromMetrics([budget('agent-chat', '7', -61)], ['agent-chat'], 1000)]).toEqual([])
     expect([...budgetsFromMetrics([budget('agent-chat', '7', -60)], ['agent-chat'], 1000)]).toEqual([['agent-chat', 7]])
+  })
+  test('agent type names keep the separator-based check; only row models use the substring check', async () => {
+    expect(forbiddenRowModel('octopus')).toBe(true)
+    expect(forbiddenModel('octopus-reviewer')).toBe(false)
+    const w = world({ definition: '---\nmodel: haiku\n---\nReview the change.' })
+    expect(text(await w.agent({ subagent_type: 'octopus-reviewer' }))).not.toContain('forbidden')
+  })
+  test('budget adapter: a stale, future-dated or invalid sample beside a fresh one makes the alias unknown', () => {
+    for (const sibling of [budget('agent-chat', '0', 1000), budget('agent-chat', '0', -61), budget('agent-chat', 'oops')]) {
+      expect([...budgetsFromMetrics([sibling, budget('agent-chat', '5')], ['agent-chat'], 1000)]).toEqual([])
+    }
   })
   test('budget adapter: fresh samples for one alias that disagree read as unknown', () => {
     expect([...budgetsFromMetrics([budget('agent-chat', '0', 61), budget('agent-chat', '5', 60)], ['agent-chat'], 1000)]).toEqual([])
