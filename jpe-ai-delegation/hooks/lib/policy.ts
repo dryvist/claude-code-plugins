@@ -145,10 +145,13 @@ export function validRow(r: unknown): ExecutorRow | undefined {
   if (v.transport !== 'codex' && v.transport !== 'sandbox' && v.transport !== 'router-chat') return undefined
   if (v.transport === 'sandbox' && (typeof v.tool !== 'string' || !/^[a-z0-9-]{1,40}$/.test(v.tool))) return undefined
   if (v.transport === 'router-chat' && (typeof v.model !== 'string' || !/^[A-Za-z0-9._:/-]{1,80}$/.test(v.model))) return undefined
+  if (forbiddenModel(v.model)) return undefined
   if (v.billing !== undefined && v.billing !== 'paid') return undefined
   if (v.billing === 'paid' && (v.transport !== 'router-chat' || typeof v.budget_daily_usd !== 'number' ||
     !Number.isFinite(v.budget_daily_usd) || v.budget_daily_usd <= 0 || v.private_ok !== false ||
     typeof v.budget_key !== 'string' || !/^[A-Za-z0-9._-]{1,80}$/.test(v.budget_key))) return undefined
+  // A paid row is public-only and never a promotion.
+  if (v.billing === 'paid' && (v.trust !== 'sandbox-public' || v.kind !== undefined)) return undefined
   // An unpaid router-chat row stays on the host: its model must be an on-host alias, never a `*-homelab` one.
   if (v.transport === 'router-chat' && v.billing !== 'paid' && !LOCAL_ALIASES.some((l) => l.alias === v.model)) return undefined
   if (v.trust !== 'subscription-trusted' && v.trust !== 'sandbox-public') return undefined
@@ -222,6 +225,7 @@ export type QuotaRead = { rows: QuotaRow[]; unknown: Record<string, QuotaReason>
 // One instant query reads every executor's windows from the metrics store.
 export const QUOTA_SELECTOR = '{__name__=~"agent_quota_(used_percent|window_seconds|reset_timestamp_seconds)"}'
 export const QUOTA_STALE_SECONDS = 900
+export const CLOCK_SKEW_SECONDS = 60
 const QUOTA_FIELDS: Record<string, keyof QuotaWindow> = {
   agent_quota_used_percent: 'used_percent',
   agent_quota_window_seconds: 'window_seconds',
@@ -273,23 +277,23 @@ export function quotaFromMetrics(result: readonly unknown[], ids: readonly strin
 }
 
 // Remaining USD per router key alias from the same instant-query result, read from the router's
-// `litellm_remaining_api_key_budget_metric{api_key_alias}`. A key without a fresh, finite sample stays absent: unknown.
-// The quota route admits only QUOTA_SELECTOR today, so these series arrive only once the route owner adds them.
+// `litellm_remaining_api_key_budget_metric{api_key_alias}`. A key stays absent (unknown) without a fresh, finite sample,
+// or when its fresh samples disagree. A sample is fresh when its timestamp is finite, at most CLOCK_SKEW_SECONDS ahead
+// and at most QUOTA_STALE_SECONDS old.
 // A Map, so a key alias such as `constructor` or `__proto__` never reads an inherited value.
 export function budgetsFromMetrics(result: readonly unknown[], keys: readonly string[], nowSeconds: number): Map<string, number> {
-  const budgets = new Map<string, number>()
-  const newest = new Map<string, number>()
+  const seen = new Map<string, number | undefined>()
   for (const raw of result) {
     const { metric, value } = (raw ?? {}) as { metric?: Record<string, unknown>; value?: unknown }
     const key = metric?.api_key_alias
     const [at, text] = Array.isArray(value) ? value : []
     const number = typeof text === 'string' && text.trim() !== '' ? Number(text) : NaN
     if (metric?.__name__ !== 'litellm_remaining_api_key_budget_metric' || typeof key !== 'string' || !keys.includes(key)) continue
-    if (typeof at !== 'number' || !Number.isFinite(number) || nowSeconds - at > QUOTA_STALE_SECONDS || at <= (newest.get(key) ?? -Infinity)) continue
-    budgets.set(key, number)
-    newest.set(key, at)
+    if (typeof at !== 'number' || !Number.isFinite(at) || at > nowSeconds + CLOCK_SKEW_SECONDS || nowSeconds - at > QUOTA_STALE_SECONDS || !Number.isFinite(number)) continue
+    // Two keys under one alias that disagree: the spent one could be the one charged.
+    seen.set(key, seen.has(key) && seen.get(key) !== number ? undefined : number)
   }
-  return budgets
+  return new Map([...seen].filter((entry): entry is [string, number] => entry[1] !== undefined))
 }
 export type Score = { score?: number; exhausted: boolean }
 // Quota that would expire unused at the current pace, per hour left in its window. The binding window (lowest score)
