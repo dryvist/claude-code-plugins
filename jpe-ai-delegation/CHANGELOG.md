@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.18.0](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.17.1...jpe-ai-delegation-v1.18.0) (2026-11-11)
+
+
+### Features
+
+* **jpe-ai-delegation:** write one route line for every Agent routing call ([#782](https://github.com/dryvist/claude-code-plugins/issues/782)) ([0144274](https://github.com/dryvist/claude-code-plugins/commit/0144274baa2cd2ce69ff1355b555329510f7ad2c))
+
 ## [1.17.1](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.17.0...jpe-ai-delegation-v1.17.1) (2026-11-11)
 
 
