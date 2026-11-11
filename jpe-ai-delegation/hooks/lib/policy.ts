@@ -133,7 +133,7 @@ const isPeak = (p: unknown): p is Peak => {
 // subscription-trusted row may take private work.
 export function validRow(r: unknown): ExecutorRow | undefined {
   const v = r as ExecutorRow
-  if (!v || typeof v.id !== 'string' || !/^[a-z0-9-]{1,40}$/.test(v.id) || v.id === 'haiku') return undefined
+  if (!v || typeof v.id !== 'string' || !/^[a-z0-9-]{1,40}$/.test(v.id) || v.id === LAST_RESORT.model) return undefined
   if (v.transport !== 'codex' && v.transport !== 'sandbox') return undefined
   if (v.transport === 'sandbox' && (typeof v.tool !== 'string' || !/^[a-z0-9-]{1,40}$/.test(v.tool))) return undefined
   if (v.trust !== 'subscription-trusted' && v.trust !== 'sandbox-public') return undefined
@@ -215,6 +215,8 @@ export function metricsResult(body: unknown): unknown[] | undefined {
   return b?.status === 'success' && b.data?.resultType === 'vector' && Array.isArray(b.data.result) ? b.data.result : undefined
 }
 
+// A metric label that may reach telemetry: a short plain token with no prohibited content.
+const quotaLabel = (v: unknown): boolean => typeof v === 'string' && /^[A-Za-z0-9._-]{1,40}$/.test(v) && safePayload(v)
 // Instant-query result list to quota rows, grouped by `executor` and `window`. A window counts only with all three series,
 // each a finite number, and with its oldest sample no more than 15 minutes old. Unknown keys are `executor` (no series)
 // or `executor/window` (incomplete or stale); `sources` names the source of each window used.
@@ -225,13 +227,13 @@ export function quotaFromMetrics(result: readonly unknown[], ids: readonly strin
     const field = QUOTA_FIELDS[String(metric?.__name__)]
     const [at, text] = Array.isArray(value) ? value : []
     const number = typeof text === 'string' && text.trim() !== '' ? Number(text) : NaN
-    if (!field || typeof metric?.executor !== 'string' || typeof metric.window !== 'string' || typeof at !== 'number' || !Number.isFinite(number)) continue
+    if (!field || typeof metric?.executor !== 'string' || !quotaLabel(metric.window) || typeof at !== 'number' || !Number.isFinite(number)) continue
     const windows = groups.get(metric.executor) ?? new Map()
     groups.set(metric.executor, windows)
     const window = windows.get(metric.window) ?? {}
     windows.set(metric.window, window)
     // Two sources for one series: the newer sample wins.
-    if (!window[field] || window[field]!.at < at) window[field] = { value: number, at, source: String(metric.source ?? '') }
+    if (!window[field] || window[field]!.at < at) window[field] = { value: number, at, source: quotaLabel(metric.source) ? metric.source as string : 'unrecognized' }
   }
   const read: QuotaRead = { rows: [], unknown: {}, sources: {} }
   for (const id of ids) {

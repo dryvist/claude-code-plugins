@@ -21,6 +21,7 @@ type World = {
   zcodeExit?: number; zcodeOutput?: string; zcodeAvailable?: boolean; zcodeThrows?: boolean; zcodeTruncated?: boolean
   gatewayTimeout?: boolean; gatewayStatus?: Record<string, number>; gatewayAnswer?: Record<string, string>; gatewayInvalidJson?: boolean
   quotaUrl?: string | null; quotaTimeout?: boolean; quotaText?: string; quotaSampleAge?: number
+  envThrows?: string; clockThrows?: boolean; clockHangs?: boolean; teeThrows?: boolean; teeExit?: number; nextRejects?: boolean
 }
 
 // Exercise the registered hooks with all IO captured; no subprocess or HTTP request escapes the fixture.
@@ -33,6 +34,7 @@ function world(w: World = {}) {
   }
   register(on as never)
   const calls: Call[] = []
+  const writes: string[] = []
   const fetches: { url: string; body?: string }[] = []
   const quotaFetches: string[] = []
   const modelCalls: unknown[] = []
@@ -42,9 +44,9 @@ function world(w: World = {}) {
   let output = ''
   let clockNow = w.now ?? 1_000_000
   const $ = {
-    env: { get: async (key: string) => env[key] },
+    env: { get: async (key: string) => { if (key === w.envThrows) throw new Error('environment read failed'); return env[key] } },
     session: { cwd: async () => '/workspace' },
-    clock: { now: async () => clockNow, after: (delay: number, callback: () => void) => { if ((w.gatewayTimeout && delay >= 60_000) || (w.quotaTimeout && delay === 3_000)) queueMicrotask(callback); return { cancel() {} } } },
+    clock: { now: async () => { if (w.clockThrows) throw new Error('clock failed'); if (w.clockHangs) return new Promise<number>(() => {}); return clockNow }, after: (delay: number, callback: () => void) => { if ((w.clockHangs && delay === 5_000) || (w.gatewayTimeout && delay >= 60_000) || (w.quotaTimeout && delay === 3_000)) queueMicrotask(callback); return { cancel() {} } } },
     ui: { log: (line: string) => logs.push(line) },
     fs: {
       exists: async (path: string) => {
@@ -56,6 +58,8 @@ function world(w: World = {}) {
     },
     process: { run: async (argv: string[], init?: { stdin?: string }) => {
       calls.push({ argv, stdin: init?.stdin })
+      if (argv[0] === 'tee' && w.teeThrows) throw new Error('log write failed')
+      if (argv[0] === 'tee') { if ((w.teeExit ?? 0) === 0) writes.push(init?.stdin ?? ''); return { ...RAN, exitCode: w.teeExit ?? 0 } }
       if (argv[0] === 'mktemp') return { ...RAN, exitCode: w.temporaryExit ?? 0, stdout: argv[1] === '-d' ? '/tmp/worktree' : '/tmp/final' }
       if (argv[0] === 'git') return { ...RAN, exitCode: w.worktreeExit ?? 0 }
       if (argv[0] === 'codex') {
@@ -107,13 +111,13 @@ function world(w: World = {}) {
   }
   async function invoke(event: string, e: unknown, core: unknown = { result: { content: [{ text: 'haiku result' }] } }) {
     const handler = handlers.get(event)!
-    const next = async (value: unknown) => { nextCalls.push(value); return core }
+    const next = async (value: unknown) => { nextCalls.push(value); if (w.nextRejects) throw new Error('core failed'); return core }
     try { return await handler.run($, e, next) } catch (error) {
       if (!handler.caught) throw error
       return handler.caught($, e, next)
     }
   }
-  return { calls, fetches, quotaFetches, modelCalls, nextCalls, logs, invoke, setNow: (ms: number) => { clockNow = ms },
+  return { calls, writes, fetches, quotaFetches, modelCalls, nextCalls, logs, invoke, setNow: (ms: number) => { clockNow = ms },
     agent: (e: Record<string, unknown> = {}) => invoke('tool.call', { tool: 'Agent', description: '[class: standard]', prompt: 'Implement the change.', ...e }),
   }
 }
@@ -132,7 +136,10 @@ function series(executor: string, windows: any[], at: number, source = 'provider
     .filter(([, v]) => v !== undefined)
     .map(([name, v]) => ({ metric: { __name__: `agent_quota_${name}`, executor, window: w.kind ?? `w${i}`, source }, value: [at, String(v)] })))
 }
-const routeEvents = (w: ReturnType<typeof world>) => w.calls.filter((c) => c.argv[0] === 'tee' && c.stdin?.startsWith('{')).map((c) => JSON.parse(c.stdin!))
+// Decision-log lines that were written (the writer exited 0), not attempts.
+const routeEvents = (w: ReturnType<typeof world>) => w.writes.filter((s) => s.startsWith('{')).map((s) => JSON.parse(s))
+// Subprocess calls other than the decision-log append.
+const work = (w: ReturnType<typeof world>) => w.calls.filter((c) => c.argv[0] !== 'tee')
 const nonGithub = (w: ReturnType<typeof world>) => w.fetches.filter((f) => !f.url.startsWith('https://api.github.com/'))
 
 describe('policy', () => {
@@ -181,7 +188,7 @@ describe('custom agent tool authority', () => {
   test('YAML model escapes retain the forbidden-model guard', async () => {
     const w = world({ definition: '---\nmodel: "o\\x70us"\n---\nReview changes.' })
     expect(text(await w.agent({ subagent_type: 'reviewer' }))).toContain('subagents are forbidden')
-    expect(w.calls).toEqual([])
+    expect(work(w)).toEqual([])
     expect(w.nextCalls).toEqual([])
   })
   for (const fields of [
@@ -197,7 +204,7 @@ describe('custom agent tool authority', () => {
       for (const quota of [0, 1]) {
         const w = world({ quota, env: gateways, definition: `---\n${fields}\n---\nPerform the task.` })
         expect(text(await w.agent({ ...coding, subagent_type: 'worker' }))).toContain('model or tool restrictions could not be read')
-        expect(w.calls).toEqual([])
+        expect(work(w)).toEqual([])
         expect(w.nextCalls).toEqual([])
         expect(w.fetches).toEqual([])
       }
@@ -249,7 +256,7 @@ describe('custom agent tool authority', () => {
       expect(parseAgentDefinition(definition).model).toBe('opus')
       const w = world({ definition })
       expect(text(await w.agent({ subagent_type: 'reviewer' }))).toContain('subagents are forbidden')
-      expect(w.calls).toEqual([])
+      expect(work(w)).toEqual([])
       expect(w.nextCalls).toEqual([])
     })
   }
@@ -364,14 +371,14 @@ describe('custom agent tool authority', () => {
     test(`ambiguous policy frontmatter never reaches an executor: ${fields}`, async () => {
       const w = world({ definition: `---\n${fields}\n---\nPerform the task.` })
       expect(text(await w.agent({ subagent_type: 'reviewer' }))).toStartWith('FAIL | router |')
-      expect(w.calls).toEqual([])
+      expect(work(w)).toEqual([])
       expect(w.nextCalls).toEqual([])
     })
   }
   test('an unterminated frontmatter block fails closed', async () => {
     const w = world({ definition: '---\nmodel: haiku\ntools: [Read]\nPerform the task.' })
     expect(text(await w.agent({ subagent_type: 'reviewer' }))).toStartWith('FAIL | router |')
-    expect(w.calls).toEqual([])
+    expect(work(w)).toEqual([])
     expect(w.nextCalls).toEqual([])
   })
   test('CRLF, comments and folded metadata preserve the allowlist', async () => {
@@ -511,7 +518,7 @@ describe('model and payload guards', () => {
       for (const custom of [false, true]) {
         const w = world({ definition: `---\nmodel: ${model}\n---\nReview the change.` })
         expect(text(await w.agent(custom ? { subagent_type: 'reviewer' } : { model }))).toContain('subagents are forbidden')
-        expect(w.calls).toEqual([])
+        expect(work(w)).toEqual([])
         expect(w.nextCalls).toEqual([])
       }
     })
@@ -539,7 +546,7 @@ describe('model and payload guards', () => {
       for (const quota of [0, 1]) {
         const w = world({ quota, env: gateways })
         expect(text(await w.agent({ ...coding, prompt: payload }))).toContain('prohibited content')
-        expect(w.calls).toEqual([])
+        expect(work(w)).toEqual([])
         expect(w.fetches).toEqual([])
         expect(w.nextCalls).toEqual([])
       }
@@ -556,7 +563,7 @@ describe('model and payload guards', () => {
       const r = await w.agent({ subagent_type: 'codeql-resolver:codeql-permissions-auditor' })
       expect(text(r)).toContain(model !== 'sonnet' ? 'codex luna xhigh' : 'subagents are forbidden')
       if (model !== 'sonnet') expect(runs(w)[0].stdin).toContain('Follow the plugin review rubric.')
-      else expect(w.calls).toEqual([])
+      else expect(work(w)).toEqual([])
       expect(w.nextCalls).toEqual([])
     })
   }
@@ -572,7 +579,7 @@ describe('model and payload guards', () => {
         ...(options.definition ? { '/plugins/codeql-resolver/agents/codeql-permissions-auditor.md': '---\nmodel: haiku\n---\nFollow the plugin rubric.' } : {}),
       } })
       expect(text(await w.agent({ subagent_type: 'codeql-resolver:codeql-permissions-auditor' }))).toStartWith('FAIL | router |')
-      expect(w.calls).toEqual([])
+      expect(work(w)).toEqual([])
       expect(w.fetches).toEqual([])
       expect(w.nextCalls).toEqual([])
     })
@@ -657,7 +664,12 @@ describe('capped ladder', () => {
     test(`dispatched zcode must yield a verified ready PR: ${JSON.stringify(options)}`, async () => {
       const w = world({ quota: 1, env: gateways, ...options })
       expect(text(await w.agent(coding))).toStartWith('FAIL | router |')
-      expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'zcode', reason: 'sandbox job without a verified PR' })
+      // Output that names no job (truncated) means receipt is unverified: the line says stopped. A start call that threw
+      // may have submitted the job, so its line names the executor with dispatch-unconfirmed, never stopped.
+      const expected = 'zcodeThrows' in options ? { chosen: 'zcode', reason: 'dispatch-unconfirmed' }
+        : 'zcodeTruncated' in options ? { chosen: 'stopped', reason: 'zcode dispatch failed before the job was accepted' }
+          : { chosen: 'zcode', reason: 'sandbox job without a verified PR' }
+      expect(routeEvents(w).at(-1)).toMatchObject(expected)
       expect(w.fetches.some((f) => f.url.endsWith('/chat/completions'))).toBe(false)
       expect(w.nextCalls).toEqual([])
     })
@@ -840,13 +852,13 @@ describe('routing batch', () => {
   test('11: a token-shaped payload fails before any executor', async () => {
     const w = world({ env: gateways })
     expect(text(await w.agent({ ...textTask, prompt: 'Summarize ghp_abcdefghijklmnopqrst' }))).toContain('prohibited content')
-    expect(w.calls).toEqual([])
+    expect(work(w)).toEqual([])
     expect(w.fetches).toEqual([])
   })
   test('12: Plan with a Sonnet model fails as forbidden', async () => {
     const w = world({ env: gateways })
     expect(text(await w.agent({ subagent_type: 'Plan', model: 'sonnet' }))).toContain('subagents are forbidden')
-    expect(w.calls).toEqual([])
+    expect(work(w)).toEqual([])
   })
   test('a quota read that throws leaves quota unknown and keeps the static order', async () => {
     const w = world({ quotaThrows: true, env: gateways })
@@ -1137,5 +1149,143 @@ describe('executor table', () => {
     await w.agent(coding)
     expect(routeEvents(w).at(-1).chosen).not.toBe('haiku')
     expect(w.nextCalls).toEqual([])
+  })
+})
+
+describe('route telemetry', () => {
+  const tracker = '---\nmodel: haiku\ntools: mcp__tracker__*\n---\nPerform the task.'
+  const exits: [string, World, Record<string, unknown>, string, string][] = [
+    ['forbidden explicit model', {}, { model: 'sonnet' }, 'stopped', 'Sonnet, Opus and Fable subagents are forbidden'],
+    ['forbidden custom agent model', { definition: '---\nmodel: opus\n---\nReview.' }, { subagent_type: 'reviewer' }, 'stopped', 'Sonnet, Opus and Fable subagents are forbidden'],
+    ['unreadable custom agent', { fsThrows: true }, { subagent_type: 'reviewer' }, 'stopped', 'custom agent model or tool restrictions could not be read'],
+    ['unverified custom agent', {}, { subagent_type: 'reviewer' }, 'stopped', 'custom agent definition could not be verified'],
+    ['prohibited payload', {}, { prompt: 'Use token=abc123 here.' }, 'stopped', 'payload contains prohibited content'],
+    ['native custom agent without a model', { definition: tracker.replace('model: haiku', 'model: inherit') }, { subagent_type: 'reviewer' }, 'stopped', 'custom agent requires an explicit permitted model for native tools'],
+    ['native custom agent', { definition: tracker }, { subagent_type: 'reviewer' }, 'native custom agent', 'custom tool policy'],
+    ['checked local answer', { quota: 1, env: gateways }, textTask, 'local small', 'checked local answer'],
+    ['sandbox executor', { quota: 1, env: gateways }, coding, 'zcode', 'highest-ranked eligible executor that answered'],
+    ['sandbox job without a verified PR', { quota: 1, env: gateways, zcodeOutput: 'DONE|j-0123456789abcdef|no-pr\n' }, coding, 'zcode', 'sandbox job without a verified PR'],
+    ['terminal rung', { quota: 1, zcodeAvailable: false }, {}, 'haiku', 'terminal rung'],
+    ['routing failed closed', { env: gateways, envThrows: 'LITELLM_LOCAL_BASE_URL' }, textTask, 'stopped', 'routing failed closed'],
+  ]
+  for (const [name, options, call, chosen, reason] of exits) {
+    test(`every route exit writes one JSON route line: ${name}`, async () => {
+      const w = world(options)
+      await w.agent(call)
+      const lines = routeEvents(w).filter((l) => l.event === 'route')
+      expect(lines).toHaveLength(1)
+      expect(lines[0]).toMatchObject({ chosen, reason })
+    })
+  }
+})
+
+describe('route telemetry failures', () => {
+  test('a rejected clock never turns a stop into a rejection, and the route line is still written', async () => {
+    const w = world({ clockThrows: true })
+    expect(text(await w.agent({ model: 'sonnet' }))).toContain('subagents are forbidden')
+    expect(routeEvents(w).filter((l) => l.event === 'route')).toHaveLength(1)
+    expect(routeEvents(w).at(-1)).toMatchObject({ ts_ms: null, chosen: 'stopped' })
+  })
+  test('a clock that never answers on the executor ladder still routes and writes the route line', async () => {
+    // Without a clock reading quota staleness is unknown, and unknown never blocks a rung, so Codex takes the task.
+    const w = world({ quota: 1, zcodeAvailable: false, clockHangs: true })
+    expect(text(await w.agent())).toContain('[routed: codex')
+    expect(routeEvents(w).at(-1)).toMatchObject({ ts_ms: null, chosen: EXECUTOR_TABLE.find((r) => r.transport === 'codex')!.id })
+    expect(routeEvents(w).at(-1).quota_unknown).not.toEqual({})
+  })
+  test('a failed log write never changes the routing result', async () => {
+    const w = world({ quota: 1, zcodeAvailable: false, teeThrows: true })
+    expect(text(await w.agent())).toContain('haiku result')
+    const stopped = world({ teeThrows: true })
+    expect(text(await stopped.agent({ model: 'opus' }))).toContain('subagents are forbidden')
+  })
+  for (const [name, options, call, chosen, reason] of [
+    ['terminal rung', { quota: 1, zcodeAvailable: false }, {}, LAST_RESORT.model, 'terminal rung'],
+    ['native custom agent', { definition: '---\nmodel: haiku\ntools: mcp__tracker__*\n---\nPerform the task.' }, { subagent_type: 'reviewer' }, 'native custom agent', 'custom tool policy'],
+  ] as const) {
+    test(`a core rejection after the route line returns FAIL and writes no second line: ${name}`, async () => {
+      const w = world({ ...options, nextRejects: true })
+      expect(text(await w.agent(call))).toStartWith('FAIL | router | routing failed closed')
+      expect(routeEvents(w).filter((l) => l.event === 'route')).toHaveLength(1)
+      expect(routeEvents(w).at(-1)).toMatchObject({ chosen, reason })
+    })
+  }
+  for (const type of ['\u001b[31mreviewer', 'a'.repeat(81), 'two words']) {
+    test(`an unsafe agent type is logged as unrecognized: ${JSON.stringify(type).slice(0, 20)}`, async () => {
+      const w = world()
+      await w.agent({ subagent_type: type })
+      expect(routeEvents(w).at(-1)).toMatchObject({ agent_type: 'unrecognized', chosen: 'stopped' })
+    })
+  }
+})
+
+describe('route telemetry content and bounds', () => {
+  const TOKEN = 'ghp_abcdefghijklmnopqrst'
+  test('a token-shaped agent type is logged as unrecognized, with or without a definition', async () => {
+    for (const options of [{}, { definition: '---\nmodel: haiku\n---\nReview the change.' }]) {
+      const w = world(options)
+      await w.agent({ subagent_type: TOKEN })
+      expect(routeEvents(w).at(-1).agent_type).toBe('unrecognized')
+      expect(w.writes.some((s) => s.includes(TOKEN))).toBe(false)
+    }
+  })
+  test('built-in types and verified custom agents are logged by name; an unverified name is not', async () => {
+    const explore = world({ quota: 1, zcodeAvailable: false })
+    await explore.agent({ subagent_type: 'Explore', description: 'read and triage', prompt: 'Read app.ts.' })
+    expect(routeEvents(explore).at(-1).agent_type).toBe('Explore')
+    const custom = world({ definition: '---\nmodel: haiku\ntools: mcp__tracker__*\n---\nPerform the task.' })
+    await custom.agent({ subagent_type: 'reviewer' })
+    expect(routeEvents(custom).at(-1).agent_type).toBe('reviewer')
+    const missing = world()
+    await missing.agent({ subagent_type: 'reviewer' })
+    expect(routeEvents(missing).at(-1)).toMatchObject({ agent_type: 'unrecognized', chosen: 'stopped' })
+  })
+  test('quota labels reach telemetry only when short, plain and free of prohibited content', async () => {
+    const at = 1000 - 60
+    const windows = [{ kind: 'weekly', used_percent: 10, window_seconds: 2000, reset_at: 2000 }]
+    for (const source of [TOKEN, 's'.repeat(41)]) {
+      const w = world({ env: gateways, quotaText: JSON.stringify(instantQuery(series('codex', windows, at, source))) })
+      await w.agent({ description: '[class: standard]', prompt: 'Implement the change.' })
+      expect(routeEvents(w).at(-1).quota_source).toEqual({ 'codex/weekly': 'unrecognized' })
+      expect(w.writes.some((s) => s.includes(source))).toBe(false)
+    }
+    const long = world({ env: gateways, quotaText: JSON.stringify(instantQuery(series('codex', [{ ...windows[0], kind: 'w'.repeat(41) }], at))) })
+    await long.agent({ description: '[class: standard]', prompt: 'Implement the change.' })
+    expect(routeEvents(long).at(-1).quota_unknown).toMatchObject({ codex: 'quota_missing' })
+    expect(long.writes.some((s) => s.includes('w'.repeat(41)))).toBe(false)
+  })
+  test('a writer that exits non-zero is a failed write: no line counted, a UI notice, the same result', async () => {
+    const w = world({ quota: 1, zcodeAvailable: false, teeExit: 1 })
+    expect(text(await w.agent())).toContain('haiku result')
+    expect(routeEvents(w)).toEqual([])
+    expect(w.logs).toContain('ai-delegation: decision log write failed')
+  })
+  test('a clock that never answers bounds logging: the stop returns and the line carries a null timestamp', async () => {
+    const w = world({ clockHangs: true })
+    expect(text(await w.agent({ model: 'sonnet' }))).toContain('subagents are forbidden')
+    expect(routeEvents(w).at(-1)).toMatchObject({ ts_ms: null, chosen: 'stopped' })
+  })
+  test('the terminal rung follows LAST_RESORT.model everywhere, so a literal model name fails this test', async () => {
+    // Changing the value at run time catches a hard-coded name that would still equal the current one.
+    const terminal = LAST_RESORT as { model: string }
+    const saved = terminal.model
+    terminal.model = 'terminal-probe'
+    try {
+      const w = world({ quota: 1, zcodeAvailable: false })
+      await w.agent()
+      const event = routeEvents(w).at(-1)
+      expect(event.eligible.at(-1)).toBe('terminal-probe')
+      expect(event.chosen).toBe('terminal-probe')
+      const row = { ...EXECUTOR_TABLE.find((r) => r.transport === 'codex')!, id: 'terminal-probe' }
+      expect(validRow(row)).toBeUndefined()
+      expect(validRow({ ...row, id: saved })).toBeDefined()
+    } finally {
+      terminal.model = saved
+    }
+  })
+  test('zcode-job start refusing before it accepts a job logs stopped, not the executor', async () => {
+    const w = world({ quota: 1, env: gateways, zcodeExit: 64, zcodeOutput: '{"error":"Repository is not approved for ZCode"}\n' })
+    expect(text(await w.agent(coding))).toStartWith('FAIL | router |')
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'stopped', reason: 'zcode dispatch failed before the job was accepted' })
   })
 })
