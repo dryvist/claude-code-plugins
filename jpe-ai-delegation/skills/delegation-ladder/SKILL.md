@@ -87,15 +87,19 @@ decision to `~/.claude/ai-delegation.log`:
    `private_ok`; a sandbox row is always `sandbox-public` with `private_ok`
    false. A row with `kind: "promotion"` needs `expires`, sorts first until
    then, and, like every row, uses the `codex`, `sandbox` or `router-chat`
-   transport. A `router-chat` row names a router `model` and answers only
-   what the local rung would take (`[class: text]`, never `[task: code]`)
-   through the same `LITELLM_LOCAL_BASE_URL` chat call; it must be
+   transport. A `router-chat` row answers only what the local rung would
+   take (`[class: text]`, never `[task: code]`) through the same
+   `LITELLM_LOCAL_BASE_URL` chat call and the same size gate. An unpaid
+   row must name an on-host alias (`small` or `local-only`) and be
    subscription-trusted with `private_ok` to see that work. A
-   `billing: "paid"` row is a `router-chat` row with `budget_daily_usd` and
-   `budget_key` (the router key alias); it runs only while
-   `litellm_remaining_api_key_budget_metric` for that alias is fresh and
-   above zero in the quota query result, and that series is not in the
-   result until the quota route admits it. `AGENT_ROUTE_ZCODE_TOOLS`, when set, limits which sandbox
+   `billing: "paid"` row may name any router model; it carries
+   `budget_daily_usd` (finite and positive; it documents the router key's
+   own daily cap, which the router enforces) and `budget_key` (the router
+   key alias), and is never `private_ok`. It runs only on public work and
+   only while `litellm_remaining_api_key_budget_metric` for that alias is
+   fresh and above zero in the quota query result. Text work carries no
+   public marker today, so a paid row receives no work yet, and that
+   series is not in the result until the quota route admits it. `AGENT_ROUTE_ZCODE_TOOLS`, when set, limits which sandbox
    tools run; unset runs every table row's tool. Each `route` line lists
    `skipped` rows with a reason: `ineligible`, `exhausted`, `expired`,
    `not_installed`, `failed`, `budget_unknown` or `budget_spent`.
