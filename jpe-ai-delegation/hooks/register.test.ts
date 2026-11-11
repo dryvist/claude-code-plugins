@@ -1169,7 +1169,7 @@ describe('quota from the metrics store', () => {
     test(`HTTP ${status}: every quota is unknown as quota_unreachable`, async () => {
       const w = world({ quotaStatus: status, env: { ...gateways, AGENT_QUOTA_TOKEN_FILE: TOKEN_FILE }, files: { [TOKEN_FILE]: 'quota-secret-value' } })
       expect(text(await w.agent())).toContain('codex luna xhigh')
-      expect(routeEvents(w).at(-1)).toMatchObject({ scores: { codex: null }, quota_unknown: { codex: 'quota_unreachable', cursor: 'quota_unreachable' } })
+      expect(routeEvents(w).at(-1)).toMatchObject({ scores: { codex: { score: null, exhausted: false, effective: null, used: null, line: null } }, quota_unknown: { codex: 'quota_unreachable', cursor: 'quota_unreachable' } })
     })
   }
   test('the token appears only in the quota GET header: never in a URL, a body, the route event, a log or a command', async () => {
