@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.15.0](https://github.com/dryvist/claude-code-plugins/compare/ai-delegation-v6.14.0...ai-delegation-v6.15.0) (2026-11-11)
+
+
+### Features
+
+* **delegation:** keep every worker busy with scheduled idle sweeps and productivity checks ([#775](https://github.com/dryvist/claude-code-plugins/issues/775)) ([a65e8de](https://github.com/dryvist/claude-code-plugins/commit/a65e8de2a98716c54c3e16b175de8794a8b922d7))
+
 ## [6.14.0](https://github.com/dryvist/claude-code-plugins/compare/ai-delegation-v6.13.0...ai-delegation-v6.14.0) (2026-11-09)
 
 
