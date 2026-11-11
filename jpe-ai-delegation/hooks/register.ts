@@ -49,6 +49,9 @@ async function withTimeout<T>($: Engine, work: Promise<T>, ms: number): Promise<
   }
 }
 
+// The clock, bounded by LOG_TIMEOUT_MS: null when it rejects or does not answer in time.
+const clockNow = ($: Engine): Promise<number | null> => withTimeout($, $.clock.now(), LOG_TIMEOUT_MS).catch(() => null)
+
 // One instant query to the metrics store named by AGENT_QUOTA_QUERY_URL; the plugin ships no default. Unset makes
 // no request. A failure, timeout, non-OK status or a body that is not a successful vector means unreachable.
 async function readQuota($: Engine): Promise<QuotaFetch> {
@@ -65,14 +68,15 @@ async function readQuota($: Engine): Promise<QuotaFetch> {
 }
 
 async function quotaRows($: Engine): Promise<QuotaFetch> {
-  const now = await $.clock.now()
+  const now = await clockNow($)
   if (!quotaRead) {
-    quotaAt = now
+    quotaAt = now ?? 0
     quotaRead = readQuota($)
     return quotaRead
   }
   const current = quotaRead
-  if (now - quotaAt >= QUOTA_REFRESH_MS) {
+  // Without a clock reading the refresh waits for the next decision.
+  if (now !== null && now - quotaAt >= QUOTA_REFRESH_MS) {
     quotaAt = now
     // A failed refresh keeps the last result; its samples still go stale on the clock.
     void readQuota($).then((read) => { if (read.result) quotaRead = Promise.resolve(read) })
@@ -93,13 +97,15 @@ type QuotaView = { scores: Partial<Record<Executor, Score>>; unknown: Record<str
 // Scores for table rows that name a quota executor, judged for staleness at this moment. Rows without one stay unknown.
 async function currentQuota($: Engine, table: readonly ExecutorRow[]): Promise<QuotaView> {
   const read = await quotaRows($)
-  const now = (await $.clock.now()) / 1000
+  const ms = await clockNow($)
   const ids = [...new Set(table.flatMap((r) => (r.quota ? [r.quota] : [])))]
   const view: QuotaView = { scores: {}, unknown: {}, sources: {} }
-  if (!read.result) {
-    for (const id of ids) view.unknown[id] = read.failure ?? 'quota_unreachable'
+  // Staleness cannot be judged without a clock reading, so every quota is unknown.
+  if (!read.result || ms === null) {
+    for (const id of ids) view.unknown[id] = read.result ? 'quota_stale' : (read.failure ?? 'quota_unreachable')
     return view
   }
+  const now = ms / 1000
   const adapted = quotaFromMetrics(read.result, ids, now)
   view.unknown = adapted.unknown
   view.sources = adapted.sources
@@ -244,7 +250,7 @@ async function classify($: Engine, e: AgentCall): Promise<Label> {
 }
 
 async function runRoutedCodex($: Engine, e: AgentCall, route: string, codexRoute: Route, sandbox: Sandbox, detail: string): Promise<unknown | undefined> {
-  const started = await $.clock.now()
+  const started = await clockNow($)
   let cwd: string | undefined
   if (e.isolation) {
     if (e.isolation !== 'worktree') return undefined
@@ -258,7 +264,7 @@ async function runRoutedCodex($: Engine, e: AgentCall, route: string, codexRoute
   const out = await runCodex($, codexRoute, sandbox, e.prompt, 600_000, cwd)
   if (!out) return undefined
   await logDecision($, `route: ${route} -> codex ${codexRoute.family} ${codexRoute.effort} (${sandbox})`)
-  return routedResult(e, 'ai-delegation-codex', out, `[routed: codex ${codexRoute.family} ${codexRoute.effort}, ${detail}]`, (await $.clock.now()) - started)
+  return routedResult(e, 'ai-delegation-codex', out, `[routed: codex ${codexRoute.family} ${codexRoute.effort}, ${detail}]`, started === null ? 0 : ((await clockNow($)) ?? started) - started)
 }
 
 // The Codex rung: classify, pick the sandbox, run. Undefined on any failure so routing continues.
@@ -340,7 +346,7 @@ async function sandboxTools($: Engine): Promise<string[] | undefined> {
 // `unconfirmed` is true when the dispatch call threw or timed out, so whether the job was submitted is unknown.
 type SandboxRun = { result?: unknown; accepted: boolean; unconfirmed?: boolean }
 async function runSandboxExecutor($: Engine, e: AgentCall, repo: string, tool: string): Promise<SandboxRun> {
-  const started = await $.clock.now()
+  const started = await clockNow($)
   try {
     const available = await $.process.run(['which', 'zcode-job'], { timeoutMs: 5_000 })
     if (available.exitCode !== 0) return { accepted: false }
@@ -362,7 +368,7 @@ async function runSandboxExecutor($: Engine, e: AgentCall, repo: string, tool: s
     const pr = await github($, `${repo}/pulls/${done[4]}`) as { state?: string; draft?: boolean; labels?: { name: string }[]; html_url?: string }
     if (pr.state !== 'open' || pr.draft !== false || pr.html_url !== done[2] || !pr.labels?.some((l) => l.name === 'human:review')) return { accepted, result: failure(e, `${tool} PR is not ready and labelled human:review`) }
     await logDecision($, `route: coding -> ${name} (leak scan required before merge)`)
-    return { accepted, result: routedResult(e, `ai-delegation-${tool}`, line, `[routed: ${name}; leak-scan before merge; never auto-merge]`, (await $.clock.now()) - started) }
+    return { accepted, result: routedResult(e, `ai-delegation-${tool}`, line, `[routed: ${name}; leak-scan before merge; never auto-merge]`, started === null ? 0 : ((await clockNow($)) ?? started) - started) }
   } catch {
     // A dispatched job may still be running. Do not start a duplicate executor.
     return { accepted, unconfirmed: !answered, result: failure(e, `${tool} dispatch or PR verification failed; inspect the job before retrying`) }
@@ -438,7 +444,7 @@ type RouteEvent = {
 async function logRoute($: Engine, event: RouteEvent, chosen: string, reason: string): Promise<void> {
   try {
     // A clock that does not answer in time leaves ts_ms null rather than dropping the line.
-    const ts_ms = await withTimeout($, $.clock.now(), LOG_TIMEOUT_MS).catch(() => null)
+    const ts_ms = await clockNow($)
     await logDecision($, JSON.stringify({ ts_ms, event: 'route', ...event, chosen, reason }))
   } catch {
     // The log is advisory.
@@ -514,7 +520,8 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
   const restricted = definition && (definition.tools !== undefined || Boolean(definition.disallowedTools?.length))
   const repo = restricted ? undefined : await publicCodeRepo($, e)
   const table = await loadExecutorTable($)
-  const now = await $.clock.now()
+  // Without a clock reading no promotion is proven unexpired (Infinity expires them all) and no peak applies.
+  const now = (await clockNow($)) ?? Number.POSITIVE_INFINITY
   const { rows, skipped } = eligibleRows(table, Boolean(repo), now)
   // Every quota executor in the table is reported, so the event shows why an ineligible row's quota is unknown too.
   const quota = await currentQuota($, table)

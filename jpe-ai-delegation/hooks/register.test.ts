@@ -1180,9 +1180,18 @@ describe('route telemetry', () => {
 })
 
 describe('route telemetry failures', () => {
-  test('a rejected clock never turns a stop into a rejection', async () => {
+  test('a rejected clock never turns a stop into a rejection, and the route line is still written', async () => {
     const w = world({ clockThrows: true })
     expect(text(await w.agent({ model: 'sonnet' }))).toContain('subagents are forbidden')
+    expect(routeEvents(w).filter((l) => l.event === 'route')).toHaveLength(1)
+    expect(routeEvents(w).at(-1)).toMatchObject({ ts_ms: null, chosen: 'stopped' })
+  })
+  test('a clock that never answers on the executor ladder still routes and writes the route line', async () => {
+    // Without a clock reading quota staleness is unknown, and unknown never blocks a rung, so Codex takes the task.
+    const w = world({ quota: 1, zcodeAvailable: false, clockHangs: true })
+    expect(text(await w.agent())).toContain('[routed: codex')
+    expect(routeEvents(w).at(-1)).toMatchObject({ ts_ms: null, chosen: EXECUTOR_TABLE.find((r) => r.transport === 'codex')!.id })
+    expect(routeEvents(w).at(-1).quota_unknown).not.toEqual({})
   })
   test('a failed log write never changes the routing result', async () => {
     const w = world({ quota: 1, zcodeAvailable: false, teeThrows: true })
