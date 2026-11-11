@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.16.0](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.15.0...jpe-ai-delegation-v1.16.0) (2026-11-11)
+
+
+### Features
+
+* **jpe-ai-delegation:** load executors from a validated table with price, peak and promotions ([#771](https://github.com/dryvist/claude-code-plugins/issues/771)) ([bbcaa17](https://github.com/dryvist/claude-code-plugins/commit/bbcaa1791bf2aab80c6abe3a576427e5b2617bcf))
+
 ## [1.15.0](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.14.0...jpe-ai-delegation-v1.15.0) (2026-11-10)
 
 
