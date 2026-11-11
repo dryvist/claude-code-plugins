@@ -1,0 +1,29 @@
+schema_version: "1.1"
+name: premium-agent-orchestration-idle-fleet-sweep
+tags: [development, execution, execution-control, utilization]
+execution:
+  allowed_tools: [Read, Glob, Grep, Skill]
+  prompt: >-
+    Fictional fleet state: three workers in a marathon run. Worker A
+    finished its only item and has heard nothing since; Worker B watches a
+    deploy it started ten minutes ago and holds two more queued items;
+    Worker C reports one line with a current item but no parallel jobs and
+    a non-empty queue. Text-only plan: state what each worker does next,
+    which session runs the idle sweep and on what interval, and what the
+    lead's periodic report carries, deciding only from these supplied
+    facts without writing files, running commands, or inventing results.
+graders:
+  - name: fleet-utilization-rules
+    type: llm
+    criteria: >-
+      PASS if Worker A pulls its next queue item or, its queue being empty
+      or fully blocked, writes resume state and is closed instead of
+      receiving a keep-warm ping or invented work; Worker B starts its
+      next queued item while the deploy runs as a background monitor;
+      Worker C says why it runs no parallel jobs; the sweep is scheduled
+      on an interval shorter than the workers' prompt-cache lifetime and
+      runs on the cheapest session that can do it, never on the lead; and
+      the lead's periodic report carries busy sessions out of total and
+      idle minutes per period, reading exceptions only. FAIL if any worker
+      is left idle, the lead runs the sweep itself, or an empty queue
+      becomes a reason to invent work.
