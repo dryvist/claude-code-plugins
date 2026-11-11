@@ -1,6 +1,6 @@
 ---
 name: premium-agent-orchestration
-description: Inject any time, including mid-task, to reset the session to lean orchestrator mode. Covers marathon or multi-workstream coordination and work larger than one context. Plan and fan out checkable work to the cheapest capable executor; keep goals, gates, decisions, and final review in the parent.
+description: Inject any time, including mid-task, to reset the session to lean orchestrator mode. Covers marathon or multi-workstream coordination and work larger than one context. Plan and fan out checkable work to the cheapest capable executor; keep goals, gates, decisions, and final review in the parent. Keep every worker and its subagents busy; re-engage or close idle workers on a schedule.
 ---
 
 # Premium Agent Orchestration
@@ -18,9 +18,10 @@ Pause the current task and run this reset as soon as the skill loads.
    blockers.
 5. Fan out every ready, independent task in parallel to the cheapest capable
    executor.
-6. Keep for yourself only intent, goals, plans, design, risk, authority
+6. Schedule the idle sweep and the productivity check for the fleet.
+7. Keep for yourself only intent, goals, plans, design, risk, authority
    gates, integration and merge choices, and final review.
-7. Answer the user briefly with the current state, next step, or blocker.
+8. Answer the user briefly with the current state, next step, or blocker.
 
 ## The parent's job
 
@@ -110,6 +111,17 @@ concurrency, quota, and rate limits. Give background work a clear stop
 condition and bounded waits. If a call fails, record the failure, then
 re-plan or choose the next eligible executor. Do not poll forever or silently
 absorb a failed task into the parent.
+
+## Keep the fleet working
+
+Every worker and subagent is working, waiting on a named event with a
+background wake condition while its next item runs, or closed. Idle wastes
+a warm prompt cache, then costs a full re-read when the session wakes
+cold. Sweep the fleet for idle or near-idle sessions on an interval
+shorter than the prompt-cache lifetime, run the sweep on the cheapest
+session that can do it, and ask each worker on a fixed cadence whether it
+uses its full capacity, so no cached context is wasted. The procedure is
+in `references/fleet-utilization.md`.
 
 ## Token discipline
 

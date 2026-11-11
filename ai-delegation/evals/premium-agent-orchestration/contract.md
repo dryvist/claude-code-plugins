@@ -18,6 +18,7 @@ use `min: 0`, `max: 0`, and `arm: both`.
 | Positive trigger | `reset-positive` | Actual activation and rule-following output rubric. |
 | Negative trigger | `bulk-read-collision` | False activation and output correctness. |
 | Execution control | `ladder-control` | Output correctness only; Skill use is optional. |
+| Fleet utilization | `idle-fleet-sweep` | Output correctness only; Skill use is optional. |
 
 Cases run text-only against synthetic public state: read-only tools plus Skill.
 No shell, writes, network, services, or operator grants. Assertions grade the
@@ -54,6 +55,16 @@ SKILL.md rules below, not prose style.
 - Failed calls are recorded, then re-planned or re-routed with bounded waits
   and clear stop conditions; no endless polling and no silent absorption of a
   failed task into the parent.
+- The lead keeps every worker and its subagents busy: each worker holds a
+  ranked queue of at least three independent, checkable items; the lead
+  schedules an idle sweep on an interval shorter than the prompt-cache
+  lifetime, run on the cheapest capable session and never on the lead; an
+  idle worker pulls its next item, or an empty or fully blocked queue is
+  closed with written resume state instead of receiving keep-warm pings or
+  invented work; workers report current item, waits, parallel jobs, and
+  next item on a fixed cadence; the lead's periodic report carries busy
+  sessions out of total and idle minutes per period, and reads exceptions
+  only (empty queue, blocked, missed checkpoint, failed proof).
 
 ## Held-out cases
 
