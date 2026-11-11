@@ -29,10 +29,12 @@ condition; a worker never sits blocked.
 
 The lead schedules a sweep on an interval shorter than the workers'
 prompt-cache lifetime. The sweep runs on the cheapest session that can do
-it, never on the lead. The sweep checks each worker's state and tells an
+it, never on the lead, so the lead's context stays for judgment. The sweep checks each worker's state and tells an
 idle worker to pull its next queue item. A worker whose queue is empty or
 fully blocked is reported to the lead; the lead assigns work or closes the
-session.
+session. The sweep, the productivity check and the periodic report stop
+when the run ends or every worker is closed; each runs on a fixed interval,
+never a tight loop.
 
 ## 4. Productivity check
 

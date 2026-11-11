@@ -120,7 +120,8 @@ a warm prompt cache, then costs a full re-read when the session wakes
 cold. Sweep the fleet for idle or near-idle sessions on an interval
 shorter than the prompt-cache lifetime, run the sweep on the cheapest
 session that can do it, and ask each worker on a fixed cadence whether it
-uses its full capacity, so no cached context is wasted. The procedure is
+uses its full capacity, so no cached context is wasted. Both stop when
+the run ends or every worker is closed. The procedure is
 in `references/fleet-utilization.md`.
 
 ## Token discipline
