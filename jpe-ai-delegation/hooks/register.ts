@@ -359,7 +359,8 @@ async function runSandboxExecutor($: Engine, e: AgentCall, repo: string, tool: s
 type Gateway = 'Z.ai GLM' | 'OpenCode Go'
 async function runGateway($: Engine, e: AgentCall, gateway: Gateway): Promise<string | undefined> {
   try {
-    const model = await $.env.get(gateway === 'Z.ai GLM' ? 'AGENT_ROUTE_GLM_MODEL' : 'AGENT_ROUTE_OPENCODE_GO_MODEL')
+    // The module loader needs a literal variable name in each $.env.get call.
+    const model = gateway === 'Z.ai GLM' ? await $.env.get('AGENT_ROUTE_GLM_MODEL') : await $.env.get('AGENT_ROUTE_OPENCODE_GO_MODEL')
     if (!model) return undefined
     const target = await routerTarget($)
     const response = await withTimeout($, $.http.fetch(target.url, {
