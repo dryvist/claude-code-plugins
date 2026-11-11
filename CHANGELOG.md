@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.56.0](https://github.com/dryvist/claude-code-plugins/compare/v6.55.0...v6.56.0) (2026-11-11)
+
+
+### Features
+
+* **jpe-ai-delegation:** rank executors by usage pace ([#785](https://github.com/dryvist/claude-code-plugins/issues/785)) ([d863515](https://github.com/dryvist/claude-code-plugins/commit/d863515597aa77b003c83e996190e3f333659e40))
+
 ## [6.55.0](https://github.com/dryvist/claude-code-plugins/compare/v6.54.1...v6.55.0) (2026-11-11)
 
 
