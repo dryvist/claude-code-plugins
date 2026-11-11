@@ -95,11 +95,11 @@ decision to `~/.claude/ai-delegation.log`:
    `billing: "paid"` row may name any router model; it carries
    `budget_daily_usd` (finite and positive; it documents the router key's
    own daily cap; the hook does not compare it) and `budget_key` (the router
-   key alias), and is never `private_ok`. It runs only on public work and
-   only while `litellm_remaining_api_key_budget_metric` for that alias is
-   fresh and above zero in the quota query result. Text work carries no
-   public marker today, so a paid row receives no work yet, and that
-   series is not in the result until the quota route admits it. `AGENT_ROUTE_ZCODE_TOOLS`, when set, limits which sandbox
+   key alias), and is never `private_ok`. A paid row is eligible only for
+   public work and only while `litellm_remaining_api_key_budget_metric` for
+   that alias is fresh and above zero in the quota query result. No paid row
+   can dispatch today: text work carries no public marker, and code work
+   never reaches a router-chat row. `AGENT_ROUTE_ZCODE_TOOLS`, when set, limits which sandbox
    tools run; unset runs every table row's tool. Each `route` line lists
    `skipped` rows with a reason: `ineligible`, `exhausted`, `expired`,
    `not_installed`, `failed`, `budget_unknown` or `budget_spent`.
