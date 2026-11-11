@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.19.0](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.18.0...jpe-ai-delegation-v1.19.0) (2026-11-11)
+
+
+### Features
+
+* **jpe-ai-delegation:** rank executors by usage pace ([#785](https://github.com/dryvist/claude-code-plugins/issues/785)) ([d863515](https://github.com/dryvist/claude-code-plugins/commit/d863515597aa77b003c83e996190e3f333659e40))
+
+## [1.18.0](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.17.1...jpe-ai-delegation-v1.18.0) (2026-11-11)
+
+
+### Features
+
+* **jpe-ai-delegation:** write one route line for every Agent routing call ([#782](https://github.com/dryvist/claude-code-plugins/issues/782)) ([0144274](https://github.com/dryvist/claude-code-plugins/commit/0144274baa2cd2ce69ff1355b555329510f7ad2c))
+
+## [1.17.1](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.17.0...jpe-ai-delegation-v1.17.1) (2026-11-11)
+
+
+### Bug Fixes
+
+* **jpe-ai-delegation:** read gateway model variables by literal name ([#780](https://github.com/dryvist/claude-code-plugins/issues/780)) ([9b6f2d2](https://github.com/dryvist/claude-code-plugins/commit/9b6f2d2dc2fa156f241efc88744d48b420a4f381))
+
 ## [1.17.0](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.16.0...jpe-ai-delegation-v1.17.0) (2026-11-11)
 
 

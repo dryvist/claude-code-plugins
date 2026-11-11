@@ -133,7 +133,7 @@ const isPeak = (p: unknown): p is Peak => {
 // subscription-trusted row may take private work.
 export function validRow(r: unknown): ExecutorRow | undefined {
   const v = r as ExecutorRow
-  if (!v || typeof v.id !== 'string' || !/^[a-z0-9-]{1,40}$/.test(v.id) || v.id === 'haiku') return undefined
+  if (!v || typeof v.id !== 'string' || !/^[a-z0-9-]{1,40}$/.test(v.id) || v.id === LAST_RESORT.model) return undefined
   if (v.transport !== 'codex' && v.transport !== 'sandbox') return undefined
   if (v.transport === 'sandbox' && (typeof v.tool !== 'string' || !/^[a-z0-9-]{1,40}$/.test(v.tool))) return undefined
   if (v.trust !== 'subscription-trusted' && v.trust !== 'sandbox-public') return undefined
@@ -275,6 +275,8 @@ export function metricsResult(body: unknown): unknown[] | undefined {
   return b?.status === 'success' && b.data?.resultType === 'vector' && Array.isArray(b.data.result) ? b.data.result : undefined
 }
 
+// A metric label that may reach telemetry: a short plain token with no prohibited content.
+const quotaLabel = (v: unknown): boolean => typeof v === 'string' && /^[A-Za-z0-9._-]{1,40}$/.test(v) && safePayload(v)
 // Instant-query result list to quota rows, grouped by `executor` and `window`. A window counts only with all three series,
 // each a finite number, and with its oldest sample no more than 15 minutes old. Unknown keys are `executor` (no series)
 // or `executor/window` (incomplete or stale); `sources` names the source of each window used.
@@ -285,13 +287,13 @@ export function quotaFromMetrics(result: readonly unknown[], ids: readonly strin
     const field = QUOTA_FIELDS[String(metric?.__name__)]
     const [at, text] = Array.isArray(value) ? value : []
     const number = typeof text === 'string' && text.trim() !== '' ? Number(text) : NaN
-    if (!field || typeof metric?.executor !== 'string' || typeof metric.window !== 'string' || typeof at !== 'number' || !Number.isFinite(number)) continue
+    if (!field || typeof metric?.executor !== 'string' || !quotaLabel(metric.window) || typeof at !== 'number' || !Number.isFinite(number)) continue
     const windows = groups.get(metric.executor) ?? new Map()
     groups.set(metric.executor, windows)
     const window = windows.get(metric.window) ?? {}
     windows.set(metric.window, window)
     // Two sources for one series: the newer sample wins.
-    if (!window[field] || window[field]!.at < at) window[field] = { value: number, at, source: String(metric.source ?? '') }
+    if (!window[field] || window[field]!.at < at) window[field] = { value: number, at, source: quotaLabel(metric.source) ? metric.source as string : 'unrecognized' }
   }
   const read: QuotaRead = { rows: [], unknown: {}, sources: {} }
   for (const id of ids) {
@@ -311,28 +313,44 @@ export function quotaFromMetrics(result: readonly unknown[], ids: readonly strin
   }
   return read
 }
-export type Score = { score?: number; exhausted: boolean }
-// Quota that would expire unused at the current pace, per hour left in its window. The binding window (lowest score)
-// decides; any live window at 95% or more excludes the executor. No usable window leaves the score unknown.
+export type Score = { score?: number; exhausted: boolean; used?: number; line?: number; distance?: number }
+// Use a one-day margin for windows of two days or longer and zero for shorter windows.
+const PACE_LONG_WINDOW_MARGIN_SECONDS = 86_400
+const PACE_SHORT_WINDOW_MARGIN_SECONDS = 0
+// Quota that would expire unused at the current pace per hour left is telemetry; the lowest score is recorded.
+// Any live window at 95% or more excludes the executor. No usable window leaves the score unknown.
 export function scoreWindows(windows: QuotaWindow[] | undefined, nowSeconds: number): Score {
   let score: number | undefined
+  let exhausted = false
+  let pace: Pick<Score, 'used' | 'line' | 'distance'> | undefined
   for (const w of windows ?? []) {
     const { used_percent: used, window_seconds: duration, reset_at: reset } = w
+    if (typeof used === 'number' && Number.isFinite(used) && typeof duration === 'number' && Number.isFinite(duration) && duration > 0 &&
+      typeof reset === 'number' && Number.isFinite(reset) && Number.isFinite(nowSeconds)) {
+      const margin = duration >= 2 * PACE_LONG_WINDOW_MARGIN_SECONDS ? PACE_LONG_WINDOW_MARGIN_SECONDS : PACE_SHORT_WINDOW_MARGIN_SECONDS
+      const start = reset - duration
+      const end = reset - margin
+      const line = nowSeconds >= end ? 100 : nowSeconds <= start ? 0 : ((nowSeconds - start) / (end - start)) * 100
+      const distance = line - used
+      if (!pace || distance < pace.distance!) pace = { used, line, distance }
+    }
     if (typeof used !== 'number' || typeof duration !== 'number' || typeof reset !== 'number' || duration <= 0) continue
     const remaining = reset - nowSeconds
     if (remaining <= 0 || remaining > duration) continue
-    if (used >= 95) return { exhausted: true }
+    if (used >= 95) { exhausted = true; continue }
     const elapsed = duration - remaining
     if (elapsed <= 0) continue
     const unused = 100 - used - (used / elapsed) * remaining
     const s = unused / Math.max(remaining / 3600, 1)
     score = score === undefined ? s : Math.min(score, s)
   }
-  return { score, exhausted: false }
+  return { score: exhausted ? undefined : score, exhausted, ...pace }
 }
 
-// Unexpired promotions first, then positive effective scores (headroom / (price x peak)), highest first; everything else
-// keeps table order. Exhausted rows drop out and are named in `skipped`.
+// Promotions first; at/below-line readings by distance (furthest under first), unknown in table order, then
+// over-line readings (least over first); use each executor's smallest distance across windows. Pace line:
+// 0 at start, 100 one day before reset (at reset for <2-day windows); effective score is route-line telemetry only.
+// Exhausted rows drop out and are named in `skipped`.
 export function rankRows(rows: readonly ExecutorRow[], scores: Partial<Record<Executor, Score>>, nowMs: number): { order: Executor[]; skipped: Record<Executor, SkipReason>; effective: Record<Executor, number | null> } {
   const skipped: Record<Executor, SkipReason> = {}
   const effective: Record<Executor, number | null> = {}
@@ -343,7 +361,18 @@ export function rankRows(rows: readonly ExecutorRow[], scores: Partial<Record<Ex
     return true
   })
   const promos = open.filter((r) => r.kind === 'promotion')
-  const positive = open.filter((r) => r.kind !== 'promotion' && (effective[r.id] ?? 0) > 0).sort((a, b) => effective[b.id]! - effective[a.id]!)
-  const rest = open.filter((r) => !promos.includes(r) && !positive.includes(r))
-  return { order: [...promos, ...positive, ...rest].map((r) => r.id), skipped, effective }
+  const regular = open.filter((r) => r.kind !== 'promotion')
+  const tableIndex = new Map(rows.map((r, index) => [r.id, index]))
+  const orderByPace = (group: ExecutorRow[]): ExecutorRow[] => {
+    const distance = (r: ExecutorRow): number | undefined => {
+      const value = scores[r.id]?.distance
+      return typeof value === 'number' && Number.isFinite(value) ? value : undefined
+    }
+    const compareDistance = (a: ExecutorRow, b: ExecutorRow): number => distance(b)! - distance(a)! || tableIndex.get(a.id)! - tableIndex.get(b.id)!
+    const under = group.filter((r) => distance(r) !== undefined && distance(r)! >= 0).sort(compareDistance)
+    const unknown = group.filter((r) => distance(r) === undefined)
+    const over = group.filter((r) => distance(r) !== undefined && distance(r)! < 0).sort(compareDistance)
+    return [...under, ...unknown, ...over]
+  }
+  return { order: [...orderByPace(promos), ...orderByPace(regular)].map((r) => r.id), skipped, effective }
 }
