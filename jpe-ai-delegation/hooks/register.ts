@@ -1,6 +1,6 @@
 import type { EngineInterface, Register } from 'claude-code'
-import { CLASSIFIER, CODEX, JUDGE, LAST_RESORT, LOCAL_OUTPUT_TOKENS, UTILITY, codexArgv, codingTask, eligible, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, isGenericType, isShellCAsk, localTask, mandatoryLabel, newestModel, parseVerdict, pickLabel, pickLocal, rankExecutors, safePayload, scoreWindows } from './lib/policy'
-import type { Executor, Label, QuotaWindow, Route, Sandbox, Score } from './lib/policy'
+import { CLASSIFIER, CODEX, JUDGE, LAST_RESORT, LOCAL_OUTPUT_TOKENS, UTILITY, EXECUTOR_TABLE, codexArgv, codingTask, eligibleRows, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, isGenericType, isShellCAsk, localTask, mandatoryLabel, newestModel, mergeExecutorRows, parseVerdict, pickLabel, pickLocal, rankRows, safePayload, scoreWindows } from './lib/policy'
+import type { Executor, ExecutorRow, Label, QuotaWindow, Route, Sandbox, Score, SkipReason } from './lib/policy'
 import { customAgentSandbox, parseAgentDefinition } from './lib/agent-definition'
 import type { AgentDefinition } from './lib/agent-definition'
 
@@ -18,6 +18,24 @@ const PROMPT_POLICY = 'The jpe-ai-delegation hook places every Agent spawn. Tag 
 let quotaRead: Promise<QuotaRow[] | undefined> | undefined
 let quotaAt = 0
 let localWindows: Promise<Record<string, number | undefined>> | undefined
+let executorTable: Promise<ExecutorRow[]> | undefined
+
+// The built-in executor table merged with the operator override, read once per session. A bad override is logged and ignored.
+function loadExecutorTable($: Engine): Promise<ExecutorRow[]> {
+  executorTable ??= (async () => {
+    try {
+      const path = `${await $.env.get('HOME')}/.config/ai-delegation/executors.json`
+      if (!(await $.fs.exists(path))) return [...EXECUTOR_TABLE]
+      const { rows, rejected } = mergeExecutorRows(EXECUTOR_TABLE, JSON.parse((await $.fs.read(path)) as string))
+      if (rejected.length) await logDecision($, `executor override rows rejected: ${rejected.join(', ')}`)
+      return rows
+    } catch {
+      await logDecision($, 'executor override unreadable; using the built-in table')
+      return [...EXECUTOR_TABLE]
+    }
+  })()
+  return executorTable
+}
 
 async function withTimeout<T>($: Engine, work: Promise<T>, ms: number): Promise<T> {
   let timer: { cancel: () => void } | undefined
@@ -81,19 +99,20 @@ function rowScore(rows: QuotaRow[] | undefined, id: string, nowSeconds: number):
   return score.exhausted || score.score !== undefined ? score : undefined
 }
 
-async function currentScores($: Engine): Promise<Partial<Record<Executor, Score>>> {
+// Scores for table rows that name a token-meter quota row; rows without one stay unknown.
+async function currentScores($: Engine, table: readonly ExecutorRow[]): Promise<Partial<Record<Executor, Score>>> {
   const rows = await quotaRows($)
   const now = (await $.clock.now()) / 1000
   const scores: Partial<Record<Executor, Score>> = {}
-  for (const [executor, id] of [['codex', 'codex'], ['cursor', 'cursor']] as const) {
-    const score = rowScore(rows, id, now)
-    if (score) scores[executor] = score
+  for (const r of table) {
+    const score = r.quota ? rowScore(rows, r.quota, now) : undefined
+    if (score) scores[r.id] = score
   }
   return scores
 }
 
 async function currentCodexScore($: Engine): Promise<Score | undefined> {
-  return (await currentScores($)).codex
+  return rowScore(await quotaRows($), 'codex', (await $.clock.now()) / 1000)
 }
 
 function quotaLine(score: Score | undefined): string {
@@ -305,16 +324,15 @@ async function publicCodeRepo($: Engine, e: AgentCall): Promise<string | undefin
   }
 }
 
-type SandboxTool = 'zcode' | 'opencode' | 'cursor-agent'
-const SANDBOX_NAMES: Record<SandboxTool, string> = { zcode: 'zcode-job sandbox', opencode: 'OpenCode Go sandbox', 'cursor-agent': 'Cursor sandbox' }
-const SANDBOX_TOOL: Record<Exclude<Executor, 'codex'>, SandboxTool> = { zcode: 'zcode', 'opencode-go': 'opencode', cursor: 'cursor-agent' }
+const SANDBOX_NAMES: Record<string, string> = { zcode: 'zcode-job sandbox', opencode: 'OpenCode Go sandbox', 'cursor-agent': 'Cursor sandbox' }
 
-// Sandbox tools the operator enables; all by default.
-async function sandboxTools($: Engine): Promise<string[]> {
-  return ((await $.env.get('AGENT_ROUTE_ZCODE_TOOLS')) ?? 'zcode opencode cursor-agent').split(/\s+/).filter(Boolean)
+// Sandbox tools the operator enables; undefined (unset) enables every table row's tool.
+async function sandboxTools($: Engine): Promise<string[] | undefined> {
+  return (await $.env.get('AGENT_ROUTE_ZCODE_TOOLS'))?.split(/\s+/).filter(Boolean)
 }
 
-async function runSandboxExecutor($: Engine, e: AgentCall, repo: string, tool: SandboxTool): Promise<unknown | undefined> {
+// Undefined only before dispatch (zcode-job not installed); after dispatch it returns the PR or a FAIL result.
+async function runSandboxExecutor($: Engine, e: AgentCall, repo: string, tool: string): Promise<unknown | undefined> {
   const started = await $.clock.now()
   try {
     const available = await $.process.run(['which', 'zcode-job'], { timeoutMs: 5_000 })
@@ -322,7 +340,7 @@ async function runSandboxExecutor($: Engine, e: AgentCall, repo: string, tool: S
   } catch {
     return undefined
   }
-  const name = SANDBOX_NAMES[tool]
+  const name = SANDBOX_NAMES[tool] ?? `${tool} sandbox`
   try {
     const prompt = `${e.prompt}\n\nReturn a ready PR labelled human:review. Never auto-merge. The trusted lead must leak-scan the PR before merge.`
     const argv = tool === 'zcode' ? ['zcode-job', 'start', repo, prompt] : ['zcode-job', 'start', '--tool', tool, repo, prompt]
@@ -399,7 +417,8 @@ async function customAgentDefinition($: Engine, type: string): Promise<AgentDefi
 
 type RouteEvent = {
   agent_type: string; local: { alias: string | null; est_tokens: number } | null; eligible: string[]
-  scores: Record<string, { score: number | null; exhausted: boolean } | null>; fell_through_from: string[]
+  scores: Record<string, { score: number | null; exhausted: boolean; effective: number | null } | null>; fell_through_from: string[]
+  skipped: Record<string, SkipReason>
 }
 
 // One JSON telemetry line per routing decision.
@@ -424,7 +443,7 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
     if (definition.prompt) e = { ...e, prompt: `Custom agent instructions:\n${definition.prompt}\n\nTask:\n${e.prompt}` }
   }
   if (!safePayload(`${e.description ?? ''}\n${e.prompt}`)) return failure(e, 'payload contains prohibited content')
-  const event: RouteEvent = { agent_type: original.subagent_type ?? 'general-purpose', local: null, eligible: [], scores: {}, fell_through_from: [] }
+  const event: RouteEvent = { agent_type: original.subagent_type ?? 'general-purpose', local: null, eligible: [], scores: {}, fell_through_from: [], skipped: {} }
   if (definition && customSandbox === undefined) {
     // An inherited model cannot be verified on a native pass-through.
     const model = original.model ?? definition.model
@@ -452,17 +471,30 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
   // Subscription rungs: eligibility, then quota score, then static order; Haiku always ends the list.
   const restricted = definition && (definition.tools !== undefined || Boolean(definition.disallowedTools?.length))
   const repo = restricted ? undefined : await publicCodeRepo($, e)
-  const candidates = eligible(Boolean(repo))
-  const scores = await currentScores($)
-  event.eligible = [...candidates, 'haiku']
-  for (const x of candidates) event.scores[x] = scores[x] ? { score: scores[x]!.score ?? null, exhausted: scores[x]!.exhausted } : null
+  const table = await loadExecutorTable($)
+  const now = await $.clock.now()
+  const { rows, skipped } = eligibleRows(table, Boolean(repo), now)
+  const scores = await currentScores($, rows)
+  const ranked = rankRows(rows, scores, now)
+  Object.assign(skipped, ranked.skipped)
+  event.eligible = [...rows.map((r) => r.id), 'haiku']
+  event.skipped = skipped
+  for (const r of rows) {
+    const s = scores[r.id]
+    event.scores[r.id] = s ? { score: s.score ?? null, exhausted: s.exhausted, effective: ranked.effective[r.id] ?? null } : null
+  }
   const tools = await sandboxTools($)
-  for (const executor of rankExecutors(candidates, scores)) {
+  for (const executor of ranked.order) {
+    const row = rows.find((r) => r.id === executor)!
     let result: unknown | undefined
-    if (executor === 'codex') result = await runCodexRung($, e, customSandbox)
-    else {
-      const tool = SANDBOX_TOOL[executor]
-      if (repo && tools.includes(tool)) result = await runSandboxExecutor($, e, repo, tool)
+    if (row.transport === 'codex') {
+      result = await runCodexRung($, e, customSandbox)
+      if (!result) skipped[executor] = 'failed'
+    } else if (!repo || (tools && !tools.includes(row.tool!))) {
+      skipped[executor] = repo ? 'not_installed' : 'ineligible'
+    } else {
+      result = await runSandboxExecutor($, e, repo, row.tool!)
+      if (!result) skipped[executor] = 'not_installed'
     }
     if (result) {
       const unverified = (result as { result?: { agentId?: string } }).result?.agentId === 'ai-delegation-policy'
@@ -515,6 +547,7 @@ export const register: Register = (on) => {
   quotaRead = undefined
   quotaAt = 0
   localWindows = undefined
+  executorTable = undefined
 
   // Start the first quota read without delaying the session.
   on('session.start', async ($, e, next) => {

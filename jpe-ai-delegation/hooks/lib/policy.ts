@@ -100,14 +100,87 @@ export function codexArgv(sandbox: Sandbox, route: Route, model: string | undefi
   return ['codex', 'exec', '-s', sandbox, '-c', `model_reasoning_effort="${effort}"`, '--skip-git-repo-check', '-m', model, '-o', outputFile, '-']
 }
 
-// Subscription executors in static order; Haiku is the terminal rung outside this list.
-export type Executor = 'zcode' | 'opencode-go' | 'codex' | 'cursor'
-export const EXECUTORS: readonly Executor[] = ['zcode', 'opencode-go', 'codex', 'cursor']
-// No zero-data-retention data exists, so this static table decides who may see a task. On-host local aliases and
-// the Codex and Haiku subscriptions take any work; the sandbox tools take public-repository code only. Cursor runs as a
-// sandbox tool on the same dispatcher, which refuses private repositories.
-export const PUBLIC_CODE_ONLY: Record<Executor, boolean> = { zcode: true, 'opencode-go': true, codex: false, cursor: true }
-export const eligible = (publicCode: boolean): Executor[] => EXECUTORS.filter((x) => publicCode || !PUBLIC_CODE_ONLY[x])
+// Subscription executors as data, in static order; Haiku is the terminal rung outside this table. Rows may be
+// overridden or added by id from an operator file; `mergeExecutorRows` validates every row.
+export type Executor = string
+export type Peak = { days: number[]; start_utc: number; end_utc: number; multiplier: number }
+export type ExecutorRow = {
+  id: Executor
+  transport: 'codex' | 'sandbox'
+  tool?: string
+  trust: 'subscription-trusted' | 'sandbox-public'
+  private_ok: boolean
+  quota?: string
+  price: number
+  peak?: Peak[]
+  kind?: 'promotion'
+  expires?: string
+}
+// Sandbox tools run on a dispatcher that refuses private repositories, so only the Codex subscription takes private work.
+export const EXECUTOR_TABLE: readonly ExecutorRow[] = [
+  { id: 'zcode', transport: 'sandbox', tool: 'zcode', trust: 'sandbox-public', private_ok: false, price: 1, peak: [{ days: [1, 2, 3, 4, 5], start_utc: 6, end_utc: 10, multiplier: 2 }] },
+  { id: 'opencode-go', transport: 'sandbox', tool: 'opencode', trust: 'sandbox-public', private_ok: false, price: 1 },
+  { id: 'codex', transport: 'codex', trust: 'subscription-trusted', private_ok: true, quota: 'codex', price: 1 },
+  { id: 'cursor', transport: 'sandbox', tool: 'cursor-agent', trust: 'sandbox-public', private_ok: false, quota: 'cursor', price: 1 },
+]
+
+const isPeak = (p: unknown): p is Peak => {
+  const v = p as Peak
+  return Boolean(v) && Array.isArray(v.days) && v.days.every((d) => Number.isInteger(d) && d >= 0 && d <= 6) &&
+    [v.start_utc, v.end_utc].every((h) => typeof h === 'number' && h >= 0 && h <= 24) && typeof v.multiplier === 'number' && v.multiplier > 0
+}
+// A complete row, or undefined. A sandbox row is always sandbox-public and never takes private work; only a
+// subscription-trusted row may take private work.
+export function validRow(r: unknown): ExecutorRow | undefined {
+  const v = r as ExecutorRow
+  if (!v || typeof v.id !== 'string' || !/^[a-z0-9-]{1,40}$/.test(v.id) || v.id === 'haiku') return undefined
+  if (v.transport !== 'codex' && v.transport !== 'sandbox') return undefined
+  if (v.transport === 'sandbox' && (typeof v.tool !== 'string' || !/^[a-z0-9-]{1,40}$/.test(v.tool))) return undefined
+  if (v.trust !== 'subscription-trusted' && v.trust !== 'sandbox-public') return undefined
+  if (typeof v.private_ok !== 'boolean' || (v.private_ok && v.trust !== 'subscription-trusted')) return undefined
+  if (v.transport === 'sandbox' && (v.trust !== 'sandbox-public' || v.private_ok)) return undefined
+  if (v.quota !== undefined && typeof v.quota !== 'string') return undefined
+  if (typeof v.price !== 'number' || v.price < 0) return undefined
+  if (v.peak !== undefined && (!Array.isArray(v.peak) || !v.peak.every(isPeak))) return undefined
+  if (v.kind !== undefined && v.kind !== 'promotion') return undefined
+  if (v.kind === 'promotion' && (typeof v.expires !== 'string' || Number.isNaN(Date.parse(v.expires)))) return undefined
+  return v
+}
+// Override rows merge over the table by id; new ids append. Invalid rows are dropped and named in `rejected`.
+export function mergeExecutorRows(base: readonly ExecutorRow[], override: unknown): { rows: ExecutorRow[]; rejected: string[] } {
+  const rows = [...base]
+  const rejected: string[] = []
+  for (const raw of Array.isArray(override) ? override : []) {
+    const id = (raw as { id?: unknown })?.id
+    const at = rows.findIndex((r) => r.id === id)
+    const row = validRow(at >= 0 ? { ...rows[at], ...(raw as object) } : raw)
+    if (!row) rejected.push(typeof id === 'string' ? id : '?')
+    else if (at >= 0) rows[at] = row
+    else rows.push(row)
+  }
+  return { rows, rejected }
+}
+
+export type SkipReason = 'ineligible' | 'exhausted' | 'expired' | 'not_installed' | 'failed'
+// Rows that may see this task; private work only reaches `private_ok` rows. Expired promotions drop out.
+export function eligibleRows(rows: readonly ExecutorRow[], publicCode: boolean, nowMs: number): { rows: ExecutorRow[]; skipped: Record<Executor, SkipReason> } {
+  const skipped: Record<Executor, SkipReason> = {}
+  const open = rows.filter((r) => {
+    if (!publicCode && !r.private_ok) skipped[r.id] = 'ineligible'
+    else if (r.kind === 'promotion' && Date.parse(r.expires!) <= nowMs) skipped[r.id] = 'expired'
+    else return true
+    return false
+  })
+  return { rows: open, skipped }
+}
+
+// Highest matching peak multiplier at this UTC time, else 1.
+export function peakMultiplier(row: ExecutorRow, nowMs: number): number {
+  const d = new Date(nowMs)
+  const day = d.getUTCDay()
+  const hour = d.getUTCHours() + d.getUTCMinutes() / 60
+  return Math.max(1, ...(row.peak ?? []).filter((p) => p.days.includes(day) && hour >= p.start_utc && hour < p.end_utc).map((p) => p.multiplier))
+}
 
 // On-host router aliases only, smallest first; `*-homelab` aliases leave the host and are never used.
 export const LOCAL_ALIASES = [{ alias: 'small', timeoutMs: 60_000 }, { alias: 'local-only', timeoutMs: 120_000 }] as const
@@ -141,9 +214,19 @@ export function scoreWindows(windows: QuotaWindow[] | undefined, nowSeconds: num
   return { score, exhausted: false }
 }
 
-// Positive known scores go first, highest first; everything else keeps the static order. Exhausted executors drop out.
-export function rankExecutors(candidates: readonly Executor[], scores: Partial<Record<Executor, Score>>): Executor[] {
-  const open = candidates.filter((x) => !scores[x]?.exhausted)
-  const positive = open.filter((x) => (scores[x]?.score ?? 0) > 0).sort((a, b) => scores[b]!.score! - scores[a]!.score!)
-  return [...positive, ...open.filter((x) => !positive.includes(x))]
+// Unexpired promotions first, then positive effective scores (headroom / (price x peak)), highest first; everything else
+// keeps table order. Exhausted rows drop out and are named in `skipped`.
+export function rankRows(rows: readonly ExecutorRow[], scores: Partial<Record<Executor, Score>>, nowMs: number): { order: Executor[]; skipped: Record<Executor, SkipReason>; effective: Record<Executor, number | null> } {
+  const skipped: Record<Executor, SkipReason> = {}
+  const effective: Record<Executor, number | null> = {}
+  const open = rows.filter((r) => {
+    if (scores[r.id]?.exhausted) { skipped[r.id] = 'exhausted'; return false }
+    const s = scores[r.id]?.score
+    effective[r.id] = s === undefined ? null : s / (Math.max(r.price, 0.01) * peakMultiplier(r, nowMs))
+    return true
+  })
+  const promos = open.filter((r) => r.kind === 'promotion')
+  const positive = open.filter((r) => r.kind !== 'promotion' && (effective[r.id] ?? 0) > 0).sort((a, b) => effective[b.id]! - effective[a.id]!)
+  const rest = open.filter((r) => !promos.includes(r) && !positive.includes(r))
+  return { order: [...promos, ...positive, ...rest].map((r) => r.id), skipped, effective }
 }
