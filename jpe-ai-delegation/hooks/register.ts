@@ -1,6 +1,6 @@
 import type { EngineInterface, Register } from 'claude-code'
-import { CLASSIFIER, CODEX, JUDGE, LAST_RESORT, LOCAL_OUTPUT_TOKENS, QUOTA_SELECTOR, UTILITY, EXECUTOR_TABLE, codexArgv, codingTask, eligibleRows, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, isGenericType, isShellCAsk, jobEnd, jobHistory, recentFailures, localTask, mandatoryLabel, newestModel, mergeExecutorRows, metricsResult, parseVerdict, pickLabel, pickLocal, quotaFromMetrics, rankRows, safePayload, scoreWindows } from './lib/policy'
-import type { Executor, ExecutorRow, JobEnd, JobOutcome, JobRecord, Label, QuotaReason, QuotaRow, Route, Sandbox, Score, SkipReason } from './lib/policy'
+import { CLASSIFIER, CODEX, JUDGE, LAST_RESORT, LOCAL_OUTPUT_TOKENS, QUOTA_SELECTOR, UTILITY, EXECUTOR_TABLE, codexArgv, codingTask, eligibleRows, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, isGenericType, isShellCAsk, endAnchor, jobHistory, jobState, recentFailures, localTask, mandatoryLabel, newestModel, mergeExecutorRows, metricsResult, parseVerdict, pickLabel, pickLocal, quotaFromMetrics, rankRows, safePayload, scoreWindows } from './lib/policy'
+import type { Executor, ExecutorRow, JobOutcome, JobRecord, JobState, Label, QuotaReason, QuotaRow, Route, Sandbox, Score, SkipReason } from './lib/policy'
 import { customAgentSandbox, parseAgentDefinition } from './lib/agent-definition'
 import type { AgentDefinition } from './lib/agent-definition'
 
@@ -12,7 +12,7 @@ const QUOTA_REFRESH_MS = 600_000
 const MODEL_INFO_TIMEOUT_MS = 10_000
 const JOB_STATUS_BUDGET_MS = 3_000
 const JOB_STATUS_TIMEOUT_MS = 15_000
-const JOB_LOG_LINES = 2_000
+const JOB_LOG_BYTES = 131_072
 const PROMPT_POLICY = 'The jpe-ai-delegation hook places every Agent spawn. Tag self-contained text work [class: text] and put all of its text in the prompt; the hook sends it to an on-host local model first. Every other spawn, and any local answer that fails its check, goes to the subscription executors it is eligible for, ranked by quota. ZCode, OpenCode Go and Cursor take only non-sensitive coding tagged [task: code] [repo: owner/repository] in a public repository; their output is a ready PR labelled human:review; leak-scan it before merge; never auto-merge. Codex Luna takes any task; never Terra. Haiku xhigh is always last. Nothing stops because an executor is unavailable. Never Sonnet, Opus or Fable subagents. Never send secrets, credentials, inventory or incident content to any executor. Antigravity stays a second-opinion reviewer, never an executor.'
 
 // A quota read: the instant-query result, or why there is none.
@@ -332,45 +332,48 @@ async function sandboxTools($: Engine): Promise<string[] | undefined> {
   return (await $.env.get('AGENT_ROUTE_ZCODE_TOOLS'))?.split(/\s+/).filter(Boolean)
 }
 
-// The job's dispatcher `end`, or undefined while it runs or when status cannot be read.
-async function jobStatus($: Engine, job: string, timeoutMs: number): Promise<JobEnd | undefined> {
+// The job's dispatcher state, or undefined while it runs or when status cannot be read within timeoutMs.
+async function jobStatus($: Engine, job: string, timeoutMs: number): Promise<JobState | undefined> {
   try {
-    const status = await $.process.run(['zcode-job', 'status', job], { timeoutMs })
-    return status.exitCode === 0 && status.isStdoutTruncated !== true ? jobEnd(JSON.parse(status.stdout)) : undefined
+    const status = await withTimeout($, $.process.run(['zcode-job', 'status', job], { timeoutMs }), timeoutMs)
+    return status.exitCode === 0 && status.isStdoutTruncated !== true ? jobState(JSON.parse(status.stdout)) : undefined
   } catch {
     return undefined
   }
 }
 
-async function logOutcome($: Engine, record: JobRecord, end: JobEnd): Promise<JobOutcome> {
-  const outcome = { ...record, end, ts_ms: await $.clock.now() }
-  await logDecision($, JSON.stringify({ ts_ms: outcome.ts_ms, event: 'outcome', job: record.job, repo: record.repo, executor: record.executor, end }))
-  return outcome
+// One decision-log write for every outcome found at this placement.
+async function logOutcomes($: Engine, ended: { record: JobRecord; state: JobState }[]): Promise<JobOutcome[]> {
+  if (!ended.length) return []
+  const ts_ms = await $.clock.now()
+  const outcomes = ended.map(({ record, state }) => ({ job: record.job, repo: record.repo, executor: record.executor, end: state.end, ts_ms, ended_ms: endAnchor(record, state, ts_ms) }))
+  await logDecision($, outcomes.map((o) => JSON.stringify({ ts_ms, event: 'outcome', job: o.job, repo: o.repo, executor: o.executor, end: o.end, ended_ms: o.ended_ms })).join('\n'))
+  return outcomes
 }
 
-// Jobs from recent route lines and every logged outcome. Pending jobs are read once each, together within
+// Jobs from recent route lines and one outcome per logged job, read from the last JOB_LOG_BYTES of the decision log; an
+// unreadable or truncated read counts as no history. Pending jobs are read once each, together within
 // JOB_STATUS_BUDGET_MS, and an outcome line is written for each job that has ended.
 async function jobOutcomes($: Engine, nowMs: number): Promise<JobOutcome[]> {
   let history: { pending: JobRecord[]; outcomes: JobOutcome[] }
   try {
-    const tail = await $.process.run(['tail', '-n', String(JOB_LOG_LINES), `${await $.env.get('HOME')}/.claude/ai-delegation.log`], { timeoutMs: 5_000 })
-    if (tail.exitCode !== 0) return []
+    const tail = await $.process.run(['tail', '-c', String(JOB_LOG_BYTES), `${await $.env.get('HOME')}/.claude/ai-delegation.log`], { timeoutMs: 5_000 })
+    if (tail.exitCode !== 0 || tail.isStdoutTruncated === true) return []
     history = jobHistory(tail.stdout.split('\n'), nowMs)
   } catch {
     return []
   }
   if (!history.pending.length) return history.outcomes
-  const ends: (JobEnd | undefined)[] = []
-  await withTimeout($, Promise.all(history.pending.map(async (p, i) => { ends[i] = await jobStatus($, p.job, JOB_STATUS_BUDGET_MS) })), JOB_STATUS_BUDGET_MS).catch(() => undefined)
-  const found = history.pending.flatMap((p, i) => { const end = ends[i]; return end ? [{ p, end }] : [] })
-  for (const { p, end } of found) history.outcomes.push(await logOutcome($, p, end))
-  return history.outcomes
+  const states: (JobState | undefined)[] = []
+  await withTimeout($, Promise.all(history.pending.map(async (p, i) => { states[i] = await jobStatus($, p.job, JOB_STATUS_BUDGET_MS) })), JOB_STATUS_BUDGET_MS).catch(() => undefined)
+  const ended = history.pending.flatMap((record, i) => { const state = states[i]; return state ? [{ record, state }] : [] })
+  return [...history.outcomes, ...await logOutcomes($, ended)]
 }
 
-type SandboxRun = { result?: unknown; job?: string; end?: JobEnd }
-// No result and no end: zcode-job is not installed. An `end` other than pr_opened: the job ended without a PR and the
+type SandboxRun = { result?: unknown; record?: JobRecord; state?: JobState }
+// No result and no state: zcode-job is not installed. A state whose `end` is not pr_opened: the job ended without a PR and the
 // task moves on. Otherwise the result is the verified PR or a FAIL that stops routing.
-async function runSandboxExecutor($: Engine, e: AgentCall, repo: string, tool: string): Promise<SandboxRun> {
+async function runSandboxExecutor($: Engine, e: AgentCall, repo: string, tool: string, executor: string): Promise<SandboxRun> {
   const started = await $.clock.now()
   try {
     const available = await $.process.run(['which', 'zcode-job'], { timeoutMs: 5_000 })
@@ -379,27 +382,28 @@ async function runSandboxExecutor($: Engine, e: AgentCall, repo: string, tool: s
     return {}
   }
   const name = SANDBOX_NAMES[tool] ?? `${tool} sandbox`
-  let job: string | undefined
+  let record: JobRecord | undefined
   try {
     const prompt = `${e.prompt}\n\nReturn a ready PR labelled human:review. Never auto-merge. The trusted lead must leak-scan the PR before merge.`
     const argv = tool === 'zcode' ? ['zcode-job', 'start', repo, prompt] : ['zcode-job', 'start', '--tool', tool, repo, prompt]
     const response = await $.process.run(argv, { timeoutMs: 300_000 })
     const line = response.stdout.replace(/\r?\n$/, '')
-    job = response.isStdoutTruncated === true ? undefined : line.match(/^(?:DONE|FAIL)\|(j-[0-9a-f]{16})\|/)?.[1]
+    const job = response.isStdoutTruncated === true ? undefined : line.match(/^(?:DONE|FAIL)\|(j-[0-9a-f]{16})\|/)?.[1]
+    if (job) record = { job, repo, executor, started_ms: started }
     const done = line.match(/^DONE\|(j-[0-9a-f]{16})\|(https:\/\/github\.com\/([A-Za-z0-9-]+\/[A-Za-z0-9._-]+)\/pull\/(\d+))$/)
     if (response.exitCode !== 0 || response.isStdoutTruncated === true || !done || done[3].toLowerCase() !== repo.toLowerCase()) {
       // A job still running, or one whose end cannot be read, may yet open a PR: never start a duplicate.
-      const end = job ? await jobStatus($, job, JOB_STATUS_TIMEOUT_MS) : undefined
-      if (end && end !== 'pr_opened') return { job, end }
-      return { job, result: failure(e, `${tool} did not return a PR for the requested repository`) }
+      const state = record ? await jobStatus($, record.job, JOB_STATUS_TIMEOUT_MS) : undefined
+      if (state && state.end !== 'pr_opened') return { record, state }
+      return { record, result: failure(e, `${tool} did not return a PR for the requested repository`) }
     }
     const pr = await github($, `${repo}/pulls/${done[4]}`) as { state?: string; draft?: boolean; labels?: { name: string }[]; html_url?: string }
-    if (pr.state !== 'open' || pr.draft !== false || pr.html_url !== done[2] || !pr.labels?.some((l) => l.name === 'human:review')) return { job, result: failure(e, `${tool} PR is not ready and labelled human:review`) }
+    if (pr.state !== 'open' || pr.draft !== false || pr.html_url !== done[2] || !pr.labels?.some((l) => l.name === 'human:review')) return { record, result: failure(e, `${tool} PR is not ready and labelled human:review`) }
     await logDecision($, `route: coding -> ${name} (leak scan required before merge)`)
-    return { job, result: routedResult(e, `ai-delegation-${tool}`, line, `[routed: ${name}; leak-scan before merge; never auto-merge]`, (await $.clock.now()) - started) }
+    return { record, result: routedResult(e, `ai-delegation-${tool}`, line, `[routed: ${name}; leak-scan before merge; never auto-merge]`, (await $.clock.now()) - started) }
   } catch {
     // A dispatched job may still be running. Do not start a duplicate executor.
-    return { job, result: failure(e, `${tool} dispatch or PR verification failed; inspect the job before retrying`) }
+    return { record, result: failure(e, `${tool} dispatch or PR verification failed; inspect the job before retrying`) }
   }
 }
 
@@ -534,8 +538,9 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
     const s = scores[r.id]
     event.scores[r.id] = s ? { score: s.score ?? null, exhausted: s.exhausted, effective: ranked.effective[r.id] ?? null } : null
   }
-  // Outcomes of earlier sandbox jobs; an executor failing repeatedly on this repository sits out for a while.
-  const outcomes = await jobOutcomes($, now)
+  // Outcomes of earlier sandbox jobs, read only when a sandbox executor is a candidate; an executor failing repeatedly
+  // on this repository sits out for a while.
+  let outcomes: JobOutcome[] | undefined
   const tools = await sandboxTools($)
   for (const executor of ranked.order) {
     const row = rows.find((r) => r.id === executor)!
@@ -545,13 +550,13 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
       if (!result) skipped[executor] = 'failed'
     } else if (!repo || (tools && !tools.includes(row.tool!))) {
       skipped[executor] = repo ? 'not_installed' : 'ineligible'
-    } else if (recentFailures(outcomes, executor, repo, now)) {
+    } else if (recentFailures(outcomes ??= await jobOutcomes($, now), executor, repo, now)) {
       skipped[executor] = 'recent_failures'
     } else {
-      const run = await runSandboxExecutor($, e, repo, row.tool!)
-      if (run.job) event.jobs.push({ job: run.job, repo, executor })
-      if (run.job && run.end) await logOutcome($, { job: run.job, repo, executor }, run.end)
-      if (!run.result) skipped[executor] = run.end ? 'failed' : 'not_installed'
+      const run = await runSandboxExecutor($, e, repo, row.tool!, executor)
+      if (run.record) event.jobs.push(run.record)
+      if (run.record && run.state) await logOutcomes($, [{ record: run.record, state: run.state }])
+      if (!run.result) skipped[executor] = run.state ? 'failed' : 'not_installed'
       result = run.result
     }
     if (result) {

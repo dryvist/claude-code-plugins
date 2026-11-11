@@ -107,14 +107,21 @@ If the job is still running, opened a PR, or has no readable `end`, the handoff
 fails; inspect that job before retrying.
 
 Every `route` line lists its sandbox jobs under `jobs` (`job`, `repo`,
-`executor`). At each later placement the hook reads `status` for up to five
-recent jobs that have no outcome yet, within 3 seconds in total. It writes one
-`outcome` line (`job`, `repo`, `executor`, `end`) for each job that has ended.
-The hook keeps no store of its own; it reads these lines back from the decision
-log. An executor is skipped for a repository with reason `recent_failures` when
-two or more of its last three ended jobs there ended `no_commit`, `timeout`,
-`rate_limited` or `refused`. The skip lasts 60 minutes after the newest of those
-failures, or until the end of that UTC hour when it is `rate_limited`.
+`executor`, and `started_ms`, the hook's clock just before the start call).
+When a later placement has a sandbox executor as a candidate, the hook reads the
+last 128 KiB of the decision log; a truncated read counts as no history. It
+reads `status` for up to five recent jobs that have no outcome yet, within 3
+seconds in total, and writes one `outcome` line (`job`, `repo`, `executor`,
+`end`, `ended_ms`) for each job that has ended. `ended_ms` is the start plus the
+job's `duration`, never later than the observation; without a duration it is
+the observation time. The hook keeps no store of its own; it reads these lines
+back from the decision log, counts one outcome per job, and ignores lines
+stamped more than a minute in the future. An executor is skipped for a
+repository with reason `recent_failures` when two or more of its last three
+ended jobs there ended `no_commit`, `timeout`, `rate_limited` or `refused`. The
+skip lasts 60 minutes after the newest failure's `ended_ms`, or until the end of
+that UTC hour when it is `rate_limited`. Status reads on a failed start stop
+after 15 seconds.
 The hook never merges. Leak-scan the exact PR head before any human merge.
 
 The permission judge alone uses the GLM and OpenCode Go chat transports, through
