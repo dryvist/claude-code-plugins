@@ -9,6 +9,8 @@ type AgentCall = { description?: string; prompt: string; subagent_type?: string;
 const TEXT_EXECUTOR_TIMEOUT_MS = 120_000
 const QUOTA_TIMEOUT_MS = 3_000
 const QUOTA_REFRESH_MS = 600_000
+const QUOTA_TOKEN_MAX_BYTES = 4096
+const isAbsolutePath = (path: string): boolean => path.startsWith('/')
 const MODEL_INFO_TIMEOUT_MS = 10_000
 const LOG_TIMEOUT_MS = 5_000
 const PROMPT_POLICY = 'The jpe-ai-delegation hook places every Agent spawn. Tag self-contained text work [class: text] and put all of its text in the prompt; the hook sends it to an on-host local model first. Every other spawn, and any local answer that fails its check, goes to the subscription executors it is eligible for, ranked by usage pace. ZCode, OpenCode Go and Cursor take only non-sensitive coding tagged [task: code] [repo: owner/repository] in a public repository; their output is a ready PR labelled human:review; leak-scan it before merge; never auto-merge. Codex Luna takes any task; never Terra. Haiku xhigh is always last. Nothing stops because an executor is unavailable. Never Sonnet, Opus or Fable subagents. Never send secrets, credentials, inventory or incident content to any executor. Antigravity stays a second-opinion reviewer, never an executor.'
@@ -49,15 +51,22 @@ async function withTimeout<T>($: Engine, work: Promise<T>, ms: number): Promise<
   }
 }
 
-// The bearer token comes from the file AGENT_QUOTA_TOKEN_FILE names, read at call time and trimmed. It is never kept,
-// placed in the environment or logged. It goes only to an https URL: over http the request goes without it. A missing,
-// empty or unreadable file, or a token holding whitespace or a control character, sends no header and leaves the
-// server's 401 to decide.
+// The bearer token comes from the file AGENT_QUOTA_TOKEN_FILE names, read at call time and trimmed. Only an absolute,
+// non-symlink regular file up to 4096 bytes is read; token text must be printable ASCII without whitespace. The token
+// is never kept, placed in the environment or logged; it goes only to an https URL. Invalid content sends no header
+// and leaves the server's 401 to decide.
 async function quotaHeaders($: Engine, url: string): Promise<Record<string, string>> {
   const headers: Record<string, string> = { accept: 'application/json' }
   try {
     const path = url.startsWith('https://') ? await $.env.get('AGENT_QUOTA_TOKEN_FILE') : undefined
-    const token = path && (await $.fs.exists(path)) ? ((await $.fs.read(path)) as string).trim() : ''
+    if (!path || !isAbsolutePath(path)) return headers
+    const link = await $.fs.lstat(path)
+    if (link.isSymbolicLink()) return headers
+    const file = await $.fs.stat(path)
+    if (!file.isFile() || file.size > QUOTA_TOKEN_MAX_BYTES) return headers
+    const content = (await $.fs.read(path)) as string
+    if (content.length > QUOTA_TOKEN_MAX_BYTES) return headers
+    const token = content.trim()
     if (/^[\x21-\x7e]+$/.test(token)) headers.Authorization = `Bearer ${token}`
   } catch {
     // No readable token: the request goes without one.

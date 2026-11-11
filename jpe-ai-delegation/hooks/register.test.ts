@@ -21,6 +21,7 @@ type World = {
   zcodeExit?: number; zcodeOutput?: string; zcodeAvailable?: boolean; zcodeThrows?: boolean; zcodeTruncated?: boolean
   gatewayTimeout?: boolean; gatewayStatus?: Record<string, number>; gatewayAnswer?: Record<string, string>; gatewayInvalidJson?: boolean
   quotaUrl?: string | null; quotaTimeout?: boolean; quotaText?: string; quotaSampleAge?: number; quotaStatus?: number
+  quotaFileTypes?: Record<string, 'file' | 'directory' | 'symlink'>
   readThrows?: string; readHangs?: string
   envThrows?: string; clockThrows?: boolean; clockHangs?: boolean; teeThrows?: boolean; teeExit?: number; nextRejects?: boolean
 }
@@ -42,12 +43,21 @@ function world(w: World = {}) {
   // Every request with its full URL and headers, and every path touched through fs.
   const allFetches: { url: string; headers: Record<string, string>; body?: string }[] = []
   const fsTouches: string[] = []
+  const fsReads: string[] = []
   const modelCalls: unknown[] = []
   const nextCalls: any[] = []
   const logs: string[] = []
   const env: Record<string, string> = { HOME: '/home/test', ...(w.quotaUrl === null ? {} : { AGENT_QUOTA_QUERY_URL: w.quotaUrl ?? QUOTA_BASE }), ...w.env }
   let output = ''
   let clockNow = w.now ?? 1_000_000
+  const quotaFileStats = (path: string, followSymlinks = false) => {
+    const kind = w.quotaFileTypes?.[path] ?? 'file'
+    return {
+      size: new TextEncoder().encode(w.files?.[path] ?? '').byteLength,
+      isFile: () => kind === 'file' || (followSymlinks && kind === 'symlink'),
+      isSymbolicLink: () => !followSymlinks && kind === 'symlink',
+    }
+  }
   const $ = {
     env: { get: async (key: string) => { if (key === w.envThrows) throw new Error('environment read failed'); return env[key] } },
     session: { cwd: async () => '/workspace' },
@@ -61,8 +71,19 @@ function world(w: World = {}) {
         if (path.endsWith('/executors.json')) return w.files?.[path] !== undefined
         return path.endsWith('models_cache.json') ? w.cache !== false : w.files?.[path] !== undefined || Boolean(w.definition)
       },
+      lstat: async (path: string) => {
+        fsTouches.push(path)
+        if (w.fsThrows || (w.files?.[path] === undefined && path !== w.readThrows && path !== w.readHangs)) throw new Error('metadata read failed')
+        return quotaFileStats(path)
+      },
+      stat: async (path: string) => {
+        fsTouches.push(path)
+        if (w.fsThrows || (w.files?.[path] === undefined && path !== w.readThrows && path !== w.readHangs)) throw new Error('metadata read failed')
+        return quotaFileStats(path, true)
+      },
       read: async (path: string) => {
         fsTouches.push(path)
+        fsReads.push(path)
         if (path === w.readThrows) throw new Error('EISDIR: illegal operation on a directory')
         if (path === w.readHangs) return new Promise<never>(() => {})
         return path === '/token' ? 'test-token' : path.endsWith('models_cache.json') ? CACHE : path === '/tmp/final' ? output : w.files?.[path] ?? w.definition ?? ''
@@ -132,7 +153,7 @@ function world(w: World = {}) {
       return handler.caught($, e, next)
     }
   }
-  return { calls, writes, fetches, quotaFetches, quotaHeaders, allFetches, fsTouches, modelCalls, nextCalls, logs, invoke, setNow: (ms: number) => { clockNow = ms },
+  return { calls, writes, fetches, quotaFetches, quotaHeaders, allFetches, fsTouches, fsReads, modelCalls, nextCalls, logs, invoke, setNow: (ms: number) => { clockNow = ms },
     agent: (e: Record<string, unknown> = {}) => invoke('tool.call', { tool: 'Agent', description: '[class: standard]', prompt: 'Implement the change.', ...e }),
   }
 }
@@ -1125,6 +1146,42 @@ describe('quota from the metrics store', () => {
     expect(tokenSightings(w)).toBe(1)
     expect(w.allFetches.find((f) => f.headers.Authorization)?.url).toBe(QUERY_URL)
   })
+  test('a relative token file path leaves quota unknown without sending its contents', async () => {
+    const w = world({ quotaStatus: 401, env: { ...gateways, AGENT_QUOTA_TOKEN_FILE: 'relative-token' }, files: { 'relative-token': SECRET } })
+    await w.agent()
+    expect(w.quotaHeaders).toEqual([{ accept: 'application/json' }])
+    expect(routeEvents(w).at(-1)).toMatchObject({ quota_unknown: { codex: 'quota_unreachable', cursor: 'quota_unreachable' } })
+    expect(w.fsReads).not.toContain('relative-token')
+    expect(JSON.stringify(w.logs)).not.toContain('relative-token')
+    expect(JSON.stringify(w.logs)).not.toContain(SECRET)
+  })
+  test('a symlink token file leaves quota unknown without reading its contents', async () => {
+    const w = world({ quotaStatus: 401, env: { ...gateways, AGENT_QUOTA_TOKEN_FILE: TOKEN_FILE }, files: { [TOKEN_FILE]: SECRET }, quotaFileTypes: { [TOKEN_FILE]: 'symlink' } })
+    await w.agent()
+    expect(w.quotaHeaders).toEqual([{ accept: 'application/json' }])
+    expect(routeEvents(w).at(-1)).toMatchObject({ quota_unknown: { codex: 'quota_unreachable', cursor: 'quota_unreachable' } })
+    expect(w.fsReads).not.toContain(TOKEN_FILE)
+    expect(JSON.stringify(w.logs)).not.toContain(TOKEN_FILE)
+    expect(JSON.stringify(w.logs)).not.toContain(SECRET)
+  })
+  test('an oversized token file leaves quota unknown without reading its contents', async () => {
+    const large = 'x'.repeat(4097)
+    const w = world({ quotaStatus: 401, env: { ...gateways, AGENT_QUOTA_TOKEN_FILE: TOKEN_FILE }, files: { [TOKEN_FILE]: large } })
+    await w.agent()
+    expect(w.quotaHeaders).toEqual([{ accept: 'application/json' }])
+    expect(routeEvents(w).at(-1)).toMatchObject({ quota_unknown: { codex: 'quota_unreachable', cursor: 'quota_unreachable' } })
+    expect(w.fsReads).not.toContain(TOKEN_FILE)
+    expect(JSON.stringify(w.logs)).not.toContain(TOKEN_FILE)
+    expect(JSON.stringify(w.logs)).not.toContain(large)
+  })
+  test('a token with interior whitespace leaves quota unknown and sends no token', async () => {
+    const w = world({ quotaStatus: 401, env: { ...gateways, AGENT_QUOTA_TOKEN_FILE: TOKEN_FILE }, files: { [TOKEN_FILE]: 'quota secret' } })
+    await w.agent()
+    expect(w.quotaHeaders).toEqual([{ accept: 'application/json' }])
+    expect(routeEvents(w).at(-1)).toMatchObject({ quota_unknown: { codex: 'quota_unreachable', cursor: 'quota_unreachable' } })
+    expect(JSON.stringify(w.logs)).not.toContain(TOKEN_FILE)
+    expect(JSON.stringify(w.logs)).not.toContain('quota secret')
+  })
   for (const [name, options] of [
     ['no token file named', { env: {} }],
     ['token file variable empty', { env: { AGENT_QUOTA_TOKEN_FILE: '' } }],
@@ -1133,7 +1190,7 @@ describe('quota from the metrics store', () => {
     ['token file blank', { env: { AGENT_QUOTA_TOKEN_FILE: TOKEN_FILE }, files: { [TOKEN_FILE]: ' \n\t' } }],
     ['token file exists check throws', { env: { AGENT_QUOTA_TOKEN_FILE: TOKEN_FILE }, fsThrows: true }],
     ['token file read throws', { env: { AGENT_QUOTA_TOKEN_FILE: TOKEN_FILE }, readThrows: TOKEN_FILE }],
-    ['token path is a directory', { env: { AGENT_QUOTA_TOKEN_FILE: '/run/agent-quota' }, readThrows: '/run/agent-quota' }],
+    ['token path is a directory', { env: { AGENT_QUOTA_TOKEN_FILE: '/run/agent-quota' }, readThrows: '/run/agent-quota', quotaFileTypes: { '/run/agent-quota': 'directory' } }],
     ['token spans two lines', { env: { AGENT_QUOTA_TOKEN_FILE: TOKEN_FILE }, files: { [TOKEN_FILE]: `${SECRET}\nsecond-line` } }],
     ['token holds an interior space', { env: { AGENT_QUOTA_TOKEN_FILE: TOKEN_FILE }, files: { [TOKEN_FILE]: 'quota secret' } }],
     ['token holds a control character', { env: { AGENT_QUOTA_TOKEN_FILE: TOKEN_FILE }, files: { [TOKEN_FILE]: `${SECRET}\u0007` } }],
