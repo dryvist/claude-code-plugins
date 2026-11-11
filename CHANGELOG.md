@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.54.1](https://github.com/dryvist/claude-code-plugins/compare/v6.54.0...v6.54.1) (2026-11-11)
+
+
+### Bug Fixes
+
+* **jpe-ai-delegation:** read gateway model variables by literal name ([#780](https://github.com/dryvist/claude-code-plugins/issues/780)) ([9b6f2d2](https://github.com/dryvist/claude-code-plugins/commit/9b6f2d2dc2fa156f241efc88744d48b420a4f381))
+
 ## [6.54.0](https://github.com/dryvist/claude-code-plugins/compare/v6.53.0...v6.54.0) (2026-11-11)
 
 

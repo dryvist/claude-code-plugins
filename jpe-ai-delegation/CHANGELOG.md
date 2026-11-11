@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.17.1](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.17.0...jpe-ai-delegation-v1.17.1) (2026-11-11)
+
+
+### Bug Fixes
+
+* **jpe-ai-delegation:** read gateway model variables by literal name ([#780](https://github.com/dryvist/claude-code-plugins/issues/780)) ([9b6f2d2](https://github.com/dryvist/claude-code-plugins/commit/9b6f2d2dc2fa156f241efc88744d48b420a4f381))
+
 ## [1.17.0](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.16.0...jpe-ai-delegation-v1.17.0) (2026-11-11)
 
 
