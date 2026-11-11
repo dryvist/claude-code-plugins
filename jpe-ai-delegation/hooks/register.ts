@@ -1,6 +1,6 @@
 import type { EngineInterface, Register } from 'claude-code'
-import { CLASSIFIER, CODEX, JUDGE, LAST_RESORT, LOCAL_OUTPUT_TOKENS, QUOTA_SELECTOR, UTILITY, EXECUTOR_TABLE, codexArgv, codingTask, eligibleRows, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, isGenericType, isShellCAsk, localTask, mandatoryLabel, newestModel, mergeExecutorRows, metricsResult, parseVerdict, pickLabel, pickLocal, quotaFromMetrics, rankRows, safePayload, scoreWindows } from './lib/policy'
-import type { Executor, ExecutorRow, Label, QuotaReason, QuotaRow, Route, Sandbox, Score, SkipReason } from './lib/policy'
+import { CLASSIFIER, CODEX, JUDGE, LAST_RESORT, LOCAL_OUTPUT_TOKENS, QUOTA_SELECTOR, UTILITY, EXECUTOR_TABLE, codexArgv, codingTask, eligibleRows, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, isGenericType, isShellCAsk, jobEnd, jobHistory, recentFailures, localTask, mandatoryLabel, newestModel, mergeExecutorRows, metricsResult, parseVerdict, pickLabel, pickLocal, quotaFromMetrics, rankRows, safePayload, scoreWindows } from './lib/policy'
+import type { Executor, ExecutorRow, JobEnd, JobOutcome, JobRecord, Label, QuotaReason, QuotaRow, Route, Sandbox, Score, SkipReason } from './lib/policy'
 import { customAgentSandbox, parseAgentDefinition } from './lib/agent-definition'
 import type { AgentDefinition } from './lib/agent-definition'
 
@@ -10,6 +10,9 @@ const TEXT_EXECUTOR_TIMEOUT_MS = 120_000
 const QUOTA_TIMEOUT_MS = 3_000
 const QUOTA_REFRESH_MS = 600_000
 const MODEL_INFO_TIMEOUT_MS = 10_000
+const JOB_STATUS_BUDGET_MS = 3_000
+const JOB_STATUS_TIMEOUT_MS = 15_000
+const JOB_LOG_LINES = 2_000
 const PROMPT_POLICY = 'The jpe-ai-delegation hook places every Agent spawn. Tag self-contained text work [class: text] and put all of its text in the prompt; the hook sends it to an on-host local model first. Every other spawn, and any local answer that fails its check, goes to the subscription executors it is eligible for, ranked by quota. ZCode, OpenCode Go and Cursor take only non-sensitive coding tagged [task: code] [repo: owner/repository] in a public repository; their output is a ready PR labelled human:review; leak-scan it before merge; never auto-merge. Codex Luna takes any task; never Terra. Haiku xhigh is always last. Nothing stops because an executor is unavailable. Never Sonnet, Opus or Fable subagents. Never send secrets, credentials, inventory or incident content to any executor. Antigravity stays a second-opinion reviewer, never an executor.'
 
 // A quota read: the instant-query result, or why there is none.
@@ -329,30 +332,74 @@ async function sandboxTools($: Engine): Promise<string[] | undefined> {
   return (await $.env.get('AGENT_ROUTE_ZCODE_TOOLS'))?.split(/\s+/).filter(Boolean)
 }
 
-// Undefined only before dispatch (zcode-job not installed); after dispatch it returns the PR or a FAIL result.
-async function runSandboxExecutor($: Engine, e: AgentCall, repo: string, tool: string): Promise<unknown | undefined> {
-  const started = await $.clock.now()
+// The job's dispatcher `end`, or undefined while it runs or when status cannot be read.
+async function jobStatus($: Engine, job: string, timeoutMs: number): Promise<JobEnd | undefined> {
   try {
-    const available = await $.process.run(['which', 'zcode-job'], { timeoutMs: 5_000 })
-    if (available.exitCode !== 0) return undefined
+    const status = await $.process.run(['zcode-job', 'status', job], { timeoutMs })
+    return status.exitCode === 0 && status.isStdoutTruncated !== true ? jobEnd(JSON.parse(status.stdout)) : undefined
   } catch {
     return undefined
   }
+}
+
+async function logOutcome($: Engine, record: JobRecord, end: JobEnd): Promise<JobOutcome> {
+  const outcome = { ...record, end, ts_ms: await $.clock.now() }
+  await logDecision($, JSON.stringify({ ts_ms: outcome.ts_ms, event: 'outcome', job: record.job, repo: record.repo, executor: record.executor, end }))
+  return outcome
+}
+
+// Jobs from recent route lines and every logged outcome. Pending jobs are read once each, together within
+// JOB_STATUS_BUDGET_MS, and an outcome line is written for each job that has ended.
+async function jobOutcomes($: Engine, nowMs: number): Promise<JobOutcome[]> {
+  let history: { pending: JobRecord[]; outcomes: JobOutcome[] }
+  try {
+    const tail = await $.process.run(['tail', '-n', String(JOB_LOG_LINES), `${await $.env.get('HOME')}/.claude/ai-delegation.log`], { timeoutMs: 5_000 })
+    if (tail.exitCode !== 0) return []
+    history = jobHistory(tail.stdout.split('\n'), nowMs)
+  } catch {
+    return []
+  }
+  if (!history.pending.length) return history.outcomes
+  const ends: (JobEnd | undefined)[] = []
+  await withTimeout($, Promise.all(history.pending.map(async (p, i) => { ends[i] = await jobStatus($, p.job, JOB_STATUS_BUDGET_MS) })), JOB_STATUS_BUDGET_MS).catch(() => undefined)
+  const found = history.pending.flatMap((p, i) => { const end = ends[i]; return end ? [{ p, end }] : [] })
+  for (const { p, end } of found) history.outcomes.push(await logOutcome($, p, end))
+  return history.outcomes
+}
+
+type SandboxRun = { result?: unknown; job?: string; end?: JobEnd }
+// No result and no end: zcode-job is not installed. An `end` other than pr_opened: the job ended without a PR and the
+// task moves on. Otherwise the result is the verified PR or a FAIL that stops routing.
+async function runSandboxExecutor($: Engine, e: AgentCall, repo: string, tool: string): Promise<SandboxRun> {
+  const started = await $.clock.now()
+  try {
+    const available = await $.process.run(['which', 'zcode-job'], { timeoutMs: 5_000 })
+    if (available.exitCode !== 0) return {}
+  } catch {
+    return {}
+  }
   const name = SANDBOX_NAMES[tool] ?? `${tool} sandbox`
+  let job: string | undefined
   try {
     const prompt = `${e.prompt}\n\nReturn a ready PR labelled human:review. Never auto-merge. The trusted lead must leak-scan the PR before merge.`
     const argv = tool === 'zcode' ? ['zcode-job', 'start', repo, prompt] : ['zcode-job', 'start', '--tool', tool, repo, prompt]
     const response = await $.process.run(argv, { timeoutMs: 300_000 })
     const line = response.stdout.replace(/\r?\n$/, '')
+    job = response.isStdoutTruncated === true ? undefined : line.match(/^(?:DONE|FAIL)\|(j-[0-9a-f]{16})\|/)?.[1]
     const done = line.match(/^DONE\|(j-[0-9a-f]{16})\|(https:\/\/github\.com\/([A-Za-z0-9-]+\/[A-Za-z0-9._-]+)\/pull\/(\d+))$/)
-    if (response.exitCode !== 0 || response.isStdoutTruncated === true || !done || done[3].toLowerCase() !== repo.toLowerCase()) return failure(e, `${tool} did not return a PR for the requested repository`)
+    if (response.exitCode !== 0 || response.isStdoutTruncated === true || !done || done[3].toLowerCase() !== repo.toLowerCase()) {
+      // A job still running, or one whose end cannot be read, may yet open a PR: never start a duplicate.
+      const end = job ? await jobStatus($, job, JOB_STATUS_TIMEOUT_MS) : undefined
+      if (end && end !== 'pr_opened') return { job, end }
+      return { job, result: failure(e, `${tool} did not return a PR for the requested repository`) }
+    }
     const pr = await github($, `${repo}/pulls/${done[4]}`) as { state?: string; draft?: boolean; labels?: { name: string }[]; html_url?: string }
-    if (pr.state !== 'open' || pr.draft !== false || pr.html_url !== done[2] || !pr.labels?.some((l) => l.name === 'human:review')) return failure(e, `${tool} PR is not ready and labelled human:review`)
+    if (pr.state !== 'open' || pr.draft !== false || pr.html_url !== done[2] || !pr.labels?.some((l) => l.name === 'human:review')) return { job, result: failure(e, `${tool} PR is not ready and labelled human:review`) }
     await logDecision($, `route: coding -> ${name} (leak scan required before merge)`)
-    return routedResult(e, `ai-delegation-${tool}`, line, `[routed: ${name}; leak-scan before merge; never auto-merge]`, (await $.clock.now()) - started)
+    return { job, result: routedResult(e, `ai-delegation-${tool}`, line, `[routed: ${name}; leak-scan before merge; never auto-merge]`, (await $.clock.now()) - started) }
   } catch {
     // A dispatched job may still be running. Do not start a duplicate executor.
-    return failure(e, `${tool} dispatch or PR verification failed; inspect the job before retrying`)
+    return { job, result: failure(e, `${tool} dispatch or PR verification failed; inspect the job before retrying`) }
   }
 }
 
@@ -416,7 +463,7 @@ async function customAgentDefinition($: Engine, type: string): Promise<AgentDefi
 type RouteEvent = {
   agent_type: string; local: { alias: string | null; est_tokens: number } | null; eligible: string[]
   scores: Record<string, { score: number | null; exhausted: boolean; effective: number | null } | null>; fell_through_from: string[]
-  skipped: Record<string, SkipReason>
+  skipped: Record<string, SkipReason>; jobs: JobRecord[]
   quota_unknown: Record<string, QuotaReason>; quota_source: Record<string, string>
 }
 
@@ -442,7 +489,7 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
     if (definition.prompt) e = { ...e, prompt: `Custom agent instructions:\n${definition.prompt}\n\nTask:\n${e.prompt}` }
   }
   if (!safePayload(`${e.description ?? ''}\n${e.prompt}`)) return failure(e, 'payload contains prohibited content')
-  const event: RouteEvent = { agent_type: original.subagent_type ?? 'general-purpose', local: null, eligible: [], scores: {}, fell_through_from: [], skipped: {}, quota_unknown: {}, quota_source: {} }
+  const event: RouteEvent = { agent_type: original.subagent_type ?? 'general-purpose', local: null, eligible: [], scores: {}, fell_through_from: [], skipped: {}, jobs: [], quota_unknown: {}, quota_source: {} }
   if (definition && customSandbox === undefined) {
     // An inherited model cannot be verified on a native pass-through.
     const model = original.model ?? definition.model
@@ -486,6 +533,8 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
     const s = scores[r.id]
     event.scores[r.id] = s ? { score: s.score ?? null, exhausted: s.exhausted, effective: ranked.effective[r.id] ?? null } : null
   }
+  // Outcomes of earlier sandbox jobs; an executor failing repeatedly on this repository sits out for a while.
+  const outcomes = await jobOutcomes($, now)
   const tools = await sandboxTools($)
   for (const executor of ranked.order) {
     const row = rows.find((r) => r.id === executor)!
@@ -495,9 +544,14 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
       if (!result) skipped[executor] = 'failed'
     } else if (!repo || (tools && !tools.includes(row.tool!))) {
       skipped[executor] = repo ? 'not_installed' : 'ineligible'
+    } else if (recentFailures(outcomes, executor, repo, now)) {
+      skipped[executor] = 'recent_failures'
     } else {
-      result = await runSandboxExecutor($, e, repo, row.tool!)
-      if (!result) skipped[executor] = 'not_installed'
+      const run = await runSandboxExecutor($, e, repo, row.tool!)
+      if (run.job) event.jobs.push({ job: run.job, repo, executor })
+      if (run.job && run.end) await logOutcome($, { job: run.job, repo, executor }, run.end)
+      if (!run.result) skipped[executor] = run.end ? 'failed' : 'not_installed'
+      result = run.result
     }
     if (result) {
       const unverified = (result as { result?: { agentId?: string } }).result?.agentId === 'ai-delegation-policy'

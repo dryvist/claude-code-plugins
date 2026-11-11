@@ -161,7 +161,50 @@ export function mergeExecutorRows(base: readonly ExecutorRow[], override: unknow
   return { rows, rejected }
 }
 
-export type SkipReason = 'ineligible' | 'exhausted' | 'expired' | 'not_installed' | 'failed'
+export type SkipReason = 'ineligible' | 'exhausted' | 'expired' | 'not_installed' | 'failed' | 'recent_failures'
+
+// How a sandbox job ended, from the dispatcher's `status` field `end`; the hook reads no other status field.
+export const JOB_ENDS = ['pr_opened', 'branch_pushed', 'no_commit', 'timeout', 'refused', 'rate_limited', 'cancelled', 'failed'] as const
+export type JobEnd = (typeof JOB_ENDS)[number]
+export const jobEnd = (status: unknown): JobEnd | undefined => {
+  const end = (status as { end?: unknown } | null)?.end
+  return (JOB_ENDS as readonly unknown[]).includes(end) ? end as JobEnd : undefined
+}
+export type JobRecord = { job: string; repo: string; executor: Executor }
+export type JobOutcome = JobRecord & { end: JobEnd; ts_ms: number }
+const JOB_ID = /^j-[0-9a-f]{16}$/
+const JOB_HISTORY_MS = 86_400_000
+const isJob = (j: unknown): j is JobRecord => {
+  const v = j as JobRecord
+  return Boolean(v) && typeof v.job === 'string' && JOB_ID.test(v.job) && typeof v.repo === 'string' && typeof v.executor === 'string'
+}
+// From decision-log lines: jobs placed in the last 24 hours that have no outcome line yet (newest first, at most 5), and
+// every outcome line in log order. Lines that are not JSON are ignored.
+export function jobHistory(lines: readonly string[], nowMs: number): { pending: JobRecord[]; outcomes: JobOutcome[] } {
+  const placed: JobRecord[] = []
+  const outcomes: JobOutcome[] = []
+  for (const line of lines) {
+    let entry: { event?: unknown; ts_ms?: unknown; jobs?: unknown; end?: unknown }
+    try { entry = JSON.parse(line) } catch { continue }
+    if (entry?.event === 'route' && typeof entry.ts_ms === 'number' && nowMs - entry.ts_ms <= JOB_HISTORY_MS && Array.isArray(entry.jobs)) {
+      placed.push(...entry.jobs.filter(isJob).map(({ job, repo, executor }) => ({ job, repo, executor })))
+    } else if (entry?.event === 'outcome' && isJob(entry) && typeof entry.ts_ms === 'number' && jobEnd(entry)) {
+      outcomes.push({ job: entry.job, repo: entry.repo, executor: entry.executor, end: jobEnd(entry)!, ts_ms: entry.ts_ms })
+    }
+  }
+  const ended = new Set(outcomes.map((o) => o.job))
+  return { pending: placed.filter((p) => !ended.has(p.job)).reverse().slice(0, 5), outcomes }
+}
+const FAILED_ENDS: readonly JobEnd[] = ['no_commit', 'timeout', 'rate_limited', 'refused']
+// True while two or more of an executor's last three ended jobs for this repository failed: 60 minutes after the newest
+// failure, or until the end of its UTC hour when that failure is `rate_limited`.
+export function recentFailures(outcomes: readonly JobOutcome[], executor: Executor, repo: string, nowMs: number): boolean {
+  const failed = outcomes.filter((o) => o.executor === executor && o.repo.toLowerCase() === repo.toLowerCase()).slice(-3).filter((o) => FAILED_ENDS.includes(o.end))
+  const newest = failed.at(-1)
+  if (failed.length < 2 || !newest) return false
+  const until = newest.end === 'rate_limited' ? (Math.floor(newest.ts_ms / 3_600_000) + 1) * 3_600_000 : newest.ts_ms + 3_600_000
+  return nowMs < until
+}
 // Rows that may see this task; private work only reaches `private_ok` rows. Expired promotions drop out.
 export function eligibleRows(rows: readonly ExecutorRow[], publicCode: boolean, nowMs: number): { rows: ExecutorRow[]; skipped: Record<Executor, SkipReason> } {
   const skipped: Record<Executor, SkipReason> = {}

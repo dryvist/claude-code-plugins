@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'claude-code/testing'
+import { jobEnd, jobHistory, recentFailures } from './lib/policy'
 import { register } from './register'
 import { CODEX, EXECUTOR_TABLE, LAST_RESORT, codexArgv, eligibleRows, mergeExecutorRows, metricsResult, peakMultiplier, quotaFromMetrics, rankRows, validRow, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, localTask, mandatoryLabel, newestModel, parseVerdict, pickLocal, safePayload, scoreWindows } from './lib/policy'
 import { customAgentSandbox, parseAgentDefinition } from './lib/agent-definition'
@@ -19,6 +20,7 @@ type World = {
   env?: Record<string, string>; definition?: string; files?: Record<string, string>; fsThrows?: boolean; worktreeExit?: number; temporaryExit?: number
   repository?: unknown; properties?: unknown; githubPrivateAuth?: boolean; githubAuthDenied?: boolean; pr?: unknown; githubError?: boolean; githubInvalidJson?: boolean
   zcodeExit?: number; zcodeOutput?: string; zcodeAvailable?: boolean; zcodeThrows?: boolean; zcodeTruncated?: boolean
+  sandboxRuns?: Record<string, { exit: number; output: string }>; jobStatus?: Record<string, unknown>; statusHangs?: boolean; logTail?: unknown[]
   gatewayTimeout?: boolean; gatewayStatus?: Record<string, number>; gatewayAnswer?: Record<string, string>; gatewayInvalidJson?: boolean
   quotaUrl?: string | null; quotaTimeout?: boolean; quotaText?: string; quotaSampleAge?: number
 }
@@ -44,7 +46,7 @@ function world(w: World = {}) {
   const $ = {
     env: { get: async (key: string) => env[key] },
     session: { cwd: async () => '/workspace' },
-    clock: { now: async () => clockNow, after: (delay: number, callback: () => void) => { if ((w.gatewayTimeout && delay >= 60_000) || (w.quotaTimeout && delay === 3_000)) queueMicrotask(callback); return { cancel() {} } } },
+    clock: { now: async () => clockNow, after: (delay: number, callback: () => void) => { if ((w.gatewayTimeout && delay >= 60_000) || (w.quotaTimeout && delay === 3_000) || (w.statusHangs && delay === 3_000)) queueMicrotask(callback); return { cancel() {} } } },
     ui: { log: (line: string) => logs.push(line) },
     fs: {
       exists: async (path: string) => {
@@ -66,9 +68,13 @@ function world(w: World = {}) {
         const value = argv[2].endsWith('/properties/values') ? w.properties : w.repository
         return { ...RAN, exitCode: w.githubAuthDenied ? 1 : 0, stdout: JSON.stringify(value) }
       }
+      if (argv[0] === 'tail') return { ...RAN, stdout: (w.logTail ?? []).map((l) => typeof l === 'string' ? l : JSON.stringify(l)).join('\n') }
       if (argv[0] === 'which') return { ...RAN, exitCode: w.zcodeAvailable === false ? 1 : 0 }
       if (argv[0] === 'zcode-job') {
         if (w.zcodeThrows) throw new Error('dispatch failed')
+        if (argv[1] === 'status') return w.statusHangs ? new Promise<never>(() => {}) : { ...RAN, stdout: JSON.stringify(w.jobStatus?.[argv[2]] ?? { state: 'running', end: '' }) }
+        const run = w.sandboxRuns?.[argv[2] === '--tool' ? argv[3] : 'zcode']
+        if (run) return { ...RAN, exitCode: run.exit, stdout: run.output }
         return { ...RAN, exitCode: w.zcodeExit ?? 0, stdout: w.zcodeOutput ?? `DONE|j-0123456789abcdef|${PR.html_url}\n`, isStdoutTruncated: w.zcodeTruncated ?? false }
       }
       return RAN
@@ -1137,5 +1143,86 @@ describe('executor table', () => {
     await w.agent(coding)
     expect(routeEvents(w).at(-1).chosen).not.toBe('haiku')
     expect(w.nextCalls).toEqual([])
+  })
+})
+
+describe('sandbox job outcomes', () => {
+  const HOUR = 3_600_000
+  const NOW = 100 * HOUR + 600_000
+  const job = (n: number) => `j-${String(n).padStart(16, '0')}`
+  const placed = (n: number, ts = NOW - 60_000, repo = 'owner/project', executor = 'zcode') => ({ ts_ms: ts, event: 'route', jobs: [{ job: job(n), repo, executor }] })
+  const ended = (n: number, end: string, ts = NOW - 60_000, repo = 'owner/project', executor = 'zcode') => ({ ts_ms: ts, event: 'outcome', job: job(n), repo, executor, end })
+  const lines = (entries: unknown[]) => entries.map((e) => typeof e === 'string' ? e : JSON.stringify(e))
+  const outcomeLines = (w: ReturnType<typeof world>) => routeEvents(w).filter((l) => l.event === 'outcome')
+  const starts = (w: ReturnType<typeof world>) => w.calls.filter((c) => c.argv[0] === 'zcode-job' && c.argv[1] === 'start')
+
+  test('job end accepts only the contract states', () => {
+    expect(jobEnd({ end: 'no_commit' })).toBe('no_commit')
+    for (const status of [{ end: '' }, { end: 'succeeded' }, { state: 'failed' }, null, 'no_commit']) expect(jobEnd(status)).toBeUndefined()
+  })
+  test('job history lists recent jobs without an outcome, newest first, at most five', () => {
+    const history = jobHistory(lines(['not json', placed(1, NOW - 25 * HOUR), placed(2), placed(3), ended(3, 'pr_opened'), placed(4), placed(5), placed(6), placed(7), placed(8),
+      { ts_ms: NOW, event: 'route', jobs: [{ job: 'j-bad', repo: 'owner/project', executor: 'zcode' }] }, ended(9, 'unknown_end')]), NOW)
+    expect(history.pending.map((p) => p.job)).toEqual([job(8), job(7), job(6), job(5), job(4)])
+    expect(history.outcomes).toEqual([{ job: job(3), repo: 'owner/project', executor: 'zcode', end: 'pr_opened', ts_ms: NOW - 60_000 }])
+  })
+  test('two failures among the last three jobs skip an executor for that repository for 60 minutes', () => {
+    const outcomes = jobHistory(lines([ended(1, 'no_commit', NOW - 50 * 60_000), ended(2, 'pr_opened', NOW - 40 * 60_000), ended(3, 'timeout', NOW - 30 * 60_000)]), NOW).outcomes
+    expect(recentFailures(outcomes, 'zcode', 'Owner/Project', NOW)).toBe(true)
+    expect(recentFailures(outcomes, 'zcode', 'owner/project', NOW - 30 * 60_000 + HOUR)).toBe(false)
+    expect(recentFailures(outcomes, 'zcode', 'owner/other', NOW)).toBe(false)
+    expect(recentFailures(outcomes, 'opencode-go', 'owner/project', NOW)).toBe(false)
+  })
+  test('only the last three ended jobs count, and branch_pushed, cancelled and failed are not failures', () => {
+    const old = [ended(1, 'no_commit'), ended(2, 'timeout')]
+    expect(recentFailures(jobHistory(lines([...old, ended(3, 'pr_opened'), ended(4, 'pr_opened'), ended(5, 'refused')]), NOW).outcomes, 'zcode', 'owner/project', NOW)).toBe(false)
+    expect(recentFailures(jobHistory(lines([ended(1, 'branch_pushed'), ended(2, 'cancelled'), ended(3, 'failed')]), NOW).outcomes, 'zcode', 'owner/project', NOW)).toBe(false)
+  })
+  test('a newest rate_limited failure skips until the end of its hour', () => {
+    const outcomes = jobHistory(lines([ended(1, 'refused', NOW - 9 * 60_000), ended(2, 'rate_limited', NOW - 5 * 60_000)]), NOW).outcomes
+    expect(recentFailures(outcomes, 'zcode', 'owner/project', 101 * HOUR - 1)).toBe(true)
+    expect(recentFailures(outcomes, 'zcode', 'owner/project', 101 * HOUR)).toBe(false)
+  })
+
+  test('the route event names the job, repository and executor of a sandbox placement', async () => {
+    const w = world({ quota: 1, now: NOW })
+    await w.agent(coding)
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'zcode', jobs: [{ job: 'j-0123456789abcdef', repo: 'owner/project', executor: 'zcode' }] })
+  })
+  test('a job that ended without a PR moves the task to the next executor and logs its outcome', async () => {
+    const w = world({ quota: 1, now: NOW, sandboxRuns: { zcode: { exit: 1, output: `FAIL|${job(1)}|no commit\n` }, opencode: { exit: 0, output: `DONE|${job(2)}|${PR.html_url}\n` } }, jobStatus: { [job(1)]: { state: 'failed', end: 'no_commit' } } })
+    expect(text(await w.agent(coding))).toContain('[routed: OpenCode Go sandbox')
+    expect(outcomeLines(w)).toEqual([{ ts_ms: NOW, event: 'outcome', job: job(1), repo: 'owner/project', executor: 'zcode', end: 'no_commit' }])
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'opencode-go', fell_through_from: ['zcode'], skipped: { zcode: 'failed' },
+      jobs: [{ job: job(1), repo: 'owner/project', executor: 'zcode' }, { job: job(2), repo: 'owner/project', executor: 'opencode-go' }] })
+  })
+  for (const status of [{ state: 'running', end: '' }, { state: 'succeeded', end: 'pr_opened' }]) {
+    test(`a job that is still running or opened a PR never starts a duplicate: ${JSON.stringify(status)}`, async () => {
+      const w = world({ quota: 1, now: NOW, sandboxRuns: { zcode: { exit: 1, output: `FAIL|${job(1)}|timeout\n` } }, jobStatus: { [job(1)]: status } })
+      expect(text(await w.agent(coding))).toStartWith('FAIL | router |')
+      expect(starts(w)).toHaveLength(1)
+      expect(outcomeLines(w)).toEqual([])
+      expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'zcode', jobs: [{ job: job(1), repo: 'owner/project', executor: 'zcode' }] })
+    })
+  }
+  test('the next placement records the outcome of each pending job once it has ended', async () => {
+    const w = world({ quota: 1, now: NOW, logTail: [placed(1), placed(2), placed(3), ended(3, 'pr_opened')], jobStatus: { [job(1)]: { end: 'timeout' }, [job(2)]: { state: 'running', end: '' } } })
+    await w.agent(coding)
+    expect(w.calls.filter((c) => c.argv[1] === 'status').map((c) => c.argv[2]).sort()).toEqual([job(1), job(2)])
+    expect(outcomeLines(w)).toEqual([{ ts_ms: NOW, event: 'outcome', job: job(1), repo: 'owner/project', executor: 'zcode', end: 'timeout' }])
+  })
+  test('status reads stop at the three-second budget and routing continues', async () => {
+    const w = world({ quota: 1, now: NOW, logTail: [placed(1)], statusHangs: true })
+    expect(text(await w.agent(coding))).toContain('[routed: zcode-job sandbox')
+    expect(outcomeLines(w)).toEqual([])
+  })
+  test('an executor with repeated recent failures on the repository is skipped for it', async () => {
+    const w = world({ quota: 1, now: NOW, logTail: [placed(1), placed(2), placed(3)], jobStatus: { [job(1)]: { end: 'no_commit' }, [job(2)]: { end: 'refused' }, [job(3)]: { state: 'running', end: '' } },
+      sandboxRuns: { opencode: { exit: 0, output: `DONE|${job(4)}|${PR.html_url}\n` } } })
+    expect(text(await w.agent(coding))).toContain('[routed: OpenCode Go sandbox')
+    expect(starts(w).map((c) => c.argv[3])).toEqual(['opencode'])
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'opencode-go', skipped: { zcode: 'recent_failures' } })
+    const other = world({ quota: 1, now: NOW, logTail: [ended(1, 'no_commit', NOW - 60_000, 'owner/other'), ended(2, 'refused', NOW - 60_000, 'owner/other')] })
+    expect(text(await other.agent(coding))).toContain('[routed: zcode-job sandbox')
   })
 })
