@@ -87,14 +87,14 @@ function rowScore(rows: QuotaRow[], id: string, nowSeconds: number): Score | und
   return score.exhausted || score.score !== undefined ? score : undefined
 }
 
-type QuotaView = { scores: Partial<Record<Executor, Score>>; unknown: Record<string, QuotaReason>; sources: Record<string, string>; budgets: Record<string, number> }
+type QuotaView = { scores: Partial<Record<Executor, Score>>; unknown: Record<string, QuotaReason>; sources: Record<string, string>; budgets: Map<string, number> }
 
 // Scores for table rows that name a quota executor, judged for staleness at this moment. Rows without one stay unknown.
 async function currentQuota($: Engine, table: readonly ExecutorRow[]): Promise<QuotaView> {
   const read = await quotaRows($)
   const now = (await $.clock.now()) / 1000
   const ids = [...new Set(table.flatMap((r) => (r.quota ? [r.quota] : [])))]
-  const view: QuotaView = { scores: {}, unknown: {}, sources: {}, budgets: {} }
+  const view: QuotaView = { scores: {}, unknown: {}, sources: {}, budgets: new Map() }
   if (!read.result) {
     for (const id of ids) view.unknown[id] = read.failure ?? 'quota_unreachable'
     return view
@@ -499,10 +499,12 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
       result = await runCodexRung($, e, customSandbox)
       if (!result) skipped[executor] = 'failed'
     } else if (row.transport === 'router-chat') {
-      // The local rung's chat call, under the row's router model; never code or tool work.
-      const out = textOnly && base ? await runLocal($, e, base, row.model!, TEXT_EXECUTOR_TIMEOUT_MS) : undefined
+      // The local rung's chat call and size gate, under the row's router model; never code or tool work. A prompt whose
+      // estimate exceeds 60% of the model's window, or a model with no known window, is skipped.
+      const fits = textOnly && base ? ((await localModelWindows($, base))[row.model!] ?? 0) * 0.6 >= estimateTokens(e.prompt) : false
+      const out = fits ? await runLocal($, e, base!, row.model!, TEXT_EXECUTOR_TIMEOUT_MS) : undefined
       if (out) result = routedResult(e, 'ai-delegation-router-chat', out, `[routed: router-chat ${row.model}]`, 0)
-      else skipped[executor] = !textOnly ? 'ineligible' : base ? 'failed' : 'not_installed'
+      else skipped[executor] = !textOnly || (base && !fits) ? 'ineligible' : base ? 'failed' : 'not_installed'
     } else if (!repo || (tools && !tools.includes(row.tool!))) {
       skipped[executor] = repo ? 'not_installed' : 'ineligible'
     } else {
