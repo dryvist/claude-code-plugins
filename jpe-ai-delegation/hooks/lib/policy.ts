@@ -163,46 +163,63 @@ export function mergeExecutorRows(base: readonly ExecutorRow[], override: unknow
 
 export type SkipReason = 'ineligible' | 'exhausted' | 'expired' | 'not_installed' | 'failed' | 'recent_failures'
 
-// How a sandbox job ended, from the dispatcher's `status` field `end`; the hook reads no other status field.
+// How a sandbox job ended, from the dispatcher's `status`: `end` decides, and `duration` (whole seconds the job ran)
+// only dates the end.
 export const JOB_ENDS = ['pr_opened', 'branch_pushed', 'no_commit', 'timeout', 'refused', 'rate_limited', 'cancelled', 'failed'] as const
 export type JobEnd = (typeof JOB_ENDS)[number]
-export const jobEnd = (status: unknown): JobEnd | undefined => {
-  const end = (status as { end?: unknown } | null)?.end
-  return (JOB_ENDS as readonly unknown[]).includes(end) ? end as JobEnd : undefined
+export type JobState = { end: JobEnd; duration_ms?: number }
+export function jobState(status: unknown): JobState | undefined {
+  const { end, duration } = (status ?? {}) as { end?: unknown; duration?: unknown }
+  if (!(JOB_ENDS as readonly unknown[]).includes(end)) return undefined
+  return typeof duration === 'number' && Number.isFinite(duration) && duration >= 0 ? { end: end as JobEnd, duration_ms: duration * 1000 } : { end: end as JobEnd }
 }
-export type JobRecord = { job: string; repo: string; executor: Executor }
-export type JobOutcome = JobRecord & { end: JobEnd; ts_ms: number }
+// `started_ms` is the hook's clock just before `zcode-job start`, so it is at or before the job's real start.
+export type JobRecord = { job: string; repo: string; executor: Executor; started_ms: number }
+// `ended_ms` anchors the recent-failure window; `ts_ms` is when the hook observed the end.
+export type JobOutcome = Omit<JobRecord, 'started_ms'> & { end: JobEnd; ts_ms: number; ended_ms: number }
+// The end anchor: start plus run duration, never later than the observation. The start call waits at most 300 s, so the
+// anchor is within that of the real end. Without a duration, the anchor is the observation time.
+export const endAnchor = (record: JobRecord, state: JobState, observedMs: number): number =>
+  state.duration_ms === undefined ? observedMs : Math.min(observedMs, record.started_ms + state.duration_ms)
 const JOB_ID = /^j-[0-9a-f]{16}$/
+const JOB_REPO = /^[A-Za-z0-9][A-Za-z0-9-]{0,38}\/[A-Za-z0-9._-]{1,100}$/
+const JOB_EXECUTOR = /^[a-z0-9-]{1,40}$/
 const JOB_HISTORY_MS = 86_400_000
-const isJob = (j: unknown): j is JobRecord => {
+const LOG_SKEW_MS = 60_000
+const isJob = (j: unknown): j is { job: string; repo: string; executor: string } => {
   const v = j as JobRecord
-  return Boolean(v) && typeof v.job === 'string' && JOB_ID.test(v.job) && typeof v.repo === 'string' && typeof v.executor === 'string'
+  return Boolean(v) && typeof v.job === 'string' && JOB_ID.test(v.job) && typeof v.repo === 'string' && JOB_REPO.test(v.repo) &&
+    typeof v.executor === 'string' && JOB_EXECUTOR.test(v.executor)
 }
+const stamp = (v: unknown, fallback: number): number => typeof v === 'number' && Number.isFinite(v) ? v : fallback
 // From decision-log lines: jobs placed in the last 24 hours that have no outcome line yet (newest first, at most 5), and
-// every outcome line in log order. Lines that are not JSON are ignored.
+// one outcome per job (its first line). Lines that are not JSON, carry an invalid job, repository or executor, or are
+// stamped more than a minute in the future are ignored.
 export function jobHistory(lines: readonly string[], nowMs: number): { pending: JobRecord[]; outcomes: JobOutcome[] } {
   const placed: JobRecord[] = []
-  const outcomes: JobOutcome[] = []
+  const outcomes = new Map<string, JobOutcome>()
   for (const line of lines) {
-    let entry: { event?: unknown; ts_ms?: unknown; jobs?: unknown; end?: unknown }
+    let entry: { event?: unknown; ts_ms?: unknown; jobs?: unknown; end?: unknown; ended_ms?: unknown }
     try { entry = JSON.parse(line) } catch { continue }
-    if (entry?.event === 'route' && typeof entry.ts_ms === 'number' && nowMs - entry.ts_ms <= JOB_HISTORY_MS && Array.isArray(entry.jobs)) {
-      placed.push(...entry.jobs.filter(isJob).map(({ job, repo, executor }) => ({ job, repo, executor })))
-    } else if (entry?.event === 'outcome' && isJob(entry) && typeof entry.ts_ms === 'number' && jobEnd(entry)) {
-      outcomes.push({ job: entry.job, repo: entry.repo, executor: entry.executor, end: jobEnd(entry)!, ts_ms: entry.ts_ms })
+    const ts = entry?.ts_ms
+    if (typeof ts !== 'number' || !Number.isFinite(ts) || ts > nowMs + LOG_SKEW_MS) continue
+    if (entry.event === 'route' && nowMs - ts <= JOB_HISTORY_MS && Array.isArray(entry.jobs)) {
+      for (const j of entry.jobs) if (isJob(j)) placed.push({ job: j.job, repo: j.repo, executor: j.executor, started_ms: Math.min(stamp((j as JobRecord).started_ms, ts), ts) })
+    } else if (entry.event === 'outcome' && isJob(entry) && (JOB_ENDS as readonly unknown[]).includes(entry.end) && !outcomes.has(entry.job)) {
+      outcomes.set(entry.job, { job: entry.job, repo: entry.repo, executor: entry.executor, end: entry.end as JobEnd, ts_ms: ts, ended_ms: Math.min(stamp(entry.ended_ms, ts), ts) })
     }
   }
-  const ended = new Set(outcomes.map((o) => o.job))
-  return { pending: placed.filter((p) => !ended.has(p.job)).reverse().slice(0, 5), outcomes }
+  return { pending: placed.filter((p) => !outcomes.has(p.job)).reverse().slice(0, 5), outcomes: [...outcomes.values()] }
 }
 const FAILED_ENDS: readonly JobEnd[] = ['no_commit', 'timeout', 'rate_limited', 'refused']
-// True while two or more of an executor's last three ended jobs for this repository failed: 60 minutes after the newest
-// failure, or until the end of its UTC hour when that failure is `rate_limited`.
+// True while two or more of an executor's last three ended jobs for this repository (by end anchor) failed: 60 minutes
+// after the newest failure's end anchor, or until the end of that UTC hour when it is `rate_limited`.
 export function recentFailures(outcomes: readonly JobOutcome[], executor: Executor, repo: string, nowMs: number): boolean {
-  const failed = outcomes.filter((o) => o.executor === executor && o.repo.toLowerCase() === repo.toLowerCase()).slice(-3).filter((o) => FAILED_ENDS.includes(o.end))
+  const failed = outcomes.filter((o) => o.executor === executor && o.repo.toLowerCase() === repo.toLowerCase())
+    .sort((a, b) => a.ended_ms - b.ended_ms).slice(-3).filter((o) => FAILED_ENDS.includes(o.end))
   const newest = failed.at(-1)
   if (failed.length < 2 || !newest) return false
-  const until = newest.end === 'rate_limited' ? (Math.floor(newest.ts_ms / 3_600_000) + 1) * 3_600_000 : newest.ts_ms + 3_600_000
+  const until = newest.end === 'rate_limited' ? (Math.floor(newest.ended_ms / 3_600_000) + 1) * 3_600_000 : newest.ended_ms + 3_600_000
   return nowMs < until
 }
 // Rows that may see this task; private work only reaches `private_ok` rows. Expired promotions drop out.
