@@ -1253,12 +1253,23 @@ describe('route telemetry content and bounds', () => {
     expect(text(await w.agent({ model: 'sonnet' }))).toContain('subagents are forbidden')
     expect(routeEvents(w).at(-1)).toMatchObject({ ts_ms: null, chosen: 'stopped' })
   })
-  test('the terminal rung is named by LAST_RESORT.model in eligible and chosen', async () => {
-    const w = world({ quota: 1, zcodeAvailable: false })
-    await w.agent()
-    const event = routeEvents(w).at(-1)
-    expect(event.eligible.at(-1)).toBe(LAST_RESORT.model)
-    expect(event.chosen).toBe(LAST_RESORT.model)
+  test('the terminal rung follows LAST_RESORT.model everywhere, so a literal model name fails this test', async () => {
+    // Changing the value at run time catches a hard-coded name that would still equal the current one.
+    const terminal = LAST_RESORT as { model: string }
+    const saved = terminal.model
+    terminal.model = 'terminal-probe'
+    try {
+      const w = world({ quota: 1, zcodeAvailable: false })
+      await w.agent()
+      const event = routeEvents(w).at(-1)
+      expect(event.eligible.at(-1)).toBe('terminal-probe')
+      expect(event.chosen).toBe('terminal-probe')
+      const row = { ...EXECUTOR_TABLE.find((r) => r.transport === 'codex')!, id: 'terminal-probe' }
+      expect(validRow(row)).toBeUndefined()
+      expect(validRow({ ...row, id: saved })).toBeDefined()
+    } finally {
+      terminal.model = saved
+    }
   })
   test('zcode-job start refusing before it accepts a job logs stopped, not the executor', async () => {
     const w = world({ quota: 1, env: gateways, zcodeExit: 64, zcodeOutput: '{"error":"Repository is not approved for ZCode"}\n' })

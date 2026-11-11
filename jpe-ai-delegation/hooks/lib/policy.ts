@@ -133,7 +133,7 @@ const isPeak = (p: unknown): p is Peak => {
 // subscription-trusted row may take private work.
 export function validRow(r: unknown): ExecutorRow | undefined {
   const v = r as ExecutorRow
-  if (!v || typeof v.id !== 'string' || !/^[a-z0-9-]{1,40}$/.test(v.id) || v.id === 'haiku') return undefined
+  if (!v || typeof v.id !== 'string' || !/^[a-z0-9-]{1,40}$/.test(v.id) || v.id === LAST_RESORT.model) return undefined
   if (v.transport !== 'codex' && v.transport !== 'sandbox') return undefined
   if (v.transport === 'sandbox' && (typeof v.tool !== 'string' || !/^[a-z0-9-]{1,40}$/.test(v.tool))) return undefined
   if (v.trust !== 'subscription-trusted' && v.trust !== 'sandbox-public') return undefined
