@@ -864,6 +864,11 @@ describe('usage pace ranking', () => {
     expect(event.chosen).toBe(EXECUTOR_TABLE[0].id)
     for (const row of EXECUTOR_TABLE) expect(event.scores[row.id]).toMatchObject({ used: null, line: null })
   })
+  test('no readings keep table order only without promotions: an appended promotion ranks first', () => {
+    const promotion = { id: 'promo-free', transport: 'sandbox', tool: 'opencode-free', trust: 'sandbox-public', private_ok: false, price: 0, kind: 'promotion', expires: '2030-01-01T00:00:00Z' }
+    const rows = mergeExecutorRows(EXECUTOR_TABLE, [promotion]).rows
+    expect(rankRows(rows, {}, Date.parse('2026-11-14T12:00:00Z')).order).toEqual(['promo-free', ...EXECUTOR_TABLE.map((row) => row.id)])
+  })
 })
 
 // The labelled batch: Codex exhausted (quota 1) unless a row says otherwise.
@@ -1113,12 +1118,12 @@ describe('cursor executor', () => {
     expect(w.nextCalls[0]).toMatchObject({ model: 'haiku', effort: 'xhigh' })
     expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'haiku', fell_through_from: ['codex', 'zcode', 'opencode-go', 'cursor'], scores: { codex: { used: 50, line: 50 } } })
   })
-  test('at-pace Codex ranks before unknown Cursor', async () => {
-    const w = world({ env: { ...gateways, AGENT_ROUTE_ZCODE_TOOLS: 'cursor-agent' } })
-    expect(text(await w.agent(coding))).toContain('codex luna')
-    expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
+  test('at-pace Codex ranks before unknown Cursor', () => {
+    const rows = [EXECUTOR_TABLE[3], EXECUTOR_TABLE[2]]
+    const scores = { codex: { score: 0, exhausted: false, used: 50, line: 50, distance: 0 } }
+    expect(rankRows(rows, scores, Date.parse('2026-11-14T12:00:00Z')).order).toEqual(['codex', 'cursor'])
   })
-  test('a positive Cursor quota score moves it first; an exhausted one drops it', async () => {
+  test('an under-line Cursor ranks first; an exhausted one drops it', async () => {
     const lead = world({ env: gateways, cursorWindows: at(10) })
     expect(text(await lead.agent(coding))).toContain('[routed: Cursor sandbox;')
     expect(routeEvents(lead).at(-1).scores.cursor.exhausted).toBe(false)

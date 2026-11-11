@@ -257,8 +257,8 @@ export type Score = { score?: number; exhausted: boolean; used?: number; line?: 
 // Use a one-day margin for windows of two days or longer and zero for shorter windows.
 const PACE_LONG_WINDOW_MARGIN_SECONDS = 86_400
 const PACE_SHORT_WINDOW_MARGIN_SECONDS = 0
-// Quota that would expire unused at the current pace, per hour left in its window. The binding window (lowest score)
-// decides; any live window at 95% or more excludes the executor. No usable window leaves the score unknown.
+// Quota that would expire unused at the current pace per hour left is telemetry; the lowest score is recorded.
+// Any live window at 95% or more excludes the executor. No usable window leaves the score unknown.
 export function scoreWindows(windows: QuotaWindow[] | undefined, nowSeconds: number): Score {
   let score: number | undefined
   let exhausted = false
@@ -287,7 +287,9 @@ export function scoreWindows(windows: QuotaWindow[] | undefined, nowSeconds: num
   return { score: exhausted ? undefined : score, exhausted, ...pace }
 }
 
-// Unexpired promotions first; under-line and over-line rows sort by distance, with unknown rows in table order.
+// Promotions first; at/below-line readings by distance (furthest under first), unknown in table order, then
+// over-line readings (least over first); use each executor's smallest distance across windows. Pace line:
+// 0 at start, 100 one day before reset (at reset for <2-day windows); effective score is route-line telemetry only.
 // Exhausted rows drop out and are named in `skipped`.
 export function rankRows(rows: readonly ExecutorRow[], scores: Partial<Record<Executor, Score>>, nowMs: number): { order: Executor[]; skipped: Record<Executor, SkipReason>; effective: Record<Executor, number | null> } {
   const skipped: Record<Executor, SkipReason> = {}

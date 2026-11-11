@@ -7,7 +7,7 @@ description: Apply the executor ladder for the maintainer's own setup, including
 
 Route each delegated task to the first rung that qualifies. Check codex-quota first.
 Rung 2 holds two equal first choices, split by sensitivity; when both qualify,
-send the task to the executor with more quota headroom and spend every
+use the usage-pace order in the executor section below and spend every
 subscription before it resets (ZCode 5-hour and weekly, OpenCode Go monthly,
 Codex weekly).
 
@@ -75,13 +75,13 @@ decision to `~/.claude/ai-delegation.log`:
    15 minutes ago reads as `quota_stale`; an executor with no series reads as
    `quota_missing`. Unknown is never scored as empty or full, and the route
    event lists each reason under `quota_unknown`. An executor with a
-   live window at 95% or more drops out. A positive score (quota that would
-   expire unused at the current pace, per hour left) moves an executor ahead;
-   unknown and non-positive scores keep table order. The executor table in
+   live window at 95% or more drops out. Order: promotions; at/below-line by distance
+   (furthest under), no readings in table order, then over-line by distance (least over).
+   Pace line: 0 at start, 100 one day before reset (at reset for <2-day windows); use
+   each executor's smallest distance across windows. Effective score (headroom / (price × peak)) is route-line telemetry only, not ranking. The executor table in
    `hooks/lib/policy.ts` lists ZCode, OpenCode Go, Codex and Cursor, each with
    transport, trust, `private_ok`, quota executor name, price and peak
-   windows (ZCode costs double Mon–Fri 06:00–10:00 UTC). The effective score is
-   headroom / (price × peak). `~/.config/ai-delegation/executors.json` (a JSON
+   windows (ZCode costs double Mon–Fri 06:00–10:00 UTC). `~/.config/ai-delegation/executors.json` (a JSON
    array of rows) overrides rows by `id` and adds new ones; invalid rows are
    logged and dropped, and only subscription-trusted rows may set
    `private_ok`; a sandbox row is always `sandbox-public` with `private_ok`
