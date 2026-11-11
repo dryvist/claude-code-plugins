@@ -10,6 +10,7 @@ const TEXT_EXECUTOR_TIMEOUT_MS = 120_000
 const QUOTA_TIMEOUT_MS = 3_000
 const QUOTA_REFRESH_MS = 600_000
 const MODEL_INFO_TIMEOUT_MS = 10_000
+const LOG_TIMEOUT_MS = 5_000
 const PROMPT_POLICY = 'The jpe-ai-delegation hook places every Agent spawn. Tag self-contained text work [class: text] and put all of its text in the prompt; the hook sends it to an on-host local model first. Every other spawn, and any local answer that fails its check, goes to the subscription executors it is eligible for, ranked by quota. ZCode, OpenCode Go and Cursor take only non-sensitive coding tagged [task: code] [repo: owner/repository] in a public repository; their output is a ready PR labelled human:review; leak-scan it before merge; never auto-merge. Codex Luna takes any task; never Terra. Haiku xhigh is always last. Nothing stops because an executor is unavailable. Never Sonnet, Opus or Fable subagents. Never send secrets, credentials, inventory or incident content to any executor. Antigravity stays a second-opinion reviewer, never an executor.'
 
 // A quota read: the instant-query result, or why there is none.
@@ -160,13 +161,18 @@ async function runCodex($: Engine, codexRoute: Route, sandbox: Sandbox, prompt: 
   return undefined
 }
 
-// Append-only decision log; `tee -a` keeps parallel hooks from dropping each other's lines.
-async function logDecision($: Engine, line: string): Promise<void> {
+// Append-only decision log; `tee -a` keeps parallel hooks from dropping each other's lines. Every step is bounded by
+// LOG_TIMEOUT_MS. True when the line was written; a failed write is reported in the UI and never changes a decision.
+async function logDecision($: Engine, line: string): Promise<boolean> {
   try {
-    await $.process.run(['tee', '-a', `${await $.env.get('HOME')}/.claude/ai-delegation.log`], { stdin: `${line}\n`, timeoutMs: 5_000 })
+    const home = await withTimeout($, $.env.get('HOME'), LOG_TIMEOUT_MS)
+    const written = await withTimeout($, $.process.run(['tee', '-a', `${home}/.claude/ai-delegation.log`], { stdin: `${line}\n`, timeoutMs: LOG_TIMEOUT_MS }), LOG_TIMEOUT_MS)
+    if (written.exitCode === 0) return true
   } catch {
-    // The log is advisory; a failed write never changes a decision.
+    // Reported below.
   }
+  $.ui.log('ai-delegation: decision log write failed')
+  return false
 }
 
 async function routerTarget($: Engine): Promise<{ url: string; headers: Record<string, string> }> {
@@ -329,30 +335,34 @@ async function sandboxTools($: Engine): Promise<string[] | undefined> {
   return (await $.env.get('AGENT_ROUTE_ZCODE_TOOLS'))?.split(/\s+/).filter(Boolean)
 }
 
-// Undefined only before dispatch (zcode-job not installed); after dispatch it returns the PR or a FAIL result.
-async function runSandboxExecutor($: Engine, e: AgentCall, repo: string, tool: string): Promise<unknown | undefined> {
+// No result only before dispatch (zcode-job not installed); after dispatch it returns the PR or a FAIL result. `accepted`
+// is true once the dispatcher's answer names a job, so a FAIL without it means receipt is unverified.
+type SandboxRun = { result?: unknown; accepted: boolean }
+async function runSandboxExecutor($: Engine, e: AgentCall, repo: string, tool: string): Promise<SandboxRun> {
   const started = await $.clock.now()
   try {
     const available = await $.process.run(['which', 'zcode-job'], { timeoutMs: 5_000 })
-    if (available.exitCode !== 0) return undefined
+    if (available.exitCode !== 0) return { accepted: false }
   } catch {
-    return undefined
+    return { accepted: false }
   }
   const name = SANDBOX_NAMES[tool] ?? `${tool} sandbox`
+  let accepted = false
   try {
     const prompt = `${e.prompt}\n\nReturn a ready PR labelled human:review. Never auto-merge. The trusted lead must leak-scan the PR before merge.`
     const argv = tool === 'zcode' ? ['zcode-job', 'start', repo, prompt] : ['zcode-job', 'start', '--tool', tool, repo, prompt]
     const response = await $.process.run(argv, { timeoutMs: 300_000 })
     const line = response.stdout.replace(/\r?\n$/, '')
+    accepted = response.isStdoutTruncated !== true && /^(?:DONE|FAIL)\|j-[0-9a-f]{16}\|/.test(line)
     const done = line.match(/^DONE\|(j-[0-9a-f]{16})\|(https:\/\/github\.com\/([A-Za-z0-9-]+\/[A-Za-z0-9._-]+)\/pull\/(\d+))$/)
-    if (response.exitCode !== 0 || response.isStdoutTruncated === true || !done || done[3].toLowerCase() !== repo.toLowerCase()) return failure(e, `${tool} did not return a PR for the requested repository`)
+    if (response.exitCode !== 0 || response.isStdoutTruncated === true || !done || done[3].toLowerCase() !== repo.toLowerCase()) return { accepted, result: failure(e, `${tool} did not return a PR for the requested repository`) }
     const pr = await github($, `${repo}/pulls/${done[4]}`) as { state?: string; draft?: boolean; labels?: { name: string }[]; html_url?: string }
-    if (pr.state !== 'open' || pr.draft !== false || pr.html_url !== done[2] || !pr.labels?.some((l) => l.name === 'human:review')) return failure(e, `${tool} PR is not ready and labelled human:review`)
+    if (pr.state !== 'open' || pr.draft !== false || pr.html_url !== done[2] || !pr.labels?.some((l) => l.name === 'human:review')) return { accepted, result: failure(e, `${tool} PR is not ready and labelled human:review`) }
     await logDecision($, `route: coding -> ${name} (leak scan required before merge)`)
-    return routedResult(e, `ai-delegation-${tool}`, line, `[routed: ${name}; leak-scan before merge; never auto-merge]`, (await $.clock.now()) - started)
+    return { accepted, result: routedResult(e, `ai-delegation-${tool}`, line, `[routed: ${name}; leak-scan before merge; never auto-merge]`, (await $.clock.now()) - started) }
   } catch {
     // A dispatched job may still be running. Do not start a duplicate executor.
-    return failure(e, `${tool} dispatch or PR verification failed; inspect the job before retrying`)
+    return { accepted, result: failure(e, `${tool} dispatch or PR verification failed; inspect the job before retrying`) }
   }
 }
 
@@ -424,15 +434,21 @@ type RouteEvent = {
 // One JSON telemetry line per routing decision. It never throws, so a failed write cannot change the decision.
 async function logRoute($: Engine, event: RouteEvent, chosen: string, reason: string): Promise<void> {
   try {
-    await logDecision($, JSON.stringify({ ts_ms: await $.clock.now(), event: 'route', ...event, chosen, reason }))
+    // A clock that does not answer in time leaves ts_ms null rather than dropping the line.
+    const ts_ms = await withTimeout($, $.clock.now(), LOG_TIMEOUT_MS).catch(() => null)
+    await logDecision($, JSON.stringify({ ts_ms, event: 'route', ...event, chosen, reason }))
   } catch {
     // The log is advisory.
   }
 }
 
-// The agent type is logged only when it is a plain name of at most 80 characters.
-const agentType = (type: string | undefined): string => type === undefined ? 'general-purpose' : /^[\w:.-]{1,80}$/.test(type) ? type : 'unrecognized'
-const newEvent = (e: AgentCall): RouteEvent => ({ agent_type: agentType(e.subagent_type), local: null, eligible: [], scores: {}, fell_through_from: [], skipped: {}, quota_unknown: {}, quota_source: {} })
+// The agent type is logged only when it is a built-in type or a verified custom definition, a plain name of at most 80
+// characters, and free of prohibited content; anything else is logged as "unrecognized".
+const agentType = (e: AgentCall, verified: boolean): string => {
+  const type = e.subagent_type ?? 'general-purpose'
+  return (verified || isGenericType(e)) && /^[\w:.-]{1,80}$/.test(type) && safePayload(type) ? type : 'unrecognized'
+}
+const newEvent = (e: AgentCall): RouteEvent => ({ agent_type: agentType(e, false), local: null, eligible: [], scores: {}, fell_through_from: [], skipped: {}, quota_unknown: {}, quota_source: {} })
 
 // Every exit that stops routing writes its route line too.
 async function stopRoute($: Engine, e: AgentCall, event: RouteEvent, reason: string): Promise<unknown> {
@@ -461,6 +477,7 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
       return stopRoute($, e, event, 'custom agent model or tool restrictions could not be read')
     }
     if (!definition) return stopRoute($, e, event, 'custom agent definition could not be verified')
+    event.agent_type = agentType(original, true)
     if (forbiddenModel(definition.model)) return stopRoute($, e, event, 'Sonnet, Opus and Fable subagents are forbidden')
     customSandbox = customAgentSandbox(definition)
     if (definition.prompt) e = { ...e, prompt: `Custom agent instructions:\n${definition.prompt}\n\nTask:\n${e.prompt}` }
@@ -503,7 +520,7 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
   event.quota_source = quota.sources
   const ranked = rankRows(rows, scores, now)
   Object.assign(skipped, ranked.skipped)
-  event.eligible = [...rows.map((r) => r.id), 'haiku']
+  event.eligible = [...rows.map((r) => r.id), LAST_RESORT.model]
   event.skipped = skipped
   for (const r of rows) {
     const s = scores[r.id]
@@ -513,25 +530,30 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
   for (const executor of ranked.order) {
     const row = rows.find((r) => r.id === executor)!
     let result: unknown | undefined
+    let unaccepted = false
     if (row.transport === 'codex') {
       result = await runCodexRung($, e, customSandbox)
       if (!result) skipped[executor] = 'failed'
     } else if (!repo || (tools && !tools.includes(row.tool!))) {
       skipped[executor] = repo ? 'not_installed' : 'ineligible'
     } else {
-      result = await runSandboxExecutor($, e, repo, row.tool!)
+      const run = await runSandboxExecutor($, e, repo, row.tool!)
+      result = run.result
+      unaccepted = Boolean(result) && !run.accepted
       if (!result) skipped[executor] = 'not_installed'
     }
     if (result) {
       // `chosen` names the executor that received the task; a dispatched sandbox job without a verified PR keeps its
-      // executor as `chosen`, with that reason. `stopped` means no executor received the task.
+      // executor as `chosen`, with that reason. `stopped` means no executor is known to have received it, as when the
+      // dispatch failed before the dispatcher named a job.
       const unverified = (result as { result?: { agentId?: string } }).result?.agentId === 'ai-delegation-policy'
-      await logRoute($, event, executor, unverified ? 'sandbox job without a verified PR' : 'highest-ranked eligible executor that answered')
+      if (unaccepted) await logRoute($, event, 'stopped', `${executor} dispatch failed before the job was accepted`)
+      else await logRoute($, event, executor, unverified ? 'sandbox job without a verified PR' : 'highest-ranked eligible executor that answered')
       return result
     }
     event.fell_through_from.push(executor)
   }
-  await logRoute($, event, 'haiku', 'terminal rung')
+  await logRoute($, event, LAST_RESORT.model, 'terminal rung')
   return core({ ...original, ...LAST_RESORT })
 }
 
@@ -557,8 +579,8 @@ async function judge($: Engine, e: { input: unknown }, next: (e: never) => Promi
       if (verdict) { by = gateway; break }
     }
     if (!verdict) {
-      by = `haiku ${LAST_RESORT.effort}`
-      const r = await $.model.complete({ model: 'haiku', effort: LAST_RESORT.effort, prompt: ask, maxTokens: 400, timeoutMs: 60_000 })
+      by = `${LAST_RESORT.model} ${LAST_RESORT.effort}`
+      const r = await $.model.complete({ model: LAST_RESORT.model, effort: LAST_RESORT.effort, prompt: ask, maxTokens: 400, timeoutMs: 60_000 })
       verdict = parseVerdict(r.isAnswered ? r.text : undefined)
     }
   }
