@@ -11,7 +11,7 @@ const QUOTA_TIMEOUT_MS = 3_000
 const QUOTA_REFRESH_MS = 600_000
 const MODEL_INFO_TIMEOUT_MS = 10_000
 const LOG_TIMEOUT_MS = 5_000
-const PROMPT_POLICY = 'The jpe-ai-delegation hook places every Agent spawn. Tag self-contained text work [class: text] and put all of its text in the prompt; the hook sends it to an on-host local model first. Every other spawn, and any local answer that fails its check, goes to the subscription executors it is eligible for, ranked by quota. ZCode, OpenCode Go and Cursor take only non-sensitive coding tagged [task: code] [repo: owner/repository] in a public repository; their output is a ready PR labelled human:review; leak-scan it before merge; never auto-merge. Codex Luna takes any task; never Terra. Haiku xhigh is always last. Nothing stops because an executor is unavailable. Never Sonnet, Opus or Fable subagents. Never send secrets, credentials, inventory or incident content to any executor. Antigravity stays a second-opinion reviewer, never an executor.'
+const PROMPT_POLICY = 'The jpe-ai-delegation hook places every Agent spawn. Tag self-contained text work [class: text] and put all of its text in the prompt; the hook sends it to an on-host local model first. Every other spawn, and any local answer that fails its check, goes to the subscription executors it is eligible for, ranked by usage pace. ZCode, OpenCode Go and Cursor take only non-sensitive coding tagged [task: code] [repo: owner/repository] in a public repository; their output is a ready PR labelled human:review; leak-scan it before merge; never auto-merge. Codex Luna takes any task; never Terra. Haiku xhigh is always last. Nothing stops because an executor is unavailable. Never Sonnet, Opus or Fable subagents. Never send secrets, credentials, inventory or incident content to any executor. Antigravity stays a second-opinion reviewer, never an executor.'
 
 // A quota read: the instant-query result, or why there is none.
 type QuotaFetch = { result?: unknown[]; failure?: 'quota_unconfigured' | 'quota_unreachable' }
@@ -89,7 +89,7 @@ function rowScore(rows: QuotaRow[], id: string, nowSeconds: number): Score | und
   const row = rows.find((r) => r.id === id)
   if (!row) return undefined
   const score = scoreWindows(row.windows, nowSeconds)
-  return score.exhausted || score.score !== undefined ? score : undefined
+  return score.exhausted || score.score !== undefined || score.distance !== undefined ? score : undefined
 }
 
 type QuotaView = { scores: Partial<Record<Executor, Score>>; unknown: Record<string, QuotaReason>; sources: Record<string, string> }
@@ -435,7 +435,7 @@ async function customAgentDefinition($: Engine, type: string): Promise<AgentDefi
 
 type RouteEvent = {
   agent_type: string; local: { alias: string | null; est_tokens: number } | null; eligible: string[]
-  scores: Record<string, { score: number | null; exhausted: boolean; effective: number | null } | null>; fell_through_from: string[]
+  scores: Record<string, { score: number | null; exhausted: boolean; effective: number | null; used: number | null; line: number | null } | null>; fell_through_from: string[]
   skipped: Record<string, SkipReason>
   quota_unknown: Record<string, QuotaReason>; quota_source: Record<string, string>
 }
@@ -516,7 +516,7 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
     }
   }
 
-  // Subscription rungs: eligibility, then quota score, then static order; Haiku always ends the list.
+  // Subscription rungs: eligibility, then usage pace; Haiku always ends the list.
   const restricted = definition && (definition.tools !== undefined || Boolean(definition.disallowedTools?.length))
   const repo = restricted ? undefined : await publicCodeRepo($, e)
   const table = await loadExecutorTable($)
@@ -534,7 +534,13 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
   event.skipped = skipped
   for (const r of rows) {
     const s = scores[r.id]
-    event.scores[r.id] = s ? { score: s.score ?? null, exhausted: s.exhausted, effective: ranked.effective[r.id] ?? null } : null
+    event.scores[r.id] = {
+      score: s?.score ?? null,
+      exhausted: s?.exhausted ?? false,
+      effective: ranked.effective[r.id] ?? null,
+      used: s?.used ?? null,
+      line: s?.line === undefined ? null : Number(s.line.toFixed(1)),
+    }
   }
   const tools = await sandboxTools($)
   for (const executor of ranked.order) {

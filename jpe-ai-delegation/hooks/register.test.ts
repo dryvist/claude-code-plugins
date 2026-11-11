@@ -180,8 +180,18 @@ describe('custom agent tool authority', () => {
     test(`YAML model escapes preserve inherited routing: ${model}`, async () => {
       for (const quota of [0, 1]) {
         const w = world({ quota, definition: `---\nmodel: ${model}\n---\nImplement the requested change.` })
-        expect(text(await w.agent({ ...coding, subagent_type: 'worker' }))).toContain('routed: zcode-job sandbox')
-        expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(true)
+        const result = text(await w.agent({ ...coding, subagent_type: 'worker' }))
+        const event = routeEvents(w).at(-1)
+        expect(event.eligible).toContain('zcode')
+        if (quota === 0) {
+          expect(result).toContain('codex luna xhigh')
+          expect(event.chosen).toBe('codex')
+          expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
+        } else {
+          expect(result).toContain('routed: zcode-job sandbox')
+          expect(event.chosen).toBe('zcode')
+          expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(true)
+        }
       }
     })
   }
@@ -337,8 +347,18 @@ describe('custom agent tool authority', () => {
   test('omitting tools keeps unrestricted sandbox eligibility at every quota', async () => {
     for (const quota of [0, 1]) {
       const w = world({ quota, definition: '---\nmodel: haiku\n---\nImplement the requested change.' })
-      expect(text(await w.agent({ ...coding, subagent_type: 'worker' }))).toContain('routed: zcode-job sandbox')
-      expect(w.calls.find((c) => c.argv[0] === 'zcode-job')?.argv.slice(0, 3)).toEqual(['zcode-job', 'start', 'owner/project'])
+      const result = text(await w.agent({ ...coding, subagent_type: 'worker' }))
+      const event = routeEvents(w).at(-1)
+      expect(event.eligible).toContain('zcode')
+      if (quota === 0) {
+        expect(result).toContain('codex luna xhigh')
+        expect(event.chosen).toBe('codex')
+        expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
+      } else {
+        expect(result).toContain('routed: zcode-job sandbox')
+        expect(event.chosen).toBe('zcode')
+        expect(w.calls.find((c) => c.argv[0] === 'zcode-job')?.argv.slice(0, 3)).toEqual(['zcode-job', 'start', 'owner/project'])
+      }
     }
   })
   for (const model of ['sonnet', 'opus', 'fable', 'inherit', undefined]) {
@@ -450,11 +470,13 @@ describe('Codex rung', () => {
       expect(runs(w)[0].argv).not.toContain('workspace-write')
     })
   }
-  test('tagged public coding takes the sandbox rung before Codex', async () => {
+  test('known at-pace Codex ranks ahead of unknown sandboxes for tagged public coding', async () => {
     const w = world()
-    expect(text(await w.agent(coding))).toContain('routed: zcode-job sandbox')
-    expect(runs(w)).toEqual([])
-    expect(w.fetches.map((f) => f.url)).toEqual(['https://api.github.com/repos/owner/project', 'https://api.github.com/repos/owner/project/pulls/12'])
+    expect(text(await w.agent(coding))).toContain('codex luna xhigh')
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'codex', eligible: ['zcode', 'opencode-go', 'codex', 'cursor', 'haiku'], scores: { codex: { used: 50, line: 50 } } })
+    expect(runs(w)).toHaveLength(2)
+    expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
+    expect(w.fetches.map((f) => f.url)).toEqual(['https://api.github.com/repos/owner/project'])
   })
   test('untagged public work still classifies onto Codex Luna', async () => {
     const w = world({ env: gateways })
@@ -506,7 +528,7 @@ describe('Codex rung', () => {
     test(`unknown quota keeps the static order and still tries Codex: ${JSON.stringify(options)}`, async () => {
       const w = world(options)
       expect(text(await w.agent())).toContain('codex luna xhigh')
-      expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'codex', scores: { codex: null } })
+      expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'codex', scores: { codex: { used: null, line: null } } })
     })
   }
 })
@@ -736,7 +758,7 @@ describe('judge and session policy', () => {
       const policy = r.sections[0].text
       expect(policy).not.toContain('Check codex-quota first')
       expect(policy).toStartWith(`codex-quota: ${status}\nThe jpe-ai-delegation hook places every Agent spawn.`)
-      for (const fragment of ['Tag self-contained text work [class: text]', 'put all of its text in the prompt', 'on-host local model first', 'ranked by quota', 'non-sensitive coding tagged [task: code] [repo: owner/repository] in a public repository', 'ready PR labelled human:review', 'leak-scan it before merge', 'never auto-merge', 'Codex Luna takes any task', 'never Terra', 'Haiku xhigh is always last', 'Nothing stops because an executor is unavailable', 'Never Sonnet, Opus or Fable subagents', 'Never send secrets, credentials, inventory or incident content to any executor', 'Antigravity stays a second-opinion reviewer']) expect(policy).toContain(fragment)
+      for (const fragment of ['Tag self-contained text work [class: text]', 'put all of its text in the prompt', 'on-host local model first', 'ranked by usage pace', 'non-sensitive coding tagged [task: code] [repo: owner/repository] in a public repository', 'ready PR labelled human:review', 'leak-scan it before merge', 'never auto-merge', 'Codex Luna takes any task', 'never Terra', 'Haiku xhigh is always last', 'Nothing stops because an executor is unavailable', 'Never Sonnet, Opus or Fable subagents', 'Never send secrets, credentials, inventory or incident content to any executor', 'Antigravity stays a second-opinion reviewer']) expect(policy).toContain(fragment)
     })
   }
 })
@@ -749,20 +771,20 @@ describe('scoring and eligibility policy', () => {
   })
   test('score is unused-at-pace per hour left, the binding window wins, 95% excludes', () => {
     const at = (used: number) => ({ used_percent: used, window_seconds: 2000, reset_at: 2000 })
-    expect(scoreWindows([at(50)], 1000)).toEqual({ score: 0, exhausted: false })
+    expect(scoreWindows([at(50)], 1000)).toMatchObject({ score: 0, exhausted: false })
     expect(Math.round(scoreWindows([at(10)], 1000).score)).toBe(80)
     expect(Math.round(scoreWindows([at(10), at(40)], 1000).score)).toBe(20)
-    expect(scoreWindows([at(95)], 1000)).toEqual({ exhausted: true })
-    expect(scoreWindows([{ ...at(99), reset_at: 900 }], 1000)).toEqual({ score: undefined, exhausted: false })
+    expect(scoreWindows([at(95)], 1000)).toMatchObject({ exhausted: true })
+    expect(scoreWindows([{ ...at(99), reset_at: 900 }], 1000)).toMatchObject({ score: undefined, exhausted: false })
     expect(scoreWindows([{ used_percent: '10' }], 1000)).toEqual({ score: undefined, exhausted: false })
     expect(scoreWindows(undefined, 1000)).toEqual({ score: undefined, exhausted: false })
   })
-  test('positive known scores lead; unknown and non-positive keep static order; exhausted drop', () => {
+  test('known under-line scores lead; unknown rows keep static order; exhausted drop', () => {
     const rows = EXECUTOR_TABLE.slice(0, 3)
     const offPeak = Date.parse('2026-11-14T12:00:00Z')
     expect(rankRows(rows, {}, offPeak).order).toEqual(['zcode', 'opencode-go', 'codex'])
-    expect(rankRows(rows, { codex: { score: 3, exhausted: false } }, offPeak).order).toEqual(['codex', 'zcode', 'opencode-go'])
-    expect(rankRows(rows, { codex: { score: 0, exhausted: false } }, offPeak).order).toEqual(['zcode', 'opencode-go', 'codex'])
+    expect(rankRows(rows, { codex: { score: 3, exhausted: false, used: 10, line: 50, distance: 40 } }, offPeak).order).toEqual(['codex', 'zcode', 'opencode-go'])
+    expect(rankRows(rows, { codex: { score: 0, exhausted: false, used: 50, line: 50, distance: 0 } }, offPeak).order).toEqual(['codex', 'zcode', 'opencode-go'])
     expect(rankRows(rows, { zcode: { exhausted: true } }, offPeak).order).toEqual(['opencode-go', 'codex'])
   })
   test('local fit: marked text only, smallest alias with 40% headroom', () => {
@@ -775,6 +797,72 @@ describe('scoring and eligibility policy', () => {
     expect(pickLocal(estimateTokens('a'.repeat(140_000)), windows)?.alias).toBe('local-only')
     expect(pickLocal(estimateTokens('a'.repeat(700_000)), windows)).toBeUndefined()
     expect(pickLocal(100, {})).toBeUndefined()
+  })
+})
+
+describe('usage pace ranking', () => {
+  const now = Date.parse('2026-11-14T12:00:00Z')
+  const atDistance = (distance: number) => ({ exhausted: false, used: 50 - distance, line: 50, distance })
+
+  test('an under-line executor ranks ahead of an over-line executor', () => {
+    const rows = [EXECUTOR_TABLE[0], EXECUTOR_TABLE[2]]
+    const scores = { zcode: atDistance(-1), codex: atDistance(1) }
+    expect(rankRows(rows, scores, now).order).toEqual(['codex', 'zcode'])
+  })
+  test('under-line executors rank by distance descending and ties keep table order', () => {
+    const rows = [EXECUTOR_TABLE[0], EXECUTOR_TABLE[2], EXECUTOR_TABLE[3]]
+    const scores = { zcode: atDistance(10), codex: atDistance(30), cursor: atDistance(30) }
+    expect(rankRows(rows, scores, now).order).toEqual(['codex', 'cursor', 'zcode'])
+  })
+  test('all over-line executors rank with the least over first', () => {
+    const rows = [EXECUTOR_TABLE[0], EXECUTOR_TABLE[2], EXECUTOR_TABLE[3]]
+    const scores = { zcode: atDistance(-30), codex: atDistance(-5), cursor: atDistance(-10) }
+    expect(rankRows(rows, scores, now).order).toEqual(['codex', 'cursor', 'zcode'])
+  })
+  test('unknown executors stay between known under-line and over-line executors', () => {
+    const rows = [EXECUTOR_TABLE[0], EXECUTOR_TABLE[1], EXECUTOR_TABLE[2]]
+    const scores = { zcode: atDistance(-1), codex: atDistance(1) }
+    expect(rankRows(rows, scores, now).order).toEqual(['codex', 'opencode-go', 'zcode'])
+  })
+  test('the line reaches 100 at the one-day margin for a long window', () => {
+    const day = 86_400
+    const reset = 10 * day
+    expect(scoreWindows([{ used_percent: 30, window_seconds: 3 * day, reset_at: reset }], reset - day)).toMatchObject({ used: 30, line: 100, distance: 70 })
+  })
+  test('a short window has no margin', () => {
+    const day = 86_400
+    const reset = 2 * day
+    const window = { used_percent: 10, window_seconds: day, reset_at: reset }
+    expect(scoreWindows([window], reset - day / 2)).toMatchObject({ used: 10, line: 50, distance: 40 })
+    expect(scoreWindows([window], reset - day - 10).line).toBe(0)
+    expect(scoreWindows([window], reset + 10).line).toBe(100)
+  })
+  test('multiple windows use the smallest distance', () => {
+    const day = 86_400
+    const nowSeconds = 10 * day
+    const result = scoreWindows([
+      { used_percent: 10, window_seconds: day, reset_at: nowSeconds + day / 2 },
+      { used_percent: 70, window_seconds: 3 * day, reset_at: nowSeconds + 3 * day / 2 },
+    ], nowSeconds)
+    expect(result).toMatchObject({ used: 70, line: 75, distance: 5 })
+  })
+  test('the chosen executor route line records numeric used and one-decimal line', async () => {
+    const w = world({ codexWindows: [{ kind: 'short', used_percent: 10, window_seconds: 3600, reset_at: 3600 }] })
+    await w.agent({ description: '[class: standard]' })
+    const event = routeEvents(w).at(-1)
+    expect(event.chosen).toBe('codex')
+    expect(event.scores.codex).toMatchObject({ used: 10, line: 27.8 })
+    expect(typeof event.scores.codex.used).toBe('number')
+    expect(typeof event.scores.codex.line).toBe('number')
+  })
+  test('no readings keep today’s table order and record unknown values', async () => {
+    expect(rankRows(EXECUTOR_TABLE, {}, now).order).toEqual(EXECUTOR_TABLE.map((row) => row.id))
+    const w = world({ quotaUrl: null })
+    await w.agent(coding)
+    const event = routeEvents(w).at(-1)
+    expect(event.eligible).toEqual([...EXECUTOR_TABLE.map((row) => row.id), LAST_RESORT.model])
+    expect(event.chosen).toBe(EXECUTOR_TABLE[0].id)
+    for (const row of EXECUTOR_TABLE) expect(event.scores[row.id]).toMatchObject({ used: null, line: null })
   })
 })
 
@@ -863,7 +951,7 @@ describe('routing batch', () => {
   test('a quota read that throws leaves quota unknown and keeps the static order', async () => {
     const w = world({ quotaThrows: true, env: gateways })
     expect(text(await w.agent(coding))).toContain('[routed: zcode-job sandbox;')
-    expect(routeEvents(w).at(-1)).toMatchObject({ scores: { zcode: null, 'opencode-go': null, codex: null } })
+    expect(routeEvents(w).at(-1)).toMatchObject({ scores: { zcode: { used: null, line: null }, 'opencode-go': { used: null, line: null }, codex: { used: null, line: null } } })
   })
   test('quota is read once per session and refreshed in the background after ten minutes', async () => {
     const w = world({ quota: 1, env: gateways })
@@ -957,20 +1045,20 @@ describe('quota from the metrics store', () => {
     expect(text(await w.agent())).toContain('codex luna xhigh')
     expect(w.quotaFetches).toEqual([])
     expect(w.fetches).toEqual([])
-    expect(routeEvents(w).at(-1)).toMatchObject({ scores: { codex: null }, quota_unknown: { codex: 'quota_unconfigured', cursor: 'quota_unconfigured' } })
+    expect(routeEvents(w).at(-1)).toMatchObject({ scores: { codex: { used: null, line: null } }, quota_unknown: { codex: 'quota_unconfigured', cursor: 'quota_unconfigured' } })
   })
   for (const [name, options] of unknownCases.slice(1)) {
     test(`${name}: every quota is unknown as quota_unreachable and Codex is still tried`, async () => {
       const w = world({ ...options, env: gateways })
       expect(text(await w.agent())).toContain('codex luna xhigh')
       expect(w.quotaFetches).toEqual([QUERY_URL])
-      expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'codex', scores: { codex: null }, quota_unknown: { codex: 'quota_unreachable', cursor: 'quota_unreachable' } })
+      expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'codex', scores: { codex: { used: null, line: null } }, quota_unknown: { codex: 'quota_unreachable', cursor: 'quota_unreachable' } })
     })
   }
   test('a stale sample in the store reads as quota_stale, never as a score', async () => {
     const w = world({ quotaSampleAge: 901, env: gateways })
     await w.agent()
-    expect(routeEvents(w).at(-1)).toMatchObject({ scores: { codex: null }, quota_unknown: { 'codex/weekly': 'quota_stale', cursor: 'quota_missing' } })
+    expect(routeEvents(w).at(-1)).toMatchObject({ scores: { codex: { used: null, line: null } }, quota_unknown: { 'codex/weekly': 'quota_stale', cursor: 'quota_missing' } })
   })
   test('staleness is judged on the clock at routing time, not when the sample was read', async () => {
     const w = world({ now: RECORDED_NOW_MS, quotaText: JSON.stringify(recorded()) })
@@ -981,7 +1069,7 @@ describe('quota from the metrics store', () => {
     await w.agent()
     const event = routeEvents(w).at(-1)
     expect(event.quota_unknown).toEqual({ 'codex/five_hour': 'quota_stale', 'codex/weekly': 'quota_stale' })
-    expect(event.scores.codex).toBeNull()
+    expect(event.scores.codex).toMatchObject({ used: null, line: null })
     expect(w.quotaFetches).toHaveLength(2)
   })
   test('placeholder-free: no unknown quota is ever scored as empty or full', async () => {
@@ -989,7 +1077,7 @@ describe('quota from the metrics store', () => {
       const w = world({ ...options, env: gateways, cursorWindows: [{ used_percent: 10, window_seconds: 2000, reset_at: 2000 }] })
       await w.agent(coding)
       const { scores } = routeEvents(w).at(-1)
-      for (const id of ids) expect(scores[id]).toBeNull()
+      for (const id of ids) expect(scores[id]).toMatchObject({ used: null, line: null })
     }
     const full = world({ quota: 1, env: gateways })
     await full.agent()
@@ -1019,13 +1107,13 @@ describe('cursor executor', () => {
     expect(w.nextCalls).toEqual([])
     expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'cursor', fell_through_from: ['zcode', 'opencode-go'] })
   })
-  test('Codex and Cursor both fail: Haiku, with both in fell_through_from', async () => {
+  test('Codex fails before unknown executors and Haiku remains last', async () => {
     const w = world({ codexExit: 7, zcodeAvailable: false, env: gateways })
     await w.agent(coding)
     expect(w.nextCalls[0]).toMatchObject({ model: 'haiku', effort: 'xhigh' })
-    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'haiku', fell_through_from: ['zcode', 'opencode-go', 'codex', 'cursor'] })
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'haiku', fell_through_from: ['codex', 'zcode', 'opencode-go', 'cursor'], scores: { codex: { used: 50, line: 50 } } })
   })
-  test('Cursor runs after Codex in the static order', async () => {
+  test('at-pace Codex ranks before unknown Cursor', async () => {
     const w = world({ env: { ...gateways, AGENT_ROUTE_ZCODE_TOOLS: 'cursor-agent' } })
     expect(text(await w.agent(coding))).toContain('codex luna')
     expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
@@ -1041,7 +1129,7 @@ describe('cursor executor', () => {
   test('a failed Cursor quota row leaves its score unknown', async () => {
     const w = world({ quota: 1, env: gateways })
     await w.agent(coding)
-    expect(routeEvents(w).at(-1).scores.cursor).toBeNull()
+    expect(routeEvents(w).at(-1).scores.cursor).toMatchObject({ used: null, line: null })
   })
   test('private repositories never reach the Cursor sandbox', async () => {
     const w = world({ quota: 1, env: gateways, repository: { visibility: 'private', private: true }, cursorWindows: at(10) })
@@ -1091,15 +1179,20 @@ describe('executor table', () => {
     expect(peakMultiplier(zcode, Date.parse('2026-11-14T07:30:00Z'))).toBe(1)
     expect(peakMultiplier(EXECUTOR_TABLE[2], Date.parse('2026-11-09T07:30:00Z'))).toBe(1)
   })
-  test('rank: promotions first, then headroom / (price x peak), exhausted rows skipped', () => {
+  test('rank: promotions first, then usage pace, exhausted rows skipped', () => {
     const rows = mergeExecutorRows(EXECUTOR_TABLE, [{ id: 'opencode-go', price: 2 }, { ...promo, expires: '2030-01-01T00:00:00Z' }]).rows
     const peakMonday = Date.parse('2026-11-09T07:30:00Z')
-    const scores = { zcode: { score: 10, exhausted: false }, 'opencode-go': { score: 10, exhausted: false }, codex: { score: 8, exhausted: false }, cursor: { exhausted: true } }
+    const scores = {
+      zcode: { score: 10, exhausted: false, used: 51, line: 50, distance: -1 },
+      'opencode-go': { score: 10, exhausted: false, used: 50, line: 50, distance: 0 },
+      codex: { score: 8, exhausted: false, used: 10, line: 50, distance: 40 },
+      cursor: { exhausted: true },
+    }
     const r = rankRows(rows, scores, peakMonday)
-    expect(r.order).toEqual(['promo-free', 'codex', 'zcode', 'opencode-go'])
+    expect(r.order).toEqual(['promo-free', 'codex', 'opencode-go', 'zcode'])
     expect(r.effective).toMatchObject({ zcode: 5, 'opencode-go': 5, codex: 8 })
     expect(r.skipped).toEqual({ cursor: 'exhausted' })
-    expect(rankRows(rows, scores, Date.parse('2026-11-14T07:30:00Z')).order).toEqual(['promo-free', 'zcode', 'codex', 'opencode-go'])
+    expect(rankRows(rows, scores, Date.parse('2026-11-14T07:30:00Z')).order).toEqual(['promo-free', 'codex', 'opencode-go', 'zcode'])
   })
   test('an override promotion sorts first for public code while it lasts', async () => {
     const w = world({ quota: 1, env: gateways, files: { [OVERRIDE]: JSON.stringify([{ ...promo, expires: '2030-01-01T00:00:00Z' }]) } })

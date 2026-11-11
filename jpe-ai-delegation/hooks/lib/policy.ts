@@ -253,28 +253,42 @@ export function quotaFromMetrics(result: readonly unknown[], ids: readonly strin
   }
   return read
 }
-export type Score = { score?: number; exhausted: boolean }
+export type Score = { score?: number; exhausted: boolean; used?: number; line?: number; distance?: number }
+// Use a one-day margin for windows of two days or longer and zero for shorter windows.
+const PACE_LONG_WINDOW_MARGIN_SECONDS = 86_400
+const PACE_SHORT_WINDOW_MARGIN_SECONDS = 0
 // Quota that would expire unused at the current pace, per hour left in its window. The binding window (lowest score)
 // decides; any live window at 95% or more excludes the executor. No usable window leaves the score unknown.
 export function scoreWindows(windows: QuotaWindow[] | undefined, nowSeconds: number): Score {
   let score: number | undefined
+  let exhausted = false
+  let pace: Pick<Score, 'used' | 'line' | 'distance'> | undefined
   for (const w of windows ?? []) {
     const { used_percent: used, window_seconds: duration, reset_at: reset } = w
+    if (typeof used === 'number' && Number.isFinite(used) && typeof duration === 'number' && Number.isFinite(duration) && duration > 0 &&
+      typeof reset === 'number' && Number.isFinite(reset) && Number.isFinite(nowSeconds)) {
+      const margin = duration >= 2 * PACE_LONG_WINDOW_MARGIN_SECONDS ? PACE_LONG_WINDOW_MARGIN_SECONDS : PACE_SHORT_WINDOW_MARGIN_SECONDS
+      const start = reset - duration
+      const end = reset - margin
+      const line = nowSeconds >= end ? 100 : nowSeconds <= start ? 0 : ((nowSeconds - start) / (end - start)) * 100
+      const distance = line - used
+      if (!pace || distance < pace.distance!) pace = { used, line, distance }
+    }
     if (typeof used !== 'number' || typeof duration !== 'number' || typeof reset !== 'number' || duration <= 0) continue
     const remaining = reset - nowSeconds
     if (remaining <= 0 || remaining > duration) continue
-    if (used >= 95) return { exhausted: true }
+    if (used >= 95) { exhausted = true; continue }
     const elapsed = duration - remaining
     if (elapsed <= 0) continue
     const unused = 100 - used - (used / elapsed) * remaining
     const s = unused / Math.max(remaining / 3600, 1)
     score = score === undefined ? s : Math.min(score, s)
   }
-  return { score, exhausted: false }
+  return { score: exhausted ? undefined : score, exhausted, ...pace }
 }
 
-// Unexpired promotions first, then positive effective scores (headroom / (price x peak)), highest first; everything else
-// keeps table order. Exhausted rows drop out and are named in `skipped`.
+// Unexpired promotions first; under-line and over-line rows sort by distance, with unknown rows in table order.
+// Exhausted rows drop out and are named in `skipped`.
 export function rankRows(rows: readonly ExecutorRow[], scores: Partial<Record<Executor, Score>>, nowMs: number): { order: Executor[]; skipped: Record<Executor, SkipReason>; effective: Record<Executor, number | null> } {
   const skipped: Record<Executor, SkipReason> = {}
   const effective: Record<Executor, number | null> = {}
@@ -285,7 +299,18 @@ export function rankRows(rows: readonly ExecutorRow[], scores: Partial<Record<Ex
     return true
   })
   const promos = open.filter((r) => r.kind === 'promotion')
-  const positive = open.filter((r) => r.kind !== 'promotion' && (effective[r.id] ?? 0) > 0).sort((a, b) => effective[b.id]! - effective[a.id]!)
-  const rest = open.filter((r) => !promos.includes(r) && !positive.includes(r))
-  return { order: [...promos, ...positive, ...rest].map((r) => r.id), skipped, effective }
+  const regular = open.filter((r) => r.kind !== 'promotion')
+  const tableIndex = new Map(rows.map((r, index) => [r.id, index]))
+  const orderByPace = (group: ExecutorRow[]): ExecutorRow[] => {
+    const distance = (r: ExecutorRow): number | undefined => {
+      const value = scores[r.id]?.distance
+      return typeof value === 'number' && Number.isFinite(value) ? value : undefined
+    }
+    const compareDistance = (a: ExecutorRow, b: ExecutorRow): number => distance(b)! - distance(a)! || tableIndex.get(a.id)! - tableIndex.get(b.id)!
+    const under = group.filter((r) => distance(r) !== undefined && distance(r)! >= 0).sort(compareDistance)
+    const unknown = group.filter((r) => distance(r) === undefined)
+    const over = group.filter((r) => distance(r) !== undefined && distance(r)! < 0).sort(compareDistance)
+    return [...under, ...unknown, ...over]
+  }
+  return { order: [...orderByPace(promos), ...orderByPace(regular)].map((r) => r.id), skipped, effective }
 }
