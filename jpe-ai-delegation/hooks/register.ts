@@ -337,7 +337,8 @@ async function sandboxTools($: Engine): Promise<string[] | undefined> {
 
 // No result only before dispatch (zcode-job not installed); after dispatch it returns the PR or a FAIL result. `accepted`
 // is true once the dispatcher's answer names a job, so a FAIL without it means receipt is unverified.
-type SandboxRun = { result?: unknown; accepted: boolean }
+// `unconfirmed` is true when the dispatch call threw or timed out, so whether the job was submitted is unknown.
+type SandboxRun = { result?: unknown; accepted: boolean; unconfirmed?: boolean }
 async function runSandboxExecutor($: Engine, e: AgentCall, repo: string, tool: string): Promise<SandboxRun> {
   const started = await $.clock.now()
   try {
@@ -348,10 +349,12 @@ async function runSandboxExecutor($: Engine, e: AgentCall, repo: string, tool: s
   }
   const name = SANDBOX_NAMES[tool] ?? `${tool} sandbox`
   let accepted = false
+  let answered = false
   try {
     const prompt = `${e.prompt}\n\nReturn a ready PR labelled human:review. Never auto-merge. The trusted lead must leak-scan the PR before merge.`
     const argv = tool === 'zcode' ? ['zcode-job', 'start', repo, prompt] : ['zcode-job', 'start', '--tool', tool, repo, prompt]
     const response = await $.process.run(argv, { timeoutMs: 300_000 })
+    answered = true
     const line = response.stdout.replace(/\r?\n$/, '')
     accepted = response.isStdoutTruncated !== true && /^(?:DONE|FAIL)\|j-[0-9a-f]{16}\|/.test(line)
     const done = line.match(/^DONE\|(j-[0-9a-f]{16})\|(https:\/\/github\.com\/([A-Za-z0-9-]+\/[A-Za-z0-9._-]+)\/pull\/(\d+))$/)
@@ -362,7 +365,7 @@ async function runSandboxExecutor($: Engine, e: AgentCall, repo: string, tool: s
     return { accepted, result: routedResult(e, `ai-delegation-${tool}`, line, `[routed: ${name}; leak-scan before merge; never auto-merge]`, (await $.clock.now()) - started) }
   } catch {
     // A dispatched job may still be running. Do not start a duplicate executor.
-    return { accepted, result: failure(e, `${tool} dispatch or PR verification failed; inspect the job before retrying`) }
+    return { accepted, unconfirmed: !answered, result: failure(e, `${tool} dispatch or PR verification failed; inspect the job before retrying`) }
   }
 }
 
@@ -531,6 +534,7 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
     const row = rows.find((r) => r.id === executor)!
     let result: unknown | undefined
     let unaccepted = false
+    let unconfirmed = false
     if (row.transport === 'codex') {
       result = await runCodexRung($, e, customSandbox)
       if (!result) skipped[executor] = 'failed'
@@ -539,7 +543,8 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
     } else {
       const run = await runSandboxExecutor($, e, repo, row.tool!)
       result = run.result
-      unaccepted = Boolean(result) && !run.accepted
+      unconfirmed = Boolean(result) && run.unconfirmed === true
+      unaccepted = Boolean(result) && !run.accepted && !unconfirmed
       if (!result) skipped[executor] = 'not_installed'
     }
     if (result) {
@@ -547,7 +552,9 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
       // executor as `chosen`, with that reason. `stopped` means no executor is known to have received it, as when the
       // dispatch failed before the dispatcher named a job.
       const unverified = (result as { result?: { agentId?: string } }).result?.agentId === 'ai-delegation-policy'
-      if (unaccepted) await logRoute($, event, 'stopped', `${executor} dispatch failed before the job was accepted`)
+      // A dispatch call that threw or timed out may have submitted the job: it is neither a refusal nor a stop.
+      if (unconfirmed) await logRoute($, event, executor, 'dispatch-unconfirmed')
+      else if (unaccepted) await logRoute($, event, 'stopped', `${executor} dispatch failed before the job was accepted`)
       else await logRoute($, event, executor, unverified ? 'sandbox job without a verified PR' : 'highest-ranked eligible executor that answered')
       return result
     }

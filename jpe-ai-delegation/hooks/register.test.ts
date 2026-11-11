@@ -664,9 +664,12 @@ describe('capped ladder', () => {
     test(`dispatched zcode must yield a verified ready PR: ${JSON.stringify(options)}`, async () => {
       const w = world({ quota: 1, env: gateways, ...options })
       expect(text(await w.agent(coding))).toStartWith('FAIL | router |')
-      // Output that names no job (truncated, or the start itself threw) means receipt is unverified: the line says stopped.
-      const accepted = !('zcodeTruncated' in options) && !('zcodeThrows' in options)
-      expect(routeEvents(w).at(-1)).toMatchObject(accepted ? { chosen: 'zcode', reason: 'sandbox job without a verified PR' } : { chosen: 'stopped', reason: 'zcode dispatch failed before the job was accepted' })
+      // Output that names no job (truncated) means receipt is unverified: the line says stopped. A start call that threw
+      // may have submitted the job, so its line names the executor with dispatch-unconfirmed, never stopped.
+      const expected = 'zcodeThrows' in options ? { chosen: 'zcode', reason: 'dispatch-unconfirmed' }
+        : 'zcodeTruncated' in options ? { chosen: 'stopped', reason: 'zcode dispatch failed before the job was accepted' }
+          : { chosen: 'zcode', reason: 'sandbox job without a verified PR' }
+      expect(routeEvents(w).at(-1)).toMatchObject(expected)
       expect(w.fetches.some((f) => f.url.endsWith('/chat/completions'))).toBe(false)
       expect(w.nextCalls).toEqual([])
     })
