@@ -21,7 +21,7 @@ Codex weekly).
      Codex qualifies while `codex-quota` exits 0 (more than 5% left). Never Terra.
      Complicated bulk and mandatory auth, secrets, router, memory and cluster topics take `max` and name `[class: bulk-complex]`.
 3. Other subscriptions where they fit, e.g. OpenCode Go (`zcode-job --tool opencode`) and Z.ai GLM. Public work only,
-   and only while that subscription is at or under its pace for the billing period.
+   preferred while that subscription is at or under its pace for the billing period, tried last when over it.
 4. Haiku `xhigh`, the last resort, only after rungs 1, 2 and 3 are exhausted or do not qualify; even then Haiku runs before the orchestrator works solo.
 
 Never Sonnet, Opus or Fable subagents.
