@@ -48,6 +48,20 @@ async function withTimeout<T>($: Engine, work: Promise<T>, ms: number): Promise<
   }
 }
 
+// The bearer token comes from the file AGENT_QUOTA_TOKEN_FILE names, read at call time and trimmed. It is never kept,
+// placed in the environment or logged. A missing, empty or unreadable file sends no header.
+async function quotaHeaders($: Engine): Promise<Record<string, string>> {
+  const headers: Record<string, string> = { accept: 'application/json' }
+  try {
+    const path = await $.env.get('AGENT_QUOTA_TOKEN_FILE')
+    const token = path && (await $.fs.exists(path)) ? ((await $.fs.read(path)) as string).trim() : ''
+    if (token) headers.Authorization = `Bearer ${token}`
+  } catch {
+    // No readable token: the request goes without one.
+  }
+  return headers
+}
+
 // One instant query to the metrics store named by AGENT_QUOTA_QUERY_URL; the plugin ships no default. Unset makes
 // no request. A failure, timeout, non-OK status or a body that is not a successful vector means unreachable.
 async function readQuota($: Engine): Promise<QuotaFetch> {
@@ -55,7 +69,7 @@ async function readQuota($: Engine): Promise<QuotaFetch> {
   if (!base) return { failure: 'quota_unconfigured' }
   try {
     const url = `${base}/api/v1/query?query=${encodeURIComponent(QUOTA_SELECTOR)}`
-    const response = await withTimeout($, $.http.fetch(url, { method: 'GET', headers: { accept: 'application/json' } }), QUOTA_TIMEOUT_MS)
+    const response = await withTimeout($, $.http.fetch(url, { method: 'GET', headers: await quotaHeaders($) }), QUOTA_TIMEOUT_MS)
     const result = response.ok ? metricsResult(JSON.parse(response.text)) : undefined
     return result ? { result } : { failure: 'quota_unreachable' }
   } catch {

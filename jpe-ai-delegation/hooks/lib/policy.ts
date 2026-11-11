@@ -200,6 +200,7 @@ export type QuotaReason = 'quota_unconfigured' | 'quota_unreachable' | 'quota_mi
 export type QuotaRead = { rows: QuotaRow[]; unknown: Record<string, QuotaReason>; sources: Record<string, string> }
 
 // One instant query reads every executor's windows from the metrics store.
+// The metrics route admits only this exact selector string; change it together with the route or the read is refused.
 export const QUOTA_SELECTOR = '{__name__=~"agent_quota_(used_percent|window_seconds|reset_timestamp_seconds)"}'
 export const QUOTA_STALE_SECONDS = 900
 const QUOTA_FIELDS: Record<string, keyof QuotaWindow> = {
