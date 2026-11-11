@@ -20,6 +20,10 @@
           "gate": "opencode-go"
         },
         {
+          "name": "QwenCloud latest flash",
+          "gate": "qwencloud"
+        },
+        {
           "name": "Haiku xhigh",
           "gate": "always"
         }

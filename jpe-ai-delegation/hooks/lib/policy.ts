@@ -122,6 +122,7 @@ export const EXECUTOR_TABLE: readonly ExecutorRow[] = [
   { id: 'opencode-go', transport: 'sandbox', tool: 'opencode', trust: 'sandbox-public', private_ok: false, price: 1 },
   { id: 'codex', transport: 'codex', trust: 'subscription-trusted', private_ok: true, quota: 'codex', price: 1 },
   { id: 'cursor', transport: 'sandbox', tool: 'cursor-agent', trust: 'sandbox-public', private_ok: false, quota: 'cursor', price: 1 },
+  { id: 'qwencloud', transport: 'sandbox', tool: 'qwen-code', trust: 'sandbox-public', private_ok: false, price: 1 },
 ]
 
 const isPeak = (p: unknown): p is Peak => {

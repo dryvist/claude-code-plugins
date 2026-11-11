@@ -64,6 +64,11 @@ while IFS=$'\t' read -r executor gate; do
     opencode-go)
       [[ -n ${AGENT_ROUTE_OPENCODE_GO_MODEL:-} && ( -n ${LITELLM_LOCAL_BASE_URL:-} || ( -n ${LLM_ROUTER_URL:-} && -r ${LLM_ROUTER_TOKEN_FILE:-} ) ) ]] || continue
       ;;
+    qwencloud)
+      if [[ ${AGENT_ROUTE_QWENCLOUD_AVAILABLE:-} != yes ]]; then
+        [[ ${AGENT_ROUTE_QWENCLOUD_AVAILABLE:-} != no ]] && command -v zcode-job >/dev/null 2>&1 && command -v qwen-code >/dev/null 2>&1 || continue
+      fi
+      ;;
     *) fail 1 'invalid ladder gate' ;;
   esac
 

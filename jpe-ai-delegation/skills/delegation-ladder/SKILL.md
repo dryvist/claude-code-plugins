@@ -20,7 +20,9 @@ Codex weekly).
    - Codex Luna: anything even remotely sensitive, or any private repo. Luna `xhigh` default, `max` as needed.
      Codex qualifies while `codex-quota` exits 0 (more than 5% left). Never Terra.
      Complicated bulk and mandatory auth, secrets, router, memory and cluster topics take `max` and name `[class: bulk-complex]`.
-3. Other subscriptions where they fit, e.g. OpenCode Go (`zcode-job --tool opencode`) and Z.ai GLM. Public work only,
+3. Other subscriptions where they fit, e.g. OpenCode Go (`zcode-job --tool opencode`) and Z.ai GLM. QwenCloud
+   (`zcode-job --tool qwen-code`, latest flash model) is non-ZDR and only takes non-sensitive coding
+   tagged `[task: code] [repo: owner/repository]` in a verified public repository. Public work only,
    preferred while that subscription is at or under its pace for the billing period, tried last when over it.
 4. Haiku `xhigh`, the last resort, only after rungs 1, 2 and 3 are exhausted or do not qualify; even then Haiku runs before the orchestrator works solo.
 
@@ -30,7 +32,7 @@ Antigravity (`agy`) stays a second-opinion reviewer, never an executor.
 
 | Kind | Ladder | Sandbox eligibility | Use |
 | --- | --- | --- | --- |
-| `code` | zcode-job sandbox -> Codex -> Z.ai GLM -> OpenCode Go -> Haiku xhigh | Public coding tasks | Implementation |
+| `code` | zcode-job sandbox -> Codex -> Z.ai GLM -> OpenCode Go -> QwenCloud latest flash -> Haiku xhigh | Public coding tasks | Implementation |
 | `private` | Codex -> Haiku xhigh | Ineligible | Private tasks |
 | `other` | Codex -> Z.ai GLM -> OpenCode Go -> Haiku xhigh | Ineligible | Reads, triage, summaries, review and planning |
 
@@ -79,9 +81,11 @@ decision to `~/.claude/ai-delegation.log`:
    (furthest under), no readings in table order, then over-line by distance (least over).
    Pace line: 0 at start, 100 one day before reset (at reset for <2-day windows); use
    each executor's smallest distance across windows. Effective score (headroom / (price × peak)) is route-line telemetry only, not ranking. The executor table in
-   `hooks/lib/policy.ts` lists ZCode, OpenCode Go, Codex and Cursor, each with
-   transport, trust, `private_ok`, quota executor name, price and peak
-   windows (ZCode costs double Mon–Fri 06:00–10:00 UTC). `~/.config/ai-delegation/executors.json` (a JSON
+   `hooks/lib/policy.ts` lists ZCode, OpenCode Go, Codex, Cursor and QwenCloud with each row's transport, trust,
+   `private_ok` and price. QwenCloud uses `qwen-code` with the latest flash model, is non-ZDR, and is eligible only
+   for non-sensitive coding in verified public repositories. Only Codex and Cursor declare quota names; only ZCode
+   declares a peak window (double cost Mon–Fri 06:00–10:00 UTC); QwenCloud has neither configured.
+   `~/.config/ai-delegation/executors.json` (a JSON
    array of rows) overrides rows by `id` and adds new ones; invalid rows are
    logged and dropped, and only subscription-trusted rows may set
    `private_ok`; a sandbox row is always `sandbox-public` with `private_ok`

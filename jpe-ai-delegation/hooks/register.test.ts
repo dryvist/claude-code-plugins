@@ -473,7 +473,7 @@ describe('Codex rung', () => {
   test('known at-pace Codex ranks ahead of unknown sandboxes for tagged public coding', async () => {
     const w = world()
     expect(text(await w.agent(coding))).toContain('codex luna xhigh')
-    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'codex', eligible: ['zcode', 'opencode-go', 'codex', 'cursor', 'haiku'], scores: { codex: { used: 50, line: 50 } } })
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'codex', eligible: ['zcode', 'opencode-go', 'codex', 'cursor', 'qwencloud', 'haiku'], scores: { codex: { used: 50, line: 50 } } })
     expect(runs(w)).toHaveLength(2)
     expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
     expect(w.fetches.map((f) => f.url)).toEqual(['https://api.github.com/repos/owner/project'])
@@ -765,9 +765,9 @@ describe('judge and session policy', () => {
 
 describe('scoring and eligibility policy', () => {
   test('eligibility: sandbox tools see public code only; Codex sees everything', () => {
-    expect(eligibleRows(EXECUTOR_TABLE, true, 0).rows.map((r) => r.id)).toEqual(['zcode', 'opencode-go', 'codex', 'cursor'])
+    expect(eligibleRows(EXECUTOR_TABLE, true, 0).rows.map((r) => r.id)).toEqual(['zcode', 'opencode-go', 'codex', 'cursor', 'qwencloud'])
     expect(eligibleRows(EXECUTOR_TABLE, false, 0).rows.map((r) => r.id)).toEqual(['codex'])
-    expect(eligibleRows(EXECUTOR_TABLE, false, 0).skipped).toEqual({ zcode: 'ineligible', 'opencode-go': 'ineligible', cursor: 'ineligible' })
+    expect(eligibleRows(EXECUTOR_TABLE, false, 0).skipped).toEqual({ zcode: 'ineligible', 'opencode-go': 'ineligible', cursor: 'ineligible', qwencloud: 'ineligible' })
   })
   test('score is unused-at-pace per hour left, the binding window wins, 95% excludes', () => {
     const at = (used: number) => ({ used_percent: used, window_seconds: 2000, reset_at: 2000 })
@@ -874,9 +874,10 @@ describe('usage pace ranking', () => {
 // The labelled batch: Codex exhausted (quota 1) unless a row says otherwise.
 describe('routing batch', () => {
   test('1: small pasted summary lands on local small', async () => {
-    const w = world({ quota: 1, env: gateways })
+    const w = world({ quota: 1, env: { ...gateways, AGENT_ROUTE_ZCODE_TOOLS: 'qwen-code' } })
     expect(text(await w.agent({ description: '[class: text]', prompt: `Summarize: ${'a'.repeat(10_000)}` }))).toContain('[routed: local small]')
     expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'local small', local: { alias: 'small' } })
+    expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
   })
   test('2: a 40k-token extraction lands on local-only', async () => {
     const w = world({ quota: 1, env: gateways })
@@ -901,7 +902,7 @@ describe('routing batch', () => {
   test('5: public-repo code with unknown sandbox quota takes ZCode by static order', async () => {
     const w = world({ quota: 1, env: gateways })
     expect(text(await w.agent(coding))).toContain('[routed: zcode-job sandbox;')
-    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'zcode', eligible: ['zcode', 'opencode-go', 'codex', 'cursor', 'haiku'] })
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'zcode', eligible: ['zcode', 'opencode-go', 'codex', 'cursor', 'qwencloud', 'haiku'] })
   })
   test('6: with ZCode disabled, public-repo code takes OpenCode Go', async () => {
     const w = world({ quota: 1, env: { ...gateways, AGENT_ROUTE_ZCODE_TOOLS: 'opencode' } })
@@ -909,12 +910,18 @@ describe('routing batch', () => {
     expect(w.calls.find((c) => c.argv[0] === 'zcode-job')?.argv.slice(0, 5)).toEqual(['zcode-job', 'start', '--tool', 'opencode', 'owner/project'])
     expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'opencode-go', fell_through_from: ['zcode'] })
   })
+  test('6b: QwenCloud uses qwen-code for public code after local and earlier executors', async () => {
+    const w = world({ quota: 1, env: { ...gateways, AGENT_ROUTE_ZCODE_TOOLS: 'qwen-code' } })
+    expect(text(await w.agent(coding))).toContain('[routed: QwenCloud latest flash;')
+    expect(w.calls.find((c) => c.argv[0] === 'zcode-job')?.argv.slice(0, 5)).toEqual(['zcode-job', 'start', '--tool', 'qwen-code', 'owner/project'])
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'qwencloud', eligible: ['zcode', 'opencode-go', 'codex', 'cursor', 'qwencloud', 'haiku'] })
+  })
   test('7: private-repo code with Codex exhausted lands on Haiku, never a sandbox', async () => {
-    const w = world({ quota: 1, env: gateways, repository: { visibility: 'private', private: true } })
+    const w = world({ quota: 1, env: { ...gateways, AGENT_ROUTE_ZCODE_TOOLS: 'qwen-code' }, repository: { visibility: 'private', private: true } })
     await w.agent(coding)
     expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
     expect(w.nextCalls[0]).toMatchObject({ model: 'haiku', effort: 'xhigh' })
-    expect(routeEvents(w).at(-1)).toMatchObject({ eligible: ['codex', 'haiku'], scores: { codex: { exhausted: true } } })
+    expect(routeEvents(w).at(-1)).toMatchObject({ eligible: ['codex', 'haiku'], skipped: { qwencloud: 'ineligible' }, scores: { codex: { exhausted: true } } })
   })
   test('8: private-repo code with Codex quota to spare lands on Codex', async () => {
     const w = world({ env: gateways, repository: { visibility: 'private', private: true }, codexWindows: [{ used_percent: 10, window_seconds: 2000, reset_at: 2000 }] })
@@ -928,10 +935,11 @@ describe('routing batch', () => {
   })
   for (const quota of [0, 1]) {
     test(`9: sensitive public-repo code never reaches a sandbox (quota ${quota})`, async () => {
-      const w = world({ quota, env: gateways })
+      const w = world({ quota, env: { ...gateways, AGENT_ROUTE_ZCODE_TOOLS: 'qwen-code' } })
       const r = await w.agent({ ...coding, prompt: 'Rotate the auth signing key using placeholders.' })
       expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
       expect(w.fetches).toEqual([])
+      expect(routeEvents(w).at(-1).skipped.qwencloud).toBe('ineligible')
       if (quota === 0) expect(text(r)).toContain('codex luna max, class bulk-complex')
       else expect(w.nextCalls[0]).toMatchObject({ model: 'haiku', effort: 'xhigh' })
     })
@@ -1116,7 +1124,7 @@ describe('cursor executor', () => {
     const w = world({ codexExit: 7, zcodeAvailable: false, env: gateways })
     await w.agent(coding)
     expect(w.nextCalls[0]).toMatchObject({ model: 'haiku', effort: 'xhigh' })
-    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'haiku', fell_through_from: ['codex', 'zcode', 'opencode-go', 'cursor'], scores: { codex: { used: 50, line: 50 } } })
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'haiku', fell_through_from: ['codex', 'zcode', 'opencode-go', 'cursor', 'qwencloud'], scores: { codex: { used: 50, line: 50 } } })
   })
   test('at-pace Codex ranks before unknown Cursor', () => {
     const rows = [EXECUTOR_TABLE[3], EXECUTOR_TABLE[2]]
@@ -1129,7 +1137,7 @@ describe('cursor executor', () => {
     expect(routeEvents(lead).at(-1).scores.cursor.exhausted).toBe(false)
     const out = world({ quota: 1, zcodeAvailable: false, env: gateways, cursorWindows: at(100) })
     await out.agent(coding)
-    expect(routeEvents(out).at(-1)).toMatchObject({ chosen: 'haiku', scores: { cursor: { exhausted: true } }, fell_through_from: ['zcode', 'opencode-go'] })
+    expect(routeEvents(out).at(-1)).toMatchObject({ chosen: 'haiku', scores: { cursor: { exhausted: true } }, fell_through_from: ['zcode', 'opencode-go', 'qwencloud'] })
   })
   test('a failed Cursor quota row leaves its score unknown', async () => {
     const w = world({ quota: 1, env: gateways })
@@ -1148,7 +1156,7 @@ describe('executor table', () => {
   const OVERRIDE = '/home/test/.config/ai-delegation/executors.json'
   const promo = { id: 'promo-free', transport: 'sandbox', tool: 'opencode-free', trust: 'sandbox-public', private_ok: false, price: 0, kind: 'promotion' }
   test('the built-in table holds every row and validates', () => {
-    expect(EXECUTOR_TABLE.map((r) => r.id)).toEqual(['zcode', 'opencode-go', 'codex', 'cursor'])
+    expect(EXECUTOR_TABLE.map((r) => r.id)).toEqual(['zcode', 'opencode-go', 'codex', 'cursor', 'qwencloud'])
     expect(EXECUTOR_TABLE.every((r) => validRow(r))).toBe(true)
   })
   test('validation: only subscription-trusted rows may take private work; ids and promotions are strict', () => {
@@ -1167,7 +1175,7 @@ describe('executor table', () => {
     expect(validRow({ ...forged, trust: 'sandbox-public' })).toBeUndefined()
     const { rows, rejected } = mergeExecutorRows(EXECUTOR_TABLE, [forged, { id: 'zcode', trust: 'subscription-trusted', private_ok: true }])
     expect(rejected).toEqual(['sandbox-private', 'zcode'])
-    expect(rows.map((r) => r.id)).toEqual(['zcode', 'opencode-go', 'codex', 'cursor'])
+    expect(rows.map((r) => r.id)).toEqual(['zcode', 'opencode-go', 'codex', 'cursor', 'qwencloud'])
     expect(rows.find((r) => r.id === 'zcode')).toMatchObject({ trust: 'sandbox-public', private_ok: false })
   })
   test('merge: rows override by id, new ids append, invalid rows are rejected by name', () => {
@@ -1194,16 +1202,16 @@ describe('executor table', () => {
       cursor: { exhausted: true },
     }
     const r = rankRows(rows, scores, peakMonday)
-    expect(r.order).toEqual(['promo-free', 'codex', 'opencode-go', 'zcode'])
+    expect(r.order).toEqual(['promo-free', 'codex', 'opencode-go', 'qwencloud', 'zcode'])
     expect(r.effective).toMatchObject({ zcode: 5, 'opencode-go': 5, codex: 8 })
     expect(r.skipped).toEqual({ cursor: 'exhausted' })
-    expect(rankRows(rows, scores, Date.parse('2026-11-14T07:30:00Z')).order).toEqual(['promo-free', 'codex', 'opencode-go', 'zcode'])
+    expect(rankRows(rows, scores, Date.parse('2026-11-14T07:30:00Z')).order).toEqual(['promo-free', 'codex', 'opencode-go', 'qwencloud', 'zcode'])
   })
   test('an override promotion sorts first for public code while it lasts', async () => {
     const w = world({ quota: 1, env: gateways, files: { [OVERRIDE]: JSON.stringify([{ ...promo, expires: '2030-01-01T00:00:00Z' }]) } })
     expect(text(await w.agent(coding))).toContain('[routed: opencode-free sandbox;')
     expect(w.calls.find((c) => c.argv[0] === 'zcode-job')?.argv.slice(0, 5)).toEqual(['zcode-job', 'start', '--tool', 'opencode-free', 'owner/project'])
-    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'promo-free', eligible: ['zcode', 'opencode-go', 'codex', 'cursor', 'promo-free', 'haiku'] })
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'promo-free', eligible: ['zcode', 'opencode-go', 'codex', 'cursor', 'qwencloud', 'promo-free', 'haiku'] })
   })
   test('an expired promotion is skipped with reason expired', async () => {
     const w = world({ quota: 1, env: gateways, files: { [OVERRIDE]: JSON.stringify([{ ...promo, expires: '1969-12-31T00:00:00Z' }]) } })
@@ -1225,7 +1233,7 @@ describe('executor table', () => {
   test('private work with Codex failing: skip reasons name every row', async () => {
     const w = world({ codexExit: 7, env: gateways, repository: { visibility: 'private', private: true } })
     await w.agent(coding)
-    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'haiku', skipped: { zcode: 'ineligible', 'opencode-go': 'ineligible', codex: 'failed', cursor: 'ineligible' } })
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'haiku', skipped: { zcode: 'ineligible', 'opencode-go': 'ineligible', codex: 'failed', cursor: 'ineligible', qwencloud: 'ineligible' } })
   })
   // Haiku is chosen only when every other eligible row is exhausted, failed, expired or not installed.
   for (const [name, options, task] of [

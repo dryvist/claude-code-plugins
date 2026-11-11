@@ -4,9 +4,10 @@ setup() {
   REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
   PATH="$REPO_ROOT/jpe-ai-delegation/scripts:$PATH"
   export PATH
-  unset AGENT_ROUTE_CODEX_QUOTA AGENT_ROUTE_GLM_MODEL AGENT_ROUTE_OPENCODE_GO_MODEL
+  unset AGENT_ROUTE_CODEX_QUOTA AGENT_ROUTE_GLM_MODEL AGENT_ROUTE_OPENCODE_GO_MODEL AGENT_ROUTE_QWENCLOUD_AVAILABLE
   unset LLM_ROUTER_URL LLM_ROUTER_TOKEN_FILE LITELLM_LOCAL_BASE_URL
   export AGENT_ROUTE_ZCODE_AVAILABLE=no
+  export AGENT_ROUTE_QWENCLOUD_AVAILABLE=no
 }
 
 assert_route() {
@@ -32,7 +33,7 @@ assert_route() {
 
 @test "private work never selects zcode or the public-only gateways" {
   assert_route 'Haiku xhigh' exhausted private AGENT_ROUTE_ZCODE_AVAILABLE=yes AGENT_ROUTE_GLM_MODEL=glm AGENT_ROUTE_OPENCODE_GO_MODEL=go LITELLM_LOCAL_BASE_URL=http://localhost
-  run jq -e '.kinds.private.rungs | any(.gate == "sandbox" or .gate == "glm" or .gate == "opencode-go")' "$REPO_ROOT/jpe-ai-delegation/skills/delegation-ladder/ladder.json"
+  run jq -e '.kinds.private.rungs | any(.gate == "sandbox" or .gate == "glm" or .gate == "opencode-go" or .gate == "qwencloud")' "$REPO_ROOT/jpe-ai-delegation/skills/delegation-ladder/ladder.json"
   [ "$status" -eq 1 ]
 }
 
@@ -41,6 +42,15 @@ assert_route() {
   assert_route 'Haiku xhigh' exhausted other AGENT_ROUTE_ZCODE_AVAILABLE=yes
   run jq -e '[.kinds.other.rungs[].name] | any(test("sandbox"))' "$REPO_ROOT/jpe-ai-delegation/skills/delegation-ladder/ladder.json"
   [ "$status" -eq 1 ]
+  run jq -e '.kinds.other.rungs | any(.gate == "qwencloud")' "$REPO_ROOT/jpe-ai-delegation/skills/delegation-ladder/ladder.json"
+  [ "$status" -eq 1 ]
+}
+
+@test "QwenCloud latest flash follows the public coding rungs and stays out of private kinds" {
+  assert_route 'QwenCloud latest flash' exhausted code AGENT_ROUTE_QWENCLOUD_AVAILABLE=yes
+  assert_route 'Haiku xhigh' exhausted private AGENT_ROUTE_QWENCLOUD_AVAILABLE=yes
+  assert_route 'Haiku xhigh' exhausted other AGENT_ROUTE_QWENCLOUD_AVAILABLE=yes
+  [ "$(jq -r '.kinds.code.rungs | map(.name) | join("|")' "$REPO_ROOT/jpe-ai-delegation/skills/delegation-ladder/ladder.json")" = 'zcode-job sandbox|Codex|Z.ai GLM|OpenCode Go|QwenCloud latest flash|Haiku xhigh' ]
 }
 
 @test "GLM then OpenCode Go are eligible for public kinds while capped" {
@@ -50,10 +60,14 @@ assert_route() {
   done
 }
 
+@test "QwenCloud follows earlier public code rungs when their gateways are unavailable" {
+  assert_route 'QwenCloud latest flash' exhausted code AGENT_ROUTE_GLM_MODEL=glm AGENT_ROUTE_OPENCODE_GO_MODEL=go AGENT_ROUTE_QWENCLOUD_AVAILABLE=yes
+}
+
 @test "unconfigured gateways do not qualify, leaving Haiku xhigh last" {
   for kind in code private other; do
     assert_route 'Haiku xhigh' exhausted "$kind"
-    assert_route 'Haiku xhigh' exhausted "$kind" AGENT_ROUTE_ZCODE_AVAILABLE=no AGENT_ROUTE_GLM_MODEL=glm AGENT_ROUTE_OPENCODE_GO_MODEL=go
+    assert_route 'Haiku xhigh' exhausted "$kind" AGENT_ROUTE_ZCODE_AVAILABLE=no AGENT_ROUTE_GLM_MODEL=glm AGENT_ROUTE_OPENCODE_GO_MODEL=go AGENT_ROUTE_QWENCLOUD_AVAILABLE=no
   done
 }
 
