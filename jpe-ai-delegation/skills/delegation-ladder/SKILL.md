@@ -103,8 +103,10 @@ repository, is open and non-draft, and has `human:review`. When a job returns
 no verified PR, the hook reads `zcode-job status <job>` and acts on its `end`
 field. If the job ended without a PR, the task moves to the next eligible
 executor; `fell_through_from` names the sandbox and `skipped` gives `failed`.
-If the job is still running, opened a PR, or has no readable `end`, the handoff
-fails; inspect that job before retrying.
+If the job ended `cancelled`, routing stops for that task: the hook writes its
+outcome line and a route line with reason `sandbox job cancelled`. If the job is
+still running, opened a PR, or has no readable `end`, the handoff fails; inspect
+that job before retrying.
 
 Every `route` line lists its sandbox jobs under `jobs` (`job`, `repo`,
 `executor`, and `started_ms`, the hook's clock just before the start call).

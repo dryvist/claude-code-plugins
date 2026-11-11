@@ -1236,6 +1236,13 @@ describe('sandbox job outcomes', () => {
       expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'zcode', jobs: [{ job: job(1), repo: 'owner/project', executor: 'zcode' }] })
     })
   }
+  test('a cancelled job stops routing for the task, with its outcome and reason logged', async () => {
+    const w = world({ quota: 1, now: NOW, sandboxRuns: failsOnce, jobStatus: { [job(1)]: { state: 'cancelled', end: 'cancelled' } } })
+    expect(text(await w.agent(coding))).toContain(`job ${job(1)} was cancelled; routing stops for this task`)
+    expect(starts(w)).toHaveLength(1)
+    expect(outcomeLines(w)).toEqual([{ ts_ms: NOW, event: 'outcome', job: job(1), repo: 'owner/project', executor: 'zcode', end: 'cancelled', ended_ms: NOW }])
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'zcode', reason: 'sandbox job cancelled', fell_through_from: [] })
+  })
   test('the next sandbox placement records each pending job that has ended, anchored to start plus duration', async () => {
     const w = world({ quota: 1, now: NOW, logTail: [placed(1, NOW - 70 * MIN, 'owner/project', 'zcode', NOW - 80 * MIN), placed(2), placed(3), ended(3, 'pr_opened')],
       jobStatus: { [job(1)]: { end: 'timeout', duration: 600 }, [job(2)]: { state: 'running', end: '' } } })
