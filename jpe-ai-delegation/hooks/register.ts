@@ -49,13 +49,15 @@ async function withTimeout<T>($: Engine, work: Promise<T>, ms: number): Promise<
 }
 
 // The bearer token comes from the file AGENT_QUOTA_TOKEN_FILE names, read at call time and trimmed. It is never kept,
-// placed in the environment or logged. A missing, empty or unreadable file sends no header.
-async function quotaHeaders($: Engine): Promise<Record<string, string>> {
+// placed in the environment or logged. It goes only to an https URL: over http the request goes without it. A missing,
+// empty or unreadable file, or a token holding whitespace or a control character, sends no header and leaves the
+// server's 401 to decide.
+async function quotaHeaders($: Engine, url: string): Promise<Record<string, string>> {
   const headers: Record<string, string> = { accept: 'application/json' }
   try {
-    const path = await $.env.get('AGENT_QUOTA_TOKEN_FILE')
+    const path = url.startsWith('https://') ? await $.env.get('AGENT_QUOTA_TOKEN_FILE') : undefined
     const token = path && (await $.fs.exists(path)) ? ((await $.fs.read(path)) as string).trim() : ''
-    if (token) headers.Authorization = `Bearer ${token}`
+    if (/^[\x21-\x7e]+$/.test(token)) headers.Authorization = `Bearer ${token}`
   } catch {
     // No readable token: the request goes without one.
   }
@@ -69,7 +71,9 @@ async function readQuota($: Engine): Promise<QuotaFetch> {
   if (!base) return { failure: 'quota_unconfigured' }
   try {
     const url = `${base}/api/v1/query?query=${encodeURIComponent(QUOTA_SELECTOR)}`
-    const response = await withTimeout($, $.http.fetch(url, { method: 'GET', headers: await quotaHeaders($) }), QUOTA_TIMEOUT_MS)
+    // The token read runs inside the timed work, so the 3 s budget covers a read that never settles.
+    const request = (async () => $.http.fetch(url, { method: 'GET', headers: await quotaHeaders($, url) }))()
+    const response = await withTimeout($, request, QUOTA_TIMEOUT_MS)
     const result = response.ok ? metricsResult(JSON.parse(response.text)) : undefined
     return result ? { result } : { failure: 'quota_unreachable' }
   } catch {

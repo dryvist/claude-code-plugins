@@ -68,12 +68,13 @@ decision to `~/.claude/ai-delegation.log`:
    `AGENT_QUOTA_QUERY_URL` for the `agent_quota_used_percent`,
    `agent_quota_window_seconds` and `agent_quota_reset_timestamp_seconds`
    series, grouped by `executor` and `window`. The plugin ships no default:
-   unset means every quota is unknown and no request is made. When
-   `AGENT_QUOTA_TOKEN_FILE` names a non-empty file, the request carries
-   `Authorization: Bearer` with its trimmed contents, read at call time and
-   never logged; otherwise it carries no header. The route admits only the
-   exact selector string. The hook reads
-   it once per session with a 3-second timeout and refreshes it in the
+   unset means every quota is unknown and no request is made. When the URL
+   is https and `AGENT_QUOTA_TOKEN_FILE` names a file holding one token (no
+   whitespace or control characters once trimmed), the request carries
+   `Authorization: Bearer` with it, read at call time and never logged;
+   otherwise it carries no header. The route admits only the exact selector
+   string. The hook reads it once per session with a 3-second timeout, which
+   covers the token read, and refreshes it in the
    background every 10 minutes. An unreachable store, a timeout, a non-OK
    status (including 401 and 403) or bad JSON reads as `quota_unreachable`; a window sampled more than
    15 minutes ago reads as `quota_stale`; an executor with no series reads as
