@@ -90,17 +90,31 @@ decision to `~/.claude/ai-delegation.log`:
    transport. `AGENT_ROUTE_ZCODE_TOOLS`, when set, limits which sandbox
    tools run; unset runs every table row's tool. Each `route` line lists
    `skipped` rows with a reason: `ineligible`, `exhausted`, `expired`,
-   `not_installed` or `failed`.
+   `not_installed`, `failed` or `recent_failures`.
 4. Haiku `xhigh` ends every list. A Codex failure, an empty answer or an
    unknown quota moves to the next executor; only forbidden models, prohibited
-   payloads and a dispatched sandbox job without a verified PR stop routing.
+   payloads and a sandbox job that may still open a PR stop routing.
 
 For sandbox coding, put `[task: code] [repo: owner/repository]` in the
 description. A public-repo tag alone does not establish that work is coding.
 The sandbox takes public repositories only; a private repository stays with
 Codex Luna. The hook verifies the returned PR belongs to the requested
-repository, is open and non-draft, and has `human:review`. A job with no PR or
-an unverifiable PR fails the handoff; inspect a dispatched job before retrying.
+repository, is open and non-draft, and has `human:review`. When a job returns
+no verified PR, the hook reads `zcode-job status <job>` and acts on its `end`
+field. If the job ended without a PR, the task moves to the next eligible
+executor; `fell_through_from` names the sandbox and `skipped` gives `failed`.
+If the job is still running, opened a PR, or has no readable `end`, the handoff
+fails; inspect that job before retrying.
+
+Every `route` line lists its sandbox jobs under `jobs` (`job`, `repo`,
+`executor`). At each later placement the hook reads `status` for up to five
+recent jobs that have no outcome yet, within 3 seconds in total. It writes one
+`outcome` line (`job`, `repo`, `executor`, `end`) for each job that has ended.
+The hook keeps no store of its own; it reads these lines back from the decision
+log. An executor is skipped for a repository with reason `recent_failures` when
+two or more of its last three ended jobs there ended `no_commit`, `timeout`,
+`rate_limited` or `refused`. The skip lasts 60 minutes after the newest of those
+failures, or until the end of that UTC hour when it is `rate_limited`.
 The hook never merges. Leak-scan the exact PR head before any human merge.
 
 The permission judge alone uses the GLM and OpenCode Go chat transports, through
