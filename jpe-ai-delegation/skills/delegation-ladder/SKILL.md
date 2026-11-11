@@ -86,11 +86,19 @@ decision to `~/.claude/ai-delegation.log`:
    logged and dropped, and only subscription-trusted rows may set
    `private_ok`; a sandbox row is always `sandbox-public` with `private_ok`
    false. A row with `kind: "promotion"` needs `expires`, sorts first until
-   then, and, like every row, can only use the `codex` or `sandbox`
-   transport. `AGENT_ROUTE_ZCODE_TOOLS`, when set, limits which sandbox
+   then, and, like every row, uses the `codex`, `sandbox` or `router-chat`
+   transport. A `router-chat` row names a router `model` and answers only
+   what the local rung would take (`[class: text]`, never `[task: code]`)
+   through the same `LITELLM_LOCAL_BASE_URL` chat call; it must be
+   subscription-trusted with `private_ok` to see that work. A
+   `billing: "paid"` row is a `router-chat` row with `budget_daily_usd` and
+   `budget_key` (the router key alias); it runs only while
+   `litellm_remaining_api_key_budget_metric` for that alias is fresh and
+   above zero in the quota query result, and that series is not in the
+   result until the quota route admits it. `AGENT_ROUTE_ZCODE_TOOLS`, when set, limits which sandbox
    tools run; unset runs every table row's tool. Each `route` line lists
    `skipped` rows with a reason: `ineligible`, `exhausted`, `expired`,
-   `not_installed` or `failed`.
+   `not_installed`, `failed`, `budget_unknown` or `budget_spent`.
 4. Haiku `xhigh` ends every list. A Codex failure, an empty answer or an
    unknown quota moves to the next executor; only forbidden models, prohibited
    payloads and a dispatched sandbox job without a verified PR stop routing.

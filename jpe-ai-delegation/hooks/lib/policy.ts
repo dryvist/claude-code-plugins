@@ -104,10 +104,16 @@ export function codexArgv(sandbox: Sandbox, route: Route, model: string | undefi
 // overridden or added by id from an operator file; `mergeExecutorRows` validates every row.
 export type Executor = string
 export type Peak = { days: number[]; start_utc: number; end_utc: number; multiplier: number }
+// `router-chat` rows answer self-contained `[class: text]` work through the on-host router's chat endpoint under
+// `model`. A `billing: 'paid'` row is pay-per-use: it declares its daily budget and the router key alias it spends.
 export type ExecutorRow = {
   id: Executor
-  transport: 'codex' | 'sandbox'
+  transport: 'codex' | 'sandbox' | 'router-chat'
   tool?: string
+  model?: string
+  billing?: 'paid'
+  budget_daily_usd?: number
+  budget_key?: string
   trust: 'subscription-trusted' | 'sandbox-public'
   private_ok: boolean
   quota?: string
@@ -134,8 +140,12 @@ const isPeak = (p: unknown): p is Peak => {
 export function validRow(r: unknown): ExecutorRow | undefined {
   const v = r as ExecutorRow
   if (!v || typeof v.id !== 'string' || !/^[a-z0-9-]{1,40}$/.test(v.id) || v.id === 'haiku') return undefined
-  if (v.transport !== 'codex' && v.transport !== 'sandbox') return undefined
+  if (v.transport !== 'codex' && v.transport !== 'sandbox' && v.transport !== 'router-chat') return undefined
   if (v.transport === 'sandbox' && (typeof v.tool !== 'string' || !/^[a-z0-9-]{1,40}$/.test(v.tool))) return undefined
+  if (v.transport === 'router-chat' && (typeof v.model !== 'string' || !/^[A-Za-z0-9._:/-]{1,80}$/.test(v.model))) return undefined
+  if (v.billing !== undefined && v.billing !== 'paid') return undefined
+  if (v.billing === 'paid' && (v.transport !== 'router-chat' || typeof v.budget_daily_usd !== 'number' || !(v.budget_daily_usd > 0) ||
+    typeof v.budget_key !== 'string' || !/^[A-Za-z0-9._-]{1,80}$/.test(v.budget_key))) return undefined
   if (v.trust !== 'subscription-trusted' && v.trust !== 'sandbox-public') return undefined
   if (typeof v.private_ok !== 'boolean' || (v.private_ok && v.trust !== 'subscription-trusted')) return undefined
   if (v.transport === 'sandbox' && (v.trust !== 'sandbox-public' || v.private_ok)) return undefined
@@ -161,13 +171,17 @@ export function mergeExecutorRows(base: readonly ExecutorRow[], override: unknow
   return { rows, rejected }
 }
 
-export type SkipReason = 'ineligible' | 'exhausted' | 'expired' | 'not_installed' | 'failed'
-// Rows that may see this task; private work only reaches `private_ok` rows. Expired promotions drop out.
-export function eligibleRows(rows: readonly ExecutorRow[], publicCode: boolean, nowMs: number): { rows: ExecutorRow[]; skipped: Record<Executor, SkipReason> } {
+export type SkipReason = 'ineligible' | 'exhausted' | 'expired' | 'not_installed' | 'failed' | 'budget_unknown' | 'budget_spent'
+// Rows that may see this task; private work only reaches `private_ok` rows. Expired promotions drop out, and so does a
+// paid row whose remaining budget (by key alias) is unknown or spent.
+export function eligibleRows(rows: readonly ExecutorRow[], publicCode: boolean, nowMs: number, budgets: Record<string, number> = {}): { rows: ExecutorRow[]; skipped: Record<Executor, SkipReason> } {
   const skipped: Record<Executor, SkipReason> = {}
   const open = rows.filter((r) => {
+    const left = r.billing === 'paid' ? budgets[r.budget_key!] : undefined
     if (!publicCode && !r.private_ok) skipped[r.id] = 'ineligible'
     else if (r.kind === 'promotion' && Date.parse(r.expires!) <= nowMs) skipped[r.id] = 'expired'
+    else if (r.billing === 'paid' && left === undefined) skipped[r.id] = 'budget_unknown'
+    else if (r.billing === 'paid' && left! <= 0) skipped[r.id] = 'budget_spent'
     else return true
     return false
   })
@@ -250,6 +264,25 @@ export function quotaFromMetrics(result: readonly unknown[], ids: readonly strin
     if (row.windows.length) read.rows.push(row)
   }
   return read
+}
+
+// Remaining USD per router key alias from the same instant-query result, read from the router's
+// `litellm_remaining_api_key_budget_metric{api_key_alias}`. A key without a fresh, finite sample stays absent: unknown.
+// The quota route admits only QUOTA_SELECTOR today, so these series arrive only once the route owner adds them.
+export function budgetsFromMetrics(result: readonly unknown[], keys: readonly string[], nowSeconds: number): Record<string, number> {
+  const budgets: Record<string, number> = {}
+  const newest: Record<string, number> = {}
+  for (const raw of result) {
+    const { metric, value } = (raw ?? {}) as { metric?: Record<string, unknown>; value?: unknown }
+    const key = metric?.api_key_alias
+    const [at, text] = Array.isArray(value) ? value : []
+    const number = typeof text === 'string' && text.trim() !== '' ? Number(text) : NaN
+    if (metric?.__name__ !== 'litellm_remaining_api_key_budget_metric' || typeof key !== 'string' || !keys.includes(key)) continue
+    if (typeof at !== 'number' || !Number.isFinite(number) || nowSeconds - at > QUOTA_STALE_SECONDS || at <= (newest[key] ?? -Infinity)) continue
+    budgets[key] = number
+    newest[key] = at
+  }
+  return budgets
 }
 export type Score = { score?: number; exhausted: boolean }
 // Quota that would expire unused at the current pace, per hour left in its window. The binding window (lowest score)

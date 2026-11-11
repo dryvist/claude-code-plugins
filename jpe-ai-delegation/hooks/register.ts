@@ -1,5 +1,5 @@
 import type { EngineInterface, Register } from 'claude-code'
-import { CLASSIFIER, CODEX, JUDGE, LAST_RESORT, LOCAL_OUTPUT_TOKENS, QUOTA_SELECTOR, UTILITY, EXECUTOR_TABLE, codexArgv, codingTask, eligibleRows, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, isGenericType, isShellCAsk, localTask, mandatoryLabel, newestModel, mergeExecutorRows, metricsResult, parseVerdict, pickLabel, pickLocal, quotaFromMetrics, rankRows, safePayload, scoreWindows } from './lib/policy'
+import { CLASSIFIER, CODEX, JUDGE, LAST_RESORT, LOCAL_OUTPUT_TOKENS, QUOTA_SELECTOR, UTILITY, EXECUTOR_TABLE, budgetsFromMetrics, codexArgv, codingTask, eligibleRows, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, isGenericType, isShellCAsk, localTask, mandatoryLabel, newestModel, mergeExecutorRows, metricsResult, parseVerdict, pickLabel, pickLocal, quotaFromMetrics, rankRows, safePayload, scoreWindows } from './lib/policy'
 import type { Executor, ExecutorRow, Label, QuotaReason, QuotaRow, Route, Sandbox, Score, SkipReason } from './lib/policy'
 import { customAgentSandbox, parseAgentDefinition } from './lib/agent-definition'
 import type { AgentDefinition } from './lib/agent-definition'
@@ -87,18 +87,19 @@ function rowScore(rows: QuotaRow[], id: string, nowSeconds: number): Score | und
   return score.exhausted || score.score !== undefined ? score : undefined
 }
 
-type QuotaView = { scores: Partial<Record<Executor, Score>>; unknown: Record<string, QuotaReason>; sources: Record<string, string> }
+type QuotaView = { scores: Partial<Record<Executor, Score>>; unknown: Record<string, QuotaReason>; sources: Record<string, string>; budgets: Record<string, number> }
 
 // Scores for table rows that name a quota executor, judged for staleness at this moment. Rows without one stay unknown.
 async function currentQuota($: Engine, table: readonly ExecutorRow[]): Promise<QuotaView> {
   const read = await quotaRows($)
   const now = (await $.clock.now()) / 1000
   const ids = [...new Set(table.flatMap((r) => (r.quota ? [r.quota] : [])))]
-  const view: QuotaView = { scores: {}, unknown: {}, sources: {} }
+  const view: QuotaView = { scores: {}, unknown: {}, sources: {}, budgets: {} }
   if (!read.result) {
     for (const id of ids) view.unknown[id] = read.failure ?? 'quota_unreachable'
     return view
   }
+  view.budgets = budgetsFromMetrics(read.result, table.flatMap((r) => (r.budget_key ? [r.budget_key] : [])), now)
   const adapted = quotaFromMetrics(read.result, ids, now)
   view.unknown = adapted.unknown
   view.sources = adapted.sources
@@ -452,9 +453,12 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
     return next(original as never)
   }
 
+  // Self-contained text work: the only work the local rung and router-chat rows take.
+  const textOnly = !definition && !e.isolation && isGenericType(e) && !['Explore', 'Plan'].includes(e.subagent_type ?? '') && !codingTask(e.description) && localTask(e.description)
+  const base = (await $.env.get('LITELLM_LOCAL_BASE_URL'))?.replace(/\/+$/, '')
+
   // Local rung: small, checkable, self-contained text on an on-host alias.
-  if (!definition && !e.isolation && isGenericType(e) && !['Explore', 'Plan'].includes(e.subagent_type ?? '') && !codingTask(e.description) && localTask(e.description)) {
-    const base = (await $.env.get('LITELLM_LOCAL_BASE_URL'))?.replace(/\/+$/, '')
+  if (textOnly) {
     const estimate = estimateTokens(e.prompt)
     const local = base ? pickLocal(estimate, await localModelWindows($, base)) : undefined
     event.local = { alias: local?.alias ?? null, est_tokens: estimate }
@@ -473,9 +477,9 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
   const repo = restricted ? undefined : await publicCodeRepo($, e)
   const table = await loadExecutorTable($)
   const now = await $.clock.now()
-  const { rows, skipped } = eligibleRows(table, Boolean(repo), now)
   // Every quota executor in the table is reported, so the event shows why an ineligible row's quota is unknown too.
   const quota = await currentQuota($, table)
+  const { rows, skipped } = eligibleRows(table, Boolean(repo), now, quota.budgets)
   const { scores } = quota
   event.quota_unknown = quota.unknown
   event.quota_source = quota.sources
@@ -494,6 +498,11 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
     if (row.transport === 'codex') {
       result = await runCodexRung($, e, customSandbox)
       if (!result) skipped[executor] = 'failed'
+    } else if (row.transport === 'router-chat') {
+      // The local rung's chat call, under the row's router model; never code or tool work.
+      const out = textOnly && base ? await runLocal($, e, base, row.model!, TEXT_EXECUTOR_TIMEOUT_MS) : undefined
+      if (out) result = routedResult(e, 'ai-delegation-router-chat', out, `[routed: router-chat ${row.model}]`, 0)
+      else skipped[executor] = !textOnly ? 'ineligible' : base ? 'failed' : 'not_installed'
     } else if (!repo || (tools && !tools.includes(row.tool!))) {
       skipped[executor] = repo ? 'not_installed' : 'ineligible'
     } else {

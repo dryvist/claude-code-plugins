@@ -3,6 +3,7 @@ import { register } from './register'
 import { CODEX, EXECUTOR_TABLE, LAST_RESORT, codexArgv, eligibleRows, mergeExecutorRows, metricsResult, peakMultiplier, quotaFromMetrics, rankRows, validRow, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, localTask, mandatoryLabel, newestModel, parseVerdict, pickLocal, safePayload, scoreWindows } from './lib/policy'
 import { customAgentSandbox, parseAgentDefinition } from './lib/agent-definition'
 import { RECORDED_QUOTA } from './fixtures/quota-instant-query'
+import { budgetsFromMetrics } from './lib/policy'
 
 const RAN = { exitCode: 0, stdout: '', stderr: '', isStdoutTruncated: false }
 const CACHE = JSON.stringify({ models: [
@@ -1138,4 +1139,75 @@ describe('executor table', () => {
     expect(routeEvents(w).at(-1).chosen).not.toBe('haiku')
     expect(w.nextCalls).toEqual([])
   })
+})
+
+describe('paid rows and router-chat', () => {
+  const OVERRIDE = '/home/test/.config/ai-delegation/executors.json'
+  const chat = { id: 'chat-paid', transport: 'router-chat', model: 'paid-chat', trust: 'subscription-trusted', private_ok: true, price: 1, billing: 'paid', budget_daily_usd: 5, budget_key: 'agent-chat' }
+  const flat = { id: 'chat-flat', transport: 'router-chat', model: 'flat-chat', trust: 'subscription-trusted', private_ok: true, price: 1 }
+  const budget = (alias: string, remaining: string, age = 60) => ({ metric: { __name__: 'litellm_remaining_api_key_budget_metric', api_key_alias: alias, hashed_api_key: 'hashed' }, value: [1000 - age, remaining] })
+  // The local rung fails its check, so text work reaches the subscription rungs.
+  const localDown = { ...gateways, AGENT_ROUTE_ZCODE_TOOLS: '' }
+  const noLocal = { small: 500, 'local-only': 500 }
+
+  test('validation: a paid row needs a positive daily budget and a key alias; router-chat needs a model', () => {
+    expect(validRow(chat)).toBeTruthy()
+    expect(validRow({ ...chat, budget_daily_usd: undefined })).toBeUndefined()
+    expect(validRow({ ...chat, budget_daily_usd: 0 })).toBeUndefined()
+    expect(validRow({ ...chat, budget_key: undefined })).toBeUndefined()
+    expect(validRow({ ...chat, budget_key: 'bad alias' })).toBeUndefined()
+    expect(validRow({ ...chat, billing: 'metered' })).toBeUndefined()
+    expect(validRow({ ...chat, model: undefined })).toBeUndefined()
+    expect(validRow({ ...flat })).toBeTruthy()
+    expect(validRow({ ...EXECUTOR_TABLE[2], billing: 'paid' })).toBeUndefined()
+    expect(validRow({ ...flat, trust: 'sandbox-public' })).toBeUndefined()
+  })
+  test('budget adapter: remaining budget by key alias, only from a fresh finite sample', () => {
+    const result = [budget('agent-chat', '3.25'), budget('spent-key', '0'), budget('stale-key', '9', 901), budget('odd-key', 'NaN')]
+    expect(budgetsFromMetrics(result, ['agent-chat', 'spent-key', 'stale-key', 'odd-key', 'absent-key'], 1000)).toEqual({ 'agent-chat': 3.25, 'spent-key': 0 })
+  })
+  test('eligibility: a paid row with unknown budget or spent budget is skipped with its reason', () => {
+    const rows = [EXECUTOR_TABLE[2], chat as never]
+    expect(eligibleRows(rows, false, 0, {}).skipped).toEqual({ 'chat-paid': 'budget_unknown' })
+    expect(eligibleRows(rows, false, 0, { 'agent-chat': 0 }).skipped).toEqual({ 'chat-paid': 'budget_spent' })
+    expect(eligibleRows(rows, false, 0, { 'agent-chat': 0.5 }).rows.map((r) => r.id)).toEqual(['codex', 'chat-paid'])
+  })
+  test('unknown budget: the paid row is skipped and routing completes on the next rung', async () => {
+    const w = world({ quota: 1, env: localDown, gatewayStatus: noLocal, files: { [OVERRIDE]: JSON.stringify([chat]) } })
+    await w.agent(textTask)
+    const event = routeEvents(w).at(-1)
+    expect(event.skipped['chat-paid']).toBe('budget_unknown')
+    expect(event.chosen).toBe('haiku')
+    expect(w.fetches.some((f) => JSON.parse(f.body ?? '{}').model === 'paid-chat')).toBe(false)
+  })
+  // Codex exhausted, plus one budget sample, in the single quota query result.
+  const withBudget = (remaining: string) => JSON.stringify(instantQuery([...series('codex', [{ kind: 'weekly', used_percent: 100, window_seconds: 2000, reset_at: 2000 }], 940), budget('agent-chat', remaining)]))
+  test('spent budget: the paid row is skipped; a funded one answers through the router', async () => {
+    const spent = world({ quotaText: withBudget('0'), env: localDown, gatewayStatus: noLocal, files: { [OVERRIDE]: JSON.stringify([chat]) } })
+    await spent.agent(textTask)
+    expect(routeEvents(spent).at(-1).skipped['chat-paid']).toBe('budget_spent')
+    const funded = world({ quotaText: withBudget('2'), env: localDown, gatewayStatus: noLocal, files: { [OVERRIDE]: JSON.stringify([chat]) } })
+    expect(text(await funded.agent(textTask))).toContain('[routed: router-chat paid-chat]')
+    expect(routeEvents(funded).at(-1).chosen).toBe('chat-paid')
+  })
+  test('the override file adds a router-chat row that answers [class: text] work over the local chat call', async () => {
+    const w = world({ quota: 1, env: localDown, gatewayStatus: noLocal, gatewayAnswer: { 'flat-chat': 'router answer' }, files: { [OVERRIDE]: JSON.stringify([flat]) } })
+    const r = await w.agent(textTask)
+    expect(text(r)).toContain('router answer')
+    expect(text(r)).toContain('[routed: router-chat flat-chat]')
+    const sent = w.fetches.filter((f) => f.url === 'http://localhost:8000/v1/chat/completions').map((f) => JSON.parse(f.body!).model)
+    expect(sent.at(-1)).toBe('flat-chat')
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'chat-flat', fell_through_from: ['local small'] })
+  })
+  for (const [name, task] of [
+    ['[task: code]', { ...coding, description: `${coding.description} [class: text]` }],
+    ['untagged work', { description: '[class: standard]', prompt: 'Implement the change.' }],
+  ] as const) {
+    test(`a router-chat row never receives ${name}`, async () => {
+      const w = world({ quota: 1, zcodeAvailable: false, env: gateways, files: { [OVERRIDE]: JSON.stringify([flat]) } })
+      await w.agent(task)
+      expect(w.fetches.some((f) => f.body !== undefined && JSON.parse(f.body).model === 'flat-chat')).toBe(false)
+      expect(routeEvents(w).at(-1).skipped['chat-flat']).toBe('ineligible')
+    })
+  }
 })
