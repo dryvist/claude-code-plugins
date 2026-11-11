@@ -1,21 +1,23 @@
 import type { EngineInterface, Register } from 'claude-code'
-import { CLASSIFIER, CODEX, JUDGE, LAST_RESORT, LOCAL_OUTPUT_TOKENS, UTILITY, EXECUTOR_TABLE, codexArgv, codingTask, eligibleRows, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, isGenericType, isShellCAsk, localTask, mandatoryLabel, newestModel, mergeExecutorRows, parseVerdict, pickLabel, pickLocal, rankRows, safePayload, scoreWindows } from './lib/policy'
-import type { Executor, ExecutorRow, Label, QuotaWindow, Route, Sandbox, Score, SkipReason } from './lib/policy'
+import { CLASSIFIER, CODEX, JUDGE, LAST_RESORT, LOCAL_OUTPUT_TOKENS, QUOTA_SELECTOR, UTILITY, EXECUTOR_TABLE, codexArgv, codingTask, eligibleRows, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, isGenericType, isShellCAsk, localTask, mandatoryLabel, newestModel, mergeExecutorRows, metricsResult, parseVerdict, pickLabel, pickLocal, quotaFromMetrics, rankRows, safePayload, scoreWindows } from './lib/policy'
+import type { Executor, ExecutorRow, Label, QuotaReason, QuotaRow, Route, Sandbox, Score, SkipReason } from './lib/policy'
 import { customAgentSandbox, parseAgentDefinition } from './lib/agent-definition'
 import type { AgentDefinition } from './lib/agent-definition'
 
 type Engine = EngineInterface
 type AgentCall = { description?: string; prompt: string; subagent_type?: string; model?: string; effort?: string; name?: string; isolation?: string }
-type QuotaRow = { id?: string; status?: string; windows?: QuotaWindow[] }
 const TEXT_EXECUTOR_TIMEOUT_MS = 120_000
-const QUOTA_TIMEOUT_MS = 20_000
+const QUOTA_TIMEOUT_MS = 3_000
 const QUOTA_REFRESH_MS = 600_000
 const MODEL_INFO_TIMEOUT_MS = 10_000
 const PROMPT_POLICY = 'The jpe-ai-delegation hook places every Agent spawn. Tag self-contained text work [class: text] and put all of its text in the prompt; the hook sends it to an on-host local model first. Every other spawn, and any local answer that fails its check, goes to the subscription executors it is eligible for, ranked by quota. ZCode, OpenCode Go and Cursor take only non-sensitive coding tagged [task: code] [repo: owner/repository] in a public repository; their output is a ready PR labelled human:review; leak-scan it before merge; never auto-merge. Codex Luna takes any task; never Terra. Haiku xhigh is always last. Nothing stops because an executor is unavailable. Never Sonnet, Opus or Fable subagents. Never send secrets, credentials, inventory or incident content to any executor. Antigravity stays a second-opinion reviewer, never an executor.'
 
+// A quota read: the instant-query result, or why there is none.
+type QuotaFetch = { result?: unknown[]; failure?: 'quota_unconfigured' | 'quota_unreachable' }
+
 // Per-session caches, reset when the module registers. The first quota read is awaited; later reads serve the cache
 // and refresh it in the background at most every QUOTA_REFRESH_MS.
-let quotaRead: Promise<QuotaRow[] | undefined> | undefined
+let quotaRead: Promise<QuotaFetch> | undefined
 let quotaAt = 0
 let localWindows: Promise<Record<string, number | undefined>> | undefined
 let executorTable: Promise<ExecutorRow[]> | undefined
@@ -46,36 +48,22 @@ async function withTimeout<T>($: Engine, work: Promise<T>, ms: number): Promise<
   }
 }
 
-// Quota command: TOKEN_METER_BIN, else `token-meter-server` on PATH (the Nix package), else the runtime that
-// token-meter's own installer stages. A token-meter without `quota` starts its server instead; the timeout kills it.
-async function quotaArgv($: Engine): Promise<string[] | undefined> {
-  const bin = await $.env.get('TOKEN_METER_BIN')
-  if (bin) return [bin, 'quota', '--json']
+// One instant query to the metrics store named by AGENT_QUOTA_QUERY_URL; the plugin ships no default. Unset makes
+// no request. A failure, timeout, non-OK status or a body that is not a successful vector means unreachable.
+async function readQuota($: Engine): Promise<QuotaFetch> {
+  const base = (await $.env.get('AGENT_QUOTA_QUERY_URL'))?.replace(/\/+$/, '')
+  if (!base) return { failure: 'quota_unconfigured' }
   try {
-    const found = await $.process.run(['which', 'token-meter-server'], { timeoutMs: 5_000 })
-    if (found.exitCode === 0 && found.stdout.trim()) return [found.stdout.trim(), 'quota', '--json']
+    const url = `${base}/api/v1/query?query=${encodeURIComponent(QUOTA_SELECTOR)}`
+    const response = await withTimeout($, $.http.fetch(url, { method: 'GET', headers: { accept: 'application/json' } }), QUOTA_TIMEOUT_MS)
+    const result = response.ok ? metricsResult(JSON.parse(response.text)) : undefined
+    return result ? { result } : { failure: 'quota_unreachable' }
   } catch {
-    // Not on PATH; try the staged runtime.
-  }
-  const staged = `${await $.env.get('HOME')}/Library/Application Support/Token Meter/runtime/meter.py`
-  return (await $.fs.exists(staged)) ? ['python3', staged, 'quota', '--json'] : undefined
-}
-
-// Any failure, timeout or missing command means the quota is unknown.
-async function readQuota($: Engine): Promise<QuotaRow[] | undefined> {
-  try {
-    const argv = await quotaArgv($)
-    if (!argv) return undefined
-    const r = await $.process.run(argv, { timeoutMs: QUOTA_TIMEOUT_MS })
-    if (r.exitCode !== 0 || r.isStdoutTruncated === true) return undefined
-    const rows = JSON.parse(r.stdout)?.provider_quotas
-    return Array.isArray(rows) ? rows : undefined
-  } catch {
-    return undefined
+    return { failure: 'quota_unreachable' }
   }
 }
 
-async function quotaRows($: Engine): Promise<QuotaRow[] | undefined> {
+async function quotaRows($: Engine): Promise<QuotaFetch> {
   const now = await $.clock.now()
   if (!quotaRead) {
     quotaAt = now
@@ -85,34 +73,44 @@ async function quotaRows($: Engine): Promise<QuotaRow[] | undefined> {
   const current = quotaRead
   if (now - quotaAt >= QUOTA_REFRESH_MS) {
     quotaAt = now
-    // An unknown refresh keeps the last rows.
-    void readQuota($).then((rows) => { if (rows) quotaRead = Promise.resolve(rows) })
+    // A failed refresh keeps the last result; its samples still go stale on the clock.
+    void readQuota($).then((read) => { if (read.result) quotaRead = Promise.resolve(read) })
   }
   return current
 }
 
-// Score from one token-meter provider row; undefined when the row is missing, failed or has no usable window.
-function rowScore(rows: QuotaRow[] | undefined, id: string, nowSeconds: number): Score | undefined {
-  const row = rows?.find((r) => r.id === id)
-  if (!row || !['ok', 'stale'].includes(row.status ?? '')) return undefined
+// Score from one quota row; undefined when the row is missing or has no usable window.
+function rowScore(rows: QuotaRow[], id: string, nowSeconds: number): Score | undefined {
+  const row = rows.find((r) => r.id === id)
+  if (!row) return undefined
   const score = scoreWindows(row.windows, nowSeconds)
   return score.exhausted || score.score !== undefined ? score : undefined
 }
 
-// Scores for table rows that name a token-meter quota row; rows without one stay unknown.
-async function currentScores($: Engine, table: readonly ExecutorRow[]): Promise<Partial<Record<Executor, Score>>> {
-  const rows = await quotaRows($)
+type QuotaView = { scores: Partial<Record<Executor, Score>>; unknown: Record<string, QuotaReason>; sources: Record<string, string> }
+
+// Scores for table rows that name a quota executor, judged for staleness at this moment. Rows without one stay unknown.
+async function currentQuota($: Engine, table: readonly ExecutorRow[]): Promise<QuotaView> {
+  const read = await quotaRows($)
   const now = (await $.clock.now()) / 1000
-  const scores: Partial<Record<Executor, Score>> = {}
-  for (const r of table) {
-    const score = r.quota ? rowScore(rows, r.quota, now) : undefined
-    if (score) scores[r.id] = score
+  const ids = [...new Set(table.flatMap((r) => (r.quota ? [r.quota] : [])))]
+  const view: QuotaView = { scores: {}, unknown: {}, sources: {} }
+  if (!read.result) {
+    for (const id of ids) view.unknown[id] = read.failure ?? 'quota_unreachable'
+    return view
   }
-  return scores
+  const adapted = quotaFromMetrics(read.result, ids, now)
+  view.unknown = adapted.unknown
+  view.sources = adapted.sources
+  for (const r of table) {
+    const score = r.quota ? rowScore(adapted.rows, r.quota, now) : undefined
+    if (score) view.scores[r.id] = score
+  }
+  return view
 }
 
 async function currentCodexScore($: Engine): Promise<Score | undefined> {
-  return rowScore(await quotaRows($), 'codex', (await $.clock.now()) / 1000)
+  return (await currentQuota($, EXECUTOR_TABLE.filter((r) => r.quota === 'codex'))).scores.codex
 }
 
 function quotaLine(score: Score | undefined): string {
@@ -419,6 +417,7 @@ type RouteEvent = {
   agent_type: string; local: { alias: string | null; est_tokens: number } | null; eligible: string[]
   scores: Record<string, { score: number | null; exhausted: boolean; effective: number | null } | null>; fell_through_from: string[]
   skipped: Record<string, SkipReason>
+  quota_unknown: Record<string, QuotaReason>; quota_source: Record<string, string>
 }
 
 // One JSON telemetry line per routing decision.
@@ -443,7 +442,7 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
     if (definition.prompt) e = { ...e, prompt: `Custom agent instructions:\n${definition.prompt}\n\nTask:\n${e.prompt}` }
   }
   if (!safePayload(`${e.description ?? ''}\n${e.prompt}`)) return failure(e, 'payload contains prohibited content')
-  const event: RouteEvent = { agent_type: original.subagent_type ?? 'general-purpose', local: null, eligible: [], scores: {}, fell_through_from: [], skipped: {} }
+  const event: RouteEvent = { agent_type: original.subagent_type ?? 'general-purpose', local: null, eligible: [], scores: {}, fell_through_from: [], skipped: {}, quota_unknown: {}, quota_source: {} }
   if (definition && customSandbox === undefined) {
     // An inherited model cannot be verified on a native pass-through.
     const model = original.model ?? definition.model
@@ -474,7 +473,11 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
   const table = await loadExecutorTable($)
   const now = await $.clock.now()
   const { rows, skipped } = eligibleRows(table, Boolean(repo), now)
-  const scores = await currentScores($, rows)
+  // Every quota executor in the table is reported, so the event shows why an ineligible row's quota is unknown too.
+  const quota = await currentQuota($, table)
+  const { scores } = quota
+  event.quota_unknown = quota.unknown
+  event.quota_source = quota.sources
   const ranked = rankRows(rows, scores, now)
   Object.assign(skipped, ranked.skipped)
   event.eligible = [...rows.map((r) => r.id), 'haiku']

@@ -10,7 +10,7 @@ session mechanics.
 
 ## Session mechanics
 
-The hook reads Codex quota from `token-meter quota --json`, not `codex-quota`.
+The hook reads Codex quota from the metrics store at `AGENT_QUOTA_QUERY_URL`, not `codex-quota`.
 The session status line says `available`, `exhausted` (a live window at 95% or
 more) or `unavailable` (no usable quota row). None of these stops dispatch; a
 failed Codex invocation moves to the next executor.

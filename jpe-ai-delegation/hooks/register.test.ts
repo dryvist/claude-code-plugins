@@ -1,7 +1,8 @@
 import { describe, expect, test } from 'claude-code/testing'
 import { register } from './register'
-import { CODEX, EXECUTOR_TABLE, LAST_RESORT, codexArgv, eligibleRows, mergeExecutorRows, peakMultiplier, rankRows, validRow, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, localTask, mandatoryLabel, newestModel, parseVerdict, pickLocal, safePayload, scoreWindows } from './lib/policy'
+import { CODEX, EXECUTOR_TABLE, LAST_RESORT, codexArgv, eligibleRows, mergeExecutorRows, metricsResult, peakMultiplier, quotaFromMetrics, rankRows, validRow, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, localTask, mandatoryLabel, newestModel, parseVerdict, pickLocal, safePayload, scoreWindows } from './lib/policy'
 import { customAgentSandbox, parseAgentDefinition } from './lib/agent-definition'
+import { RECORDED_QUOTA } from './fixtures/quota-instant-query'
 
 const RAN = { exitCode: 0, stdout: '', stderr: '', isStdoutTruncated: false }
 const CACHE = JSON.stringify({ models: [
@@ -14,11 +15,12 @@ const PR = { html_url: 'https://github.com/owner/project/pull/12', state: 'open'
 const CORE_ASK = { decision: 'ask', reason: 'This shell -c script runs rm.' }
 type Call = { argv: string[]; stdin?: string }
 type World = {
-  quota?: number; meterOnPath?: boolean; codexWindows?: unknown[]; cursorWindows?: unknown[]; now?: number; gatewayFinish?: string; quotaThrows?: boolean; cache?: boolean; codexExit?: number; answer?: string; label?: string
+  quota?: number; codexWindows?: unknown[]; cursorWindows?: unknown[]; now?: number; gatewayFinish?: string; quotaThrows?: boolean; cache?: boolean; codexExit?: number; answer?: string; label?: string
   env?: Record<string, string>; definition?: string; files?: Record<string, string>; fsThrows?: boolean; worktreeExit?: number; temporaryExit?: number
   repository?: unknown; properties?: unknown; githubPrivateAuth?: boolean; githubAuthDenied?: boolean; pr?: unknown; githubError?: boolean; githubInvalidJson?: boolean
   zcodeExit?: number; zcodeOutput?: string; zcodeAvailable?: boolean; zcodeThrows?: boolean; zcodeTruncated?: boolean
   gatewayTimeout?: boolean; gatewayStatus?: Record<string, number>; gatewayAnswer?: Record<string, string>; gatewayInvalidJson?: boolean
+  quotaUrl?: string | null; quotaTimeout?: boolean; quotaText?: string; quotaSampleAge?: number
 }
 
 // Exercise the registered hooks with all IO captured; no subprocess or HTTP request escapes the fixture.
@@ -32,16 +34,17 @@ function world(w: World = {}) {
   register(on as never)
   const calls: Call[] = []
   const fetches: { url: string; body?: string }[] = []
+  const quotaFetches: string[] = []
   const modelCalls: unknown[] = []
   const nextCalls: any[] = []
   const logs: string[] = []
-  const env: Record<string, string> = { HOME: '/home/test', ...w.env }
+  const env: Record<string, string> = { HOME: '/home/test', ...(w.quotaUrl === null ? {} : { AGENT_QUOTA_QUERY_URL: w.quotaUrl ?? QUOTA_BASE }), ...w.env }
   let output = ''
   let clockNow = w.now ?? 1_000_000
   const $ = {
     env: { get: async (key: string) => env[key] },
     session: { cwd: async () => '/workspace' },
-    clock: { now: async () => clockNow, after: (delay: number, callback: () => void) => { if (w.gatewayTimeout && delay >= 60_000) queueMicrotask(callback); return { cancel() {} } } },
+    clock: { now: async () => clockNow, after: (delay: number, callback: () => void) => { if ((w.gatewayTimeout && delay >= 60_000) || (w.quotaTimeout && delay === 3_000)) queueMicrotask(callback); return { cancel() {} } } },
     ui: { log: (line: string) => logs.push(line) },
     fs: {
       exists: async (path: string) => {
@@ -53,14 +56,6 @@ function world(w: World = {}) {
     },
     process: { run: async (argv: string[], init?: { stdin?: string }) => {
       calls.push({ argv, stdin: init?.stdin })
-      if (argv.slice(-2).join(' ') === 'quota --json') {
-        if (w.quotaThrows) throw new Error('quota command timed out')
-        const quota = w.quota ?? 0
-        if (quota !== 0 && quota !== 1) return { ...RAN, exitCode: quota }
-        // Default: Codex available and exactly on pace (score 0); quota 1: exhausted.
-        const windows = w.codexWindows ?? [{ kind: 'weekly', used_percent: quota === 1 ? 100 : 50, window_seconds: 2000, reset_at: 2000 }]
-        return { ...RAN, stdout: JSON.stringify({ provider_quotas: [{ id: 'claude', status: 'ok', windows: [] }, { id: 'codex', status: 'ok', windows }, ...(w.cursorWindows ? [{ id: 'cursor', status: 'ok', windows: w.cursorWindows }] : [{ id: 'cursor', status: 'error', windows: [] }])] }) }
-      }
       if (argv[0] === 'mktemp') return { ...RAN, exitCode: w.temporaryExit ?? 0, stdout: argv[1] === '-d' ? '/tmp/worktree' : '/tmp/final' }
       if (argv[0] === 'git') return { ...RAN, exitCode: w.worktreeExit ?? 0 }
       if (argv[0] === 'codex') {
@@ -71,7 +66,6 @@ function world(w: World = {}) {
         const value = argv[2].endsWith('/properties/values') ? w.properties : w.repository
         return { ...RAN, exitCode: w.githubAuthDenied ? 1 : 0, stdout: JSON.stringify(value) }
       }
-      if (argv[0] === 'which' && argv[1] === 'token-meter-server') return w.meterOnPath === false ? { ...RAN, exitCode: 1 } : { ...RAN, stdout: '/run/bin/token-meter-server\n' }
       if (argv[0] === 'which') return { ...RAN, exitCode: w.zcodeAvailable === false ? 1 : 0 }
       if (argv[0] === 'zcode-job') {
         if (w.zcodeThrows) throw new Error('dispatch failed')
@@ -80,6 +74,18 @@ function world(w: World = {}) {
       return RAN
     } },
     http: { fetch: async (url: string, init: { body?: string }) => {
+      if (url.includes('/api/v1/query?')) {
+        quotaFetches.push(url)
+        if (w.quotaThrows) throw new Error('quota read failed')
+        if (w.quotaTimeout) return new Promise<never>(() => {})
+        if (w.quotaText !== undefined) return { ok: true, text: w.quotaText }
+        const quota = w.quota ?? 0
+        if (quota !== 0 && quota !== 1) return { ok: false, text: '' }
+        // Default: Codex available and exactly on pace (score 0); quota 1: exhausted. Cursor publishes nothing unless set.
+        const at = clockNow / 1000 - (w.quotaSampleAge ?? 60)
+        const codex = w.codexWindows ?? [{ kind: 'weekly', used_percent: quota === 1 ? 100 : 50, window_seconds: 2000, reset_at: 2000 }]
+        return { ok: true, text: JSON.stringify(instantQuery([...series('codex', codex, at), ...(w.cursorWindows ? series('cursor', w.cursorWindows, at) : [])])) }
+      }
       fetches.push({ url, body: init.body })
       if (url.startsWith('https://api.github.com/repos/')) {
         if (w.githubError) throw new Error('visibility unavailable')
@@ -107,7 +113,7 @@ function world(w: World = {}) {
       return handler.caught($, e, next)
     }
   }
-  return { calls, fetches, modelCalls, nextCalls, logs, invoke, setNow: (ms: number) => { clockNow = ms },
+  return { calls, fetches, quotaFetches, modelCalls, nextCalls, logs, invoke, setNow: (ms: number) => { clockNow = ms },
     agent: (e: Record<string, unknown> = {}) => invoke('tool.call', { tool: 'Agent', description: '[class: standard]', prompt: 'Implement the change.', ...e }),
   }
 }
@@ -116,9 +122,16 @@ const runs = (w: ReturnType<typeof world>) => w.calls.filter((c) => c.argv[0] ==
 const gateways = { LITELLM_LOCAL_BASE_URL: 'http://localhost:8000', AGENT_ROUTE_GLM_MODEL: 'configured-glm', AGENT_ROUTE_OPENCODE_GO_MODEL: 'configured-go' }
 const coding = { description: '[class: public] [repo: owner/project] [task: code]', prompt: 'Implement the change.' }
 const textTask = { description: '[class: text]', prompt: 'Summarize this supplied text: A small change.' }
-const QUOTA_ARGV = ['/run/bin/token-meter-server', 'quota', '--json']
-const STAGED_METER = '/home/test/Library/Application Support/Token Meter/runtime/meter.py'
-const quotaCall = (w: ReturnType<typeof world>) => w.calls.find((c) => c.argv.slice(-2).join(' ') === 'quota --json')
+// A placeholder name for the metrics store's proxied route; no address.
+const QUOTA_BASE = 'https://quota.example.test'
+const QUERY_URL = `${QUOTA_BASE}/api/v1/query?query=${encodeURIComponent('{__name__=~"agent_quota_(used_percent|window_seconds|reset_timestamp_seconds)"}')}`
+const instantQuery = (result: unknown[]) => ({ status: 'success', data: { resultType: 'vector', result } })
+// The three gauges of each window, as one publisher sample at `at` seconds.
+function series(executor: string, windows: any[], at: number, source = 'provider') {
+  return windows.flatMap((w, i) => ([['used_percent', w.used_percent], ['window_seconds', w.window_seconds], ['reset_timestamp_seconds', w.reset_at]] as const)
+    .filter(([, v]) => v !== undefined)
+    .map(([name, v]) => ({ metric: { __name__: `agent_quota_${name}`, executor, window: w.kind ?? `w${i}`, source }, value: [at, String(v)] })))
+}
 const routeEvents = (w: ReturnType<typeof world>) => w.calls.filter((c) => c.argv[0] === 'tee' && c.stdin?.startsWith('{')).map((c) => JSON.parse(c.stdin!))
 const nonGithub = (w: ReturnType<typeof world>) => w.fetches.filter((f) => !f.url.startsWith('https://api.github.com/'))
 
@@ -408,8 +421,7 @@ describe('Codex rung', () => {
       expect(runs(w)).toHaveLength(1)
       expect(runs(w)[0].argv).toContain(`gpt-newer-${route.family}`)
       expect(runs(w)[0].argv).toContain(isAdvisory(label as never) ? 'read-only' : 'workspace-write')
-      expect(w.calls[0].argv).toEqual(['which', 'token-meter-server'])
-      expect(w.calls[1].argv).toEqual(QUOTA_ARGV)
+      expect(w.quotaFetches).toEqual([QUERY_URL])
       expect(w.nextCalls).toEqual([])
     })
   }
@@ -456,8 +468,7 @@ describe('Codex rung', () => {
     expect(runs(w)[0].argv).toContain('gpt-newer-luna')
     expect(runs(w)[1].argv).toContain('gpt-newer-luna')
     expect(w.fetches).toEqual([])
-    expect(w.calls[0].argv).toEqual(['which', 'token-meter-server'])
-    expect(w.calls[1].argv).toEqual(QUOTA_ARGV)
+    expect(w.quotaFetches).toEqual([QUERY_URL])
   })
   for (const subagent_type of ['Explore', 'Plan']) {
     test(`${subagent_type} remains read-only on Luna xhigh`, async () => {
@@ -837,14 +848,14 @@ describe('routing batch', () => {
     expect(text(await w.agent({ subagent_type: 'Plan', model: 'sonnet' }))).toContain('subagents are forbidden')
     expect(w.calls).toEqual([])
   })
-  test('a hanging quota CLI leaves quota unknown and keeps the static order', async () => {
+  test('a quota read that throws leaves quota unknown and keeps the static order', async () => {
     const w = world({ quotaThrows: true, env: gateways })
     expect(text(await w.agent(coding))).toContain('[routed: zcode-job sandbox;')
     expect(routeEvents(w).at(-1)).toMatchObject({ scores: { zcode: null, 'opencode-go': null, codex: null } })
   })
   test('quota is read once per session and refreshed in the background after ten minutes', async () => {
     const w = world({ quota: 1, env: gateways })
-    const reads = () => w.calls.filter((c) => c.argv.slice(-2).join(' ') === 'quota --json').length
+    const reads = () => w.quotaFetches.length
     await w.agent()
     await w.agent()
     expect(reads()).toBe(1)
@@ -860,21 +871,130 @@ describe('routing batch', () => {
     expect(w.nextCalls[0]).toMatchObject({ model: 'haiku', effort: 'xhigh' })
     expect(routeEvents(w).at(-1)).toMatchObject({ local: null, chosen: 'haiku' })
   })
-  test('without token-meter-server on PATH the staged runtime is used when present', async () => {
-    const w = world({ quota: 1, meterOnPath: false, files: { [STAGED_METER]: '' } })
-    await w.agent()
-    expect(quotaCall(w)?.argv).toEqual(['python3', STAGED_METER, 'quota', '--json'])
+})
+
+describe('quota from the metrics store', () => {
+  // The recorded sample is 120 s old at this clock.
+  const RECORDED_NOW_MS = 1_762_826_400_000
+  const recorded = (): any => JSON.parse(RECORDED_QUOTA)
+  const ids = ['codex', 'cursor']
+  const unknownCases: [string, Parameters<typeof world>[0]][] = [
+    ['env unset', { quotaUrl: null }],
+    ['HTTP 500', { quota: 500 }],
+    ['timeout', { quotaTimeout: true }],
+    ['malformed JSON', { quotaText: '{"status":"success","data":' }],
+    ['error status', { quotaText: JSON.stringify({ status: 'error', errorType: 'bad_data', error: 'parse error' }) }],
+    ['request throws', { quotaThrows: true }],
+  ]
+
+  test('adapter: all three series fresh group into rows by executor and window', () => {
+    const read = quotaFromMetrics(recorded().data.result, ids, RECORDED_NOW_MS / 1000)
+    expect(read.unknown).toEqual({})
+    expect(read.sources).toEqual({ 'codex/five_hour': 'provider', 'codex/weekly': 'provider', 'cursor/monthly': 'estimate' })
+    expect(read.rows).toEqual([
+      { id: 'codex', status: 'ok', as_of: 1762826280.412, windows: [
+        { used_percent: 42.5, window_seconds: 18000, reset_at: 1762833600 },
+        { used_percent: 31, window_seconds: 604800, reset_at: 1763085600 },
+      ] },
+      { id: 'cursor', status: 'ok', as_of: 1762826310.007, windows: [{ used_percent: 12, window_seconds: 2592000, reset_at: 1764122400 }] },
+    ])
   })
-  test('with no token-meter installed, quota is unknown and no quota command runs', async () => {
-    const w = world({ meterOnPath: false })
+  test('adapter: a window sampled more than 15 minutes ago is unknown as quota_stale', () => {
+    const body = recorded()
+    for (const s of body.data.result) if (s.metric.window === 'weekly') s.value[0] = RECORDED_NOW_MS / 1000 - 901
+    const read = quotaFromMetrics(body.data.result, ids, RECORDED_NOW_MS / 1000)
+    expect(read.unknown).toEqual({ 'codex/weekly': 'quota_stale' })
+    expect(read.rows[0].windows).toEqual([{ used_percent: 42.5, window_seconds: 18000, reset_at: 1762833600 }])
+  })
+  test('adapter: an executor with no series is quota_missing; an incomplete window is never filled in', () => {
+    const body = recorded()
+    body.data.result = body.data.result.filter((s: any) => s.metric.executor !== 'cursor' && !(s.metric.window === 'five_hour' && s.metric.__name__ === 'agent_quota_used_percent'))
+    const read = quotaFromMetrics(body.data.result, ids, RECORDED_NOW_MS / 1000)
+    expect(read.unknown).toEqual({ cursor: 'quota_missing', 'codex/five_hour': 'quota_missing' })
+    expect(read.rows).toEqual([{ id: 'codex', status: 'ok', as_of: 1762826280.412, windows: [{ used_percent: 31, window_seconds: 604800, reset_at: 1763085600 }] }])
+  })
+  test('adapter: a response that is not a successful vector is no read at all', () => {
+    for (const body of [null, {}, { status: 'error' }, { status: 'success', data: { resultType: 'matrix', result: [] } }, { status: 'success', data: {} }]) {
+      expect(metricsResult(body)).toBeUndefined()
+    }
+  })
+  test('adapter: 0 and 100 come only from a real sample; unparseable values are dropped, not defaulted', () => {
+    const at = RECORDED_NOW_MS / 1000 - 60
+    const windows = (used: unknown) => [{ kind: 'weekly', used_percent: used, window_seconds: 2000, reset_at: RECORDED_NOW_MS / 1000 + 1000 }]
+    for (const used of [0, 100]) {
+      const read = quotaFromMetrics(series('codex', windows(used), at), ['codex'], RECORDED_NOW_MS / 1000)
+      expect(read.rows[0].windows[0].used_percent).toBe(used)
+    }
+    for (const used of ['NaN', '', '+Inf', 'n/a']) {
+      const read = quotaFromMetrics(series('codex', windows(used), at), ['codex'], RECORDED_NOW_MS / 1000)
+      expect(read.rows).toEqual([])
+      expect(read.unknown).toEqual({ 'codex/weekly': 'quota_missing' })
+    }
+  })
+  test('the hook makes one GET to the query API with the series selector and a trimmed base', async () => {
+    const w = world({ quotaUrl: `${QUOTA_BASE}/`, now: RECORDED_NOW_MS, quotaText: JSON.stringify(recorded()) })
     expect(text(await w.agent())).toContain('codex luna xhigh')
-    expect(quotaCall(w)).toBeUndefined()
-    expect(routeEvents(w).at(-1)).toMatchObject({ scores: { codex: null } })
+    expect(w.quotaFetches).toEqual([QUERY_URL])
+    const event = routeEvents(w).at(-1)
+    expect(event.quota_unknown).toEqual({})
+    expect(event.quota_source).toEqual({ 'codex/five_hour': 'provider', 'codex/weekly': 'provider', 'cursor/monthly': 'estimate' })
+    expect(typeof event.scores.codex.score).toBe('number')
   })
-  test('TOKEN_METER_BIN replaces the default meter path', async () => {
-    const w = world({ quota: 1, env: { TOKEN_METER_BIN: '/opt/token-meter' } })
+  test('env unset: every quota is unknown and no request is made', async () => {
+    const w = world({ quotaUrl: null })
+    expect(text(await w.agent())).toContain('codex luna xhigh')
+    expect(w.quotaFetches).toEqual([])
+    expect(w.fetches).toEqual([])
+    expect(routeEvents(w).at(-1)).toMatchObject({ scores: { codex: null }, quota_unknown: { codex: 'quota_unconfigured', cursor: 'quota_unconfigured' } })
+  })
+  for (const [name, options] of unknownCases.slice(1)) {
+    test(`${name}: every quota is unknown as quota_unreachable and Codex is still tried`, async () => {
+      const w = world({ ...options, env: gateways })
+      expect(text(await w.agent())).toContain('codex luna xhigh')
+      expect(w.quotaFetches).toEqual([QUERY_URL])
+      expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'codex', scores: { codex: null }, quota_unknown: { codex: 'quota_unreachable', cursor: 'quota_unreachable' } })
+    })
+  }
+  test('a stale sample in the store reads as quota_stale, never as a score', async () => {
+    const w = world({ quotaSampleAge: 901, env: gateways })
     await w.agent()
-    expect(w.calls[0].argv).toEqual(['/opt/token-meter', 'quota', '--json'])
+    expect(routeEvents(w).at(-1)).toMatchObject({ scores: { codex: null }, quota_unknown: { 'codex/weekly': 'quota_stale', cursor: 'quota_missing' } })
+  })
+  test('staleness is judged on the clock at routing time, not when the sample was read', async () => {
+    const w = world({ now: RECORDED_NOW_MS, quotaText: JSON.stringify(recorded()) })
+    await w.agent()
+    expect(routeEvents(w).at(-1).quota_unknown).toEqual({})
+    // 800 s later the Codex sample is 920 s old and the Cursor sample 890 s; the refresh returns the same sample.
+    w.setNow(RECORDED_NOW_MS + 800_000)
+    await w.agent()
+    const event = routeEvents(w).at(-1)
+    expect(event.quota_unknown).toEqual({ 'codex/five_hour': 'quota_stale', 'codex/weekly': 'quota_stale' })
+    expect(event.scores.codex).toBeNull()
+    expect(w.quotaFetches).toHaveLength(2)
+  })
+  test('placeholder-free: no unknown quota is ever scored as empty or full', async () => {
+    for (const [, options] of [...unknownCases, ['stale', { quotaSampleAge: 901 }] as const]) {
+      const w = world({ ...options, env: gateways, cursorWindows: [{ used_percent: 10, window_seconds: 2000, reset_at: 2000 }] })
+      await w.agent(coding)
+      const { scores } = routeEvents(w).at(-1)
+      for (const id of ids) expect(scores[id]).toBeNull()
+    }
+    const full = world({ quota: 1, env: gateways })
+    await full.agent()
+    expect(routeEvents(full).at(-1).scores.codex).toMatchObject({ exhausted: true })
+    const empty = world({ codexWindows: [{ kind: 'weekly', used_percent: 0, window_seconds: 2000, reset_at: 2000 }], env: gateways })
+    await empty.agent()
+    expect(routeEvents(empty).at(-1).scores.codex).toMatchObject({ exhausted: false })
+    expect(routeEvents(empty).at(-1).scores.codex.score).toBeGreaterThan(0)
+  })
+  test('quota never runs a local command, whatever the environment names', async () => {
+    for (const env of [{}, { TOKEN_METER_BIN: '/opt/meter' }]) {
+      const w = world({ quotaUrl: null, env })
+      await w.agent({ description: '[class: standard]' })
+      expect(w.calls.filter((c) => /quota|meter|^which /.test(c.argv.join(' ')))).toEqual([])
+      expect(runs(w)).toHaveLength(1)
+      expect(w.quotaFetches).toEqual([])
+    }
   })
 })
 
