@@ -1,6 +1,6 @@
 {
   "name": "content-guards",
-  "version": "6.3.1",
+  "version": "6.4.0",
   "description": "Combined content validation and guard plugin: token-validator, markdown-validator, readme-validator, webfetch-guard, issue/PR backlog limiter, public-repo leakage guard, and script/wrapper-generation guards",
   "author": {
     "name": "JacobPEvans"

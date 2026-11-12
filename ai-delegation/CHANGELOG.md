@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.16.0](https://github.com/dryvist/claude-code-plugins/compare/ai-delegation-v6.15.0...ai-delegation-v6.16.0) (2026-11-12)
+
+
+### Features
+
+* add standing rules for agent calls, repeated jobs, session waits and single sources ([#787](https://github.com/dryvist/claude-code-plugins/issues/787)) ([4809c0c](https://github.com/dryvist/claude-code-plugins/commit/4809c0c96d3f80fe1055c80aed74d10dca7108f2))
+
 ## [6.15.0](https://github.com/dryvist/claude-code-plugins/compare/ai-delegation-v6.14.0...ai-delegation-v6.15.0) (2026-11-11)
 
 
