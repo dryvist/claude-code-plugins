@@ -91,9 +91,10 @@ function world(w: World = {}) {
         if (w.quotaText !== undefined) return { ok: true, text: w.quotaText }
         const quota = w.quota ?? 0
         if (quota !== 0 && quota !== 1) return { ok: false, text: '' }
-        // Default: Codex available and exactly on pace (score 0); quota 1: exhausted. Cursor publishes nothing unless set.
+        // Default: Codex available and exactly on pace (score 0); quota 1: exhausted. The window tracks the clock so
+        // exhaustion holds at any mocked `now`. Cursor publishes nothing unless set.
         const at = clockNow / 1000 - (w.quotaSampleAge ?? 60)
-        const codex = w.codexWindows ?? [{ kind: 'weekly', used_percent: quota === 1 ? 100 : 50, window_seconds: 2000, reset_at: 2000 }]
+        const codex = w.codexWindows ?? [{ kind: 'weekly', used_percent: quota === 1 ? 100 : 50, window_seconds: 2000, reset_at: clockNow / 1000 + 1000 }]
         return { ok: true, text: JSON.stringify(instantQuery([...series('codex', codex, at), ...(w.cursorWindows ? series('cursor', w.cursorWindows, at) : [])])) }
       }
       fetches.push({ url, body: init.body })
