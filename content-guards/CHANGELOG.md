@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.4.0](https://github.com/dryvist/claude-code-plugins/compare/content-guards-v6.3.1...content-guards-v6.4.0) (2026-11-12)
+
+
+### Features
+
+* add standing rules for agent calls, repeated jobs, session waits and single sources ([#787](https://github.com/dryvist/claude-code-plugins/issues/787)) ([4809c0c](https://github.com/dryvist/claude-code-plugins/commit/4809c0c96d3f80fe1055c80aed74d10dca7108f2))
+
 ## [6.3.1](https://github.com/dryvist/claude-code-plugins/compare/content-guards-v6.3.0...content-guards-v6.3.1) (2026-10-12)
 
 
