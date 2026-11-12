@@ -65,6 +65,12 @@ When more than one native path exists, prefer in this order:
 
 A first-party feature outranks a popular plugin, which outranks anything you write.
 
+## Repeated jobs
+
+A repeated job is a native feature first and a local agent second — never a
+new standing script. The feature or the agent carries the tool's instructions;
+the session only calls it.
+
 ## Terminal rule — no silent script fallback
 
 If you climb the whole ladder and find no native path, the output is **not** a
@@ -100,5 +106,7 @@ justification the script needs to exist.
 
 - **script-guard hooks** (this plugin) — block unnecessary script writes; this
   skill supplies the native alternative they assume exists.
+- **local-subagents** (ai-delegation) — the local agent a repeated job gets
+  when no native feature fits.
 - **native-first is stack-agnostic** — it is not Nix-specific. On a Nix machine,
   a repo's `nix-tool-policy` rule adds the Nix-specific rungs on top of this ladder.

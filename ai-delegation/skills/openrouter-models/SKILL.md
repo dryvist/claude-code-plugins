@@ -118,6 +118,12 @@ you what you may actually call. Get the served list from
 into a rule, skill, doc, or config — that is a second spelling that drifts from
 the registry, and this skill deliberately names none.
 
+## Single source
+
+Prices, limits, and promotions live only on the router model entry, and
+benchmark results live only in the published dataset; every other place links
+to them instead of copying a number that drifts.
+
 ## Requesting a model the router does not serve
 
 Onboarding is an infrastructure change — a registry entry plus a credential —

@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.21.0](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.20.0...jpe-ai-delegation-v1.21.0) (2026-11-12)
+
+
+### Features
+
+* **delegation:** read sandbox job outcomes and fall through on ended jobs ([#779](https://github.com/dryvist/claude-code-plugins/issues/779)) ([af8146d](https://github.com/dryvist/claude-code-plugins/commit/af8146d4639cfa8e98e986a6b31cc4e24aab7627))
+
+## [1.20.0](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.19.0...jpe-ai-delegation-v1.20.0) (2026-11-12)
+
+
+### Features
+
+* **jpe-ai-delegation:** daily budget rows and router-chat transport ([#778](https://github.com/dryvist/claude-code-plugins/issues/778)) ([a013135](https://github.com/dryvist/claude-code-plugins/commit/a0131350c707d6343d2357bd457a18b3787f8968))
+
 ## [1.19.0](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.18.0...jpe-ai-delegation-v1.19.0) (2026-11-11)
 
 

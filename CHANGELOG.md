@@ -1,5 +1,26 @@
 # Changelog
 
+## [6.59.0](https://github.com/dryvist/claude-code-plugins/compare/v6.58.0...v6.59.0) (2026-11-12)
+
+
+### Features
+
+* **delegation:** read sandbox job outcomes and fall through on ended jobs ([#779](https://github.com/dryvist/claude-code-plugins/issues/779)) ([af8146d](https://github.com/dryvist/claude-code-plugins/commit/af8146d4639cfa8e98e986a6b31cc4e24aab7627))
+
+## [6.58.0](https://github.com/dryvist/claude-code-plugins/compare/v6.57.0...v6.58.0) (2026-11-12)
+
+
+### Features
+
+* **jpe-ai-delegation:** daily budget rows and router-chat transport ([#778](https://github.com/dryvist/claude-code-plugins/issues/778)) ([a013135](https://github.com/dryvist/claude-code-plugins/commit/a0131350c707d6343d2357bd457a18b3787f8968))
+
+## [6.57.0](https://github.com/dryvist/claude-code-plugins/compare/v6.56.0...v6.57.0) (2026-11-12)
+
+
+### Features
+
+* add standing rules for agent calls, repeated jobs, session waits and single sources ([#787](https://github.com/dryvist/claude-code-plugins/issues/787)) ([4809c0c](https://github.com/dryvist/claude-code-plugins/commit/4809c0c96d3f80fe1055c80aed74d10dca7108f2))
+
 ## [6.56.0](https://github.com/dryvist/claude-code-plugins/compare/v6.55.0...v6.56.0) (2026-11-11)
 
 
