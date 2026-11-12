@@ -22,8 +22,10 @@ costs a full re-read when it wakes cold.
 Each worker keeps a ranked queue of at least three independent items in its
 report file, and each item carries a named yes/no check. While a review, a
 CI run, or a deploy runs, the worker starts the next item instead of
-watching the running one. Every wait is a background monitor with a wake
-condition; a worker never sits blocked.
+watching the running one.
+Every wait is a background monitor with a wake condition; a worker never
+sits blocked. The monitor wakes the session when the job ends; a wake
+whose only content is "still waiting" is a keep-warm ping (§6).
 
 ## 3. Idle sweep
 

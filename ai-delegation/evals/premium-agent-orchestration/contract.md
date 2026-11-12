@@ -46,6 +46,10 @@ SKILL.md rules below, not prose style.
   work prefers off-peak windows.
 - Every task brief carries one outcome, the exact inputs, and a yes/no check,
   with a static shared prefix first so matching calls can use prefix caching.
+- One agent per tool: the session knows only the call contract — the skill
+  says call this agent with these inputs and expect this output — while the
+  agent runs on a local model and carries the tool's instructions, so no
+  other context does.
 - A delegate's output is a claim until its check passes; failures go back
   with the specific shortfall and the next check; nothing unreviewed ships or
   merges.
@@ -56,7 +60,10 @@ SKILL.md rules below, not prose style.
   and clear stop conditions; no endless polling and no silent absorption of a
   failed task into the parent.
 - The lead keeps every worker and its subagents busy: each worker holds a
-  ranked queue of at least three independent, checkable items; the lead
+  ranked queue of at least three independent, checkable items; while a job
+  runs, the worker starts the next piece of work in the same turn and arms
+  a background wait that wakes the session when the job ends, never waking
+  only to say "still waiting"; the lead
   schedules an idle sweep on an interval shorter than the prompt-cache
   lifetime, run on the cheapest capable session and never on the lead; an
   idle worker pulls its next item, or an empty or fully blocked queue is
