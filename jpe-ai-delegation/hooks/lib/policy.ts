@@ -225,8 +225,8 @@ export type QuotaRow = { id: string; status: 'ok'; as_of: number; windows: Quota
 export type QuotaReason = 'quota_unconfigured' | 'quota_unreachable' | 'quota_missing' | 'quota_stale'
 export type QuotaRead = { rows: QuotaRow[]; unknown: Record<string, QuotaReason>; sources: Record<string, string> }
 
-// One instant query reads every executor's windows from the metrics store.
-export const QUOTA_SELECTOR = '{__name__=~"agent_quota_(used_percent|window_seconds|reset_timestamp_seconds)"}'
+// One instant query reads executor windows and router key budgets from the metrics store.
+export const QUOTA_SELECTOR = '{__name__=~"agent_quota_(used_percent|window_seconds|reset_timestamp_seconds)|litellm_remaining_api_key_budget_metric"}'
 export const QUOTA_STALE_SECONDS = 900
 export const CLOCK_SKEW_SECONDS = 60
 const QUOTA_FIELDS: Record<string, keyof QuotaWindow> = {

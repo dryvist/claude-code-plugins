@@ -1,9 +1,8 @@
 import { describe, expect, test } from 'claude-code/testing'
 import { register } from './register'
-import { CODEX, EXECUTOR_TABLE, LAST_RESORT, codexArgv, eligibleRows, mergeExecutorRows, metricsResult, peakMultiplier, quotaFromMetrics, rankRows, validRow, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, localTask, mandatoryLabel, newestModel, parseVerdict, pickLocal, safePayload, scoreWindows } from './lib/policy'
+import { CODEX, EXECUTOR_TABLE, LAST_RESORT, codexArgv, eligibleRows, mergeExecutorRows, metricsResult, peakMultiplier, quotaFromMetrics, rankRows, validRow, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, localTask, mandatoryLabel, newestModel, parseVerdict, pickLocal, safePayload, scoreWindows, budgetsFromMetrics, forbiddenRowModel } from './lib/policy'
 import { customAgentSandbox, parseAgentDefinition } from './lib/agent-definition'
 import { RECORDED_QUOTA } from './fixtures/quota-instant-query'
-import { budgetsFromMetrics, forbiddenRowModel } from './lib/policy'
 
 const RAN = { exitCode: 0, stdout: '', stderr: '', isStdoutTruncated: false }
 const CACHE = JSON.stringify({ models: [
@@ -129,7 +128,7 @@ const coding = { description: '[class: public] [repo: owner/project] [task: code
 const textTask = { description: '[class: text]', prompt: 'Summarize this supplied text: A small change.' }
 // A placeholder name for the metrics store's proxied route; no address.
 const QUOTA_BASE = 'https://quota.example.test'
-const QUERY_URL = `${QUOTA_BASE}/api/v1/query?query=${encodeURIComponent('{__name__=~"agent_quota_(used_percent|window_seconds|reset_timestamp_seconds)"}')}`
+const QUERY_URL = `${QUOTA_BASE}/api/v1/query?query=${encodeURIComponent('{__name__=~"agent_quota_(used_percent|window_seconds|reset_timestamp_seconds)|litellm_remaining_api_key_budget_metric"}')}`
 const instantQuery = (result: unknown[]) => ({ status: 'success', data: { resultType: 'vector', result } })
 // The three gauges of each window, as one publisher sample at `at` seconds.
 function series(executor: string, windows: any[], at: number, source = 'provider') {
@@ -1380,7 +1379,7 @@ describe('paid rows and router-chat', () => {
     test(`a router-chat row never receives ${name}`, async () => {
       const w = world({ quota: 1, zcodeAvailable: false, env: gateways, files: { [OVERRIDE]: JSON.stringify([flat]) } })
       await w.agent(task)
-      expect(w.fetches.some((f) => f.body !== undefined && JSON.parse(f.body).model === 'flat-chat')).toBe(false)
+      expect(w.fetches.some((f) => f.body !== undefined && JSON.parse(f.body).model === 'local-only')).toBe(false)
       expect(routeEvents(w).at(-1).skipped['chat-flat']).toBe('ineligible')
     })
   }
