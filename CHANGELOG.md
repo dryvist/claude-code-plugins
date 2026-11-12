@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.59.0](https://github.com/dryvist/claude-code-plugins/compare/v6.58.0...v6.59.0) (2026-11-12)
+
+
+### Features
+
+* **delegation:** read sandbox job outcomes and fall through on ended jobs ([#779](https://github.com/dryvist/claude-code-plugins/issues/779)) ([af8146d](https://github.com/dryvist/claude-code-plugins/commit/af8146d4639cfa8e98e986a6b31cc4e24aab7627))
+
 ## [6.58.0](https://github.com/dryvist/claude-code-plugins/compare/v6.57.0...v6.58.0) (2026-11-12)
 
 
