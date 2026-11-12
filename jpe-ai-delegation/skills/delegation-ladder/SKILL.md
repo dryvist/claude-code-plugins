@@ -102,17 +102,41 @@ decision to `~/.claude/ai-delegation.log`:
    never reaches a router-chat row. `AGENT_ROUTE_ZCODE_TOOLS`, when set, limits which sandbox
    tools run; unset runs every table row's tool. Each `route` line lists
    `skipped` rows with a reason: `ineligible`, `exhausted`, `expired`,
-   `not_installed`, `failed`, `budget_unknown` or `budget_spent`.
+   `not_installed`, `failed`, `recent_failures`, `budget_unknown` or
+   `budget_spent`.
 4. Haiku `xhigh` ends every list. A Codex failure, an empty answer or an
    unknown quota moves to the next executor; only forbidden models, prohibited
-   payloads and a dispatched sandbox job without a verified PR stop routing.
+   payloads and a sandbox job that may still open a PR stop routing.
 
 For sandbox coding, put `[task: code] [repo: owner/repository]` in the
 description. A public-repo tag alone does not establish that work is coding.
 The sandbox takes public repositories only; a private repository stays with
 Codex Luna. The hook verifies the returned PR belongs to the requested
-repository, is open and non-draft, and has `human:review`. A job with no PR or
-an unverifiable PR fails the handoff; inspect a dispatched job before retrying.
+repository, is open and non-draft, and has `human:review`. When a job returns
+no verified PR, the hook reads `zcode-job status <job>` and acts on its `end`
+field. If the job ended without a PR, the task moves to the next eligible
+executor; `fell_through_from` names the sandbox and `skipped` gives `failed`.
+If the job ended `cancelled`, routing stops for that task: the hook writes its
+outcome line and a route line with reason `sandbox job cancelled`. If the job is
+still running, opened a PR, or has no readable `end`, the handoff fails; inspect
+that job before retrying.
+
+Every `route` line lists its sandbox jobs under `jobs` (`job`, `repo`,
+`executor`, and `started_ms`, the hook's clock just before the start call).
+When a later placement has a sandbox executor as a candidate, the hook reads the
+last 128 KiB of the decision log; a truncated read counts as no history. It
+reads `status` for up to five recent jobs that have no outcome yet, within 3
+seconds in total, and writes one `outcome` line (`job`, `repo`, `executor`,
+`end`, `ended_ms`) for each job that has ended. `ended_ms` is the start plus the
+job's `duration`, never later than the observation; without a duration it is
+the observation time. The hook keeps no store of its own; it reads these lines
+back from the decision log, counts one outcome per job, and ignores lines
+stamped more than a minute in the future. An executor is skipped for a
+repository with reason `recent_failures` when two or more of its last three
+ended jobs there ended `no_commit`, `timeout`, `rate_limited` or `refused`. The
+skip lasts 60 minutes after the newest failure's `ended_ms`, or until the end of
+that UTC hour when it is `rate_limited`. Status reads on a failed start stop
+after 15 seconds.
 The hook never merges. Leak-scan the exact PR head before any human merge.
 
 The permission judge alone uses the GLM and OpenCode Go chat transports, through
