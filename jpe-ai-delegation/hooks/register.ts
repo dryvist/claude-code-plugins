@@ -70,7 +70,7 @@ async function quotaHeaders($: Engine, url: string): Promise<Record<string, stri
     const content = (await $.fs.read(path)) as string
     if (content.length > QUOTA_TOKEN_MAX_BYTES) return headers
     const token = content.trim()
-    if (/^[\x21-\x7e]+$/.test(token)) headers.Authorization = `Bearer ${token}`
+    if (/^[!-~]+$/.test(token)) headers.Authorization = `Bearer ${token}`
   } catch {
     // No readable token: the request goes without one.
   }
