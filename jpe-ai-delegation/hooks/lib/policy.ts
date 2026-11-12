@@ -55,6 +55,9 @@ export const explicitLabel = (description: string | undefined): Label | undefine
 
 export const mandatoryLabel = (text: string): Label | undefined => /\b(auth(?:entication|orization)?|secrets?|credentials?|routers?|routing|memory|clusters?)\b/i.test(text) ? 'bulk-complex' : undefined
 export const forbiddenModel = (model: string | undefined): boolean => /(?:^|[-/\s])(sonnet|opus|fable)(?:$|[-/\s\d])/i.test(model ?? '')
+// Stricter, for an executor row's model only: any spelling that contains sonnet, opus or fable once case and every
+// non-alphanumeric are removed. Over-blocking an odd router name is the safe direction; agent type names keep forbiddenModel.
+export const forbiddenRowModel = (model: string | undefined): boolean => /sonnet|opus|fable/.test((model ?? '').toLowerCase().replace(/[^a-z0-9]/g, ''))
 
 // Local screening happens before any classifier or executor receives the payload.
 export const safePayload = (text: string): boolean => !/(-----BEGIN (?:[A-Z]+ )?PRIVATE KEY-----|\b(?:gh[pousr]_|github_pat_|xox[baprs]-|sk-(?:proj-|ant-)?)[A-Za-z0-9_-]{12,}|\bAKIA[A-Z0-9]{16}\b|\b(?:password|passwd|token|api[_-]?key|secret[_-]?key)["']?\s*[:=]\s*\S+|\bauthorization\s*:\s*bearer\s+\S+|\[content:\s*(?:secrets|credentials|inventory|incident)\]|\b(?:ansible_host|ansible_password)\s*:|\b(?:incident|outage)\s+(?:timeline|report)\s*:)/i.test(text)
@@ -104,10 +107,18 @@ export function codexArgv(sandbox: Sandbox, route: Route, model: string | undefi
 // overridden or added by id from an operator file; `mergeExecutorRows` validates every row.
 export type Executor = string
 export type Peak = { days: number[]; start_utc: number; end_utc: number; multiplier: number }
+// `router-chat` rows answer self-contained `[class: text]` work through the on-host router's chat endpoint under
+// `model`: an on-host alias, or any router model on a `billing: 'paid'` row. A paid row is pay-per-use: it names the
+// router key alias it spends, is never `private_ok`, and is gated on that key's remaining budget. `budget_daily_usd`
+// documents the key's own daily cap; the hook does not compare it.
 export type ExecutorRow = {
   id: Executor
-  transport: 'codex' | 'sandbox'
+  transport: 'codex' | 'sandbox' | 'router-chat'
   tool?: string
+  model?: string
+  billing?: 'paid'
+  budget_daily_usd?: number
+  budget_key?: string
   trust: 'subscription-trusted' | 'sandbox-public'
   private_ok: boolean
   quota?: string
@@ -134,8 +145,18 @@ const isPeak = (p: unknown): p is Peak => {
 export function validRow(r: unknown): ExecutorRow | undefined {
   const v = r as ExecutorRow
   if (!v || typeof v.id !== 'string' || !/^[a-z0-9-]{1,40}$/.test(v.id) || v.id === LAST_RESORT.model) return undefined
-  if (v.transport !== 'codex' && v.transport !== 'sandbox') return undefined
+  if (v.transport !== 'codex' && v.transport !== 'sandbox' && v.transport !== 'router-chat') return undefined
   if (v.transport === 'sandbox' && (typeof v.tool !== 'string' || !/^[a-z0-9-]{1,40}$/.test(v.tool))) return undefined
+  if (v.transport === 'router-chat' && (typeof v.model !== 'string' || !/^[A-Za-z0-9._:/-]{1,80}$/.test(v.model))) return undefined
+  if (forbiddenRowModel(v.model)) return undefined
+  if (v.billing !== undefined && v.billing !== 'paid') return undefined
+  if (v.billing === 'paid' && (v.transport !== 'router-chat' || typeof v.budget_daily_usd !== 'number' ||
+    !Number.isFinite(v.budget_daily_usd) || v.budget_daily_usd <= 0 || v.private_ok !== false ||
+    typeof v.budget_key !== 'string' || !/^[A-Za-z0-9._-]{1,80}$/.test(v.budget_key))) return undefined
+  // A paid row is public-only and never a promotion.
+  if (v.billing === 'paid' && (v.trust !== 'sandbox-public' || v.kind !== undefined)) return undefined
+  // An unpaid router-chat row stays on the host: its model must be an on-host alias, never a `*-homelab` one.
+  if (v.transport === 'router-chat' && v.billing !== 'paid' && !LOCAL_ALIASES.some((l) => l.alias === v.model)) return undefined
   if (v.trust !== 'subscription-trusted' && v.trust !== 'sandbox-public') return undefined
   if (typeof v.private_ok !== 'boolean' || (v.private_ok && v.trust !== 'subscription-trusted')) return undefined
   if (v.transport === 'sandbox' && (v.trust !== 'sandbox-public' || v.private_ok)) return undefined
@@ -161,13 +182,78 @@ export function mergeExecutorRows(base: readonly ExecutorRow[], override: unknow
   return { rows, rejected }
 }
 
-export type SkipReason = 'ineligible' | 'exhausted' | 'expired' | 'not_installed' | 'failed'
-// Rows that may see this task; private work only reaches `private_ok` rows. Expired promotions drop out.
-export function eligibleRows(rows: readonly ExecutorRow[], publicCode: boolean, nowMs: number): { rows: ExecutorRow[]; skipped: Record<Executor, SkipReason> } {
+export type SkipReason = 'ineligible' | 'exhausted' | 'expired' | 'not_installed' | 'failed' | 'recent_failures' | 'budget_unknown' | 'budget_spent'
+
+// How a sandbox job ended, from the dispatcher's `status`: `end` decides, and `duration` (whole seconds the job ran)
+// only dates the end.
+export const JOB_ENDS = ['pr_opened', 'branch_pushed', 'no_commit', 'timeout', 'refused', 'rate_limited', 'cancelled', 'failed'] as const
+export type JobEnd = (typeof JOB_ENDS)[number]
+export type JobState = { end: JobEnd; duration_ms?: number }
+export function jobState(status: unknown): JobState | undefined {
+  const { end, duration } = (status ?? {}) as { end?: unknown; duration?: unknown }
+  if (!(JOB_ENDS as readonly unknown[]).includes(end)) return undefined
+  return typeof duration === 'number' && Number.isFinite(duration) && duration >= 0 ? { end: end as JobEnd, duration_ms: duration * 1000 } : { end: end as JobEnd }
+}
+// `started_ms` is the hook's clock just before `zcode-job start`, so it is at or before the job's real start.
+export type JobRecord = { job: string; repo: string; executor: Executor; started_ms: number }
+// `ended_ms` anchors the recent-failure window; `ts_ms` is when the hook observed the end.
+export type JobOutcome = Omit<JobRecord, 'started_ms'> & { end: JobEnd; ts_ms: number; ended_ms: number }
+// The end anchor: start plus run duration, never later than the observation. The start call waits at most 300 s, so the
+// anchor is within that of the real end. Without a duration, the anchor is the observation time.
+export const endAnchor = (record: JobRecord, state: JobState, observedMs: number): number =>
+  state.duration_ms === undefined ? observedMs : Math.min(observedMs, record.started_ms + state.duration_ms)
+const JOB_ID = /^j-[0-9a-f]{16}$/
+const JOB_REPO = /^[A-Za-z0-9][A-Za-z0-9-]{0,38}\/[A-Za-z0-9._-]{1,100}$/
+const JOB_EXECUTOR = /^[a-z0-9-]{1,40}$/
+const JOB_HISTORY_MS = 86_400_000
+const LOG_SKEW_MS = 60_000
+const isJob = (j: unknown): j is { job: string; repo: string; executor: string } => {
+  const v = j as JobRecord
+  return Boolean(v) && typeof v.job === 'string' && JOB_ID.test(v.job) && typeof v.repo === 'string' && JOB_REPO.test(v.repo) &&
+    typeof v.executor === 'string' && JOB_EXECUTOR.test(v.executor)
+}
+const stamp = (v: unknown, fallback: number): number => typeof v === 'number' && Number.isFinite(v) ? v : fallback
+// From decision-log lines: jobs placed in the last 24 hours that have no outcome line yet (newest first, at most 5), and
+// one outcome per job (its first line). Lines that are not JSON, carry an invalid job, repository or executor, or are
+// stamped more than a minute in the future are ignored.
+export function jobHistory(lines: readonly string[], nowMs: number): { pending: JobRecord[]; outcomes: JobOutcome[] } {
+  const placed: JobRecord[] = []
+  const outcomes = new Map<string, JobOutcome>()
+  for (const line of lines) {
+    let entry: { event?: unknown; ts_ms?: unknown; jobs?: unknown; end?: unknown; ended_ms?: unknown }
+    try { entry = JSON.parse(line) } catch { continue }
+    const ts = entry?.ts_ms
+    if (typeof ts !== 'number' || !Number.isFinite(ts) || ts > nowMs + LOG_SKEW_MS) continue
+    if (entry.event === 'route' && nowMs - ts <= JOB_HISTORY_MS && Array.isArray(entry.jobs)) {
+      for (const j of entry.jobs) if (isJob(j)) placed.push({ job: j.job, repo: j.repo, executor: j.executor, started_ms: Math.min(stamp((j as JobRecord).started_ms, ts), ts) })
+    } else if (entry.event === 'outcome' && isJob(entry) && (JOB_ENDS as readonly unknown[]).includes(entry.end) && !outcomes.has(entry.job)) {
+      outcomes.set(entry.job, { job: entry.job, repo: entry.repo, executor: entry.executor, end: entry.end as JobEnd, ts_ms: ts, ended_ms: Math.min(stamp(entry.ended_ms, ts), ts) })
+    }
+  }
+  return { pending: placed.filter((p) => !outcomes.has(p.job)).reverse().slice(0, 5), outcomes: [...outcomes.values()] }
+}
+const FAILED_ENDS: readonly JobEnd[] = ['no_commit', 'timeout', 'rate_limited', 'refused']
+// True while two or more of an executor's last three ended jobs for this repository (by end anchor) failed: 60 minutes
+// after the newest failure's end anchor, or until the end of that UTC hour when it is `rate_limited`.
+export function recentFailures(outcomes: readonly JobOutcome[], executor: Executor, repo: string, nowMs: number): boolean {
+  const failed = outcomes.filter((o) => o.executor === executor && o.repo.toLowerCase() === repo.toLowerCase())
+    .sort((a, b) => a.ended_ms - b.ended_ms).slice(-3).filter((o) => FAILED_ENDS.includes(o.end))
+  const newest = failed.at(-1)
+  if (failed.length < 2 || !newest) return false
+  const until = newest.end === 'rate_limited' ? (Math.floor(newest.ended_ms / 3_600_000) + 1) * 3_600_000 : newest.ended_ms + 3_600_000
+  return nowMs < until
+}
+// Rows that may see this task; private work only reaches `private_ok` rows, so a paid row (never `private_ok`) sees
+// only public work. Expired promotions drop out, and so does a paid row whose remaining budget (by key alias) is not a
+// finite number (unknown) or is at or below zero (spent).
+export function eligibleRows(rows: readonly ExecutorRow[], publicCode: boolean, nowMs: number, budgets: ReadonlyMap<string, number> = new Map()): { rows: ExecutorRow[]; skipped: Record<Executor, SkipReason> } {
   const skipped: Record<Executor, SkipReason> = {}
   const open = rows.filter((r) => {
+    const left = r.billing === 'paid' ? budgets.get(r.budget_key!) : undefined
     if (!publicCode && !r.private_ok) skipped[r.id] = 'ineligible'
     else if (r.kind === 'promotion' && Date.parse(r.expires!) <= nowMs) skipped[r.id] = 'expired'
+    else if (r.billing === 'paid' && (typeof left !== 'number' || !Number.isFinite(left))) skipped[r.id] = 'budget_unknown'
+    else if (r.billing === 'paid' && left! <= 0) skipped[r.id] = 'budget_spent'
     else return true
     return false
   })
@@ -199,10 +285,11 @@ export type QuotaRow = { id: string; status: 'ok'; as_of: number; windows: Quota
 export type QuotaReason = 'quota_unconfigured' | 'quota_unreachable' | 'quota_missing' | 'quota_stale'
 export type QuotaRead = { rows: QuotaRow[]; unknown: Record<string, QuotaReason>; sources: Record<string, string> }
 
-// One instant query reads every executor's windows from the metrics store.
+// One instant query reads executor windows and router key budgets from the metrics store.
 // The metrics route admits only this exact selector string; change it together with the route or the read is refused.
-export const QUOTA_SELECTOR = '{__name__=~"agent_quota_(used_percent|window_seconds|reset_timestamp_seconds)"}'
+export const QUOTA_SELECTOR = '{__name__=~"agent_quota_(used_percent|window_seconds|reset_timestamp_seconds)|litellm_remaining_api_key_budget_metric"}'
 export const QUOTA_STALE_SECONDS = 900
+export const CLOCK_SKEW_SECONDS = 60
 const QUOTA_FIELDS: Record<string, keyof QuotaWindow> = {
   agent_quota_used_percent: 'used_percent',
   agent_quota_window_seconds: 'window_seconds',
@@ -253,6 +340,26 @@ export function quotaFromMetrics(result: readonly unknown[], ids: readonly strin
     if (row.windows.length) read.rows.push(row)
   }
   return read
+}
+// Remaining USD per router key alias from the same instant-query result, read from the router's
+// `litellm_remaining_api_key_budget_metric{api_key_alias}`. A sample is usable when its value is finite and its timestamp
+// is finite, at most CLOCK_SKEW_SECONDS ahead and at most QUOTA_STALE_SECONDS old. A key stays absent (unknown) unless
+// every sample for it is usable and they all agree.
+// A Map, so a key alias such as `constructor` or `__proto__` never reads an inherited value.
+export function budgetsFromMetrics(result: readonly unknown[], keys: readonly string[], nowSeconds: number): Map<string, number> {
+  const seen = new Map<string, number | undefined>()
+  for (const raw of result) {
+    const { metric, value } = (raw ?? {}) as { metric?: Record<string, unknown>; value?: unknown }
+    const key = metric?.api_key_alias
+    const [at, text] = Array.isArray(value) ? value : []
+    const number = typeof text === 'string' && text.trim() !== '' ? Number(text) : NaN
+    if (metric?.__name__ !== 'litellm_remaining_api_key_budget_metric' || typeof key !== 'string' || !keys.includes(key)) continue
+    const usable = typeof at === 'number' && Number.isFinite(at) && at <= nowSeconds + CLOCK_SKEW_SECONDS && nowSeconds - at <= QUOTA_STALE_SECONDS && Number.isFinite(number)
+    // Every sample for an alias must be usable and agree: a stale, invalid or future sample, or a disagreeing one, could
+    // be the spent key the router charges.
+    seen.set(key, !usable || (seen.has(key) && seen.get(key) !== number) ? undefined : number)
+  }
+  return new Map([...seen].filter((entry): entry is [string, number] => entry[1] !== undefined))
 }
 export type Score = { score?: number; exhausted: boolean; used?: number; line?: number; distance?: number }
 // Use a one-day margin for windows of two days or longer and zero for shorter windows.
