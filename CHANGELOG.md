@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.60.0](https://github.com/dryvist/claude-code-plugins/compare/v6.59.0...v6.60.0) (2026-11-13)
+
+
+### Features
+
+* **jpe-ai-delegation:** send a bearer token on the quota query ([#792](https://github.com/dryvist/claude-code-plugins/issues/792)) ([f1f2b91](https://github.com/dryvist/claude-code-plugins/commit/f1f2b918319707bfa8fbd48501afe95f17934e72))
+
 ## [6.59.0](https://github.com/dryvist/claude-code-plugins/compare/v6.58.0...v6.59.0) (2026-11-12)
 
 
