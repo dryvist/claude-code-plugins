@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'claude-code/testing'
+import type { EngineInterface } from 'claude-code'
 import { endAnchor, jobHistory, jobState, recentFailures } from './lib/policy'
 import { register } from './register'
 import { CODEX, EXECUTOR_TABLE, LAST_RESORT, codexArgv, eligibleRows, mergeExecutorRows, metricsResult, peakMultiplier, QUOTA_SELECTOR, quotaFromMetrics, rankRows, validRow, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, localTask, mandatoryLabel, newestModel, parseVerdict, pickLocal, safePayload, scoreWindows, budgetsFromMetrics, forbiddenRowModel } from './lib/policy'
@@ -46,19 +47,33 @@ function world(w: World = {}) {
   const allFetches: { url: string; headers: Record<string, string>; body?: string }[] = []
   const fsTouches: string[] = []
   const fsReads: string[] = []
+  const fsStats: { path: string; resolve?: boolean }[] = []
   const modelCalls: unknown[] = []
   const nextCalls: any[] = []
   const logs: string[] = []
   const env: Record<string, string> = { HOME: '/home/test', ...(w.quotaUrl === null ? {} : { AGENT_QUOTA_QUERY_URL: w.quotaUrl ?? QUOTA_BASE }), ...w.env }
   let output = ''
   let clockNow = w.now ?? 1_000_000
-  const quotaFileStats = (path: string, followSymlinks = false) => {
-    const kind = w.quotaFileTypes?.[path] ?? 'file'
-    return {
-      size: new TextEncoder().encode(w.files?.[path] ?? '').byteLength,
-      isFile: () => kind === 'file' || (followSymlinks && kind === 'symlink'),
-      isSymbolicLink: () => !followSymlinks && kind === 'symlink',
-    }
+  const fs: Pick<EngineInterface['fs'], 'exists' | 'stat'> = {
+    exists: async (path: string) => {
+      fsTouches.push(path)
+      if (w.fsThrows) throw new Error('read failed')
+      if (path === w.readThrows || path === w.readHangs) return true
+      if (path.endsWith('/executors.json')) return w.files?.[path] !== undefined
+      return path.endsWith('models_cache.json') ? w.cache !== false : w.files?.[path] !== undefined || Boolean(w.definition)
+    },
+    stat: async (path, options) => {
+      fsTouches.push(path)
+      fsStats.push({ path, resolve: options?.resolve })
+      if (w.fsThrows || (w.files?.[path] === undefined && path !== w.readThrows && path !== w.readHangs)) throw new Error('metadata read failed')
+      const kind = w.quotaFileTypes?.[path] ?? 'file'
+      return {
+        kind: kind === 'directory' ? 'dir' : kind === 'symlink' && options?.resolve === false ? 'other' : 'file',
+        size: new TextEncoder().encode(w.files?.[path] ?? '').byteLength,
+        mtimeMs: 0,
+        isLink: kind === 'symlink',
+      }
+    },
   }
   const $ = {
     env: { get: async (key: string) => { if (key === w.envThrows) throw new Error('environment read failed'); return env[key] } },
@@ -66,23 +81,7 @@ function world(w: World = {}) {
     clock: { now: async () => { if (w.clockThrows) throw new Error('clock failed'); if (w.clockHangs) return new Promise<number>(() => {}); return clockNow }, after: (delay: number, callback: () => void) => { if ((w.clockHangs && delay === 5_000) || (w.gatewayTimeout && delay >= 60_000) || (w.quotaTimeout && delay === 3_000) || (w.statusHangs && (delay === 3_000 || delay === 15_000))) queueMicrotask(callback); return { cancel() {} } } },
     ui: { log: (line: string) => logs.push(line) },
     fs: {
-      exists: async (path: string) => {
-        fsTouches.push(path)
-        if (w.fsThrows) throw new Error('read failed')
-        if (path === w.readThrows || path === w.readHangs) return true
-        if (path.endsWith('/executors.json')) return w.files?.[path] !== undefined
-        return path.endsWith('models_cache.json') ? w.cache !== false : w.files?.[path] !== undefined || Boolean(w.definition)
-      },
-      lstat: async (path: string) => {
-        fsTouches.push(path)
-        if (w.fsThrows || (w.files?.[path] === undefined && path !== w.readThrows && path !== w.readHangs)) throw new Error('metadata read failed')
-        return quotaFileStats(path)
-      },
-      stat: async (path: string) => {
-        fsTouches.push(path)
-        if (w.fsThrows || (w.files?.[path] === undefined && path !== w.readThrows && path !== w.readHangs)) throw new Error('metadata read failed')
-        return quotaFileStats(path, true)
-      },
+      ...fs,
       read: async (path: string) => {
         fsTouches.push(path)
         fsReads.push(path)
@@ -160,7 +159,7 @@ function world(w: World = {}) {
       return handler.caught($, e, next)
     }
   }
-  return { calls, writes, fetches, quotaFetches, quotaHeaders, allFetches, fsTouches, fsReads, modelCalls, nextCalls, logs, invoke, setNow: (ms: number) => { clockNow = ms },
+  return { calls, writes, fetches, quotaFetches, quotaHeaders, allFetches, fsTouches, fsReads, fsStats, modelCalls, nextCalls, logs, invoke, setNow: (ms: number) => { clockNow = ms },
     agent: (e: Record<string, unknown> = {}) => invoke('tool.call', { tool: 'Agent', description: '[class: standard]', prompt: 'Implement the change.', ...e }),
   }
 }
@@ -1145,9 +1144,10 @@ describe('quota from the metrics store', () => {
   const SECRET = 'quota-secret-value'
   // How many times the token appears across every request's URL, headers and body.
   const tokenSightings = (w: ReturnType<typeof world>) => w.allFetches.reduce((n, f) => n + JSON.stringify(f).split(SECRET).length - 1, 0)
-  test('a non-empty token file sends a trimmed bearer header on the quota GET only', async () => {
+  test('a non-empty token file uses declared filesystem methods and sends a trimmed bearer header on the quota GET only', async () => {
     const w = world({ env: { ...gateways, AGENT_QUOTA_TOKEN_FILE: TOKEN_FILE }, files: { [TOKEN_FILE]: `  ${SECRET}\n` } })
     await w.agent(coding)
+    expect(w.fsStats).toEqual([{ path: TOKEN_FILE, resolve: false }])
     expect(w.quotaHeaders).toEqual([{ accept: 'application/json', Authorization: `Bearer ${SECRET}` }])
     expect(w.allFetches.length).toBeGreaterThan(1)
     expect(tokenSightings(w)).toBe(1)

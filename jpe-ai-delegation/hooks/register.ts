@@ -63,10 +63,8 @@ async function quotaHeaders($: Engine, url: string): Promise<Record<string, stri
   try {
     const path = url.startsWith('https://') ? await $.env.get('AGENT_QUOTA_TOKEN_FILE') : undefined
     if (!path || !isAbsolutePath(path)) return headers
-    const link = await $.fs.lstat(path)
-    if (link.isSymbolicLink()) return headers
-    const file = await $.fs.stat(path)
-    if (!file.isFile() || file.size > QUOTA_TOKEN_MAX_BYTES) return headers
+    const file = await $.fs.stat(path, { resolve: false })
+    if (file.kind !== 'file' || file.isLink || file.size > QUOTA_TOKEN_MAX_BYTES) return headers
     const content = (await $.fs.read(path)) as string
     if (content.length > QUOTA_TOKEN_MAX_BYTES) return headers
     const token = content.trim()
@@ -328,7 +326,8 @@ function failure(e: AgentCall, reason: string): unknown {
 
 function repositoryTag(description: string | undefined): string | undefined {
   const repo = description?.match(/\[repo: ([A-Za-z0-9][A-Za-z0-9-]{0,38}\/[A-Za-z0-9._-]{1,100})\]/)?.[1]
-  return repo && !['.', '..'].includes(repo.split('/')[1]) ? repo : undefined
+  const repository = repo?.split('/')[1]
+  return repo && repository !== undefined && !['.', '..'].includes(repository) ? repo : undefined
 }
 
 async function github($: Engine, path: string): Promise<unknown> {
@@ -438,15 +437,18 @@ async function runSandboxExecutor($: Engine, e: AgentCall, repo: string, tool: s
     accepted = Boolean(job)
     if (job) record = { job, repo, executor, started_ms: started ?? 0 }
     const done = line.match(/^DONE\|(j-[0-9a-f]{16})\|(https:\/\/github\.com\/([A-Za-z0-9-]+\/[A-Za-z0-9._-]+)\/pull\/(\d+))$/)
-    if (response.exitCode !== 0 || response.isStdoutTruncated === true || !done || done[3].toLowerCase() !== repo.toLowerCase()) {
+    const pullUrl = done?.[2]
+    const pullRepository = done?.[3]
+    const pullNumber = done?.[4]
+    if (response.exitCode !== 0 || response.isStdoutTruncated === true || !pullUrl || !pullRepository || !pullNumber || pullRepository.toLowerCase() !== repo.toLowerCase()) {
       // A job still running or with an unreadable end may yet open a PR: never start a duplicate.
       const state = record ? await jobStatus($, record.job, JOB_STATUS_TIMEOUT_MS) : undefined
       if (state?.end === 'cancelled') return { accepted, record, state, result: failure(e, `${tool} job ${record!.job} was cancelled; routing stops for this task`) }
       if (state && state.end !== 'pr_opened') return { accepted, record, state }
       return { accepted, record, result: failure(e, `${tool} did not return a PR for the requested repository`) }
     }
-    const pr = await github($, `${repo}/pulls/${done[4]}`) as { state?: string; draft?: boolean; labels?: { name: string }[]; html_url?: string }
-    if (pr.state !== 'open' || pr.draft !== false || pr.html_url !== done[2] || !pr.labels?.some((l) => l.name === 'human:review')) return { accepted, record, result: failure(e, `${tool} PR is not ready and labelled human:review`) }
+    const pr = await github($, `${repo}/pulls/${pullNumber}`) as { state?: string; draft?: boolean; labels?: { name: string }[]; html_url?: string }
+    if (pr.state !== 'open' || pr.draft !== false || pr.html_url !== pullUrl || !pr.labels?.some((l) => l.name === 'human:review')) return { accepted, record, result: failure(e, `${tool} PR is not ready and labelled human:review`) }
     await logDecision($, `route: coding -> ${name} (leak scan required before merge)`)
     return { accepted, record, result: routedResult(e, `ai-delegation-${tool}`, line, `[routed: ${name}; leak-scan before merge; never auto-merge]`, started === null ? 0 : ((await clockNow($)) ?? started) - started) }
   } catch {
@@ -500,10 +502,12 @@ async function customAgentDefinition($: Engine, type: string): Promise<AgentDefi
         .flatMap(([, entries]) => entries)
         .filter((entry) => scopes.includes(entry.scope) && (entry.scope === 'user' || (entry.projectPath && (cwd === entry.projectPath || cwd.startsWith(`${entry.projectPath}/`)))))
         .sort((a, b) => scopes.indexOf(a.scope) - scopes.indexOf(b.scope))
+      const firstMatch = matches[0]
+      const secondMatch = matches[1]
       // Ambiguous plugin names must not load an arbitrary marketplace's instructions.
-      if (matches.length > 1 && matches[0].scope === matches[1].scope) return undefined
-      if (matches[0]?.installPath.startsWith('/')) {
-        const path = `${matches[0].installPath}/agents/${namespaced[2]}.md`
+      if (firstMatch && secondMatch && firstMatch.scope === secondMatch.scope) return undefined
+      if (firstMatch?.installPath.startsWith('/')) {
+        const path = `${firstMatch.installPath}/agents/${namespaced[2]}.md`
         if (await $.fs.exists(path)) text = (await $.fs.read(path)) as string
       }
     }
