@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.63.0](https://github.com/dryvist/claude-code-plugins/compare/v6.62.0...v6.63.0) (2026-11-14)
+
+
+### Features
+
+* **jpe-ai-delegation:** add a Qwen sandbox executor row ([#806](https://github.com/dryvist/claude-code-plugins/issues/806)) ([c5dfe87](https://github.com/dryvist/claude-code-plugins/commit/c5dfe876dcbd52c620c6c3de292077182a012403))
+
 ## [6.62.0](https://github.com/dryvist/claude-code-plugins/compare/v6.61.1...v6.62.0) (2026-11-14)
 
 
