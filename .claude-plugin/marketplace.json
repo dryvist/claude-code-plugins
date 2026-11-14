@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "Claude Code plugins and hooks by JacobPEvans",
-    "version": "6.60.0"
+    "version": "6.60.1"
   },
   "plugins": [
     {
@@ -130,7 +130,7 @@
       "name": "openbao",
       "source": "./openbao",
       "description": "OpenBao-backed secrets access model: mint ephemeral credentials from secrets engines instead of storing static ones; reads pre-authorized, writes human-gated",
-      "version": "4.22.1",
+      "version": "4.22.2",
       "author": {
         "name": "JacobPEvans"
       }
