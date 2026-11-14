@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.62.0](https://github.com/dryvist/claude-code-plugins/compare/v6.61.1...v6.62.0) (2026-11-14)
+
+
+### Features
+
+* **jpe-ai-delegation:** classify untagged spawns on the on-host small model ([#803](https://github.com/dryvist/claude-code-plugins/issues/803)) ([a9fb5d0](https://github.com/dryvist/claude-code-plugins/commit/a9fb5d0b7fceb650999966bb66959a3aefe7b86b))
+
 ## [6.61.1](https://github.com/dryvist/claude-code-plugins/compare/v6.61.0...v6.61.1) (2026-11-14)
 
 
