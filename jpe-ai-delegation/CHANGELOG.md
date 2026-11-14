@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.23.1](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.23.0...jpe-ai-delegation-v1.23.1) (2026-11-14)
+
+
+### Bug Fixes
+
+* **jpe-ai-delegation:** pass the last rung through without changing the call ([#800](https://github.com/dryvist/claude-code-plugins/issues/800)) ([1f2fd08](https://github.com/dryvist/claude-code-plugins/commit/1f2fd0828f5cdf55eede4cc142a50b263f3e4f29))
+
 ## [1.23.0](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.22.0...jpe-ai-delegation-v1.23.0) (2026-11-14)
 
 
