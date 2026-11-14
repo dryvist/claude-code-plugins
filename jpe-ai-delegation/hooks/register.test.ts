@@ -15,7 +15,7 @@ const CACHE = JSON.stringify({ models: [
 ] })
 const PR = { html_url: 'https://github.com/owner/project/pull/12', state: 'open', draft: false, labels: [{ name: 'human:review' }] }
 const CORE_ASK = { decision: 'ask', reason: 'This shell -c script runs rm.' }
-type Call = { argv: string[]; stdin?: string }
+type Call = { argv: string[]; stdin?: string; env?: Record<string, string> }
 type World = {
   quota?: number; codexWindows?: unknown[]; cursorWindows?: unknown[]; now?: number; gatewayFinish?: string; quotaThrows?: boolean; cache?: boolean; codexExit?: number; answer?: string; label?: string
   env?: Record<string, string>; definition?: string; files?: Record<string, string>; fsThrows?: boolean; worktreeExit?: number; temporaryExit?: number
@@ -95,8 +95,8 @@ function world(w: World = {}) {
         return path === '/token' ? 'test-token' : path.endsWith('models_cache.json') ? CACHE : path === '/tmp/final' ? output : w.files?.[path] ?? w.definition ?? ''
       },
     },
-    process: { run: async (argv: string[], init?: { stdin?: string }) => {
-      calls.push({ argv, stdin: init?.stdin })
+    process: { run: async (argv: string[], init?: { stdin?: string; env?: Record<string, string> }) => {
+      calls.push({ argv, stdin: init?.stdin, env: init?.env })
       if (argv[0] === 'tee' && w.teeThrows) throw new Error('log write failed')
       if (argv[0] === 'tee') { if ((w.teeExit ?? 0) === 0) writes.push(init?.stdin ?? ''); return { ...RAN, exitCode: w.teeExit ?? 0 } }
       if (argv[0] === 'mktemp') return { ...RAN, exitCode: w.temporaryExit ?? 0, stdout: argv[1] === '-d' ? '/tmp/worktree' : '/tmp/final' }
@@ -750,6 +750,8 @@ describe('capped ladder', () => {
     expect(text(await w.agent(coding))).toContain('[routed: Qwen sandbox; leak-scan before merge; never auto-merge]')
     expect(w.calls.find((c) => c.argv[0] === 'zcode-job')?.argv).toEqual(['zcode-job', 'start', '--tool', 'opencode-qwen', 'owner/project', `${coding.prompt}\n\nReturn a ready PR labelled human:review. Never auto-merge. The trusted lead must leak-scan the PR before merge.`])
     expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'qwen', kind: { value: 'code', source: 'tag' } })
+    expect(w.calls.find((c) => c.argv[1] === 'start')?.env).toEqual({ UNTRUSTED_OK: 'public' })
+    expect(w.calls.filter((c) => c.argv[1] !== 'start').every((c) => c.env === undefined)).toBe(true)
     expect(w.fetches.map((f) => f.url)).toEqual(['https://api.github.com/repos/owner/project', 'https://api.github.com/repos/owner/project/pulls/12'])
     expect(w.nextCalls).toEqual([])
   })
