@@ -323,7 +323,8 @@ export const localTask = (description: string | undefined, prompt = ''): boolean
   if (classTags.length) return classTags.every((tag) => tag === 'text')
   const text = `${description ?? ''}\n${prompt}`
   const request = withoutSuppliedPayload(text)
-  return TEXT_REQUEST.test(request) && isSuppliedPrompt(text) && !HAS_URL.test(text) && !HAS_PATH_TOKEN.test(request) &&
+  // Only the prompt is sent to the local model, so the prompt alone must carry the request and the supplied text.
+  return TEXT_REQUEST.test(withoutSuppliedPayload(prompt)) && isSuppliedPrompt(prompt) && !HAS_URL.test(text) && !HAS_PATH_TOKEN.test(request) &&
     !HAS_EXTERNAL_REFERENCE.test(request) && !HAS_TOOL_INSTRUCTION.test(request) && !HAS_LATER_INSTRUCTION.test(text)
 }
 
