@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.23.0](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.22.0...jpe-ai-delegation-v1.23.0) (2026-11-14)
+
+
+### Features
+
+* **agent:** zcode run j-64c269e98a353aab ([43df549](https://github.com/dryvist/claude-code-plugins/commit/43df549f24afe2a7eca0c2df8666bded3a3be8d5))
+* **jpe-ai-delegation:** infer the repository from prompt paths ([#798](https://github.com/dryvist/claude-code-plugins/issues/798)) ([43df549](https://github.com/dryvist/claude-code-plugins/commit/43df549f24afe2a7eca0c2df8666bded3a3be8d5))
+
 ## [1.22.0](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.21.0...jpe-ai-delegation-v1.22.0) (2026-11-13)
 
 
