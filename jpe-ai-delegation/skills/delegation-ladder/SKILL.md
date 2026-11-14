@@ -13,8 +13,8 @@ Codex weekly).
 
 1. Small, quick, checkable tasks (summarize, extract, classify, reformat, a first pass over a file or log) go to
    the router local default or medium capability before any subscription; escalate only after a checked failure.
-2. ZCode or Codex Luna:
-   - ZCode (`zcode-job`): obvious, definitely non-sensitive work in public repos. Coding and coding-adjacent only:
+2. A public sandbox (Qwen first, then ZCode) or Codex Luna:
+   - Qwen (`zcode-job --tool opencode-qwen`), then ZCode (`zcode-job`): obvious, definitely non-sensitive work in public repos. Coding and coding-adjacent only:
      code, tests, GitHub automation and workflows, code reviews. Open-internet research needs a separate untrusted, internet-open container.
      The output is a ready PR labelled `human:review`. Leak-scan it before merge. Never auto-merge it.
    - Codex Luna: anything even remotely sensitive, or any private repo. Luna `xhigh` default, `max` as needed.
