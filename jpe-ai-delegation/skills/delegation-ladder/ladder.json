@@ -4,6 +4,10 @@
       "visibility": "public",
       "rungs": [
         {
+          "name": "Qwen sandbox",
+          "gate": "sandbox"
+        },
+        {
           "name": "zcode-job sandbox",
           "gate": "sandbox"
         },

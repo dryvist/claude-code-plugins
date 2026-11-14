@@ -23,7 +23,7 @@ setup() {
 
 @test "ladder contains the exact binding order, eligibility gates and no prohibited models" {
   [ "$(jq -r '.kinds | keys | sort | join("|")' "$LADDER")" = 'code|other|private' ]
-  [ "$(jq -r '.kinds.code.rungs | map(.name) | join("|")' "$LADDER")" = 'zcode-job sandbox|Codex|Z.ai GLM|OpenCode Go|Haiku xhigh' ]
+  [ "$(jq -r '.kinds.code.rungs | map(.name) | join("|")' "$LADDER")" = 'Qwen sandbox|zcode-job sandbox|Codex|Z.ai GLM|OpenCode Go|Haiku xhigh' ]
   [ "$(jq -r '.kinds.private.rungs | map(.name) | join("|")' "$LADDER")" = 'Codex|Haiku xhigh' ]
   [ "$(jq -r '.kinds.other.rungs | map(.name) | join("|")' "$LADDER")" = 'Codex|Z.ai GLM|OpenCode Go|Haiku xhigh' ]
   run grep -iE 'sonnet|opus|fable|litellm|small|terra' "$LADDER"

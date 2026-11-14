@@ -9,6 +9,7 @@ This plugin is specific to the maintainer's own setup and is not intended for ge
 ## Hooks
 
 - **Spawn router and permission judge** - Apply the maintainer-specific policy documented in the delegation-ladder references
+- **Sandbox executors** - Qwen (`opencode-qwen`) ranks first for public coding, ahead of ZCode, OpenCode Go and Cursor
 
 ## Installation
 
