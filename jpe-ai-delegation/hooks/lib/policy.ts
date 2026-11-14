@@ -282,62 +282,27 @@ const TEXT_REQUEST = /(?:^|\n)\s*(?:(?:please|can you|could you|would you|help m
 // It also matches prose that starts a sentence with one of these verbs; that task goes to the next rung.
 const HAS_LATER_INSTRUCTION = /(?:[.!?;\n]\s*|\b(?:and|then)\s+)(?:(?:and\s+)?(?:then|next|afterwards?|after that|finally|also|now)[,\s]+)?(?:please\s+)?(?:read|open|fetch|search|run|execute|edit|write|commit|test|update|create|delete|fix|push|apply|save|add|remove|modify|change|implement)\b/i
 const INLINE_BLOCK =/```([\s\S]*?)```|`([^`\n]*)`|"([^"\n]*)"|'([^'\n]*)'/g
+const HAS_FILE_NAME = /(?:^|[\s("'`\[,:=<>])[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*\.[A-Za-z][A-Za-z0-9]{0,11}(?=$|[\s)\]"'`,;:!?<>.])/m
 
-function isSuppliedPayload(payload: string): boolean {
-  const value = payload.trim()
-  if (value.length < MIN_INLINE_TEXT_CHARS || HAS_URL.test(value)) return false
-  // A quoted path is still only a reference to a file, not the file's contents.
-  const unwrapped = value.replace(/^(?:```|`|"|')/, '').replace(/(?:```|`|"|')$/, '').trim()
-  // A payload made only of paths or file names is a list of references, which the chat-only model cannot open.
-  return !unwrapped.split(/[\s,]+/).filter(Boolean)
-    .every((token) => /^(?:(?:~\/|\.{1,2}[\\/]|\/|[A-Za-z0-9._-]+[\\/])\S*|[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*\.[A-Za-z0-9]{1,12})$/.test(token.replace(/^["'`(]+|["'`),;:]+$/g, '')))
-}
-
-function withoutSuppliedPayload(text: string): string {
-  const value = text.replace(/\[class:\s*[^\]]+\]/gi, ' ')
-  const ranges: { start: number; end: number }[] = []
-  const request = TEXT_REQUEST.exec(value)
-  if (request) {
-    const start = request.index + request[0].length
-    const colon = value.indexOf(':', start)
-    if (colon !== -1 && isSuppliedPayload(value.slice(colon + 1))) ranges.push({ start: colon + 1, end: value.length })
-  }
-  for (const block of value.matchAll(INLINE_BLOCK)) {
-    const payload = block[1] ?? block[2] ?? block[3] ?? block[4] ?? ''
-    if (isSuppliedPayload(payload) && block.index !== undefined) ranges.push({ start: block.index, end: block.index + block[0].length })
-  }
-  if (!ranges.length) return value
-  const ordered = ranges.sort((a, b) => a.start - b.start)
-  let result = ''
-  let at = 0
-  for (const range of ordered) {
-    if (range.start < at) continue
-    result += `${value.slice(at, range.start)} `
-    at = range.end
-  }
-  return result + value.slice(at)
+// The prompt carries text to work on: enough of it after the request's colon, or in a quoted or fenced block.
+function hasSuppliedText(prompt: string): boolean {
+  const request = TEXT_REQUEST.exec(prompt)
+  if (!request) return false
+  const colon = prompt.indexOf(':', request.index + request[0].length)
+  if (colon !== -1 && prompt.slice(colon + 1).trim().length >= MIN_INLINE_TEXT_CHARS) return true
+  return [...prompt.matchAll(INLINE_BLOCK)].some((block) => (block[1] ?? block[2] ?? block[3] ?? block[4] ?? '').trim().length >= MIN_INLINE_TEXT_CHARS)
 }
 
 // shortcut: keyword and path rule, upgrade to the router's small alias when the quota feed lands.
-// Inference uses only inline text; this chat-only model cannot inspect files or run tools.
+// Every check reads the whole text. Nothing is treated as quoted content, so a path, file name, link or tool
+// instruction cannot hide inside the supplied text; a text that mentions one goes to the next rung instead.
 export const localTask = (description: string | undefined, prompt = ''): boolean => {
   const classTags = [...(description ?? '').matchAll(/\[class:\s*([^\]]+)\]/gi)].map((match) => match[1].trim().toLowerCase())
   if (classTags.length) return classTags.every((tag) => tag === 'text')
   const text = `${description ?? ''}\n${prompt}`
-  const request = withoutSuppliedPayload(text)
   // Only the prompt is sent to the local model, so the prompt alone must carry the request and the supplied text.
-  return TEXT_REQUEST.test(withoutSuppliedPayload(prompt)) && isSuppliedPrompt(prompt) && !HAS_URL.test(text) && !HAS_PATH_TOKEN.test(request) &&
-    !HAS_EXTERNAL_REFERENCE.test(request) && !HAS_TOOL_INSTRUCTION.test(request) && !HAS_LATER_INSTRUCTION.test(text)
-}
-
-function isSuppliedPrompt(text: string): boolean {
-  const value = text.replace(/\[class:\s*[^\]]+\]/gi, ' ')
-  const request = TEXT_REQUEST.exec(value)
-  if (request) {
-    const colon = value.indexOf(':', request.index + request[0].length)
-    if (colon !== -1 && isSuppliedPayload(value.slice(colon + 1))) return true
-  }
-  return [...value.matchAll(INLINE_BLOCK)].some((block) => isSuppliedPayload(block[1] ?? block[2] ?? block[3] ?? block[4] ?? ''))
+  return hasSuppliedText(prompt) && !HAS_URL.test(text) && !HAS_PATH_TOKEN.test(text) && !HAS_FILE_NAME.test(text) &&
+    !HAS_EXTERNAL_REFERENCE.test(text) && !HAS_TOOL_INSTRUCTION.test(text) && !HAS_LATER_INSTRUCTION.test(text)
 }
 
 // Return only a safe GitHub owner/name candidate from a remote URL; visibility is checked by the caller.

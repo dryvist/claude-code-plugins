@@ -1079,7 +1079,10 @@ describe('scoring and eligibility policy', () => {
       expect(localTask(undefined, `Summarize ${reference}.`)).toBe(false)
     }
     expect(localTask('[class: bulk]', 'Summarize this supplied text: A small change.')).toBe(false)
-    expect(localTask(undefined, 'Summarize this supplied text: "the phrase src/ is inline content"')).toBe(true)
+    // Nothing is treated as quoted content: a path or file name anywhere sends the task to the next rung.
+    expect(localTask(undefined, 'Summarize this supplied text: "the phrase src/ is inline content"')).toBe(false)
+    expect(localTask(undefined, 'Summarize: README.md and CHANGELOG.md')).toBe(false)
+    expect(localTask(undefined, 'Summarize this supplied text: the notes in plan.txt cover the release')).toBe(false)
     expect(localTask(undefined, `Summarize this supplied text: ${'long source text '.repeat(4)}`)).toBe(true)
     expect(localTask(undefined, 'Summarize /workspace/notes.txt')).toBe(false)
     expect(localTask(undefined, 'Summarize ~/notes')).toBe(false)
