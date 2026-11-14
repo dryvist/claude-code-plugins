@@ -1,5 +1,13 @@
 # Changelog
 
+## [6.61.0](https://github.com/dryvist/claude-code-plugins/compare/v6.60.1...v6.61.0) (2026-11-14)
+
+
+### Features
+
+* **agent:** zcode run j-64c269e98a353aab ([43df549](https://github.com/dryvist/claude-code-plugins/commit/43df549f24afe2a7eca0c2df8666bded3a3be8d5))
+* **jpe-ai-delegation:** infer the repository from prompt paths ([#798](https://github.com/dryvist/claude-code-plugins/issues/798)) ([43df549](https://github.com/dryvist/claude-code-plugins/commit/43df549f24afe2a7eca0c2df8666bded3a3be8d5))
+
 ## [6.60.1](https://github.com/dryvist/claude-code-plugins/compare/v6.60.0...v6.60.1) (2026-11-14)
 
 
