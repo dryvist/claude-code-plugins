@@ -184,6 +184,7 @@ export type ExecutorRow = {
 }
 // Sandbox tools run on a dispatcher that refuses private repositories, so only the Codex subscription takes private work.
 export const EXECUTOR_TABLE: readonly ExecutorRow[] = [
+  { id: 'qwen', transport: 'sandbox', tool: 'opencode-qwen', trust: 'sandbox-public', private_ok: false, price: 0.5 },
   { id: 'zcode', transport: 'sandbox', tool: 'zcode', trust: 'sandbox-public', private_ok: false, price: 1, peak: [{ days: [1, 2, 3, 4, 5], start_utc: 6, end_utc: 10, multiplier: 2 }] },
   { id: 'opencode-go', transport: 'sandbox', tool: 'opencode', trust: 'sandbox-public', private_ok: false, price: 1 },
   { id: 'codex', transport: 'codex', trust: 'subscription-trusted', private_ok: true, quota: 'codex', price: 1 },

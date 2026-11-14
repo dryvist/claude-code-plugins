@@ -471,7 +471,7 @@ async function publicCodeRepo($: Engine, e: AgentCall, codeTask: boolean): Promi
   }
 }
 
-const SANDBOX_NAMES: Record<string, string> = { zcode: 'zcode-job sandbox', opencode: 'OpenCode Go sandbox', 'cursor-agent': 'Cursor sandbox' }
+const SANDBOX_NAMES: Record<string, string> = { zcode: 'zcode-job sandbox', opencode: 'OpenCode Go sandbox', 'opencode-qwen': 'Qwen sandbox', 'cursor-agent': 'Cursor sandbox' }
 
 // Sandbox tools the operator enables; undefined (unset) enables every table row's tool.
 async function sandboxTools($: Engine): Promise<string[] | undefined> {

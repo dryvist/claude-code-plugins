@@ -30,7 +30,7 @@ Antigravity (`agy`) stays a second-opinion reviewer, never an executor.
 
 | Kind | Ladder | Sandbox eligibility | Use |
 | --- | --- | --- | --- |
-| `code` | zcode-job sandbox -> Codex -> Z.ai GLM -> OpenCode Go -> Haiku xhigh | Public coding tasks | Implementation |
+| `code` | Qwen sandbox -> zcode-job sandbox -> Codex -> Z.ai GLM -> OpenCode Go -> Haiku xhigh | Public coding tasks | Implementation |
 | `private` | Codex -> Haiku xhigh | Ineligible | Private tasks |
 | `other` | Codex -> Z.ai GLM -> OpenCode Go -> Haiku xhigh | Ineligible | Reads, triage, summaries, review and planning |
 
@@ -55,7 +55,8 @@ installed-plugin registry. Missing definitions stop dispatch.
 The hook places each task in this order and logs one JSON `route` line per
 decision to `~/.claude/ai-delegation.log`:
 
-1. Eligibility. On-host local aliases, Codex and Haiku may see any task. ZCode,
+1. Eligibility. On-host local aliases, Codex and Haiku may see any task. Qwen
+   (`zcode-job --tool opencode-qwen`), ZCode,
    OpenCode Go (`zcode-job --tool opencode`) and Cursor
    (`zcode-job --tool cursor-agent`) see only non-sensitive `[task: code]` work
    in a verified public repository; their dispatcher refuses private ones.
@@ -88,7 +89,7 @@ decision to `~/.claude/ai-delegation.log`:
    (furthest under), no readings in table order, then over-line by distance (least over).
    Pace line: 0 at start, 100 one day before reset (at reset for <2-day windows); use
    each executor's smallest distance across windows. Effective score (headroom / (price × peak)) is route-line telemetry only, not ranking. The executor table in
-   `hooks/lib/policy.ts` lists ZCode, OpenCode Go, Codex and Cursor, each with
+   `hooks/lib/policy.ts` lists Qwen, ZCode, OpenCode Go, Codex and Cursor, each with
    transport, trust, `private_ok`, quota executor name, price and peak
    windows (ZCode costs double Mon–Fri 06:00–10:00 UTC). `~/.config/ai-delegation/executors.json` (a JSON
    array of rows) overrides rows by `id` and adds new ones; invalid rows are
