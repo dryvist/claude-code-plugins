@@ -810,19 +810,20 @@ describe('capped ladder', () => {
     expect(w.fetches.map((f) => f.url)).toEqual(['https://api.github.com/repos/owner/project', 'https://api.github.com/repos/owner/project/pulls/12'])
     expect(w.nextCalls).toEqual([])
   })
-  test('untagged supplied-text requests use the local small alias; untagged coding requests stay tool-capable', async () => {
-    const textWork = world({ quota: 1, env: gateways })
-    expect(text(await textWork.agent({ description: undefined, prompt: 'Summarize this supplied text: A small change.' }))).toContain('[routed: local small]')
+  test('untagged supplied-text requests never use local chat; untagged coding requests stay tool-capable', async () => {
+    const textWork = world({ env: gateways })
+    expect(text(await textWork.agent({ description: undefined, prompt: 'Summarize this supplied text: A small change.' }))).not.toContain('[routed: local')
+    expect(textWork.fetches.some((fetch) => fetch.url.endsWith('/chat/completions'))).toBe(false)
 
     const codeWork = world({ env: gateways, zcodeAvailable: false })
     await codeWork.agent({ description: '[task: code]', prompt: 'Implement the change.' })
     expect(codeWork.fetches.some((fetch) => fetch.url.endsWith('/model/info') || fetch.url.endsWith('/chat/completions'))).toBe(false)
     expect(runs(codeWork).length).toBeGreaterThan(0)
   })
-  test('long supplied text included inline remains eligible for local chat when it fits', async () => {
+  test('long tagged text included inline remains eligible for local chat when it fits', async () => {
     const prompt = `Summarize this supplied text: ${'word '.repeat(4_000)}`
     const w = world({ env: gateways })
-    expect(text(await w.agent({ description: undefined, prompt }))).toContain('[routed: local small]')
+    expect(text(await w.agent({ description: '[class: text]', prompt }))).toContain('[routed: local small]')
     expect(JSON.parse(w.fetches.find((fetch) => fetch.url.endsWith('/chat/completions'))!.body!).messages[0].content).toBe(prompt)
   })
   for (const prompt of [
@@ -858,6 +859,11 @@ describe('capped ladder', () => {
     await w.agent({ description: '[task: code]', prompt: 'Update src/main.ts.' })
     expect(w.calls.some((call) => call.argv[0] === 'zcode-job')).toBe(true)
     expect(w.fetches).toContainEqual({ url: 'https://api.github.com/repos/owner/project', body: undefined })
+  })
+  test('a quoted bare file name is still extracted as a prompt path', async () => {
+    const w = world({ quota: 1, env: gateways, gitRoot: '/workspace', originUrl: 'https://github.com/owner/project.git', pathRealpaths: { '/workspace/notes.md': '/private/notes.md' }, pathGitRoots: { '/private': '/private' } })
+    await w.agent({ description: '[task: code] [repo: owner/project]', prompt: 'Update "notes.md".' })
+    expect(w.fetches.some((fetch) => fetch.url.startsWith('https://api.github.com/repos/'))).toBe(false)
   })
   test('a quoted or backticked prompt path resolves without its closing quote', async () => {
     for (const prompt of ['Update "src/main.ts" now', 'Update `src/main.ts` now', "Update 'src/main.ts'."]) {
@@ -1057,43 +1063,11 @@ describe('scoring and eligibility policy', () => {
     expect(pickLocal(estimateTokens('a'.repeat(700_000)), windows)).toBeUndefined()
     expect(pickLocal(100, {})).toBeUndefined()
   })
-  test('local inference accepts supplied-text requests without paths, external references or tool instructions', () => {
-    expect(localTask(undefined, 'Summarize this supplied text: A small change.')).toBe(true)
-    expect(localTask(undefined, 'Extract the fields from the text below.')).toBe(false)
-    expect(localTask(undefined, 'Translate: bonjour, mon ami.')).toBe(true)
-    expect(localTask(undefined, 'Summarize: hi')).toBe(false)
-    expect(localTask(undefined, 'Summarize these: /workspace/a.md /workspace/b.md')).toBe(false)
-    expect(localTask(undefined, 'Summarize these: notes.md, "docs/b.md" and-more.txt')).toBe(false)
-    expect(localTask('Summarize this supplied text: A small change.', '')).toBe(false)
-    expect(localTask('Summarize this supplied text', '`a sufficiently long inline example`')).toBe(false)
-    expect(localTask(undefined, 'Summarize this supplied text: A small change. Then edit the README to match.')).toBe(false)
-    expect(localTask(undefined, 'Summarize this supplied text: A small change was made, and then update the notes.')).toBe(false)
-    expect(localTask(undefined, 'Summarize this supplied text: src/')).toBe(false)
-    expect(localTask(undefined, 'Summarize this supplied text: src\\notes')).toBe(false)
-    expect(localTask(undefined, 'Summarize `/workspace/notes.md`')).toBe(false)
-    expect(localTask(undefined, 'Summarize: `/workspace/notes.md`')).toBe(false)
-    expect(localTask(undefined, 'Summarize `a sufficiently long inline example` and consider $HOME/notes.md')).toBe(false)
-    expect(localTask(undefined, 'Summarize the attachment using this supplied text: A small change.')).toBe(false)
-    expect(localTask(undefined, 'Summarize the file: "the supplied inline content is long enough"')).toBe(false)
-    for (const reference of ['the files', 'the directory', 'the folder', 'the repo', 'the codebase', 'the branch', 'the diff', 'the PR', 'the log', 'the attachment']) {
-      expect(localTask(undefined, `Summarize ${reference}.`)).toBe(false)
-    }
-    expect(localTask('[class: bulk]', 'Summarize this supplied text: A small change.')).toBe(false)
-    // Nothing is treated as quoted content: a path or file name anywhere sends the task to the next rung.
-    expect(localTask(undefined, 'Summarize this supplied text: "the phrase src/ is inline content"')).toBe(false)
-    expect(localTask(undefined, 'Summarize: README.md and CHANGELOG.md')).toBe(false)
-    expect(localTask(undefined, 'Summarize this supplied text: the notes in plan.txt cover the release')).toBe(false)
-    expect(localTask(undefined, `Summarize this supplied text: ${'long source text '.repeat(4)}`)).toBe(true)
-    expect(localTask(undefined, 'Summarize /workspace/notes.txt')).toBe(false)
-    expect(localTask(undefined, 'Summarize ~/notes')).toBe(false)
-    expect(localTask(undefined, 'Summarize ./notes')).toBe(false)
-    expect(localTask(undefined, 'Summarize src/notes.md')).toBe(false)
-    expect(localTask(undefined, 'Summarize https://example.test/notes')).toBe(false)
-    expect(localTask(undefined, 'Summarize the attached file.')).toBe(false)
-    expect(localTask(undefined, 'Summarize the diff.')).toBe(false)
-    expect(localTask(undefined, 'Run tests and summarize the result.')).toBe(false)
-    expect(localTask(undefined, 'Rewrite the file.')).toBe(false)
-    expect(localTask('[class: text]', 'Edit /workspace/notes.txt')).toBe(true)
+  test('untagged text is never inferred as local text work', () => {
+    expect(localTask(undefined)).toBe(false)
+    expect(localTask('Summarize this supplied text: A small change.')).toBe(false)
+    expect(localTask('[class: bulk] [class: text]')).toBe(false)
+    expect(localTask('[class: text] Edit the notes')).toBe(true)
   })
   test('repository candidates come only from GitHub origins', () => {
     expect(repositoryFromOrigin('https://github.com/owner/project.git')).toBe('owner/project')
@@ -2028,6 +2002,15 @@ describe('route telemetry content and bounds', () => {
     const configuredEvent = routeEvents(configured).at(-1)
     expect(configuredEvent.scores['chat-flat']).toBeNull()
     expect(configuredEvent.quota_unknown['chat-flat']).toBe('not_evaluated')
+
+    // A scored row whose id is another row's quota name leaves that row's reason in place.
+    const owner = { ...customRow, id: 'shared-plan' }
+    const borrower = { ...customRow, id: 'borrower', quota: 'shared-plan' }
+    const shared = world({ env: gateways, files: { '/home/test/.config/ai-delegation/executors.json': JSON.stringify([owner, borrower]) } })
+    await shared.agent({ description: '[class: standard]' })
+    const sharedEvent = routeEvents(shared).at(-1)
+    expect(sharedEvent.quota_unknown['shared-plan']).toBeDefined()
+    expect(sharedEvent.quota_unknown.borrower).toBeUndefined()
 
     const quotaRow = { ...customRow, id: 'chat-metered', quota: 'metered-plan' }
     const metered = world({ env: gateways, files: { '/home/test/.config/ai-delegation/executors.json': JSON.stringify([quotaRow]) } })

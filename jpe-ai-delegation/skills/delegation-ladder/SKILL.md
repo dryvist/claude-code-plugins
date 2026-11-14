@@ -61,10 +61,7 @@ decision to `~/.claude/ai-delegation.log`:
    in a verified public repository; their dispatcher refuses private ones.
 2. Local. A generic, non-isolated, non-code spawn marked `[class: text]` goes
    to the on-host `small` alias, or `local-only` when the prompt is larger.
-   A spawn with no class tag also goes local when its prompt is self-contained:
-   it asks to summarize, extract, classify, reformat, translate or rewrite
-   supplied text, and names no path, URL, file, repository, diff, log or
-   attachment and no tool action. Any other class tag is never local.
+   A spawn with no class tag, or with any other class tag, is never local.
    Put all of the task's text in the prompt; the local model has no tools. The token estimate (characters / 3.5 plus 2048 output) must fit in
    60% of the alias's context window from the router's `/model/info`. An empty
    answer, an answer that says it cannot access something, a length cut-off,

@@ -272,37 +272,11 @@ export function peakMultiplier(row: ExecutorRow, nowMs: number): number {
 // On-host router aliases only, smallest first; `*-homelab` aliases leave the host and are never used.
 export const LOCAL_ALIASES = [{ alias: 'small', timeoutMs: 60_000 }, { alias: 'local-only', timeoutMs: 120_000 }] as const
 export const LOCAL_OUTPUT_TOKENS = 2048
-export const MIN_INLINE_TEXT_CHARS = 12
-const HAS_URL = /\b(?:[a-z][a-z0-9+.-]*:\/\/|www\.)\S+/i
-const HAS_PATH_TOKEN = /(?:^|[\s("'`\[(,:=<>])\S*[\\/]\S*(?=$|[\s)\],;!?<>])/m
-const HAS_EXTERNAL_REFERENCE = /\b(?:files?|director(?:y|ies)|folders?|repos?|repositories|codebases?|branch(?:es)?|diffs?|prs?|pull requests?|logs?|attachments?)\b/i
-const HAS_TOOL_INSTRUCTION = /\b(?:read|open|fetch|search|run|execute|edit|write|commit|test)\b/i
-const TEXT_REQUEST = /(?:^|\n)\s*(?:(?:please|can you|could you|would you|help me)\s+)*(?:summari[sz]e|extract|classify|reformat|translate|rewrite)\b|(?:^|\n)\s*(?:(?:please|can you|could you|would you|help me)\s+)*(?:draft|answer)\b.{0,64}\bfrom\b.{0,24}\b(?:the\s+)?supplied text\b/im
-// An instruction after the supplied text ("... Then edit the file") needs tools the chat-only model lacks.
-// It also matches prose that starts a sentence with one of these verbs; that task goes to the next rung.
-const HAS_LATER_INSTRUCTION = /(?:[.!?;\n]\s*|\b(?:and|then)\s+)(?:(?:and\s+)?(?:then|next|afterwards?|after that|finally|also|now)[,\s]+)?(?:please\s+)?(?:read|open|fetch|search|run|execute|edit|write|commit|test|update|create|delete|fix|push|apply|save|add|remove|modify|change|implement)\b/i
-const INLINE_BLOCK =/```([\s\S]*?)```|`([^`\n]*)`|"([^"\n]*)"|'([^'\n]*)'/g
-const HAS_FILE_NAME = /(?:^|[\s("'`\[,:=<>])[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*\.[A-Za-z][A-Za-z0-9]{0,11}(?=$|[\s)\]"'`,;:!?<>.])/m
-
-// The prompt carries text to work on: enough of it after the request's colon, or in a quoted or fenced block.
-function hasSuppliedText(prompt: string): boolean {
-  const request = TEXT_REQUEST.exec(prompt)
-  if (!request) return false
-  const colon = prompt.indexOf(':', request.index + request[0].length)
-  if (colon !== -1 && prompt.slice(colon + 1).trim().length >= MIN_INLINE_TEXT_CHARS) return true
-  return [...prompt.matchAll(INLINE_BLOCK)].some((block) => (block[1] ?? block[2] ?? block[3] ?? block[4] ?? '').trim().length >= MIN_INLINE_TEXT_CHARS)
-}
-
-// shortcut: keyword and path rule, upgrade to the router's small alias when the quota feed lands.
-// Every check reads the whole text. Nothing is treated as quoted content, so a path, file name, link or tool
-// instruction cannot hide inside the supplied text; a text that mentions one goes to the next rung instead.
-export const localTask = (description: string | undefined, prompt = ''): boolean => {
+// Local routing is opt-in by tag. Untagged text is never inferred as text work: the on-host model is chat-only,
+// and no rule over the prompt can tell supplied text from a task that needs files or tools.
+export const localTask = (description: string | undefined): boolean => {
   const classTags = [...(description ?? '').matchAll(/\[class:\s*([^\]]+)\]/gi)].map((match) => match[1].trim().toLowerCase())
-  if (classTags.length) return classTags.every((tag) => tag === 'text')
-  const text = `${description ?? ''}\n${prompt}`
-  // Only the prompt is sent to the local model, so the prompt alone must carry the request and the supplied text.
-  return hasSuppliedText(prompt) && !HAS_URL.test(text) && !HAS_PATH_TOKEN.test(text) && !HAS_FILE_NAME.test(text) &&
-    !HAS_EXTERNAL_REFERENCE.test(text) && !HAS_TOOL_INSTRUCTION.test(text) && !HAS_LATER_INSTRUCTION.test(text)
+  return classTags.length > 0 && classTags.every((tag) => tag === 'text')
 }
 
 // Return only a safe GitHub owner/name candidate from a remote URL; visibility is checked by the caller.

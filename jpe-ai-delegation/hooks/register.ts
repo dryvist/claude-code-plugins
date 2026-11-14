@@ -379,7 +379,7 @@ function repositoryTag(description: string | undefined): string | undefined {
 
 function promptPaths(prompt: string): string[] {
   const text = prompt.replace(/\b[a-z][a-z0-9+.-]*:\/\/[^\s"'`<>]*/gi, ' ')
-  const pattern = /(?:^|[\s("'`\[(,:=<>])(\S*[\\/]\S*|[A-Za-z0-9._-]+\.[A-Za-z0-9]{1,12})(?=$|[\s)\],;!?<>])/gm
+  const pattern = /(?:^|[\s("'`\[(,:=<>])(\S*[\\/]\S*|[A-Za-z0-9._-]+\.[A-Za-z0-9]{1,12})(?=$|[\s)\],;:!?<>"'`]|\.(?:\s|$))/gm
   const paths = [...text.matchAll(pattern)].map((match) => match[1].replace(/^["'`(\[]+|[),.;:!?"'`\]]+$/g, ''))
   return [...new Set(paths.filter((path) => path.length > 1))]
 }
@@ -636,6 +636,8 @@ type RouteEvent = {
   quota_unknown: Record<string, QuotaReason>; quota_source: Record<string, string>
 }
 
+const isScored = (score: RouteEvent['scores'][string] | undefined): boolean => Boolean(score && (typeof score.score === 'number' || score.exhausted))
+
 // One JSON telemetry line per routing decision. It never throws, so a failed write cannot change the decision.
 async function logRoute($: Engine, event: RouteEvent, chosen: string, reason: string): Promise<void> {
   try {
@@ -648,7 +650,9 @@ async function logRoute($: Engine, event: RouteEvent, chosen: string, reason: st
       // Quota reasons are recorded under the quota name, which can differ from the row id.
       const quota = row.quota ?? row.id
       const hasQuotaReason = Object.keys(event.quota_unknown).some((key) => key === quota || key.startsWith(`${quota}/`) || key.startsWith(`${row.id}/`))
-      if (hasNumericScore || exhausted) delete event.quota_unknown[row.id]
+      // The key can also be another row's quota name; its reason stays until that row is scored too.
+      const namesAnotherQuota = table.some((other) => other.id !== row.id && other.quota === row.id && !isScored(event.scores[other.id]))
+      if (hasNumericScore || exhausted) { if (!namesAnotherQuota) delete event.quota_unknown[row.id] }
       else if (event.quota_unknown[row.id] === undefined && !hasQuotaReason) event.quota_unknown[row.id] = 'not_evaluated'
     }
     // A clock that does not answer in time leaves ts_ms null rather than dropping the line.
@@ -714,7 +718,7 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
   }
 
   // Self-contained text work: the only work the local rung and router-chat rows take.
-  const textOnly = !definition && !e.isolation && isGenericType(e) && !['Explore', 'Plan'].includes(e.subagent_type ?? '') && !codingTask(e.description) && localTask(e.description, e.prompt)
+  const textOnly = !definition && !e.isolation && isGenericType(e) && !['Explore', 'Plan'].includes(e.subagent_type ?? '') && !codingTask(e.description) && localTask(e.description)
   const base = (await $.env.get('LITELLM_LOCAL_BASE_URL'))?.replace(/\/+$/, '')
 
   // Local rung: small, checkable, self-contained text on an on-host alias.
