@@ -26,8 +26,8 @@ assert_route() {
 }
 
 @test "eligible public coding selects the sandbox before Codex and GLM" {
-  assert_route 'zcode-job sandbox' available code AGENT_ROUTE_ZCODE_AVAILABLE=yes AGENT_ROUTE_GLM_MODEL=glm LITELLM_LOCAL_BASE_URL=http://localhost
-  assert_route 'zcode-job sandbox' exhausted code AGENT_ROUTE_ZCODE_AVAILABLE=yes AGENT_ROUTE_GLM_MODEL=glm LITELLM_LOCAL_BASE_URL=http://localhost
+  assert_route 'Qwen sandbox' available code AGENT_ROUTE_ZCODE_AVAILABLE=yes AGENT_ROUTE_GLM_MODEL=glm LITELLM_LOCAL_BASE_URL=http://localhost
+  assert_route 'Qwen sandbox' exhausted code AGENT_ROUTE_ZCODE_AVAILABLE=yes AGENT_ROUTE_GLM_MODEL=glm LITELLM_LOCAL_BASE_URL=http://localhost
 }
 
 @test "private work never selects zcode or the public-only gateways" {
@@ -63,7 +63,7 @@ assert_route() {
   chmod +x "$BATS_TEST_TMPDIR/bin/zcode-job"
   run env -u AGENT_ROUTE_ZCODE_AVAILABLE AGENT_ROUTE_CODEX_QUOTA=exhausted PATH="$BATS_TEST_TMPDIR/bin:$PATH" agent-route code
   [ "$status" -eq 0 ]
-  [ "$output" = 'zcode-job sandbox' ]
+  [ "$output" = 'Qwen sandbox' ]
 }
 
 @test "the command checks codex-quota before fallback eligibility" {
@@ -78,7 +78,7 @@ STUB
   [ "$output" = Codex ]
   run env -u AGENT_ROUTE_CODEX_QUOTA CODEX_QUOTA_EXIT=1 AGENT_ROUTE_ZCODE_AVAILABLE=yes PATH="$BATS_TEST_TMPDIR/bin:$PATH" agent-route code
   [ "$status" -eq 0 ]
-  [ "$output" = 'zcode-job sandbox' ]
+  [ "$output" = 'Qwen sandbox' ]
   run env -u AGENT_ROUTE_ZCODE_AVAILABLE -u AGENT_ROUTE_CODEX_QUOTA CODEX_QUOTA_EXIT=127 PATH="$BATS_TEST_TMPDIR/bin:$PATH" agent-route code
   [ "$status" -eq 1 ]
   [ "$output" = 'agent-route: Codex quota status unavailable' ]
