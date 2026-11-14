@@ -1,5 +1,5 @@
 import type { EngineInterface, Register } from 'claude-code'
-import { CLASSIFIER, CODEX, JUDGE, LAST_RESORT, LOCAL_OUTPUT_TOKENS, QUOTA_SELECTOR, UTILITY, EXECUTOR_TABLE, budgetsFromMetrics, codexArgv, codingTask, eligibleRows, endAnchor, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, isGenericType, isShellCAsk, jobHistory, jobState, recentFailures, localTask, mandatoryLabel, newestModel, mergeExecutorRows, metricsResult, parseVerdict, pickLabel, pickLocal, quotaFromMetrics, rankRows, safePayload, scoreWindows } from './lib/policy'
+import { CLASSIFIER, CODEX, JUDGE, LAST_RESORT, LOCAL_OUTPUT_TOKENS, QUOTA_SELECTOR, UTILITY, EXECUTOR_TABLE, budgetsFromMetrics, codexArgv, codingTask, eligibleRows, endAnchor, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, isGenericType, isShellCAsk, jobHistory, jobState, recentFailures, localTask, mandatoryLabel, newestModel, mergeExecutorRows, metricsResult, parseVerdict, pickLabel, pickLocal, quotaFromMetrics, rankRows, repositoryFromOrigin, safePayload, scoreWindows } from './lib/policy'
 import type { Executor, ExecutorRow, JobOutcome, JobRecord, JobState, Label, QuotaReason, QuotaRow, Route, Sandbox, Score, SkipReason } from './lib/policy'
 import { customAgentSandbox, parseAgentDefinition } from './lib/agent-definition'
 import type { AgentDefinition } from './lib/agent-definition'
@@ -154,37 +154,76 @@ function quotaLine(score: Score | undefined): string {
   return score.exhausted ? 'codex-quota: exhausted' : 'codex-quota: available'
 }
 
-// One `codex exec`; its final message is read from a temporary output file. The finite stdin string is closed by process.run.
+function shortFailure(value: unknown): string {
+  const raw = value instanceof Error ? value.message : String(value)
+  const compact = raw.replace(/\s+/g, ' ').trim().slice(-500)
+  return compact && safePayload(compact) ? compact : '[detail redacted]'
+}
+
+function stderrDetail(stderr: unknown): string {
+  if (typeof stderr !== 'string' || !stderr.trim()) return ''
+  const tail = stderr.trim().replace(/\s+/g, ' ').slice(-500)
+  return `; stderr tail: ${safePayload(tail) ? tail : '[detail redacted]'}`
+}
+
+// `codex exec` reads the prompt from a temporary file on stdin and writes its final message to another file.
 async function runCodex($: Engine, codexRoute: Route, sandbox: Sandbox, prompt: string, timeoutMs: number, cwd?: string): Promise<string | undefined> {
-  let outputFile: string | undefined
+  const temporaryFiles: string[] = []
   let failure: string | undefined
+  let stage = 'codex exec invocation'
   try {
-    const temporary = await $.process.run(['mktemp'], { timeoutMs: 5_000 })
-    const temporaryPath = temporary.stdout.trim()
-    if (temporary.exitCode !== 0 || !temporaryPath.startsWith('/')) {
-      failure = `could not create final-message file (exit ${temporary.exitCode})`
-    } else {
-      outputFile = temporaryPath
-      const home = (await $.env.get('CODEX_HOME')) ?? `${await $.env.get('HOME')}/.codex`
-      const cache = `${home}/models_cache.json`
+    const createTemporaryFile = async (label: string): Promise<string | undefined> => {
+      const result = await $.process.run(['mktemp'], { timeoutMs: 5_000 })
+      const path = result.stdout.trim()
+      if (result.exitCode !== 0 || !path.startsWith('/')) {
+        failure = `could not create ${label} file (exit ${result.exitCode})${stderrDetail(result.stderr)}`
+        return undefined
+      }
+      temporaryFiles.push(path)
+      return path
+    }
+    const outputFile = await createTemporaryFile('final-message')
+    const inputFile = outputFile ? await createTemporaryFile('prompt') : undefined
+    if (outputFile && inputFile) {
+      stage = 'codex environment read'
+      const [home, path, user, term, lang, codexHome] = await Promise.all([
+        $.env.get('HOME'), $.env.get('PATH'), $.env.get('USER'), $.env.get('TERM'), $.env.get('LANG'), $.env.get('CODEX_HOME'),
+      ])
+      if (!home || !path || !user || !term || !lang) {
+        throw new Error('HOME, PATH, USER, TERM and LANG must be set')
+      }
+      stage = 'Codex model selection'
+      const cache = `${codexHome ?? `${home}/.codex`}/models_cache.json`
       const model = (await $.fs.exists(cache)) ? newestModel((await $.fs.read(cache)) as string, codexRoute.family) : undefined
-      const argv = codexArgv(sandbox, codexRoute, model, outputFile)
-      if (cwd) argv.splice(2, 0, '-C', cwd)
-      const r = await $.process.run(argv, { stdin: prompt, timeoutMs })
-      if (r.exitCode !== 0) {
-        failure = `codex exec exited with code ${r.exitCode}`
+      const workdir = cwd ?? await $.session.cwd()
+      stage = 'Codex command build'
+      const argv = codexArgv(sandbox, codexRoute, model, outputFile, workdir)
+      stage = 'prompt file write'
+      const written = await $.process.run(['tee', inputFile], { stdin: prompt, timeoutMs: 5_000 })
+      if (written.exitCode !== 0) throw new Error(`tee exited with code ${written.exitCode}${stderrDetail(written.stderr)}`)
+
+      stage = 'codex exec invocation'
+      const shell = 'home=$1; path_env=$2; user=$3; term=$4; lang=$5; input_file=$6; shift 6; exec /usr/bin/env -i "HOME=$home" "PATH=$path_env" "USER=$user" "TERM=$term" "LANG=$lang" "$@" < "$input_file"'
+      const result = await $.process.run(['/bin/sh', '-c', shell, 'ai-delegation-codex', home, path, user, term, lang, inputFile, ...argv], { timeoutMs })
+      if (result.exitCode !== 0) {
+        failure = `codex exec exited with code ${result.exitCode}${stderrDetail(result.stderr)}`
       } else {
-        const text = ((await $.fs.read(outputFile)) as string).trim()
-        if (text) return text
-        failure = 'codex exec returned an empty final message'
+        stage = 'final-message output read'
+        if (!(await $.fs.exists(outputFile))) {
+          failure = 'codex exec final-message output file is missing'
+        } else {
+          const text = ((await $.fs.read(outputFile)) as string).trim()
+          if (text) return text
+          failure = 'codex exec returned an empty final-message output file'
+        }
       }
     }
-  } catch {
-    failure = 'codex exec invocation or output read failed'
+  } catch (error) {
+    failure = `${stage} failed: ${shortFailure(error)}`
   } finally {
-    if (outputFile) {
+    if (temporaryFiles.length) {
       try {
-        await $.process.run(['rm', '-f', outputFile], { timeoutMs: 5_000 })
+        await $.process.run(['rm', '-f', ...temporaryFiles], { timeoutMs: 5_000 })
       } catch {
         // A cleanup failure must not replace the Codex result.
       }
@@ -258,10 +297,14 @@ async function runLocal($: Engine, e: AgentCall, base: string, alias: string, ti
     if (!response.ok) throw new Error('HTTP failure')
     const choice = JSON.parse(response.text)?.choices?.[0]
     const out = choice?.message?.content
-    if (typeof out !== 'string' || !out.trim() || choice?.finish_reason === 'length') throw new Error('failed check')
+    if (typeof out !== 'string' || !out.trim()) throw new Error('empty answer')
+    if (choice?.finish_reason === 'length') throw new Error('answer was cut off')
+    if (/\b(?:cannot|can't|unable to)\s+(?:access|read|open|see|view|inspect)\b|\b(?:do not|don't)\s+have access\b/i.test(out)) {
+      throw new Error('answer reports unavailable access')
+    }
     return out.trim()
-  } catch {
-    await logDecision($, `local ${alias} gave no checked answer`)
+  } catch (error) {
+    await logDecision($, `local ${alias} failed: ${shortFailure(error)}`)
     return undefined
   }
 }
@@ -330,6 +373,49 @@ function repositoryTag(description: string | undefined): string | undefined {
   return repo && repository !== undefined && !['.', '..'].includes(repository) ? repo : undefined
 }
 
+function absolutePromptPaths(prompt: string): string[] {
+  const text = prompt.replace(/\b[a-z][a-z0-9+.-]*:\/\/[^\s"'`<>]*/gi, ' ')
+  const paths = [...text.matchAll(/(?:^|[\s("'`(:,=])(\/(?:[^\s"'`<>]+))/gm)].map((match) => match[1].replace(/[),.;:!?]+$/g, ''))
+  return [...new Set(paths.filter((path) => path.length > 1))]
+}
+
+function parentPath(path: string): string {
+  const normalized = path.replace(/\/+$/g, '') || '/'
+  const parent = normalized.slice(0, normalized.lastIndexOf('/'))
+  return parent || '/'
+}
+
+async function gitRoot($: Engine, path: string): Promise<string | undefined> {
+  let candidate = path
+  while (isAbsolutePath(candidate)) {
+    const result = await $.process.run(['git', '-C', candidate, 'rev-parse', '--show-toplevel'], { timeoutMs: 5_000 })
+    const root = result.stdout.trim()
+    if (result.exitCode === 0 && result.isStdoutTruncated !== true && isAbsolutePath(root)) return root
+    const parent = parentPath(candidate)
+    if (parent === candidate) return undefined
+    candidate = parent
+  }
+  return undefined
+}
+
+async function inferredRepository($: Engine, e: AgentCall): Promise<string | undefined> {
+  const paths = absolutePromptPaths(e.prompt)
+  const candidates = paths.length ? paths : [await $.session.cwd()]
+  const repositories: string[] = []
+  for (const path of candidates) {
+    const root = await gitRoot($, path)
+    if (!root) return undefined
+    const origin = await $.process.run(['git', '-C', root, 'remote', 'get-url', 'origin'], { timeoutMs: 5_000 })
+    if (origin.exitCode !== 0 || origin.isStdoutTruncated === true) return undefined
+    const repository = repositoryFromOrigin(origin.stdout.trim())
+    if (!repository) return undefined
+    repositories.push(repository)
+  }
+  return repositories.length && repositories.every((repository) => repository.toLowerCase() === repositories[0].toLowerCase())
+    ? repositories[0]
+    : undefined
+}
+
 async function github($: Engine, path: string): Promise<unknown> {
   let timer: { cancel: () => void } | undefined
   try {
@@ -351,11 +437,12 @@ async function github($: Engine, path: string): Promise<unknown> {
   }
 }
 
-// The tagged repository when the task is non-sensitive coding in a verified public repository; otherwise undefined.
+// A tagged or inferred repository is only a candidate; GitHub visibility still decides public eligibility.
 async function publicCodeRepo($: Engine, e: AgentCall): Promise<string | undefined> {
-  const repo = repositoryTag(e.description)
-  if (!codingTask(e.description) || !repo || mandatoryLabel(`${e.description ?? ''}\n${e.prompt}`)) return undefined
+  if (!codingTask(e.description) || mandatoryLabel(`${e.description ?? ''}\n${e.prompt}`)) return undefined
   try {
+    const repo = repositoryTag(e.description) ?? await inferredRepository($, e)
+    if (!repo) return undefined
     const repository = await github($, repo) as { visibility?: string; private?: boolean }
     return repository.visibility === 'public' && repository.private === false ? repo : undefined
   } catch {
@@ -527,6 +614,16 @@ type RouteEvent = {
 // One JSON telemetry line per routing decision. It never throws, so a failed write cannot change the decision.
 async function logRoute($: Engine, event: RouteEvent, chosen: string, reason: string): Promise<void> {
   try {
+    const table = await loadExecutorTable($)
+    for (const row of table) {
+      if (event.scores[row.id] === undefined) event.scores[row.id] = null
+      const score = event.scores[row.id]
+      const hasNumericScore = Boolean(score && typeof score === 'object' && typeof score.score === 'number')
+      const exhausted = Boolean(score && typeof score === 'object' && score.exhausted)
+      const hasWindowReason = Object.keys(event.quota_unknown).some((key) => key.startsWith(`${row.id}/`))
+      if (hasNumericScore || exhausted) delete event.quota_unknown[row.id]
+      else if (event.quota_unknown[row.id] === undefined && !hasWindowReason) event.quota_unknown[row.id] = 'not_evaluated'
+    }
     // A clock that does not answer in time leaves ts_ms null rather than dropping the line.
     const ts_ms = await clockNow($)
     await logDecision($, JSON.stringify({ ts_ms, event: 'route', ...event, chosen, reason }))
@@ -541,7 +638,12 @@ const agentType = (e: AgentCall, verified: boolean): string => {
   const type = e.subagent_type ?? 'general-purpose'
   return (verified || isGenericType(e)) && /^[\w:.-]{1,80}$/.test(type) && safePayload(type) ? type : 'unrecognized'
 }
-const newEvent = (e: AgentCall): RouteEvent => ({ agent_type: agentType(e, false), local: null, eligible: [], scores: {}, fell_through_from: [], skipped: {}, jobs: [], quota_unknown: {}, quota_source: {} })
+const newEvent = (e: AgentCall): RouteEvent => ({
+  agent_type: agentType(e, false), local: null, eligible: [],
+  scores: Object.fromEntries(EXECUTOR_TABLE.map((row) => [row.id, null])),
+  fell_through_from: [], skipped: {}, jobs: [],
+  quota_unknown: Object.fromEntries(EXECUTOR_TABLE.map((row) => [row.id, 'not_evaluated'])) as Record<string, QuotaReason>, quota_source: {},
+})
 
 // Every exit that stops routing writes its route line too.
 async function stopRoute($: Engine, e: AgentCall, event: RouteEvent, reason: string): Promise<unknown> {
@@ -585,7 +687,7 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
   }
 
   // Self-contained text work: the only work the local rung and router-chat rows take.
-  const textOnly = !definition && !e.isolation && isGenericType(e) && !['Explore', 'Plan'].includes(e.subagent_type ?? '') && !codingTask(e.description) && localTask(e.description)
+  const textOnly = !definition && !e.isolation && isGenericType(e) && !['Explore', 'Plan'].includes(e.subagent_type ?? '') && !codingTask(e.description) && localTask(e.description, e.prompt)
   const base = (await $.env.get('LITELLM_LOCAL_BASE_URL'))?.replace(/\/+$/, '')
 
   // Local rung: small, checkable, self-contained text on an on-host alias.
@@ -611,6 +713,7 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
   const now = (await clockNow($)) ?? Number.POSITIVE_INFINITY
   // Every quota executor in the table is reported, so the event shows why an ineligible row's quota is unknown too.
   const quota = await currentQuota($, table)
+  for (const row of table) if (!row.quota) quota.unknown[row.id] ??= 'quota_unconfigured'
   const { rows, skipped } = eligibleRows(table, Boolean(repo), now, quota.budgets)
   const { scores } = quota
   event.quota_unknown = quota.unknown
@@ -619,7 +722,7 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
   Object.assign(skipped, ranked.skipped)
   event.eligible = [...rows.map((r) => r.id), LAST_RESORT.model]
   event.skipped = skipped
-  for (const r of rows) {
+  for (const r of table) {
     const s = scores[r.id]
     event.scores[r.id] = {
       score: s?.score ?? null,

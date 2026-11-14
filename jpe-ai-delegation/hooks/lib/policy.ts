@@ -93,14 +93,15 @@ export function newestModel(cacheText: string, family: string): string | undefin
 
 // The only way to build a `codex exec` command. Reject mismatched families and unsupported efforts;
 // a missing model throws too, because `codex` would then fall back to its configured default.
-export function codexArgv(sandbox: Sandbox, route: Route, model: string | undefined, outputFile: string): string[] {
+export function codexArgv(sandbox: Sandbox, route: Route, model: string | undefined, outputFile: string, cwd: string): string[] {
   const { family, effort } = route as { family: string; effort: string }
   if (family !== 'luna') throw new Error(`codex model must be the luna family, got ${family}`)
   if (!model || !model.endsWith(`-${family}`)) throw new Error(`codex model must be the ${family} family, got ${model ?? 'none'}`)
   const allowed = CODEX_EFFORTS[family]
   if (!allowed.includes(effort)) throw new Error(`codex ${family} effort must be one of ${allowed.join(', ')}, got ${effort}`)
   if (!outputFile) throw new Error('codex final-message output file is required')
-  return ['codex', 'exec', '-s', sandbox, '-c', `model_reasoning_effort="${effort}"`, '--skip-git-repo-check', '-m', model, '-o', outputFile, '-']
+  if (!cwd.startsWith('/')) throw new Error('codex working directory must be absolute')
+  return ['codex', 'exec', '--skip-git-repo-check', '-m', model, '-c', `model_reasoning_effort=${effort}`, '-s', sandbox, '-C', cwd, '-o', outputFile, '-']
 }
 
 // Subscription executors as data, in static order; Haiku is the terminal rung outside this table. Rows may be
@@ -271,8 +272,50 @@ export function peakMultiplier(row: ExecutorRow, nowMs: number): number {
 // On-host router aliases only, smallest first; `*-homelab` aliases leave the host and are never used.
 export const LOCAL_ALIASES = [{ alias: 'small', timeoutMs: 60_000 }, { alias: 'local-only', timeoutMs: 120_000 }] as const
 export const LOCAL_OUTPUT_TOKENS = 2048
-// Only work the lead marks as self-contained text; a chat-only model cannot read files or run tools.
-export const localTask = (description: string | undefined): boolean => /\[class: text\]/.test(description ?? '')
+const HAS_URL = /\b(?:[a-z][a-z0-9+.-]*:\/\/|www\.)\S+/i
+const HAS_PATH_TOKEN = /(?:^|\s)\S*[\\/]\S*(?=\s|$)/m
+const HAS_EXTERNAL_REFERENCE = /\b(?:files?|director(?:y|ies)|folders?|repos?|repositories|codebases?|branch(?:es)?|diffs?|prs?|pull requests?|logs?|attachments?)\b/i
+const HAS_TOOL_INSTRUCTION = /\b(?:read|open|fetch|search|run|execute|edit|write|commit|test)\b/i
+const TEXT_REQUEST = /(?:^|\n)\s*(?:(?:please|can you|could you|would you|help me)\s+)*(?:summari[sz]e|extract|classify|reformat|translate|rewrite)\b|(?:^|\n)\s*(?:(?:please|can you|could you|would you|help me)\s+)*(?:draft|answer)\b.{0,64}\bfrom\b.{0,24}\b(?:the\s+)?supplied text\b/im
+const unquotedText = (text: string): string => text
+  .replace(/```[\s\S]*?```|`[^`\n]*`/g, ' ')
+  .replace(/((?:(?:this|the|supplied|following|provided|inline)\s+){0,2}(?:text|content)\s*:\s*)(?:"[^"\n]*"|'[^'\n]*')/gi, '$1')
+
+function hasInlineReferenceContent(text: string): boolean {
+  return /\b(?:files?|director(?:y|ies)|folders?|repos?|repositories|codebases?|branch(?:es)?|diffs?|prs?|pull requests?|logs?|attachments?)\s*:\s*(?:```[\s\S]+?```|`[^`\n]+`|"[^"\n]+"|'[^'\n]+')/i.test(text)
+}
+
+// shortcut: keyword and path rule, upgrade to the router's small alias when the quota feed lands.
+// Inference uses only inline text; this chat-only model cannot inspect files or run tools.
+export const localTask = (description: string | undefined, prompt = ''): boolean => {
+  const classTags = [...(description ?? '').matchAll(/\[class:\s*([^\]]+)\]/gi)].map((match) => match[1].trim().toLowerCase())
+  if (classTags.length) return classTags.every((tag) => tag === 'text')
+  const text = `${description ?? ''}\n${prompt}`
+  const request = unquotedText(text)
+  return TEXT_REQUEST.test(request) && !HAS_URL.test(text) && !HAS_PATH_TOKEN.test(request) &&
+    (!HAS_EXTERNAL_REFERENCE.test(request) || hasInlineReferenceContent(text)) && !HAS_TOOL_INSTRUCTION.test(request)
+}
+
+// Return only a safe GitHub owner/name candidate from a remote URL; visibility is checked by the caller.
+export function repositoryFromOrigin(origin: string): string | undefined {
+  let path: string | undefined
+  const ssh = origin.trim().match(/^(?:ssh:\/\/git@github\.com\/|git@github\.com:)([^/?#]+\/[^/?#]+)$/i)
+  if (ssh) path = ssh[1]
+  else {
+    try {
+      const url = new URL(origin)
+      if (url.hostname.toLowerCase() !== 'github.com' || !['https:', 'http:'].includes(url.protocol)) return undefined
+      path = url.pathname.replace(/^\/+|\/+$/g, '')
+    } catch {
+      return undefined
+    }
+  }
+  const clean = path?.replace(/\.git$/i, '')
+  const [owner, repo, extra] = clean?.split('/') ?? []
+  if (extra !== undefined || !owner || !repo || owner.length > 39 || !/^[A-Za-z0-9][A-Za-z0-9-]*$/.test(owner) ||
+    !/^[A-Za-z0-9._-]{1,100}$/.test(repo) || repo === '.' || repo === '..') return undefined
+  return `${owner}/${repo}`
+}
 export const estimateTokens = (prompt: string): number => Math.ceil(prompt.length / 3.5) + LOCAL_OUTPUT_TOKENS
 // First alias whose context window holds the estimate with 40% headroom.
 export function pickLocal(estimate: number, windows: Record<string, number | undefined>): (typeof LOCAL_ALIASES)[number] | undefined {
@@ -282,7 +325,7 @@ export function pickLocal(estimate: number, windows: Record<string, number | und
 export type QuotaWindow = { used_percent?: unknown; window_seconds?: unknown; reset_at?: unknown }
 export type QuotaRow = { id: string; status: 'ok'; as_of: number; windows: QuotaWindow[] }
 // Why a quota, or one window of it, is unknown. Unknown is never scored as empty or full.
-export type QuotaReason = 'quota_unconfigured' | 'quota_unreachable' | 'quota_missing' | 'quota_stale'
+export type QuotaReason = 'quota_unconfigured' | 'quota_unreachable' | 'quota_missing' | 'quota_stale' | 'not_evaluated'
 export type QuotaRead = { rows: QuotaRow[]; unknown: Record<string, QuotaReason>; sources: Record<string, string> }
 
 // One instant query reads executor windows and router key budgets from the metrics store.
