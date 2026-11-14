@@ -1,5 +1,5 @@
 import type { EngineInterface, Register } from 'claude-code'
-import { CLASSIFIER, CODEX, JUDGE, LAST_RESORT, LOCAL_OUTPUT_TOKENS, QUOTA_SELECTOR, UTILITY, EXECUTOR_TABLE, budgetsFromMetrics, codexArgv, codingTask, eligibleRows, endAnchor, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, isGenericType, isShellCAsk, jobHistory, jobState, recentFailures, localTask, mandatoryLabel, newestModel, mergeExecutorRows, metricsResult, parseVerdict, pickLabel, pickLocal, quotaFromMetrics, rankRows, safePayload, scoreWindows } from './lib/policy'
+import { CLASSIFIER, CODEX, JUDGE, LAST_RESORT, LOCAL_OUTPUT_TOKENS, QUOTA_SELECTOR, UTILITY, EXECUTOR_TABLE, budgetsFromMetrics, codexArgv, codingTask, eligibleRows, endAnchor, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, isGenericType, isShellCAsk, jobHistory, jobState, recentFailures, localTask, mandatoryLabel, newestModel, mergeExecutorRows, metricsResult, parseVerdict, pickLabel, pickLocal, quotaFromMetrics, rankRows, repositoryFromOrigin, safePayload, scoreWindows } from './lib/policy'
 import type { Executor, ExecutorRow, JobOutcome, JobRecord, JobState, Label, QuotaReason, QuotaRow, Route, Sandbox, Score, SkipReason } from './lib/policy'
 import { customAgentSandbox, parseAgentDefinition } from './lib/agent-definition'
 import type { AgentDefinition } from './lib/agent-definition'
@@ -154,37 +154,80 @@ function quotaLine(score: Score | undefined): string {
   return score.exhausted ? 'codex-quota: exhausted' : 'codex-quota: available'
 }
 
-// One `codex exec`; its final message is read from a temporary output file. The finite stdin string is closed by process.run.
+function shortFailure(value: unknown): string {
+  const raw = value instanceof Error ? value.message : String(value)
+  if (!safePayload(raw)) return '[detail redacted]'
+  const compact = raw.replace(/\s+/g, ' ').trim().slice(-500)
+  return compact || '[detail redacted]'
+}
+
+function stderrDetail(stderr: unknown): string {
+  if (typeof stderr !== 'string' || !stderr.trim()) return ''
+  if (!safePayload(stderr)) return '; stderr tail: [detail redacted]'
+  const tail = stderr.trim().replace(/\s+/g, ' ').slice(-500)
+  return `; stderr tail: ${tail}`
+}
+
+// `codex exec` reads the prompt from a temporary file on stdin and writes its final message to another file.
 async function runCodex($: Engine, codexRoute: Route, sandbox: Sandbox, prompt: string, timeoutMs: number, cwd?: string): Promise<string | undefined> {
-  let outputFile: string | undefined
+  const temporaryFiles: string[] = []
   let failure: string | undefined
+  let stage = 'codex exec invocation'
   try {
-    const temporary = await $.process.run(['mktemp'], { timeoutMs: 5_000 })
-    const temporaryPath = temporary.stdout.trim()
-    if (temporary.exitCode !== 0 || !temporaryPath.startsWith('/')) {
-      failure = `could not create final-message file (exit ${temporary.exitCode})`
-    } else {
-      outputFile = temporaryPath
-      const home = (await $.env.get('CODEX_HOME')) ?? `${await $.env.get('HOME')}/.codex`
-      const cache = `${home}/models_cache.json`
+    const createTemporaryFile = async (label: string): Promise<string | undefined> => {
+      const result = await $.process.run(['mktemp'], { timeoutMs: 5_000 })
+      const path = result.stdout.trim()
+      if (result.exitCode !== 0 || !path.startsWith('/')) {
+        failure = `could not create ${label} file (exit ${result.exitCode})${stderrDetail(result.stderr)}`
+        return undefined
+      }
+      temporaryFiles.push(path)
+      return path
+    }
+    const outputFile = await createTemporaryFile('final-message')
+    const inputFile = outputFile ? await createTemporaryFile('prompt') : undefined
+    if (outputFile && inputFile) {
+      stage = 'codex environment read'
+      const [home, path, user, term, lang, codexHome] = await Promise.all([
+        $.env.get('HOME'), $.env.get('PATH'), $.env.get('USER'), $.env.get('TERM'), $.env.get('LANG'), $.env.get('CODEX_HOME'),
+      ])
+      if (!home || !path) throw new Error('HOME and PATH must be set')
+      stage = 'Codex model selection'
+      const customCodexHome = codexHome || undefined
+      // CODEX_HOME must reach the child so its model cache and auth location match.
+      const cache = `${customCodexHome ?? `${home}/.codex`}/models_cache.json`
       const model = (await $.fs.exists(cache)) ? newestModel((await $.fs.read(cache)) as string, codexRoute.family) : undefined
-      const argv = codexArgv(sandbox, codexRoute, model, outputFile)
-      if (cwd) argv.splice(2, 0, '-C', cwd)
-      const r = await $.process.run(argv, { stdin: prompt, timeoutMs })
-      if (r.exitCode !== 0) {
-        failure = `codex exec exited with code ${r.exitCode}`
+      const workdir = cwd ?? await $.session.cwd()
+      stage = 'Codex command build'
+      const argv = codexArgv(sandbox, codexRoute, model, outputFile, workdir)
+      stage = 'prompt file write'
+      const written = await $.process.run(['tee', inputFile], { stdin: prompt, timeoutMs: 5_000 })
+      if (written.exitCode !== 0) throw new Error(`tee exited with code ${written.exitCode}${stderrDetail(written.stderr)}`)
+
+      stage = 'codex exec invocation'
+      const shell = 'home=$1; path_env=$2; user=$3; term=$4; lang=$5; codex_home=$6; input_file=$7; shift 7; if [ -n "$codex_home" ]; then exec /usr/bin/env -i "HOME=$home" "PATH=$path_env" "USER=$user" "TERM=$term" "LANG=$lang" "CODEX_HOME=$codex_home" "$@" < "$input_file"; fi; exec /usr/bin/env -i "HOME=$home" "PATH=$path_env" "USER=$user" "TERM=$term" "LANG=$lang" "$@" < "$input_file"'
+      const result = await $.process.run([
+        '/bin/sh', '-c', shell, 'ai-delegation-codex', home, path, user ?? 'codex', term ?? 'dumb', lang ?? 'C.UTF-8', customCodexHome ?? '', inputFile, ...argv,
+      ], { timeoutMs })
+      if (result.exitCode !== 0) {
+        failure = `codex exec exited with code ${result.exitCode}${stderrDetail(result.stderr)}`
       } else {
-        const text = ((await $.fs.read(outputFile)) as string).trim()
-        if (text) return text
-        failure = 'codex exec returned an empty final message'
+        stage = 'final-message output read'
+        if (!(await $.fs.exists(outputFile))) {
+          failure = 'codex exec final-message output file is missing'
+        } else {
+          const text = ((await $.fs.read(outputFile)) as string).trim()
+          if (text) return text
+          failure = 'codex exec returned an empty final-message output file'
+        }
       }
     }
-  } catch {
-    failure = 'codex exec invocation or output read failed'
+  } catch (error) {
+    failure = `${stage} failed: ${shortFailure(error)}`
   } finally {
-    if (outputFile) {
+    if (temporaryFiles.length) {
       try {
-        await $.process.run(['rm', '-f', outputFile], { timeoutMs: 5_000 })
+        await $.process.run(['rm', '-f', ...temporaryFiles], { timeoutMs: 5_000 })
       } catch {
         // A cleanup failure must not replace the Codex result.
       }
@@ -258,10 +301,14 @@ async function runLocal($: Engine, e: AgentCall, base: string, alias: string, ti
     if (!response.ok) throw new Error('HTTP failure')
     const choice = JSON.parse(response.text)?.choices?.[0]
     const out = choice?.message?.content
-    if (typeof out !== 'string' || !out.trim() || choice?.finish_reason === 'length') throw new Error('failed check')
+    if (typeof out !== 'string' || !out.trim()) throw new Error('empty answer')
+    if (choice?.finish_reason === 'length') throw new Error('answer was cut off')
+    if (/\b(?:cannot|can't|unable to)\s+(?:access|read|open|see|view|inspect)\b|\b(?:do not|don't)\s+have access\b/i.test(out)) {
+      throw new Error('answer reports unavailable access')
+    }
     return out.trim()
-  } catch {
-    await logDecision($, `local ${alias} gave no checked answer`)
+  } catch (error) {
+    await logDecision($, `local ${alias} failed: ${shortFailure(error)}`)
     return undefined
   }
 }
@@ -330,6 +377,66 @@ function repositoryTag(description: string | undefined): string | undefined {
   return repo && repository !== undefined && !['.', '..'].includes(repository) ? repo : undefined
 }
 
+function promptPaths(prompt: string): string[] {
+  const text = prompt.replace(/\b[a-z][a-z0-9+.-]*:\/\/[^\s"'`<>]*/gi, ' ')
+  const pattern = /(?:^|[\s("'`\[(,:=<>])(\S*[\\/]\S*|[A-Za-z0-9._-]+\.[A-Za-z0-9]{1,12})(?=$|[\s)\],;:!?<>"'`]|\.(?:\s|$))/gm
+  const paths = [...text.matchAll(pattern)].map((match) => match[1].replace(/^["'`(\[]+|[),.;:!?"'`\]]+$/g, ''))
+  return [...new Set(paths.filter((path) => path.length > 1))]
+}
+
+function parentPath(path: string): string {
+  const normalized = path.replace(/\/+$/g, '') || '/'
+  const parent = normalized.slice(0, normalized.lastIndexOf('/'))
+  return parent || '/'
+}
+
+function resolvePromptPath(path: string, cwd: string, home: string | undefined): string | undefined {
+  if (/^[A-Za-z]:[\\/]/.test(path)) return undefined
+  if (path.startsWith('~/')) return home ? `${home}${path.slice(1)}` : undefined
+  if (isAbsolutePath(path)) return path
+  if (!isAbsolutePath(cwd)) return undefined
+  return `${cwd.replace(/\/+$/g, '')}/${path.replace(/\\/g, '/')}`
+}
+
+async function realPath($: Engine, path: string): Promise<string | undefined> {
+  const result = await $.process.run(['realpath', path], { timeoutMs: 5_000 })
+  const resolved = result.stdout.trim()
+  return result.exitCode === 0 && result.isStdoutTruncated !== true && isAbsolutePath(resolved) ? resolved : undefined
+}
+
+async function gitRoot($: Engine, path: string): Promise<string | undefined> {
+  const resolved = await realPath($, path)
+  if (!resolved) return undefined
+  const metadata = await $.fs.stat(resolved)
+  const candidate = metadata.kind === 'file' ? parentPath(resolved) : ['dir', 'directory'].includes(metadata.kind) ? resolved : undefined
+  if (!candidate) return undefined
+  const result = await $.process.run(['git', '-C', candidate, 'rev-parse', '--show-toplevel'], { timeoutMs: 5_000 })
+  const root = result.stdout.trim()
+  if (result.exitCode !== 0 || result.isStdoutTruncated === true || !isAbsolutePath(root)) return undefined
+  return realPath($, root)
+}
+
+async function repositoryRoot($: Engine, e: AgentCall): Promise<string | undefined> {
+  const cwd = await $.session.cwd()
+  const sessionRoot = await gitRoot($, cwd)
+  if (!sessionRoot) return undefined
+  const paths = promptPaths(e.prompt)
+  if (!paths.length) return sessionRoot
+  const home = paths.some((path) => path.startsWith('~/')) ? await $.env.get('HOME') : undefined
+  for (const path of paths) {
+    const absolute = resolvePromptPath(path, cwd, home)
+    if (!absolute) return undefined
+    const root = await gitRoot($, absolute)
+    if (!root || root !== sessionRoot) return undefined
+  }
+  return sessionRoot
+}
+
+async function inferredRepository($: Engine, root: string): Promise<string | undefined> {
+  const origin = await $.process.run(['git', '-C', root, 'remote', 'get-url', 'origin'], { timeoutMs: 5_000 })
+  return origin.exitCode === 0 && origin.isStdoutTruncated !== true ? repositoryFromOrigin(origin.stdout.trim()) : undefined
+}
+
 async function github($: Engine, path: string): Promise<unknown> {
   let timer: { cancel: () => void } | undefined
   try {
@@ -351,11 +458,16 @@ async function github($: Engine, path: string): Promise<unknown> {
   }
 }
 
-// The tagged repository when the task is non-sensitive coding in a verified public repository; otherwise undefined.
+// A tagged or inferred repository is only a candidate; GitHub visibility still decides public eligibility.
 async function publicCodeRepo($: Engine, e: AgentCall): Promise<string | undefined> {
-  const repo = repositoryTag(e.description)
-  if (!codingTask(e.description) || !repo || mandatoryLabel(`${e.description ?? ''}\n${e.prompt}`)) return undefined
+  if (!codingTask(e.description) || mandatoryLabel(`${e.description ?? ''}\n${e.prompt}`)) return undefined
   try {
+    const tagged = repositoryTag(e.description)
+    const paths = promptPaths(e.prompt)
+    const root = !tagged || paths.length ? await repositoryRoot($, e) : undefined
+    if ((!tagged || paths.length) && !root) return undefined
+    const repo = tagged ?? await inferredRepository($, root!)
+    if (!repo) return undefined
     const repository = await github($, repo) as { visibility?: string; private?: boolean }
     return repository.visibility === 'public' && repository.private === false ? repo : undefined
   } catch {
@@ -524,9 +636,25 @@ type RouteEvent = {
   quota_unknown: Record<string, QuotaReason>; quota_source: Record<string, string>
 }
 
+const isScored = (score: RouteEvent['scores'][string] | undefined): boolean => Boolean(score && (typeof score.score === 'number' || score.exhausted))
+
 // One JSON telemetry line per routing decision. It never throws, so a failed write cannot change the decision.
 async function logRoute($: Engine, event: RouteEvent, chosen: string, reason: string): Promise<void> {
   try {
+    const table = await loadExecutorTable($)
+    for (const row of table) {
+      if (event.scores[row.id] === undefined) event.scores[row.id] = null
+      const score = event.scores[row.id]
+      const hasNumericScore = Boolean(score && typeof score === 'object' && typeof score.score === 'number')
+      const exhausted = Boolean(score && typeof score === 'object' && score.exhausted)
+      // Quota reasons are recorded under the quota name, which can differ from the row id.
+      const quota = row.quota ?? row.id
+      const hasQuotaReason = Object.keys(event.quota_unknown).some((key) => key === quota || key.startsWith(`${quota}/`) || key.startsWith(`${row.id}/`))
+      // The key can also be another row's quota name; its reason stays until that row is scored too.
+      const namesAnotherQuota = table.some((other) => other.id !== row.id && other.quota === row.id && !isScored(event.scores[other.id]))
+      if (hasNumericScore || exhausted) { if (!namesAnotherQuota) delete event.quota_unknown[row.id] }
+      else if (event.quota_unknown[row.id] === undefined && !hasQuotaReason) event.quota_unknown[row.id] = 'not_evaluated'
+    }
     // A clock that does not answer in time leaves ts_ms null rather than dropping the line.
     const ts_ms = await clockNow($)
     await logDecision($, JSON.stringify({ ts_ms, event: 'route', ...event, chosen, reason }))
@@ -541,7 +669,12 @@ const agentType = (e: AgentCall, verified: boolean): string => {
   const type = e.subagent_type ?? 'general-purpose'
   return (verified || isGenericType(e)) && /^[\w:.-]{1,80}$/.test(type) && safePayload(type) ? type : 'unrecognized'
 }
-const newEvent = (e: AgentCall): RouteEvent => ({ agent_type: agentType(e, false), local: null, eligible: [], scores: {}, fell_through_from: [], skipped: {}, jobs: [], quota_unknown: {}, quota_source: {} })
+const newEvent = (e: AgentCall): RouteEvent => ({
+  agent_type: agentType(e, false), local: null, eligible: [],
+  scores: Object.fromEntries(EXECUTOR_TABLE.map((row) => [row.id, null])),
+  fell_through_from: [], skipped: {}, jobs: [],
+  quota_unknown: Object.fromEntries(EXECUTOR_TABLE.map((row) => [row.id, 'not_evaluated'])) as Record<string, QuotaReason>, quota_source: {},
+})
 
 // Every exit that stops routing writes its route line too.
 async function stopRoute($: Engine, e: AgentCall, event: RouteEvent, reason: string): Promise<unknown> {
@@ -611,6 +744,7 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
   const now = (await clockNow($)) ?? Number.POSITIVE_INFINITY
   // Every quota executor in the table is reported, so the event shows why an ineligible row's quota is unknown too.
   const quota = await currentQuota($, table)
+  for (const row of table) if (!row.quota) quota.unknown[row.id] ??= 'quota_unconfigured'
   const { rows, skipped } = eligibleRows(table, Boolean(repo), now, quota.budgets)
   const { scores } = quota
   event.quota_unknown = quota.unknown
@@ -619,7 +753,7 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
   Object.assign(skipped, ranked.skipped)
   event.eligible = [...rows.map((r) => r.id), LAST_RESORT.model]
   event.skipped = skipped
-  for (const r of rows) {
+  for (const r of table) {
     const s = scores[r.id]
     event.scores[r.id] = {
       score: s?.score ?? null,

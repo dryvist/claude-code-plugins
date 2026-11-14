@@ -2,7 +2,7 @@ import { describe, expect, test } from 'claude-code/testing'
 import type { EngineInterface } from 'claude-code'
 import { endAnchor, jobHistory, jobState, recentFailures } from './lib/policy'
 import { register } from './register'
-import { CODEX, EXECUTOR_TABLE, LAST_RESORT, codexArgv, eligibleRows, mergeExecutorRows, metricsResult, peakMultiplier, QUOTA_SELECTOR, quotaFromMetrics, rankRows, validRow, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, localTask, mandatoryLabel, newestModel, parseVerdict, pickLocal, safePayload, scoreWindows, budgetsFromMetrics, forbiddenRowModel } from './lib/policy'
+import { CODEX, EXECUTOR_TABLE, LAST_RESORT, codexArgv, eligibleRows, mergeExecutorRows, metricsResult, peakMultiplier, QUOTA_SELECTOR, quotaFromMetrics, rankRows, repositoryFromOrigin, validRow, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, localTask, mandatoryLabel, newestModel, parseVerdict, pickLocal, safePayload, scoreWindows, budgetsFromMetrics, forbiddenRowModel } from './lib/policy'
 import { customAgentSandbox, parseAgentDefinition } from './lib/agent-definition'
 import { RECORDED_QUOTA } from './fixtures/quota-instant-query'
 
@@ -17,9 +17,10 @@ const PR = { html_url: 'https://github.com/owner/project/pull/12', state: 'open'
 const CORE_ASK = { decision: 'ask', reason: 'This shell -c script runs rm.' }
 type Call = { argv: string[]; stdin?: string }
 type World = {
-  quota?: number; codexWindows?: unknown[]; cursorWindows?: unknown[]; now?: number; gatewayFinish?: string; quotaThrows?: boolean; cache?: boolean; codexExit?: number; answer?: string; label?: string
-  env?: Record<string, string>; definition?: string; files?: Record<string, string>; fsThrows?: boolean; worktreeExit?: number; temporaryExit?: number
-  repository?: unknown; properties?: unknown; githubPrivateAuth?: boolean; githubAuthDenied?: boolean; pr?: unknown; githubError?: boolean; githubInvalidJson?: boolean
+  quota?: number; codexWindows?: unknown[]; cursorWindows?: unknown[]; now?: number; gatewayFinish?: string; quotaThrows?: boolean; cache?: boolean; codexExit?: number; codexStderr?: string; codexOutputMissing?: boolean; answer?: string; label?: string
+  codexError?: string; env?: Record<string, string | undefined>; definition?: string; files?: Record<string, string>; fsThrows?: boolean; worktreeExit?: number; temporaryExit?: number
+  repository?: unknown; properties?: unknown; githubPrivateAuth?: boolean; githubAuthDenied?: boolean; pr?: unknown; githubError?: boolean; githubInvalidJson?: boolean; gitRoot?: string; originUrl?: string; gitReadFail?: boolean
+  sessionCwd?: string; pathRealpaths?: Record<string, string>; pathKinds?: Record<string, 'file' | 'directory'>; pathGitRoots?: Record<string, string>; unresolvedPaths?: string[]
   zcodeExit?: number; zcodeOutput?: string; zcodeAvailable?: boolean; zcodeThrows?: boolean; zcodeTruncated?: boolean
   sandboxRuns?: Record<string, { exit: number; output: string }>; jobStatus?: Record<string, unknown>; statusHangs?: boolean; statusExit?: number; logTail?: unknown[]; tailTruncated?: boolean
   gatewayTimeout?: boolean; gatewayStatus?: Record<string, number>; gatewayAnswer?: Record<string, string>; gatewayInvalidJson?: boolean
@@ -51,7 +52,12 @@ function world(w: World = {}) {
   const modelCalls: unknown[] = []
   const nextCalls: any[] = []
   const logs: string[] = []
-  const env: Record<string, string> = { HOME: '/home/test', ...(w.quotaUrl === null ? {} : { AGENT_QUOTA_QUERY_URL: w.quotaUrl ?? QUOTA_BASE }), ...w.env }
+  const tempPaths = new Set<string>()
+  const tempInputs = new Map<string, string>()
+  const tempOutputs = new Map<string, string>()
+  const outputPaths = new Set<string>()
+  let tempCounter = 0
+  const env: Record<string, string | undefined> = { HOME: '/home/test', PATH: '/usr/bin:/bin', USER: 'tester', TERM: 'dumb', LANG: 'C.UTF-8', ...(w.quotaUrl === null ? {} : { AGENT_QUOTA_QUERY_URL: w.quotaUrl ?? QUOTA_BASE }), ...w.env }
   let output = ''
   let clockNow = w.now ?? 1_000_000
   const fs: Pick<EngineInterface['fs'], 'exists' | 'stat'> = {
@@ -59,14 +65,20 @@ function world(w: World = {}) {
       fsTouches.push(path)
       if (w.fsThrows) throw new Error('read failed')
       if (path === w.readThrows || path === w.readHangs) return true
+      if (outputPaths.has(path) && w.codexOutputMissing) return false
+      if (tempPaths.has(path)) return true
       if (path.endsWith('/executors.json')) return w.files?.[path] !== undefined
       return path.endsWith('models_cache.json') ? w.cache !== false : w.files?.[path] !== undefined || Boolean(w.definition)
     },
     stat: async (path, options) => {
       fsTouches.push(path)
       fsStats.push({ path, resolve: options?.resolve })
-      if (w.fsThrows || (w.files?.[path] === undefined && path !== w.readThrows && path !== w.readHangs)) throw new Error('metadata read failed')
-      const kind = w.quotaFileTypes?.[path] ?? 'file'
+      const cwd = w.sessionCwd ?? '/workspace'
+      const mappedPath = Object.keys(w.pathGitRoots ?? {}).some((root) => path === root || path.startsWith(`${root.replace(/\/+$/g, '')}/`))
+      const realPathTarget = Object.values(w.pathRealpaths ?? {}).some((target) => path === target || path.startsWith(`${target.replace(/\/+$/g, '')}/`))
+      const repositoryPath = path === cwd || path.startsWith(`${cwd.replace(/\/+$/g, '')}/`) || mappedPath || realPathTarget || w.pathKinds?.[path] !== undefined
+      if (w.fsThrows || (w.files?.[path] === undefined && !repositoryPath && path !== w.readThrows && path !== w.readHangs)) throw new Error('metadata read failed')
+      const kind = w.quotaFileTypes?.[path] ?? (w.pathKinds?.[path] ?? (path === '/workspace' || path.endsWith('/') ? 'directory' : 'file'))
       return {
         kind: kind === 'directory' ? 'dir' : kind === 'symlink' && options?.resolve === false ? 'other' : 'file',
         size: new TextEncoder().encode(w.files?.[path] ?? '').byteLength,
@@ -77,7 +89,7 @@ function world(w: World = {}) {
   }
   const $ = {
     env: { get: async (key: string) => { if (key === w.envThrows) throw new Error('environment read failed'); return env[key] } },
-    session: { cwd: async () => '/workspace' },
+    session: { cwd: async () => w.sessionCwd ?? '/workspace' },
     clock: { now: async () => { if (w.clockThrows) throw new Error('clock failed'); if (w.clockHangs) return new Promise<number>(() => {}); return clockNow }, after: (delay: number, callback: () => void) => { if ((w.clockHangs && delay === 5_000) || (w.gatewayTimeout && delay >= 60_000) || (w.quotaTimeout && delay === 3_000) || (w.statusHangs && (delay === 3_000 || delay === 15_000))) queueMicrotask(callback); return { cancel() {} } } },
     ui: { log: (line: string) => logs.push(line) },
     fs: {
@@ -87,19 +99,57 @@ function world(w: World = {}) {
         fsReads.push(path)
         if (path === w.readThrows) throw new Error('EISDIR: illegal operation on a directory')
         if (path === w.readHangs) return new Promise<never>(() => {})
-        return path === '/token' ? 'test-token' : path.endsWith('models_cache.json') ? CACHE : path === '/tmp/final' ? output : w.files?.[path] ?? w.definition ?? ''
+        return path === '/token' ? 'test-token' : path.endsWith('models_cache.json') ? CACHE : tempOutputs.get(path) ?? tempInputs.get(path) ?? w.files?.[path] ?? w.definition ?? ''
       },
     },
     process: { run: async (argv: string[], init?: { stdin?: string }) => {
       calls.push({ argv, stdin: init?.stdin })
       if (argv[0] === 'tee' && w.teeThrows) throw new Error('log write failed')
-      if (argv[0] === 'tee') { if ((w.teeExit ?? 0) === 0) writes.push(init?.stdin ?? ''); return { ...RAN, exitCode: w.teeExit ?? 0 } }
-      if (argv[0] === 'mktemp') return { ...RAN, exitCode: w.temporaryExit ?? 0, stdout: argv[1] === '-d' ? '/tmp/worktree' : '/tmp/final' }
-      if (argv[0] === 'git') return { ...RAN, exitCode: w.worktreeExit ?? 0 }
-      if (argv[0] === 'codex') {
-        output = init?.stdin?.startsWith('Classify the delegated task') ? w.label ?? 'standard' : w.answer ?? 'task result'
-        return { ...RAN, exitCode: w.codexExit ?? 0 }
+      if (argv[0] === 'tee') {
+        if (argv[1] === '-a') { if ((w.teeExit ?? 0) === 0) writes.push(init?.stdin ?? '') }
+        else if ((w.teeExit ?? 0) === 0) tempInputs.set(argv[1], init?.stdin ?? '')
+        return { ...RAN, exitCode: w.teeExit ?? 0 }
       }
+      if (argv[0] === 'mktemp') {
+        if (argv[1] === '-d') return { ...RAN, exitCode: w.temporaryExit ?? 0, stdout: '/tmp/worktree' }
+        const index = Math.floor(tempCounter / 2)
+        const name = tempCounter++ % 2 === 0 ? 'final' : 'prompt'
+        const path = `/tmp/${name}-${index}`
+        tempPaths.add(path)
+        if (name === 'final') outputPaths.add(path)
+        return { ...RAN, exitCode: w.temporaryExit ?? 0, stdout: path }
+      }
+      if (argv[0] === 'realpath') {
+        const path = argv[1]
+        if (w.unresolvedPaths?.includes(path)) return { ...RAN, exitCode: 1 }
+        const resolved = w.pathRealpaths?.[path] ?? path.split('/').reduce<string[]>((parts, segment) => {
+          if (!segment || segment === '.') return parts
+          if (segment === '..') parts.pop()
+          else parts.push(segment)
+          return parts
+        }, []).join('/')
+        return { ...RAN, stdout: resolved.startsWith('/') ? resolved : `/${resolved}` }
+      }
+      if (argv[0] === 'git') {
+        if (argv[3] === 'rev-parse' && argv[4] === '--show-toplevel') {
+          const candidate = argv[2]
+          const mapped = Object.entries(w.pathGitRoots ?? {}).filter(([path]) => candidate === path || candidate.startsWith(`${path.replace(/\/+$/g, '')}/`)).sort(([a], [b]) => b.length - a.length)[0]?.[1]
+          return { ...RAN, exitCode: w.gitReadFail ? 1 : 0, stdout: mapped ?? w.gitRoot ?? '/workspace' }
+        }
+        if (argv[3] === 'remote' && argv[4] === 'get-url') return { ...RAN, exitCode: w.originUrl ? 0 : 2, stdout: w.originUrl ?? '' }
+        return { ...RAN, exitCode: w.worktreeExit ?? 0 }
+      }
+      if (argv[0] === '/bin/sh' && argv[1] === '-c') {
+        if (w.codexError) throw new Error(w.codexError)
+        const codex = argv.slice(11)
+        const input = tempInputs.get(argv[10]) ?? ''
+        const outputFile = codex[codex.indexOf('-o') + 1]
+        output = input.startsWith('Classify the delegated task') ? w.label ?? 'standard' : w.answer ?? 'task result'
+        if (w.codexOutputMissing) tempPaths.delete(outputFile)
+        else tempOutputs.set(outputFile, output)
+        return { ...RAN, exitCode: w.codexExit ?? 0, stderr: w.codexStderr ?? '' }
+      }
+      if (argv[0] === 'rm') return RAN
       if (argv[0] === 'gh') {
         const value = argv[2].endsWith('/properties/values') ? w.properties : w.repository
         return { ...RAN, exitCode: w.githubAuthDenied ? 1 : 0, stdout: JSON.stringify(value) }
@@ -159,12 +209,13 @@ function world(w: World = {}) {
       return handler.caught($, e, next)
     }
   }
-  return { calls, writes, fetches, quotaFetches, quotaHeaders, allFetches, fsTouches, fsReads, fsStats, modelCalls, nextCalls, logs, invoke, setNow: (ms: number) => { clockNow = ms },
+  return { calls, writes, fetches, quotaFetches, quotaHeaders, allFetches, fsTouches, fsReads, fsStats, modelCalls, nextCalls, logs, invoke, setNow: (ms: number) => { clockNow = ms }, tempFile: (path: string) => tempInputs.get(path),
     agent: (e: Record<string, unknown> = {}) => invoke('tool.call', { tool: 'Agent', description: '[class: standard]', prompt: 'Implement the change.', ...e }),
   }
 }
 const text = (r: any): string => r.result.content[0].text
-const runs = (w: ReturnType<typeof world>) => w.calls.filter((c) => c.argv[0] === 'codex' && c.argv[1] === 'exec')
+const runs = (w: ReturnType<typeof world>) => w.calls.filter((c) => c.argv[0] === '/bin/sh' && c.argv[1] === '-c' && c.argv[11] === 'codex')
+const codexPrompt = (w: ReturnType<typeof world>, call = runs(w)[0]) => w.tempFile(call.argv[10])
 const gateways = { LITELLM_LOCAL_BASE_URL: 'http://localhost:8000', AGENT_ROUTE_GLM_MODEL: 'configured-glm', AGENT_ROUTE_OPENCODE_GO_MODEL: 'configured-go' }
 const coding = { description: '[class: public] [repo: owner/project] [task: code]', prompt: 'Implement the change.' }
 const textTask = { description: '[class: text]', prompt: 'Summarize this supplied text: A small change.' }
@@ -194,17 +245,19 @@ describe('policy', () => {
   })
   for (const [label, route] of Object.entries(CODEX)) {
     test(`command builder accepts ${label} and binds family, effort and output`, () => {
-      const argv = codexArgv('read-only', route, `gpt-newer-${route.family}`, '/tmp/out')
-      expect(argv).toContain(`model_reasoning_effort="${route.effort}"`)
+      const argv = codexArgv('read-only', route, `gpt-newer-${route.family}`, '/tmp/out', '/workspace')
+      expect(argv).toContain(`model_reasoning_effort=${route.effort}`)
       expect(argv.slice(-3)).toEqual(['-o', '/tmp/out', '-'])
+      expect(argv).toEqual(['codex', 'exec', '--skip-git-repo-check', '-m', `gpt-newer-${route.family}`, '-c', `model_reasoning_effort=${route.effort}`, '-s', 'read-only', '-C', '/workspace', '-o', '/tmp/out', '-'])
     })
   }
   test('command builder rejects any non-Luna family, unsupported efforts and missing output', () => {
-    for (const effort of ['', 'ultra', 'high', 'medium']) expect(() => codexArgv('read-only', { family: 'luna', effort }, 'gpt-luna', '/tmp/out')).toThrow()
-    for (const model of [undefined, '', 'gpt-sol', 'gpt-luna-mini']) expect(() => codexArgv('read-only', CODEX.bulk, model, '/tmp/out')).toThrow()
-    expect(() => codexArgv('read-only', { family: 'terra', effort: 'high' } as never, 'gpt-terra', '/tmp/out')).toThrow()
-    expect(() => codexArgv('read-only', CODEX.bulk, 'gpt-terra', '/tmp/out')).toThrow()
-    expect(() => codexArgv('read-only', CODEX.bulk, 'gpt-luna', '')).toThrow()
+    for (const effort of ['', 'ultra', 'high', 'medium']) expect(() => codexArgv('read-only', { family: 'luna', effort }, 'gpt-luna', '/tmp/out', '/workspace')).toThrow()
+    for (const model of [undefined, '', 'gpt-sol', 'gpt-luna-mini']) expect(() => codexArgv('read-only', CODEX.bulk, model, '/tmp/out', '/workspace')).toThrow()
+    expect(() => codexArgv('read-only', { family: 'terra', effort: 'high' } as never, 'gpt-terra', '/tmp/out', '/workspace')).toThrow()
+    expect(() => codexArgv('read-only', CODEX.bulk, 'gpt-terra', '/tmp/out', '/workspace')).toThrow()
+    expect(() => codexArgv('read-only', CODEX.bulk, 'gpt-luna', '', '/workspace')).toThrow()
+    expect(() => codexArgv('read-only', CODEX.bulk, 'gpt-luna', '/tmp/out', 'relative')).toThrow()
   })
   test('labels, advisory classes and verdict parsing remain strict', () => {
     expect(explicitLabel('[class: bulk-complex]')).toBe('bulk-complex')
@@ -447,7 +500,7 @@ describe('custom agent tool authority', () => {
     const w = world({ definition: '---\r\nmodel: "haiku" # permitted\r\ndescription: >\r\n  Inspect the repository.\r\ntools: [Read, Grep, Glob] # file reads\r\n---\r\nFollow the rubric.' })
     await w.agent({ subagent_type: 'reviewer' })
     expect(runs(w)[0].argv).toContain('read-only')
-    expect(runs(w)[0].stdin).toContain('Follow the rubric.')
+    expect(codexPrompt(w, runs(w)[0])).toContain('Follow the rubric.')
   })
   for (const metadata of [
     "description: Review the user's changes",
@@ -475,7 +528,7 @@ describe('custom agent tool authority', () => {
         await w.agent({ subagent_type: 'reviewer' })
         expect(runs(w)).toHaveLength(1)
         expect(runs(w)[0].argv).toContain(tools ? 'read-only' : 'workspace-write')
-        expect(runs(w)[0].stdin).toContain('Follow the rubric.')
+        expect(codexPrompt(w, runs(w)[0])).toContain('Follow the rubric.')
         expect(w.nextCalls).toEqual([])
       })
     }
@@ -494,6 +547,62 @@ describe('Codex rung', () => {
       expect(w.nextCalls).toEqual([])
     })
   }
+  test('Codex receives the prompt from a file on stdin and writes its final message with -o', async () => {
+    const w = world()
+    await w.agent({ description: '[class: standard]', prompt: 'Implement the change.' })
+    const call = runs(w)[0]
+    const args = call.argv.slice(11)
+    expect(call.stdin).toBeUndefined()
+    expect(call.argv[2]).toContain('"$@" < "$input_file"')
+    expect(call.argv.slice(4, 9)).toEqual(['/home/test', '/usr/bin:/bin', 'tester', 'dumb', 'C.UTF-8'])
+    expect(call.argv[9]).toBe('')
+    expect(w.tempFile(call.argv[10])).toBe('Implement the change.')
+    expect(args[0]).toBe('codex')
+    const outputAt = args.indexOf('-o')
+    expect(args[outputAt + 1]).toMatch(/^\/tmp\/final-\d+$/)
+    expect(args.at(-1)).toBe('-')
+    expect(args).toContain('--skip-git-repo-check')
+    expect(args).toContain('-C')
+    expect(args).toContain('/workspace')
+  })
+  test('Codex receives CODEX_HOME so its model cache and auth location match', async () => {
+    const w = world({ env: { ...gateways, CODEX_HOME: '/custom/codex-home' } })
+    await w.agent({ description: '[class: standard]' })
+    const call = runs(w)[0]
+    expect(w.fsTouches).toContain('/custom/codex-home/models_cache.json')
+    expect(call.argv[9]).toBe('/custom/codex-home')
+    expect(call.argv[2]).toContain('"CODEX_HOME=$codex_home"')
+    expect(call.argv[2]).toContain('/usr/bin/env -i')
+  })
+  test('Codex uses safe defaults when USER, TERM and LANG are unset', async () => {
+    const w = world({ env: { ...gateways, USER: undefined, TERM: undefined, LANG: undefined } })
+    await w.agent({ description: '[class: standard]' })
+    expect(runs(w)[0].argv.slice(6, 9)).toEqual(['codex', 'dumb', 'C.UTF-8'])
+  })
+  test('Codex failures log the exit code and stderr tail, or a missing final-message file', async () => {
+    const failed = world({ codexExit: 7, codexStderr: 'temporary network failure' })
+    await failed.agent({ description: '[class: standard]' })
+    expect(failed.writes.some((line) => line.includes('codex failure: codex exec exited with code 7; stderr tail: temporary network failure'))).toBe(true)
+
+    const missing = world({ codexOutputMissing: true })
+    await missing.agent({ description: '[class: standard]' })
+    expect(missing.writes.some((line) => line.includes('codex failure: codex exec final-message output file is missing'))).toBe(true)
+  })
+  test('credential screening happens before stderr and exception details are truncated', async () => {
+    const secret = 'ghp_abcdefghijklmnopqrst'
+    const tail = 'outside-the-window-probe '.repeat(40)
+    const stderr = world({ codexExit: 7, codexStderr: `${secret}${tail}` })
+    await stderr.agent({ description: '[class: standard]' })
+    expect(stderr.writes.join('\n')).toContain('stderr tail: [detail redacted]')
+    expect(stderr.writes.join('\n')).not.toContain(secret)
+    expect(stderr.writes.join('\n')).not.toContain(tail)
+
+    const thrown = world({ codexError: `${secret}${tail}` })
+    await thrown.agent({ description: '[class: standard]' })
+    expect(thrown.writes.join('\n')).toContain('codex exec invocation failed: [detail redacted]')
+    expect(thrown.writes.join('\n')).not.toContain(secret)
+    expect(thrown.writes.join('\n')).not.toContain(tail)
+  })
   for (const topic of ['auth', 'secrets', 'router', 'memory', 'cluster']) {
     test(`${topic} overrides an explicit standard class and names bulk-complex`, async () => {
       const w = world()
@@ -530,7 +639,7 @@ describe('Codex rung', () => {
     const w = world({ label: 'bulk' })
     expect(text(await w.agent({ description: 'read and triage', prompt: 'Read the README.' }))).toContain('codex luna xhigh')
     expect(runs(w)).toHaveLength(2)
-    expect(runs(w)[0].stdin).toContain('bulk: bulk work, reads and triage.')
+    expect(codexPrompt(w, runs(w)[0])).toContain('bulk: bulk work, reads and triage.')
   })
   test('classification itself stays on Codex while quota is available', async () => {
     const w = world({ env: gateways, label: 'complex' })
@@ -553,7 +662,8 @@ describe('Codex rung', () => {
     const w = world()
     expect(text(await w.agent({ isolation: 'worktree' }))).toContain('worktree /tmp/worktree')
     expect(w.calls.find((c) => c.argv[0] === 'git')?.argv).toEqual(['git', '-C', '/workspace', 'worktree', 'add', '--detach', '/tmp/worktree', 'HEAD'])
-    expect(runs(w)[0].argv.slice(0, 4)).toEqual(['codex', 'exec', '-C', '/tmp/worktree'])
+    expect(runs(w)[0].argv.slice(11, 13)).toEqual(['codex', 'exec'])
+    expect(runs(w)[0].argv.slice(20, 22)).toEqual(['-C', '/tmp/worktree'])
     expect(w.nextCalls).toEqual([])
   })
   for (const options of [{ worktreeExit: 1 }, { temporaryExit: 1 }, { cache: false }, { answer: '' }, { codexExit: 7 }]) {
@@ -595,7 +705,7 @@ describe('model and payload guards', () => {
   test('custom Haiku instructions are preserved on Codex', async () => {
     const w = world({ definition: '---\nmodel: haiku\n---\nFollow the review rubric.' })
     expect(text(await w.agent({ subagent_type: 'reviewer' }))).toContain('codex luna xhigh')
-    expect(runs(w)[0].stdin).toContain('Follow the review rubric.')
+    expect(codexPrompt(w, runs(w)[0])).toContain('Follow the review rubric.')
   })
   test('missing or unreadable custom definitions fail closed', async () => {
     for (const options of [{}, { fsThrows: true }]) {
@@ -626,7 +736,7 @@ describe('model and payload guards', () => {
       } })
       const r = await w.agent({ subagent_type: 'codeql-resolver:codeql-permissions-auditor' })
       expect(text(r)).toContain(model !== 'sonnet' ? 'codex luna xhigh' : 'subagents are forbidden')
-      if (model !== 'sonnet') expect(runs(w)[0].stdin).toContain('Follow the plugin review rubric.')
+      if (model !== 'sonnet') expect(codexPrompt(w, runs(w)[0])).toContain('Follow the plugin review rubric.')
       else expect(work(w)).toEqual([])
       expect(w.nextCalls).toEqual([])
     })
@@ -658,7 +768,7 @@ describe('model and payload guards', () => {
       '/plugins/project/agents/codeql-permissions-auditor.md': '---\nmodel: haiku\n---\nFollow the project plugin rubric.',
     } })
     expect(text(await w.agent({ subagent_type: 'codeql-resolver:codeql-permissions-auditor' }))).toContain('codex luna xhigh')
-    expect(runs(w)[0].stdin).toContain('Follow the project plugin rubric.')
+    expect(codexPrompt(w, runs(w)[0])).toContain('Follow the project plugin rubric.')
   })
   test('project custom definition still precedes plugin discovery', async () => {
     const w = world({ files: {
@@ -666,7 +776,7 @@ describe('model and payload guards', () => {
       '/home/test/.claude/plugins/installed_plugins.json': '{',
     } })
     expect(text(await w.agent({ subagent_type: 'codeql-resolver:codeql-permissions-auditor' }))).toContain('codex luna xhigh')
-    expect(runs(w)[0].stdin).toContain('Follow the local rubric.')
+    expect(codexPrompt(w, runs(w)[0])).toContain('Follow the local rubric.')
   })
 })
 
@@ -699,6 +809,119 @@ describe('capped ladder', () => {
     expect(w.calls.find((c) => c.argv[0] === 'zcode-job')?.argv).toEqual(['zcode-job', 'start', 'owner/project', `${coding.prompt}\n\nReturn a ready PR labelled human:review. Never auto-merge. The trusted lead must leak-scan the PR before merge.`])
     expect(w.fetches.map((f) => f.url)).toEqual(['https://api.github.com/repos/owner/project', 'https://api.github.com/repos/owner/project/pulls/12'])
     expect(w.nextCalls).toEqual([])
+  })
+  test('untagged supplied-text requests never use local chat; untagged coding requests stay tool-capable', async () => {
+    const textWork = world({ env: gateways })
+    expect(text(await textWork.agent({ description: undefined, prompt: 'Summarize this supplied text: A small change.' }))).not.toContain('[routed: local')
+    expect(textWork.fetches.some((fetch) => fetch.url.endsWith('/chat/completions'))).toBe(false)
+
+    const codeWork = world({ env: gateways, zcodeAvailable: false })
+    await codeWork.agent({ description: '[task: code]', prompt: 'Implement the change.' })
+    expect(codeWork.fetches.some((fetch) => fetch.url.endsWith('/model/info') || fetch.url.endsWith('/chat/completions'))).toBe(false)
+    expect(runs(codeWork).length).toBeGreaterThan(0)
+  })
+  test('long tagged text included inline remains eligible for local chat when it fits', async () => {
+    const prompt = `Summarize this supplied text: ${'word '.repeat(4_000)}`
+    const w = world({ env: gateways })
+    expect(text(await w.agent({ description: '[class: text]', prompt }))).toContain('[routed: local small]')
+    expect(JSON.parse(w.fetches.find((fetch) => fetch.url.endsWith('/chat/completions'))!.body!).messages[0].content).toBe(prompt)
+  })
+  for (const prompt of [
+    'Summarize /workspace/project/notes.md',
+    'Summarize this supplied text and run the tests.',
+    'Edit the file using the supplied text.',
+  ]) {
+    test(`an untagged prompt with a path or tool instruction does not use local chat: ${prompt}`, async () => {
+      const w = world({ env: gateways, zcodeAvailable: false })
+      await w.agent({ description: undefined, prompt })
+      expect(w.fetches.some((fetch) => fetch.url.endsWith('/model/info') || fetch.url.endsWith('/chat/completions'))).toBe(false)
+      expect(runs(w).length).toBeGreaterThan(0)
+    })
+  }
+  test('a [class: text] tag overrides prompt inference and still selects local chat', async () => {
+    const w = world({ quota: 1, env: gateways })
+    expect(text(await w.agent({ description: '[class: text]', prompt: 'A short supplied summary.' }))).toContain('[routed: local small]')
+  })
+  test('a local answer reporting missing access is logged and falls through', async () => {
+    const w = world({ quota: 1, env: gateways, gatewayAnswer: { small: 'I cannot access the file you mentioned.' } })
+    await w.agent({ description: '[class: text]', prompt: 'Summarize this supplied text: A small change.' })
+    expect(w.writes.some((line) => line.includes('local small failed: answer reports unavailable access'))).toBe(true)
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'haiku', fell_through_from: ['local small'] })
+  })
+  test('an absolute prompt path infers a repository from its Git root origin', async () => {
+    const w = world({ quota: 1, env: gateways, gitRoot: '/workspace/project', originUrl: 'https://github.com/owner/project.git' })
+    await w.agent({ description: '[task: code]', prompt: 'Implement changes under /workspace/project/src/main.ts.' })
+    expect(w.calls.find((call) => call.argv[0] === 'zcode-job')?.argv[2]).toBe('owner/project')
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'zcode', eligible: ['zcode', 'opencode-go', 'codex', 'cursor', 'haiku'] })
+  })
+  test('a relative prompt path resolves against the session directory before repository inference', async () => {
+    const w = world({ quota: 1, env: gateways, originUrl: 'https://github.com/owner/project.git' })
+    await w.agent({ description: '[task: code]', prompt: 'Update src/main.ts.' })
+    expect(w.calls.some((call) => call.argv[0] === 'zcode-job')).toBe(true)
+    expect(w.fetches).toContainEqual({ url: 'https://api.github.com/repos/owner/project', body: undefined })
+  })
+  test('a quoted bare file name is still extracted as a prompt path', async () => {
+    const w = world({ quota: 1, env: gateways, gitRoot: '/workspace', originUrl: 'https://github.com/owner/project.git', pathRealpaths: { '/workspace/notes.md': '/private/notes.md' }, pathGitRoots: { '/private': '/private' } })
+    await w.agent({ description: '[task: code] [repo: owner/project]', prompt: 'Update "notes.md".' })
+    expect(w.fetches.some((fetch) => fetch.url.startsWith('https://api.github.com/repos/'))).toBe(false)
+  })
+  test('a quoted or backticked prompt path resolves without its closing quote', async () => {
+    for (const prompt of ['Update "src/main.ts" now', 'Update `src/main.ts` now', "Update 'src/main.ts'."]) {
+      const w = world({ quota: 1, env: gateways, originUrl: 'https://github.com/owner/project.git' })
+      await w.agent({ description: '[task: code]', prompt })
+      expect(w.calls.filter((call) => call.argv[0] === 'realpath').every((call) => !/["'`]/.test(call.argv.join(' ')))).toBe(true)
+      expect(w.calls.some((call) => call.argv[0] === 'zcode-job')).toBe(true)
+    }
+  })
+  test('a path resolving to another repository makes the candidate unknown, even with a repository tag', async () => {
+    const w = world({ quota: 1, env: gateways, gitRoot: '/workspace', originUrl: 'https://github.com/owner/project.git',
+      pathGitRoots: { '/private/notes': '/private' } })
+    await w.agent({ description: '[task: code] [repo: owner/project]', prompt: 'Update ../private/notes/secret.md.' })
+    expect(w.fetches.some((fetch) => fetch.url.startsWith('https://api.github.com/repos/'))).toBe(false)
+    expect(w.calls.some((call) => call.argv[0] === 'zcode-job')).toBe(false)
+    expect(routeEvents(w).at(-1).eligible).toEqual(['codex', 'haiku'])
+  })
+  test('a path that cannot be resolved leaves public-only executors ineligible', async () => {
+    const w = world({ quota: 1, env: gateways, gitRoot: '/workspace', originUrl: 'https://github.com/owner/project.git',
+      unresolvedPaths: ['/workspace/missing/main.ts'] })
+    await w.agent({ description: '[task: code]', prompt: 'Update missing/main.ts.' })
+    expect(w.fetches.some((fetch) => fetch.url.startsWith('https://api.github.com/repos/'))).toBe(false)
+    expect(w.calls.some((call) => call.argv[0] === 'zcode-job')).toBe(false)
+    expect(routeEvents(w).at(-1).eligible).toEqual(['codex', 'haiku'])
+  })
+  test('multiple paths in different repositories make the candidate unknown', async () => {
+    const w = world({ quota: 1, env: gateways, gitRoot: '/workspace', originUrl: 'https://github.com/owner/project.git',
+      pathGitRoots: { '/private': '/private' } })
+    await w.agent({ description: '[task: code]', prompt: 'Update src/main.ts and ../private/notes.md.' })
+    expect(w.fetches.some((fetch) => fetch.url.startsWith('https://api.github.com/repos/'))).toBe(false)
+    expect(w.calls.some((call) => call.argv[0] === 'zcode-job')).toBe(false)
+    expect(routeEvents(w).at(-1).eligible).toEqual(['codex', 'haiku'])
+  })
+  test('a symlinked prompt path is compared after realpath resolution', async () => {
+    const w = world({ quota: 1, env: gateways, gitRoot: '/workspace/project', originUrl: 'https://github.com/owner/project.git',
+      pathRealpaths: { '/workspace/link/src/main.ts': '/workspace/project/src/main.ts' } })
+    await w.agent({ description: '[task: code]', prompt: 'Update /workspace/link/src/main.ts.' })
+    expect(w.calls.some((call) => call.argv[0] === 'zcode-job')).toBe(true)
+    expect(w.fetches).toContainEqual({ url: 'https://api.github.com/repos/owner/project', body: undefined })
+  })
+  test('an inferred repository with unknown visibility never admits public-only executors', async () => {
+    const w = world({ quota: 1, env: gateways, gitRoot: '/workspace/project', originUrl: 'https://github.com/owner/project.git', repository: { visibility: 'unknown', private: false } })
+    await w.agent({ description: '[task: code]', prompt: 'Update /workspace/project/src/main.ts.' })
+    expect(w.fetches).toContainEqual({ url: 'https://api.github.com/repos/owner/project', body: undefined })
+    expect(w.calls.some((call) => call.argv[0] === 'zcode-job')).toBe(false)
+    expect(routeEvents(w).at(-1).eligible).toEqual(['codex', 'haiku'])
+  })
+  test('an explicit repository tag overrides the origin inferred from a prompt path', async () => {
+    const w = world({ quota: 1, env: gateways, gitRoot: '/workspace/origin', originUrl: 'https://github.com/origin/repository.git' })
+    await w.agent({ description: '[task: code] [repo: tagged/project]', prompt: 'Update /workspace/origin/src/main.ts.' })
+    expect(w.fetches[0].url).toBe('https://api.github.com/repos/tagged/project')
+    expect(routeEvents(w).at(-1).eligible).toContain('zcode')
+  })
+  test('private inferred repositories never list public-only executors as eligible', async () => {
+    const w = world({ quota: 1, env: gateways, gitRoot: '/workspace/private', originUrl: 'git@github.com:owner/private.git', repository: { visibility: 'private', private: true } })
+    await w.agent({ description: '[task: code]', prompt: 'Update /workspace/private/src/main.ts.' })
+    expect(w.calls.some((call) => call.argv[0] === 'zcode-job')).toBe(false)
+    expect(routeEvents(w).at(-1).eligible).toEqual(['codex', 'haiku'])
   })
   for (const options of [{ repository: { visibility: 'private', private: true } }, { repository: { visibility: 'private', private: true }, properties: [{ property_name: 'ai-untrusted-ok', value: 'true' }] }, { githubError: true }, { githubInvalidJson: true }]) {
     test(`private or unverifiable repositories never dispatch zcode: ${JSON.stringify(options)}`, async () => {
@@ -774,8 +997,8 @@ describe('judge and session policy', () => {
   test('mandatory judge topics also use Luna max and name the class', async () => {
     const w = world({ answer: '{"verdict":"safe","reason":"bounded"}' })
     await w.invoke('tool.check', { input: { command: 'rm ./auth-cache' } }, CORE_ASK)
-    expect(runs(w)[0].argv).toContain('model_reasoning_effort="max"')
-    expect(runs(w)[0].stdin).toStartWith('[class: bulk-complex]')
+    expect(runs(w)[0].argv).toContain('model_reasoning_effort=max')
+    expect(codexPrompt(w, runs(w)[0])).toStartWith('[class: bulk-complex]')
   })
   test('capped judge tries GLM and Go before Haiku', async () => {
     const w = world({ quota: 1, env: gateways, gatewayStatus: { 'configured-glm': 503, 'configured-go': 503 }, answer: '{"verdict":"unsafe","reason":"outside tree"}' })
@@ -839,6 +1062,19 @@ describe('scoring and eligibility policy', () => {
     expect(pickLocal(estimateTokens('a'.repeat(140_000)), windows)?.alias).toBe('local-only')
     expect(pickLocal(estimateTokens('a'.repeat(700_000)), windows)).toBeUndefined()
     expect(pickLocal(100, {})).toBeUndefined()
+  })
+  test('untagged text is never inferred as local text work', () => {
+    expect(localTask(undefined)).toBe(false)
+    expect(localTask('Summarize this supplied text: A small change.')).toBe(false)
+    expect(localTask('[class: bulk] [class: text]')).toBe(false)
+    expect(localTask('[class: text] Edit the notes')).toBe(true)
+  })
+  test('repository candidates come only from GitHub origins', () => {
+    expect(repositoryFromOrigin('https://github.com/owner/project.git')).toBe('owner/project')
+    expect(repositoryFromOrigin('git@github.com:owner/project.git')).toBe('owner/project')
+    expect(repositoryFromOrigin('ssh://git@github.com/owner/project')).toBe('owner/project')
+    expect(repositoryFromOrigin('https://git.example.test/owner/project.git')).toBeUndefined()
+    expect(repositoryFromOrigin('not a remote URL')).toBeUndefined()
   })
 })
 
@@ -1083,7 +1319,7 @@ describe('quota from the metrics store', () => {
     expect(text(await w.agent())).toContain('codex luna xhigh')
     expect(w.quotaFetches).toEqual([QUERY_URL])
     const event = routeEvents(w).at(-1)
-    expect(event.quota_unknown).toEqual({})
+    expect(event.quota_unknown).toEqual({ zcode: 'quota_unconfigured', 'opencode-go': 'quota_unconfigured' })
     expect(event.quota_source).toEqual({ 'codex/five_hour': 'provider', 'codex/weekly': 'provider', 'cursor/monthly': 'estimate' })
     expect(typeof event.scores.codex.score).toBe('number')
   })
@@ -1110,12 +1346,12 @@ describe('quota from the metrics store', () => {
   test('staleness is judged on the clock at routing time, not when the sample was read', async () => {
     const w = world({ now: RECORDED_NOW_MS, quotaText: JSON.stringify(recorded()) })
     await w.agent()
-    expect(routeEvents(w).at(-1).quota_unknown).toEqual({})
+    expect(routeEvents(w).at(-1).quota_unknown).toEqual({ zcode: 'quota_unconfigured', 'opencode-go': 'quota_unconfigured' })
     // 800 s later the Codex sample is 920 s old and the Cursor sample 890 s; the refresh returns the same sample.
     w.setNow(RECORDED_NOW_MS + 800_000)
     await w.agent()
     const event = routeEvents(w).at(-1)
-    expect(event.quota_unknown).toEqual({ 'codex/five_hour': 'quota_stale', 'codex/weekly': 'quota_stale' })
+    expect(event.quota_unknown).toEqual({ 'codex/five_hour': 'quota_stale', 'codex/weekly': 'quota_stale', zcode: 'quota_unconfigured', 'opencode-go': 'quota_unconfigured' })
     expect(event.scores.codex).toMatchObject({ used: null, line: null })
     expect(w.quotaFetches).toHaveLength(2)
   })
@@ -1742,6 +1978,47 @@ describe('route telemetry failures', () => {
 
 describe('route telemetry content and bounds', () => {
   const TOKEN = 'ghp_abcdefghijklmnopqrst'
+  test('route telemetry retains every field and gives every executor a score or an unknown reason', async () => {
+    const w = world()
+    await w.agent({ description: '[class: standard]' })
+    const event = routeEvents(w).at(-1)
+    expect(Object.keys(event).sort()).toEqual(['agent_type', 'chosen', 'eligible', 'event', 'fell_through_from', 'jobs', 'local', 'quota_source', 'quota_unknown', 'reason', 'scores', 'skipped', 'ts_ms'].sort())
+    expect(Object.keys(event.scores).sort()).toEqual(EXECUTOR_TABLE.map((row) => row.id).sort())
+    for (const row of EXECUTOR_TABLE) {
+      const score = event.scores[row.id]
+      const reason = event.quota_unknown[row.id] ?? (row.quota ? event.quota_unknown[row.quota] : undefined)
+      expect(typeof score.score === 'number' || score.exhausted || reason !== undefined).toBe(true)
+    }
+
+    const stopped = world()
+    await stopped.agent({ model: 'sonnet' })
+    const stoppedEvent = routeEvents(stopped).at(-1)
+    expect(Object.keys(stoppedEvent.scores).sort()).toEqual(EXECUTOR_TABLE.map((row) => row.id).sort())
+    expect(Object.values(stoppedEvent.quota_unknown)).toEqual(EXECUTOR_TABLE.map(() => 'not_evaluated'))
+
+    const customRow = { id: 'chat-flat', transport: 'router-chat', model: 'local-only', trust: 'subscription-trusted', private_ok: true, price: 1 }
+    const configured = world({ quota: 1, env: gateways, files: { '/home/test/.config/ai-delegation/executors.json': JSON.stringify([customRow]) } })
+    await configured.agent(textTask)
+    const configuredEvent = routeEvents(configured).at(-1)
+    expect(configuredEvent.scores['chat-flat']).toBeNull()
+    expect(configuredEvent.quota_unknown['chat-flat']).toBe('not_evaluated')
+
+    // A scored row whose id is another row's quota name leaves that row's reason in place.
+    const owner = { ...customRow, id: 'shared-plan' }
+    const borrower = { ...customRow, id: 'borrower', quota: 'shared-plan' }
+    const shared = world({ env: gateways, files: { '/home/test/.config/ai-delegation/executors.json': JSON.stringify([owner, borrower]) } })
+    await shared.agent({ description: '[class: standard]' })
+    const sharedEvent = routeEvents(shared).at(-1)
+    expect(sharedEvent.quota_unknown['shared-plan']).toBeDefined()
+    expect(sharedEvent.quota_unknown.borrower).toBeUndefined()
+
+    const quotaRow = { ...customRow, id: 'chat-metered', quota: 'metered-plan' }
+    const metered = world({ env: gateways, files: { '/home/test/.config/ai-delegation/executors.json': JSON.stringify([quotaRow]) } })
+    await metered.agent({ description: '[class: standard]' })
+    const meteredEvent = routeEvents(metered).at(-1)
+    expect(Object.keys(meteredEvent.quota_unknown).some((key) => key === 'metered-plan' || key.startsWith('metered-plan/'))).toBe(true)
+    expect(meteredEvent.quota_unknown['chat-metered']).toBeUndefined()
+  })
   test('a token-shaped agent type is logged as unrecognized, with or without a definition', async () => {
     for (const options of [{}, { definition: '---\nmodel: haiku\n---\nReview the change.' }]) {
       const w = world(options)
