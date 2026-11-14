@@ -18,8 +18,9 @@ const CORE_ASK = { decision: 'ask', reason: 'This shell -c script runs rm.' }
 type Call = { argv: string[]; stdin?: string }
 type World = {
   quota?: number; codexWindows?: unknown[]; cursorWindows?: unknown[]; now?: number; gatewayFinish?: string; quotaThrows?: boolean; cache?: boolean; codexExit?: number; codexStderr?: string; codexOutputMissing?: boolean; answer?: string; label?: string
-  env?: Record<string, string>; definition?: string; files?: Record<string, string>; fsThrows?: boolean; worktreeExit?: number; temporaryExit?: number
+  codexError?: string; env?: Record<string, string | undefined>; definition?: string; files?: Record<string, string>; fsThrows?: boolean; worktreeExit?: number; temporaryExit?: number
   repository?: unknown; properties?: unknown; githubPrivateAuth?: boolean; githubAuthDenied?: boolean; pr?: unknown; githubError?: boolean; githubInvalidJson?: boolean; gitRoot?: string; originUrl?: string; gitReadFail?: boolean
+  sessionCwd?: string; pathRealpaths?: Record<string, string>; pathKinds?: Record<string, 'file' | 'directory'>; pathGitRoots?: Record<string, string>; unresolvedPaths?: string[]
   zcodeExit?: number; zcodeOutput?: string; zcodeAvailable?: boolean; zcodeThrows?: boolean; zcodeTruncated?: boolean
   sandboxRuns?: Record<string, { exit: number; output: string }>; jobStatus?: Record<string, unknown>; statusHangs?: boolean; statusExit?: number; logTail?: unknown[]; tailTruncated?: boolean
   gatewayTimeout?: boolean; gatewayStatus?: Record<string, number>; gatewayAnswer?: Record<string, string>; gatewayInvalidJson?: boolean
@@ -56,7 +57,7 @@ function world(w: World = {}) {
   const tempOutputs = new Map<string, string>()
   const outputPaths = new Set<string>()
   let tempCounter = 0
-  const env: Record<string, string> = { HOME: '/home/test', PATH: '/usr/bin:/bin', USER: 'tester', TERM: 'dumb', LANG: 'C.UTF-8', ...(w.quotaUrl === null ? {} : { AGENT_QUOTA_QUERY_URL: w.quotaUrl ?? QUOTA_BASE }), ...w.env }
+  const env: Record<string, string | undefined> = { HOME: '/home/test', PATH: '/usr/bin:/bin', USER: 'tester', TERM: 'dumb', LANG: 'C.UTF-8', ...(w.quotaUrl === null ? {} : { AGENT_QUOTA_QUERY_URL: w.quotaUrl ?? QUOTA_BASE }), ...w.env }
   let output = ''
   let clockNow = w.now ?? 1_000_000
   const fs: Pick<EngineInterface['fs'], 'exists' | 'stat'> = {
@@ -72,8 +73,12 @@ function world(w: World = {}) {
     stat: async (path, options) => {
       fsTouches.push(path)
       fsStats.push({ path, resolve: options?.resolve })
-      if (w.fsThrows || (w.files?.[path] === undefined && path !== w.readThrows && path !== w.readHangs)) throw new Error('metadata read failed')
-      const kind = w.quotaFileTypes?.[path] ?? 'file'
+      const cwd = w.sessionCwd ?? '/workspace'
+      const mappedPath = Object.keys(w.pathGitRoots ?? {}).some((root) => path === root || path.startsWith(`${root.replace(/\/+$/g, '')}/`))
+      const realPathTarget = Object.values(w.pathRealpaths ?? {}).some((target) => path === target || path.startsWith(`${target.replace(/\/+$/g, '')}/`))
+      const repositoryPath = path === cwd || path.startsWith(`${cwd.replace(/\/+$/g, '')}/`) || mappedPath || realPathTarget || w.pathKinds?.[path] !== undefined
+      if (w.fsThrows || (w.files?.[path] === undefined && !repositoryPath && path !== w.readThrows && path !== w.readHangs)) throw new Error('metadata read failed')
+      const kind = w.quotaFileTypes?.[path] ?? (w.pathKinds?.[path] ?? (path === '/workspace' || path.endsWith('/') ? 'directory' : 'file'))
       return {
         kind: kind === 'directory' ? 'dir' : kind === 'symlink' && options?.resolve === false ? 'other' : 'file',
         size: new TextEncoder().encode(w.files?.[path] ?? '').byteLength,
@@ -84,7 +89,7 @@ function world(w: World = {}) {
   }
   const $ = {
     env: { get: async (key: string) => { if (key === w.envThrows) throw new Error('environment read failed'); return env[key] } },
-    session: { cwd: async () => '/workspace' },
+    session: { cwd: async () => w.sessionCwd ?? '/workspace' },
     clock: { now: async () => { if (w.clockThrows) throw new Error('clock failed'); if (w.clockHangs) return new Promise<number>(() => {}); return clockNow }, after: (delay: number, callback: () => void) => { if ((w.clockHangs && delay === 5_000) || (w.gatewayTimeout && delay >= 60_000) || (w.quotaTimeout && delay === 3_000) || (w.statusHangs && (delay === 3_000 || delay === 15_000))) queueMicrotask(callback); return { cancel() {} } } },
     ui: { log: (line: string) => logs.push(line) },
     fs: {
@@ -114,14 +119,30 @@ function world(w: World = {}) {
         if (name === 'final') outputPaths.add(path)
         return { ...RAN, exitCode: w.temporaryExit ?? 0, stdout: path }
       }
+      if (argv[0] === 'realpath') {
+        const path = argv[1]
+        if (w.unresolvedPaths?.includes(path)) return { ...RAN, exitCode: 1 }
+        const resolved = w.pathRealpaths?.[path] ?? path.split('/').reduce<string[]>((parts, segment) => {
+          if (!segment || segment === '.') return parts
+          if (segment === '..') parts.pop()
+          else parts.push(segment)
+          return parts
+        }, []).join('/')
+        return { ...RAN, stdout: resolved.startsWith('/') ? resolved : `/${resolved}` }
+      }
       if (argv[0] === 'git') {
-        if (argv[3] === 'rev-parse' && argv[4] === '--show-toplevel') return { ...RAN, exitCode: w.gitReadFail ? 1 : 0, stdout: w.gitRoot ?? '/workspace' }
+        if (argv[3] === 'rev-parse' && argv[4] === '--show-toplevel') {
+          const candidate = argv[2]
+          const mapped = Object.entries(w.pathGitRoots ?? {}).filter(([path]) => candidate === path || candidate.startsWith(`${path.replace(/\/+$/g, '')}/`)).sort(([a], [b]) => b.length - a.length)[0]?.[1]
+          return { ...RAN, exitCode: w.gitReadFail ? 1 : 0, stdout: mapped ?? w.gitRoot ?? '/workspace' }
+        }
         if (argv[3] === 'remote' && argv[4] === 'get-url') return { ...RAN, exitCode: w.originUrl ? 0 : 2, stdout: w.originUrl ?? '' }
         return { ...RAN, exitCode: w.worktreeExit ?? 0 }
       }
       if (argv[0] === '/bin/sh' && argv[1] === '-c') {
-        const codex = argv.slice(10)
-        const input = tempInputs.get(argv[9]) ?? ''
+        if (w.codexError) throw new Error(w.codexError)
+        const codex = argv.slice(11)
+        const input = tempInputs.get(argv[10]) ?? ''
         const outputFile = codex[codex.indexOf('-o') + 1]
         output = input.startsWith('Classify the delegated task') ? w.label ?? 'standard' : w.answer ?? 'task result'
         if (w.codexOutputMissing) tempPaths.delete(outputFile)
@@ -193,8 +214,8 @@ function world(w: World = {}) {
   }
 }
 const text = (r: any): string => r.result.content[0].text
-const runs = (w: ReturnType<typeof world>) => w.calls.filter((c) => c.argv[0] === '/bin/sh' && c.argv[1] === '-c' && c.argv[10] === 'codex')
-const codexPrompt = (w: ReturnType<typeof world>, call = runs(w)[0]) => w.tempFile(call.argv[9])
+const runs = (w: ReturnType<typeof world>) => w.calls.filter((c) => c.argv[0] === '/bin/sh' && c.argv[1] === '-c' && c.argv[11] === 'codex')
+const codexPrompt = (w: ReturnType<typeof world>, call = runs(w)[0]) => w.tempFile(call.argv[10])
 const gateways = { LITELLM_LOCAL_BASE_URL: 'http://localhost:8000', AGENT_ROUTE_GLM_MODEL: 'configured-glm', AGENT_ROUTE_OPENCODE_GO_MODEL: 'configured-go' }
 const coding = { description: '[class: public] [repo: owner/project] [task: code]', prompt: 'Implement the change.' }
 const textTask = { description: '[class: text]', prompt: 'Summarize this supplied text: A small change.' }
@@ -530,11 +551,12 @@ describe('Codex rung', () => {
     const w = world()
     await w.agent({ description: '[class: standard]', prompt: 'Implement the change.' })
     const call = runs(w)[0]
-    const args = call.argv.slice(10)
+    const args = call.argv.slice(11)
     expect(call.stdin).toBeUndefined()
     expect(call.argv[2]).toContain('"$@" < "$input_file"')
     expect(call.argv.slice(4, 9)).toEqual(['/home/test', '/usr/bin:/bin', 'tester', 'dumb', 'C.UTF-8'])
-    expect(w.tempFile(call.argv[9])).toBe('Implement the change.')
+    expect(call.argv[9]).toBe('')
+    expect(w.tempFile(call.argv[10])).toBe('Implement the change.')
     expect(args[0]).toBe('codex')
     const outputAt = args.indexOf('-o')
     expect(args[outputAt + 1]).toMatch(/^\/tmp\/final-\d+$/)
@@ -542,6 +564,20 @@ describe('Codex rung', () => {
     expect(args).toContain('--skip-git-repo-check')
     expect(args).toContain('-C')
     expect(args).toContain('/workspace')
+  })
+  test('Codex receives CODEX_HOME so its model cache and auth location match', async () => {
+    const w = world({ env: { ...gateways, CODEX_HOME: '/custom/codex-home' } })
+    await w.agent({ description: '[class: standard]' })
+    const call = runs(w)[0]
+    expect(w.fsTouches).toContain('/custom/codex-home/models_cache.json')
+    expect(call.argv[9]).toBe('/custom/codex-home')
+    expect(call.argv[2]).toContain('"CODEX_HOME=$codex_home"')
+    expect(call.argv[2]).toContain('/usr/bin/env -i')
+  })
+  test('Codex uses safe defaults when USER, TERM and LANG are unset', async () => {
+    const w = world({ env: { ...gateways, USER: undefined, TERM: undefined, LANG: undefined } })
+    await w.agent({ description: '[class: standard]' })
+    expect(runs(w)[0].argv.slice(6, 9)).toEqual(['codex', 'dumb', 'C.UTF-8'])
   })
   test('Codex failures log the exit code and stderr tail, or a missing final-message file', async () => {
     const failed = world({ codexExit: 7, codexStderr: 'temporary network failure' })
@@ -551,6 +587,21 @@ describe('Codex rung', () => {
     const missing = world({ codexOutputMissing: true })
     await missing.agent({ description: '[class: standard]' })
     expect(missing.writes.some((line) => line.includes('codex failure: codex exec final-message output file is missing'))).toBe(true)
+  })
+  test('credential screening happens before stderr and exception details are truncated', async () => {
+    const secret = 'ghp_abcdefghijklmnopqrst'
+    const tail = 'outside-the-window-probe '.repeat(40)
+    const stderr = world({ codexExit: 7, codexStderr: `${secret}${tail}` })
+    await stderr.agent({ description: '[class: standard]' })
+    expect(stderr.writes.join('\n')).toContain('stderr tail: [detail redacted]')
+    expect(stderr.writes.join('\n')).not.toContain(secret)
+    expect(stderr.writes.join('\n')).not.toContain(tail)
+
+    const thrown = world({ codexError: `${secret}${tail}` })
+    await thrown.agent({ description: '[class: standard]' })
+    expect(thrown.writes.join('\n')).toContain('codex exec invocation failed: [detail redacted]')
+    expect(thrown.writes.join('\n')).not.toContain(secret)
+    expect(thrown.writes.join('\n')).not.toContain(tail)
   })
   for (const topic of ['auth', 'secrets', 'router', 'memory', 'cluster']) {
     test(`${topic} overrides an explicit standard class and names bulk-complex`, async () => {
@@ -611,8 +662,8 @@ describe('Codex rung', () => {
     const w = world()
     expect(text(await w.agent({ isolation: 'worktree' }))).toContain('worktree /tmp/worktree')
     expect(w.calls.find((c) => c.argv[0] === 'git')?.argv).toEqual(['git', '-C', '/workspace', 'worktree', 'add', '--detach', '/tmp/worktree', 'HEAD'])
-    expect(runs(w)[0].argv.slice(10, 12)).toEqual(['codex', 'exec'])
-    expect(runs(w)[0].argv.slice(19, 21)).toEqual(['-C', '/tmp/worktree'])
+    expect(runs(w)[0].argv.slice(11, 13)).toEqual(['codex', 'exec'])
+    expect(runs(w)[0].argv.slice(20, 22)).toEqual(['-C', '/tmp/worktree'])
     expect(w.nextCalls).toEqual([])
   })
   for (const options of [{ worktreeExit: 1 }, { temporaryExit: 1 }, { cache: false }, { answer: '' }, { codexExit: 7 }]) {
@@ -802,6 +853,43 @@ describe('capped ladder', () => {
     expect(w.calls.find((call) => call.argv[0] === 'zcode-job')?.argv[2]).toBe('owner/project')
     expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'zcode', eligible: ['zcode', 'opencode-go', 'codex', 'cursor', 'haiku'] })
   })
+  test('a relative prompt path resolves against the session directory before repository inference', async () => {
+    const w = world({ quota: 1, env: gateways, originUrl: 'https://github.com/owner/project.git' })
+    await w.agent({ description: '[task: code]', prompt: 'Update src/main.ts.' })
+    expect(w.calls.some((call) => call.argv[0] === 'zcode-job')).toBe(true)
+    expect(w.fetches).toContainEqual({ url: 'https://api.github.com/repos/owner/project', body: undefined })
+  })
+  test('a path resolving to another repository makes the candidate unknown, even with a repository tag', async () => {
+    const w = world({ quota: 1, env: gateways, gitRoot: '/workspace', originUrl: 'https://github.com/owner/project.git',
+      pathGitRoots: { '/private/notes': '/private' } })
+    await w.agent({ description: '[task: code] [repo: owner/project]', prompt: 'Update ../private/notes/secret.md.' })
+    expect(w.fetches.some((fetch) => fetch.url.startsWith('https://api.github.com/repos/'))).toBe(false)
+    expect(w.calls.some((call) => call.argv[0] === 'zcode-job')).toBe(false)
+    expect(routeEvents(w).at(-1).eligible).toEqual(['codex', 'haiku'])
+  })
+  test('a path that cannot be resolved leaves public-only executors ineligible', async () => {
+    const w = world({ quota: 1, env: gateways, gitRoot: '/workspace', originUrl: 'https://github.com/owner/project.git',
+      unresolvedPaths: ['/workspace/missing/main.ts'] })
+    await w.agent({ description: '[task: code]', prompt: 'Update missing/main.ts.' })
+    expect(w.fetches.some((fetch) => fetch.url.startsWith('https://api.github.com/repos/'))).toBe(false)
+    expect(w.calls.some((call) => call.argv[0] === 'zcode-job')).toBe(false)
+    expect(routeEvents(w).at(-1).eligible).toEqual(['codex', 'haiku'])
+  })
+  test('multiple paths in different repositories make the candidate unknown', async () => {
+    const w = world({ quota: 1, env: gateways, gitRoot: '/workspace', originUrl: 'https://github.com/owner/project.git',
+      pathGitRoots: { '/private': '/private' } })
+    await w.agent({ description: '[task: code]', prompt: 'Update src/main.ts and ../private/notes.md.' })
+    expect(w.fetches.some((fetch) => fetch.url.startsWith('https://api.github.com/repos/'))).toBe(false)
+    expect(w.calls.some((call) => call.argv[0] === 'zcode-job')).toBe(false)
+    expect(routeEvents(w).at(-1).eligible).toEqual(['codex', 'haiku'])
+  })
+  test('a symlinked prompt path is compared after realpath resolution', async () => {
+    const w = world({ quota: 1, env: gateways, gitRoot: '/workspace/project', originUrl: 'https://github.com/owner/project.git',
+      pathRealpaths: { '/workspace/link/src/main.ts': '/workspace/project/src/main.ts' } })
+    await w.agent({ description: '[task: code]', prompt: 'Update /workspace/link/src/main.ts.' })
+    expect(w.calls.some((call) => call.argv[0] === 'zcode-job')).toBe(true)
+    expect(w.fetches).toContainEqual({ url: 'https://api.github.com/repos/owner/project', body: undefined })
+  })
   test('an inferred repository with unknown visibility never admits public-only executors', async () => {
     const w = world({ quota: 1, env: gateways, gitRoot: '/workspace/project', originUrl: 'https://github.com/owner/project.git', repository: { visibility: 'unknown', private: false } })
     await w.agent({ description: '[task: code]', prompt: 'Update /workspace/project/src/main.ts.' })
@@ -963,15 +1051,22 @@ describe('scoring and eligibility policy', () => {
   })
   test('local inference accepts supplied-text requests without paths, external references or tool instructions', () => {
     expect(localTask(undefined, 'Summarize this supplied text: A small change.')).toBe(true)
-    expect(localTask(undefined, 'Extract the fields from the text below.')).toBe(true)
-    expect(localTask(undefined, 'Translate: bonjour.')).toBe(true)
+    expect(localTask(undefined, 'Extract the fields from the text below.')).toBe(false)
+    expect(localTask(undefined, 'Translate: bonjour, mon ami.')).toBe(true)
+    expect(localTask(undefined, 'Summarize: hi')).toBe(false)
     expect(localTask(undefined, 'Summarize this supplied text: src/')).toBe(false)
     expect(localTask(undefined, 'Summarize this supplied text: src\\notes')).toBe(false)
+    expect(localTask(undefined, 'Summarize `/workspace/notes.md`')).toBe(false)
+    expect(localTask(undefined, 'Summarize: `/workspace/notes.md`')).toBe(false)
+    expect(localTask(undefined, 'Summarize `a sufficiently long inline example` and consider $HOME/notes.md')).toBe(false)
+    expect(localTask(undefined, 'Summarize the attachment using this supplied text: A small change.')).toBe(false)
+    expect(localTask(undefined, 'Summarize the file: "the supplied inline content is long enough"')).toBe(false)
     for (const reference of ['the files', 'the directory', 'the folder', 'the repo', 'the codebase', 'the branch', 'the diff', 'the PR', 'the log', 'the attachment']) {
       expect(localTask(undefined, `Summarize ${reference}.`)).toBe(false)
     }
     expect(localTask('[class: bulk]', 'Summarize this supplied text: A small change.')).toBe(false)
     expect(localTask(undefined, 'Summarize this supplied text: "the phrase src/ is inline content"')).toBe(true)
+    expect(localTask(undefined, `Summarize this supplied text: ${'long source text '.repeat(4)}`)).toBe(true)
     expect(localTask(undefined, 'Summarize /workspace/notes.txt')).toBe(false)
     expect(localTask(undefined, 'Summarize ~/notes')).toBe(false)
     expect(localTask(undefined, 'Summarize ./notes')).toBe(false)

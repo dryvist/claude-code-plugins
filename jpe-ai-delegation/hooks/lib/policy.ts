@@ -272,17 +272,45 @@ export function peakMultiplier(row: ExecutorRow, nowMs: number): number {
 // On-host router aliases only, smallest first; `*-homelab` aliases leave the host and are never used.
 export const LOCAL_ALIASES = [{ alias: 'small', timeoutMs: 60_000 }, { alias: 'local-only', timeoutMs: 120_000 }] as const
 export const LOCAL_OUTPUT_TOKENS = 2048
+export const MIN_INLINE_TEXT_CHARS = 12
 const HAS_URL = /\b(?:[a-z][a-z0-9+.-]*:\/\/|www\.)\S+/i
-const HAS_PATH_TOKEN = /(?:^|\s)\S*[\\/]\S*(?=\s|$)/m
+const HAS_PATH_TOKEN = /(?:^|[\s("'`\[(,:=<>])\S*[\\/]\S*(?=$|[\s)\],;!?<>])/m
 const HAS_EXTERNAL_REFERENCE = /\b(?:files?|director(?:y|ies)|folders?|repos?|repositories|codebases?|branch(?:es)?|diffs?|prs?|pull requests?|logs?|attachments?)\b/i
 const HAS_TOOL_INSTRUCTION = /\b(?:read|open|fetch|search|run|execute|edit|write|commit|test)\b/i
 const TEXT_REQUEST = /(?:^|\n)\s*(?:(?:please|can you|could you|would you|help me)\s+)*(?:summari[sz]e|extract|classify|reformat|translate|rewrite)\b|(?:^|\n)\s*(?:(?:please|can you|could you|would you|help me)\s+)*(?:draft|answer)\b.{0,64}\bfrom\b.{0,24}\b(?:the\s+)?supplied text\b/im
-const unquotedText = (text: string): string => text
-  .replace(/```[\s\S]*?```|`[^`\n]*`/g, ' ')
-  .replace(/((?:(?:this|the|supplied|following|provided|inline)\s+){0,2}(?:text|content)\s*:\s*)(?:"[^"\n]*"|'[^'\n]*')/gi, '$1')
+const INLINE_BLOCK = /```([\s\S]*?)```|`([^`\n]*)`|"([^"\n]*)"|'([^'\n]*)'/g
 
-function hasInlineReferenceContent(text: string): boolean {
-  return /\b(?:files?|director(?:y|ies)|folders?|repos?|repositories|codebases?|branch(?:es)?|diffs?|prs?|pull requests?|logs?|attachments?)\s*:\s*(?:```[\s\S]+?```|`[^`\n]+`|"[^"\n]+"|'[^'\n]+')/i.test(text)
+function isSuppliedPayload(payload: string): boolean {
+  const value = payload.trim()
+  if (value.length < MIN_INLINE_TEXT_CHARS || HAS_URL.test(value)) return false
+  // A quoted path is still only a reference to a file, not the file's contents.
+  const unwrapped = value.replace(/^(?:```|`|"|')/, '').replace(/(?:```|`|"|')$/, '').trim()
+  return !/^(?:~\/|\.{1,2}[\\/]|\/|[A-Za-z0-9._-]+[\\/])\S*$/.test(unwrapped)
+}
+
+function withoutSuppliedPayload(text: string): string {
+  const value = text.replace(/\[class:\s*[^\]]+\]/gi, ' ')
+  const ranges: { start: number; end: number }[] = []
+  const request = TEXT_REQUEST.exec(value)
+  if (request) {
+    const start = request.index + request[0].length
+    const colon = value.indexOf(':', start)
+    if (colon !== -1 && isSuppliedPayload(value.slice(colon + 1))) ranges.push({ start: colon + 1, end: value.length })
+  }
+  for (const block of value.matchAll(INLINE_BLOCK)) {
+    const payload = block[1] ?? block[2] ?? block[3] ?? block[4] ?? ''
+    if (isSuppliedPayload(payload) && block.index !== undefined) ranges.push({ start: block.index, end: block.index + block[0].length })
+  }
+  if (!ranges.length) return value
+  const ordered = ranges.sort((a, b) => a.start - b.start)
+  let result = ''
+  let at = 0
+  for (const range of ordered) {
+    if (range.start < at) continue
+    result += `${value.slice(at, range.start)} `
+    at = range.end
+  }
+  return result + value.slice(at)
 }
 
 // shortcut: keyword and path rule, upgrade to the router's small alias when the quota feed lands.
@@ -291,9 +319,19 @@ export const localTask = (description: string | undefined, prompt = ''): boolean
   const classTags = [...(description ?? '').matchAll(/\[class:\s*([^\]]+)\]/gi)].map((match) => match[1].trim().toLowerCase())
   if (classTags.length) return classTags.every((tag) => tag === 'text')
   const text = `${description ?? ''}\n${prompt}`
-  const request = unquotedText(text)
-  return TEXT_REQUEST.test(request) && !HAS_URL.test(text) && !HAS_PATH_TOKEN.test(request) &&
-    (!HAS_EXTERNAL_REFERENCE.test(request) || hasInlineReferenceContent(text)) && !HAS_TOOL_INSTRUCTION.test(request)
+  const request = withoutSuppliedPayload(text)
+  return TEXT_REQUEST.test(request) && isSuppliedPrompt(text) && !HAS_URL.test(text) && !HAS_PATH_TOKEN.test(request) &&
+    !HAS_EXTERNAL_REFERENCE.test(request) && !HAS_TOOL_INSTRUCTION.test(request)
+}
+
+function isSuppliedPrompt(text: string): boolean {
+  const value = text.replace(/\[class:\s*[^\]]+\]/gi, ' ')
+  const request = TEXT_REQUEST.exec(value)
+  if (request) {
+    const colon = value.indexOf(':', request.index + request[0].length)
+    if (colon !== -1 && isSuppliedPayload(value.slice(colon + 1))) return true
+  }
+  return [...value.matchAll(INLINE_BLOCK)].some((block) => isSuppliedPayload(block[1] ?? block[2] ?? block[3] ?? block[4] ?? ''))
 }
 
 // Return only a safe GitHub owner/name candidate from a remote URL; visibility is checked by the caller.

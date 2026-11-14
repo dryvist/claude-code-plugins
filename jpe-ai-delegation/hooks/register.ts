@@ -156,14 +156,16 @@ function quotaLine(score: Score | undefined): string {
 
 function shortFailure(value: unknown): string {
   const raw = value instanceof Error ? value.message : String(value)
+  if (!safePayload(raw)) return '[detail redacted]'
   const compact = raw.replace(/\s+/g, ' ').trim().slice(-500)
-  return compact && safePayload(compact) ? compact : '[detail redacted]'
+  return compact || '[detail redacted]'
 }
 
 function stderrDetail(stderr: unknown): string {
   if (typeof stderr !== 'string' || !stderr.trim()) return ''
+  if (!safePayload(stderr)) return '; stderr tail: [detail redacted]'
   const tail = stderr.trim().replace(/\s+/g, ' ').slice(-500)
-  return `; stderr tail: ${safePayload(tail) ? tail : '[detail redacted]'}`
+  return `; stderr tail: ${tail}`
 }
 
 // `codex exec` reads the prompt from a temporary file on stdin and writes its final message to another file.
@@ -189,11 +191,11 @@ async function runCodex($: Engine, codexRoute: Route, sandbox: Sandbox, prompt: 
       const [home, path, user, term, lang, codexHome] = await Promise.all([
         $.env.get('HOME'), $.env.get('PATH'), $.env.get('USER'), $.env.get('TERM'), $.env.get('LANG'), $.env.get('CODEX_HOME'),
       ])
-      if (!home || !path || !user || !term || !lang) {
-        throw new Error('HOME, PATH, USER, TERM and LANG must be set')
-      }
+      if (!home || !path) throw new Error('HOME and PATH must be set')
       stage = 'Codex model selection'
-      const cache = `${codexHome ?? `${home}/.codex`}/models_cache.json`
+      const customCodexHome = codexHome || undefined
+      // CODEX_HOME must reach the child so its model cache and auth location match.
+      const cache = `${customCodexHome ?? `${home}/.codex`}/models_cache.json`
       const model = (await $.fs.exists(cache)) ? newestModel((await $.fs.read(cache)) as string, codexRoute.family) : undefined
       const workdir = cwd ?? await $.session.cwd()
       stage = 'Codex command build'
@@ -203,8 +205,10 @@ async function runCodex($: Engine, codexRoute: Route, sandbox: Sandbox, prompt: 
       if (written.exitCode !== 0) throw new Error(`tee exited with code ${written.exitCode}${stderrDetail(written.stderr)}`)
 
       stage = 'codex exec invocation'
-      const shell = 'home=$1; path_env=$2; user=$3; term=$4; lang=$5; input_file=$6; shift 6; exec /usr/bin/env -i "HOME=$home" "PATH=$path_env" "USER=$user" "TERM=$term" "LANG=$lang" "$@" < "$input_file"'
-      const result = await $.process.run(['/bin/sh', '-c', shell, 'ai-delegation-codex', home, path, user, term, lang, inputFile, ...argv], { timeoutMs })
+      const shell = 'home=$1; path_env=$2; user=$3; term=$4; lang=$5; codex_home=$6; input_file=$7; shift 7; if [ -n "$codex_home" ]; then exec /usr/bin/env -i "HOME=$home" "PATH=$path_env" "USER=$user" "TERM=$term" "LANG=$lang" "CODEX_HOME=$codex_home" "$@" < "$input_file"; fi; exec /usr/bin/env -i "HOME=$home" "PATH=$path_env" "USER=$user" "TERM=$term" "LANG=$lang" "$@" < "$input_file"'
+      const result = await $.process.run([
+        '/bin/sh', '-c', shell, 'ai-delegation-codex', home, path, user ?? 'codex', term ?? 'dumb', lang ?? 'C.UTF-8', customCodexHome ?? '', inputFile, ...argv,
+      ], { timeoutMs })
       if (result.exitCode !== 0) {
         failure = `codex exec exited with code ${result.exitCode}${stderrDetail(result.stderr)}`
       } else {
@@ -373,9 +377,10 @@ function repositoryTag(description: string | undefined): string | undefined {
   return repo && repository !== undefined && !['.', '..'].includes(repository) ? repo : undefined
 }
 
-function absolutePromptPaths(prompt: string): string[] {
+function promptPaths(prompt: string): string[] {
   const text = prompt.replace(/\b[a-z][a-z0-9+.-]*:\/\/[^\s"'`<>]*/gi, ' ')
-  const paths = [...text.matchAll(/(?:^|[\s("'`(:,=])(\/(?:[^\s"'`<>]+))/gm)].map((match) => match[1].replace(/[),.;:!?]+$/g, ''))
+  const pattern = /(?:^|[\s("'`\[(,:=<>])(\S*[\\/]\S*|[A-Za-z0-9._-]+\.[A-Za-z0-9]{1,12})(?=$|[\s)\],;!?<>])/gm
+  const paths = [...text.matchAll(pattern)].map((match) => match[1].replace(/[),.;:!?]+$/g, ''))
   return [...new Set(paths.filter((path) => path.length > 1))]
 }
 
@@ -385,35 +390,51 @@ function parentPath(path: string): string {
   return parent || '/'
 }
 
-async function gitRoot($: Engine, path: string): Promise<string | undefined> {
-  let candidate = path
-  while (isAbsolutePath(candidate)) {
-    const result = await $.process.run(['git', '-C', candidate, 'rev-parse', '--show-toplevel'], { timeoutMs: 5_000 })
-    const root = result.stdout.trim()
-    if (result.exitCode === 0 && result.isStdoutTruncated !== true && isAbsolutePath(root)) return root
-    const parent = parentPath(candidate)
-    if (parent === candidate) return undefined
-    candidate = parent
-  }
-  return undefined
+function resolvePromptPath(path: string, cwd: string, home: string | undefined): string | undefined {
+  if (/^[A-Za-z]:[\\/]/.test(path)) return undefined
+  if (path.startsWith('~/')) return home ? `${home}${path.slice(1)}` : undefined
+  if (isAbsolutePath(path)) return path
+  if (!isAbsolutePath(cwd)) return undefined
+  return `${cwd.replace(/\/+$/g, '')}/${path.replace(/\\/g, '/')}`
 }
 
-async function inferredRepository($: Engine, e: AgentCall): Promise<string | undefined> {
-  const paths = absolutePromptPaths(e.prompt)
-  const candidates = paths.length ? paths : [await $.session.cwd()]
-  const repositories: string[] = []
-  for (const path of candidates) {
-    const root = await gitRoot($, path)
-    if (!root) return undefined
-    const origin = await $.process.run(['git', '-C', root, 'remote', 'get-url', 'origin'], { timeoutMs: 5_000 })
-    if (origin.exitCode !== 0 || origin.isStdoutTruncated === true) return undefined
-    const repository = repositoryFromOrigin(origin.stdout.trim())
-    if (!repository) return undefined
-    repositories.push(repository)
+async function realPath($: Engine, path: string): Promise<string | undefined> {
+  const result = await $.process.run(['realpath', path], { timeoutMs: 5_000 })
+  const resolved = result.stdout.trim()
+  return result.exitCode === 0 && result.isStdoutTruncated !== true && isAbsolutePath(resolved) ? resolved : undefined
+}
+
+async function gitRoot($: Engine, path: string): Promise<string | undefined> {
+  const resolved = await realPath($, path)
+  if (!resolved) return undefined
+  const metadata = await $.fs.stat(resolved)
+  const candidate = metadata.kind === 'file' ? parentPath(resolved) : ['dir', 'directory'].includes(metadata.kind) ? resolved : undefined
+  if (!candidate) return undefined
+  const result = await $.process.run(['git', '-C', candidate, 'rev-parse', '--show-toplevel'], { timeoutMs: 5_000 })
+  const root = result.stdout.trim()
+  if (result.exitCode !== 0 || result.isStdoutTruncated === true || !isAbsolutePath(root)) return undefined
+  return realPath($, root)
+}
+
+async function repositoryRoot($: Engine, e: AgentCall): Promise<string | undefined> {
+  const cwd = await $.session.cwd()
+  const sessionRoot = await gitRoot($, cwd)
+  if (!sessionRoot) return undefined
+  const paths = promptPaths(e.prompt)
+  if (!paths.length) return sessionRoot
+  const home = paths.some((path) => path.startsWith('~/')) ? await $.env.get('HOME') : undefined
+  for (const path of paths) {
+    const absolute = resolvePromptPath(path, cwd, home)
+    if (!absolute) return undefined
+    const root = await gitRoot($, absolute)
+    if (!root || root !== sessionRoot) return undefined
   }
-  return repositories.length && repositories.every((repository) => repository.toLowerCase() === repositories[0].toLowerCase())
-    ? repositories[0]
-    : undefined
+  return sessionRoot
+}
+
+async function inferredRepository($: Engine, root: string): Promise<string | undefined> {
+  const origin = await $.process.run(['git', '-C', root, 'remote', 'get-url', 'origin'], { timeoutMs: 5_000 })
+  return origin.exitCode === 0 && origin.isStdoutTruncated !== true ? repositoryFromOrigin(origin.stdout.trim()) : undefined
 }
 
 async function github($: Engine, path: string): Promise<unknown> {
@@ -441,7 +462,11 @@ async function github($: Engine, path: string): Promise<unknown> {
 async function publicCodeRepo($: Engine, e: AgentCall): Promise<string | undefined> {
   if (!codingTask(e.description) || mandatoryLabel(`${e.description ?? ''}\n${e.prompt}`)) return undefined
   try {
-    const repo = repositoryTag(e.description) ?? await inferredRepository($, e)
+    const tagged = repositoryTag(e.description)
+    const paths = promptPaths(e.prompt)
+    const root = !tagged || paths.length ? await repositoryRoot($, e) : undefined
+    if ((!tagged || paths.length) && !root) return undefined
+    const repo = tagged ?? await inferredRepository($, root!)
     if (!repo) return undefined
     const repository = await github($, repo) as { visibility?: string; private?: boolean }
     return repository.visibility === 'public' && repository.private === false ? repo : undefined
