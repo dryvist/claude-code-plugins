@@ -859,6 +859,14 @@ describe('capped ladder', () => {
     expect(w.calls.some((call) => call.argv[0] === 'zcode-job')).toBe(true)
     expect(w.fetches).toContainEqual({ url: 'https://api.github.com/repos/owner/project', body: undefined })
   })
+  test('a quoted or backticked prompt path resolves without its closing quote', async () => {
+    for (const prompt of ['Update "src/main.ts" now', 'Update `src/main.ts` now', "Update 'src/main.ts'."]) {
+      const w = world({ quota: 1, env: gateways, originUrl: 'https://github.com/owner/project.git' })
+      await w.agent({ description: '[task: code]', prompt })
+      expect(w.calls.filter((call) => call.argv[0] === 'realpath').every((call) => !/["'`]/.test(call.argv.join(' ')))).toBe(true)
+      expect(w.calls.some((call) => call.argv[0] === 'zcode-job')).toBe(true)
+    }
+  })
   test('a path resolving to another repository makes the candidate unknown, even with a repository tag', async () => {
     const w = world({ quota: 1, env: gateways, gitRoot: '/workspace', originUrl: 'https://github.com/owner/project.git',
       pathGitRoots: { '/private/notes': '/private' } })
@@ -1054,6 +1062,8 @@ describe('scoring and eligibility policy', () => {
     expect(localTask(undefined, 'Extract the fields from the text below.')).toBe(false)
     expect(localTask(undefined, 'Translate: bonjour, mon ami.')).toBe(true)
     expect(localTask(undefined, 'Summarize: hi')).toBe(false)
+    expect(localTask(undefined, 'Summarize this supplied text: A small change. Then edit the README to match.')).toBe(false)
+    expect(localTask(undefined, 'Summarize this supplied text: A small change was made, and then update the notes.')).toBe(false)
     expect(localTask(undefined, 'Summarize this supplied text: src/')).toBe(false)
     expect(localTask(undefined, 'Summarize this supplied text: src\\notes')).toBe(false)
     expect(localTask(undefined, 'Summarize `/workspace/notes.md`')).toBe(false)
@@ -2011,6 +2021,13 @@ describe('route telemetry content and bounds', () => {
     const configuredEvent = routeEvents(configured).at(-1)
     expect(configuredEvent.scores['chat-flat']).toBeNull()
     expect(configuredEvent.quota_unknown['chat-flat']).toBe('not_evaluated')
+
+    const quotaRow = { ...customRow, id: 'chat-metered', quota: 'metered-plan' }
+    const metered = world({ env: gateways, files: { '/home/test/.config/ai-delegation/executors.json': JSON.stringify([quotaRow]) } })
+    await metered.agent({ description: '[class: standard]' })
+    const meteredEvent = routeEvents(metered).at(-1)
+    expect(Object.keys(meteredEvent.quota_unknown).some((key) => key === 'metered-plan' || key.startsWith('metered-plan/'))).toBe(true)
+    expect(meteredEvent.quota_unknown['chat-metered']).toBeUndefined()
   })
   test('a token-shaped agent type is logged as unrecognized, with or without a definition', async () => {
     for (const options of [{}, { definition: '---\nmodel: haiku\n---\nReview the change.' }]) {

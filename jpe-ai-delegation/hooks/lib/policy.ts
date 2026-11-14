@@ -278,7 +278,10 @@ const HAS_PATH_TOKEN = /(?:^|[\s("'`\[(,:=<>])\S*[\\/]\S*(?=$|[\s)\],;!?<>])/m
 const HAS_EXTERNAL_REFERENCE = /\b(?:files?|director(?:y|ies)|folders?|repos?|repositories|codebases?|branch(?:es)?|diffs?|prs?|pull requests?|logs?|attachments?)\b/i
 const HAS_TOOL_INSTRUCTION = /\b(?:read|open|fetch|search|run|execute|edit|write|commit|test)\b/i
 const TEXT_REQUEST = /(?:^|\n)\s*(?:(?:please|can you|could you|would you|help me)\s+)*(?:summari[sz]e|extract|classify|reformat|translate|rewrite)\b|(?:^|\n)\s*(?:(?:please|can you|could you|would you|help me)\s+)*(?:draft|answer)\b.{0,64}\bfrom\b.{0,24}\b(?:the\s+)?supplied text\b/im
-const INLINE_BLOCK = /```([\s\S]*?)```|`([^`\n]*)`|"([^"\n]*)"|'([^'\n]*)'/g
+// An instruction after the supplied text ("... Then edit the file") needs tools the chat-only model lacks.
+// It also matches prose that starts a sentence with one of these verbs; that task goes to the next rung.
+const HAS_LATER_INSTRUCTION = /(?:[.!?;\n]\s*|\b(?:and|then)\s+)(?:(?:and\s+)?(?:then|next|afterwards?|after that|finally|also|now)[,\s]+)?(?:please\s+)?(?:read|open|fetch|search|run|execute|edit|write|commit|test|update|create|delete|fix|push|apply|save|add|remove|modify|change|implement)\b/i
+const INLINE_BLOCK =/```([\s\S]*?)```|`([^`\n]*)`|"([^"\n]*)"|'([^'\n]*)'/g
 
 function isSuppliedPayload(payload: string): boolean {
   const value = payload.trim()
@@ -321,7 +324,7 @@ export const localTask = (description: string | undefined, prompt = ''): boolean
   const text = `${description ?? ''}\n${prompt}`
   const request = withoutSuppliedPayload(text)
   return TEXT_REQUEST.test(request) && isSuppliedPrompt(text) && !HAS_URL.test(text) && !HAS_PATH_TOKEN.test(request) &&
-    !HAS_EXTERNAL_REFERENCE.test(request) && !HAS_TOOL_INSTRUCTION.test(request)
+    !HAS_EXTERNAL_REFERENCE.test(request) && !HAS_TOOL_INSTRUCTION.test(request) && !HAS_LATER_INSTRUCTION.test(text)
 }
 
 function isSuppliedPrompt(text: string): boolean {
