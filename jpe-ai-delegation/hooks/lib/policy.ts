@@ -288,7 +288,9 @@ function isSuppliedPayload(payload: string): boolean {
   if (value.length < MIN_INLINE_TEXT_CHARS || HAS_URL.test(value)) return false
   // A quoted path is still only a reference to a file, not the file's contents.
   const unwrapped = value.replace(/^(?:```|`|"|')/, '').replace(/(?:```|`|"|')$/, '').trim()
-  return !/^(?:~\/|\.{1,2}[\\/]|\/|[A-Za-z0-9._-]+[\\/])\S*$/.test(unwrapped)
+  // A payload made only of paths or file names is a list of references, which the chat-only model cannot open.
+  return !unwrapped.split(/[\s,]+/).filter(Boolean)
+    .every((token) => /^(?:(?:~\/|\.{1,2}[\\/]|\/|[A-Za-z0-9._-]+[\\/])\S*|[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*\.[A-Za-z0-9]{1,12})$/.test(token.replace(/^["'`(]+|["'`),;:]+$/g, '')))
 }
 
 function withoutSuppliedPayload(text: string): string {

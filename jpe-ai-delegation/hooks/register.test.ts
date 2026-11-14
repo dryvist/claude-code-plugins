@@ -1062,6 +1062,8 @@ describe('scoring and eligibility policy', () => {
     expect(localTask(undefined, 'Extract the fields from the text below.')).toBe(false)
     expect(localTask(undefined, 'Translate: bonjour, mon ami.')).toBe(true)
     expect(localTask(undefined, 'Summarize: hi')).toBe(false)
+    expect(localTask(undefined, 'Summarize these: /workspace/a.md /workspace/b.md')).toBe(false)
+    expect(localTask(undefined, 'Summarize these: notes.md, "docs/b.md" and-more.txt')).toBe(false)
     expect(localTask('Summarize this supplied text: A small change.', '')).toBe(false)
     expect(localTask('Summarize this supplied text', '`a sufficiently long inline example`')).toBe(false)
     expect(localTask(undefined, 'Summarize this supplied text: A small change. Then edit the README to match.')).toBe(false)
