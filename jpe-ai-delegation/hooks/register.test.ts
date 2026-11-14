@@ -2,7 +2,7 @@ import { describe, expect, test } from 'claude-code/testing'
 import type { EngineInterface } from 'claude-code'
 import { endAnchor, jobHistory, jobState, recentFailures } from './lib/policy'
 import { register } from './register'
-import { CODEX, EXECUTOR_TABLE, LAST_RESORT, codexArgv, eligibleRows, mergeExecutorRows, metricsResult, peakMultiplier, QUOTA_SELECTOR, quotaFromMetrics, rankRows, validRow, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, localTask, mandatoryLabel, newestModel, parseVerdict, pickLocal, safePayload, scoreWindows, budgetsFromMetrics, forbiddenRowModel } from './lib/policy'
+import { CODEX, EXECUTOR_TABLE, LAST_RESORT, codexArgv, eligibleRows, mergeExecutorRows, metricsResult, peakMultiplier, QUOTA_SELECTOR, quotaFromMetrics, rankRows, repositoryFromOrigin, validRow, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, localTask, mandatoryLabel, newestModel, parseVerdict, pickLocal, safePayload, scoreWindows, budgetsFromMetrics, forbiddenRowModel } from './lib/policy'
 import { customAgentSandbox, parseAgentDefinition } from './lib/agent-definition'
 import { RECORDED_QUOTA } from './fixtures/quota-instant-query'
 
@@ -20,6 +20,7 @@ type World = {
   quota?: number; codexWindows?: unknown[]; cursorWindows?: unknown[]; now?: number; gatewayFinish?: string; quotaThrows?: boolean; cache?: boolean; codexExit?: number; answer?: string; label?: string
   env?: Record<string, string>; definition?: string; files?: Record<string, string>; fsThrows?: boolean; worktreeExit?: number; temporaryExit?: number
   repository?: unknown; properties?: unknown; githubPrivateAuth?: boolean; githubAuthDenied?: boolean; pr?: unknown; githubError?: boolean; githubInvalidJson?: boolean
+  originUrl?: string; pathRealpaths?: Record<string, string>; pathGitRoots?: Record<string, string>; unresolvedPaths?: string[]; pathKinds?: Record<string, 'file' | 'directory'>
   zcodeExit?: number; zcodeOutput?: string; zcodeAvailable?: boolean; zcodeThrows?: boolean; zcodeTruncated?: boolean
   sandboxRuns?: Record<string, { exit: number; output: string }>; jobStatus?: Record<string, unknown>; statusHangs?: boolean; statusExit?: number; logTail?: unknown[]; tailTruncated?: boolean
   gatewayTimeout?: boolean; gatewayStatus?: Record<string, number>; gatewayAnswer?: Record<string, string>; gatewayInvalidJson?: boolean
@@ -65,8 +66,12 @@ function world(w: World = {}) {
     stat: async (path, options) => {
       fsTouches.push(path)
       fsStats.push({ path, resolve: options?.resolve })
-      if (w.fsThrows || (w.files?.[path] === undefined && path !== w.readThrows && path !== w.readHangs)) throw new Error('metadata read failed')
-      const kind = w.quotaFileTypes?.[path] ?? 'file'
+      const rooted = path === '/workspace' || path.startsWith('/workspace/') ||
+        Object.keys(w.pathGitRoots ?? {}).some((root) => path === root || path.startsWith(`${root.replace(/\/+$/, '')}/`)) ||
+        Object.values(w.pathRealpaths ?? {}).some((target) => path === target || path.startsWith(`${target.replace(/\/+$/, '')}/`)) ||
+        w.pathKinds?.[path] !== undefined
+      if (w.fsThrows || (w.files?.[path] === undefined && !rooted && path !== w.readThrows && path !== w.readHangs)) throw new Error('metadata read failed')
+      const kind = w.quotaFileTypes?.[path] ?? w.pathKinds?.[path] ?? 'file'
       return {
         kind: kind === 'directory' ? 'dir' : kind === 'symlink' && options?.resolve === false ? 'other' : 'file',
         size: new TextEncoder().encode(w.files?.[path] ?? '').byteLength,
@@ -95,7 +100,26 @@ function world(w: World = {}) {
       if (argv[0] === 'tee' && w.teeThrows) throw new Error('log write failed')
       if (argv[0] === 'tee') { if ((w.teeExit ?? 0) === 0) writes.push(init?.stdin ?? ''); return { ...RAN, exitCode: w.teeExit ?? 0 } }
       if (argv[0] === 'mktemp') return { ...RAN, exitCode: w.temporaryExit ?? 0, stdout: argv[1] === '-d' ? '/tmp/worktree' : '/tmp/final' }
-      if (argv[0] === 'git') return { ...RAN, exitCode: w.worktreeExit ?? 0 }
+      if (argv[0] === 'realpath') {
+        const path = argv[1]
+        if (w.unresolvedPaths?.includes(path)) return { ...RAN, exitCode: 1 }
+        const resolved = w.pathRealpaths?.[path] ?? path.split('/').reduce<string[]>((parts, segment) => {
+          if (!segment || segment === '.') return parts
+          if (segment === '..') parts.pop()
+          else parts.push(segment)
+          return parts
+        }, []).join('/')
+        return { ...RAN, stdout: resolved.startsWith('/') ? resolved : `/${resolved}` }
+      }
+      if (argv[0] === 'git') {
+        if (argv[3] === 'rev-parse' && argv[4] === '--show-toplevel') {
+          const candidate = argv[2]
+          const mapped = Object.entries(w.pathGitRoots ?? {}).filter(([root]) => candidate === root || candidate.startsWith(`${root.replace(/\/+$/, '')}/`)).sort(([a], [b]) => b.length - a.length)[0]?.[1]
+          return mapped ? { ...RAN, stdout: mapped } : { ...RAN, exitCode: 128 }
+        }
+        if (argv[3] === 'remote' && argv[4] === 'get-url') return w.originUrl ? { ...RAN, stdout: w.originUrl } : { ...RAN, exitCode: 128 }
+        return { ...RAN, exitCode: w.worktreeExit ?? 0 }
+      }
       if (argv[0] === 'codex') {
         output = init?.stdin?.startsWith('Classify the delegated task') ? w.label ?? 'standard' : w.answer ?? 'task result'
         return { ...RAN, exitCode: w.codexExit ?? 0 }
@@ -700,6 +724,51 @@ describe('capped ladder', () => {
     expect(w.fetches.map((f) => f.url)).toEqual(['https://api.github.com/repos/owner/project', 'https://api.github.com/repos/owner/project/pulls/12'])
     expect(w.nextCalls).toEqual([])
   })
+  test('an untagged new file under a repository path infers the repository from its origin', async () => {
+    const w = world({ quota: 1, env: gateways, originUrl: 'https://github.com/example-org/example-repo.git',
+      unresolvedPaths: ['/tmp/example/repo/new-feature.ts'], pathGitRoots: { '/tmp/example/repo': '/tmp/example/repo' }, pathKinds: { '/tmp/example/repo': 'directory' } })
+    await w.agent({ description: '[task: code]', prompt: 'Create /tmp/example/repo/new-feature.ts with the helper.' })
+    expect(w.calls.find((c) => c.argv[0] === 'zcode-job')?.argv.slice(0, 3)).toEqual(['zcode-job', 'start', 'example-org/example-repo'])
+    expect(w.fetches).toContainEqual({ url: 'https://api.github.com/repos/example-org/example-repo', body: undefined })
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'zcode', eligible: ['zcode', 'opencode-go', 'codex', 'cursor', 'haiku'] })
+  })
+  test('a path whose nearest existing parent is outside any repository is not inferred', async () => {
+    const w = world({ quota: 1, env: gateways, originUrl: 'https://github.com/example-org/example-repo.git',
+      unresolvedPaths: ['/tmp/example/absent/child/new.ts', '/tmp/example/absent/child', '/tmp/example/absent'], pathKinds: { '/tmp/example': 'directory' } })
+    await w.agent({ description: '[task: code]', prompt: 'Create /tmp/example/absent/child/new.ts and run the checks.' })
+    expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
+    expect(w.fetches.some((f) => f.url.startsWith('https://api.github.com/repos/'))).toBe(false)
+    expect(routeEvents(w).at(-1).eligible).toEqual(['codex', 'haiku'])
+  })
+  test('paths in two repositories leave the repository uninferred', async () => {
+    const w = world({ quota: 1, env: gateways, originUrl: 'https://github.com/example-org/example-repo.git',
+      pathGitRoots: { '/tmp/example/repo': '/tmp/example/repo', '/tmp/example/other': '/tmp/example/other' },
+      pathKinds: { '/tmp/example/repo/src': 'directory', '/tmp/example/other': 'directory' } })
+    await w.agent({ description: '[task: code]', prompt: 'Update /tmp/example/repo/src/main.ts and /tmp/example/other/notes.md.' })
+    expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
+    expect(w.fetches.some((f) => f.url.startsWith('https://api.github.com/repos/'))).toBe(false)
+    expect(routeEvents(w).at(-1).eligible).toEqual(['codex', 'haiku'])
+  })
+  test('a relative prompt path resolves against the session directory and infers the repository', async () => {
+    const w = world({ quota: 1, env: gateways, originUrl: 'git@github.com:example-org/example-repo.git', pathGitRoots: { '/workspace': '/workspace' } })
+    await w.agent({ description: '[task: code]', prompt: 'Update src/main.ts.' })
+    expect(w.calls.find((c) => c.argv[0] === 'zcode-job')?.argv.slice(0, 3)).toEqual(['zcode-job', 'start', 'example-org/example-repo'])
+    expect(w.fetches).toContainEqual({ url: 'https://api.github.com/repos/example-org/example-repo', body: undefined })
+  })
+  test('a tilde prompt path resolves against the home directory and infers the repository', async () => {
+    const w = world({ quota: 1, env: gateways, originUrl: 'ssh://git@github.com/example-org/example-repo', pathGitRoots: { '/home/test': '/home/test' } })
+    await w.agent({ description: '[task: code]', prompt: 'Update ~/src/main.ts.' })
+    expect(w.calls.find((c) => c.argv[0] === 'zcode-job')?.argv.slice(0, 3)).toEqual(['zcode-job', 'start', 'example-org/example-repo'])
+    expect(w.fetches).toContainEqual({ url: 'https://api.github.com/repos/example-org/example-repo', body: undefined })
+  })
+  test('an explicit repository tag wins without running inference', async () => {
+    const w = world({ quota: 1, env: gateways, originUrl: 'https://github.com/other-org/other-repo.git',
+      pathGitRoots: { '/workspace': '/workspace' }, pathKinds: { '/workspace': 'directory' } })
+    await w.agent({ description: '[task: code] [repo: example-org/example-repo]', prompt: 'Update src/main.ts.' })
+    expect(w.calls.some((c) => c.argv[0] === 'realpath')).toBe(false)
+    expect(w.fetches[0].url).toBe('https://api.github.com/repos/example-org/example-repo')
+    expect(w.calls.find((c) => c.argv[0] === 'zcode-job')?.argv.slice(0, 3)).toEqual(['zcode-job', 'start', 'example-org/example-repo'])
+  })
   for (const options of [{ repository: { visibility: 'private', private: true } }, { repository: { visibility: 'private', private: true }, properties: [{ property_name: 'ai-untrusted-ok', value: 'true' }] }, { githubError: true }, { githubInvalidJson: true }]) {
     test(`private or unverifiable repositories never dispatch zcode: ${JSON.stringify(options)}`, async () => {
       const w = world({ quota: 1, env: gateways, ...options })
@@ -839,6 +908,18 @@ describe('scoring and eligibility policy', () => {
     expect(pickLocal(estimateTokens('a'.repeat(140_000)), windows)?.alias).toBe('local-only')
     expect(pickLocal(estimateTokens('a'.repeat(700_000)), windows)).toBeUndefined()
     expect(pickLocal(100, {})).toBeUndefined()
+  })
+  test('repository candidates come only from GitHub https and ssh origins', () => {
+    expect(repositoryFromOrigin('https://github.com/example-org/example-repo.git')).toBe('example-org/example-repo')
+    expect(repositoryFromOrigin('https://github.com/example-org/example-repo')).toBe('example-org/example-repo')
+    expect(repositoryFromOrigin('git@github.com:example-org/example-repo.git')).toBe('example-org/example-repo')
+    expect(repositoryFromOrigin('git@github.com:example-org/example-repo')).toBe('example-org/example-repo')
+    expect(repositoryFromOrigin('ssh://git@github.com/example-org/example-repo')).toBe('example-org/example-repo')
+    expect(repositoryFromOrigin('ssh://git@github.com/example-org/example-repo.git')).toBe('example-org/example-repo')
+    expect(repositoryFromOrigin('http://github.com/example-org/example-repo')).toBeUndefined()
+    expect(repositoryFromOrigin('https://git.example.test/example-org/example-repo.git')).toBeUndefined()
+    expect(repositoryFromOrigin('https://github.com/example-org')).toBeUndefined()
+    expect(repositoryFromOrigin('not a remote URL')).toBeUndefined()
   })
 })
 
