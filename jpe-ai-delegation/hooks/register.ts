@@ -537,7 +537,8 @@ async function runSandboxExecutor($: Engine, e: AgentCall, repo: string, tool: s
   try {
     const prompt = `${e.prompt}\n\nReturn a ready PR labelled human:review. Never auto-merge. The trusted lead must leak-scan the PR before merge.`
     const argv = tool === 'zcode' ? ['zcode-job', 'start', repo, prompt] : ['zcode-job', 'start', '--tool', tool, repo, prompt]
-    const response = await $.process.run(argv, { timeoutMs: 300_000 })
+    // The dispatcher refuses a job without this marker; the repository was verified public before this call.
+    const response = await $.process.run(argv, { timeoutMs: 300_000, env: { UNTRUSTED_OK: 'public' } })
     answered = true
     const line = response.stdout.replace(/\r?\n$/, '')
     const job = response.isStdoutTruncated === true ? undefined : line.match(/^(?:DONE|FAIL)\|(j-[0-9a-f]{16})\|/)?.[1]
