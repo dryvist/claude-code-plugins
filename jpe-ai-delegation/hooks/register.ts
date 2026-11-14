@@ -1,5 +1,5 @@
 import type { EngineInterface, Register } from 'claude-code'
-import { CLASSIFIER, CODEX, JUDGE, LAST_RESORT, LOCAL_OUTPUT_TOKENS, QUOTA_SELECTOR, UTILITY, EXECUTOR_TABLE, budgetsFromMetrics, codexArgv, codingTask, eligibleRows, endAnchor, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, isGenericType, isShellCAsk, jobHistory, jobState, recentFailures, localTask, mandatoryLabel, newestModel, mergeExecutorRows, metricsResult, parseVerdict, pickLabel, pickLocal, quotaFromMetrics, rankRows, safePayload, scoreWindows } from './lib/policy'
+import { CLASSIFIER, CODEX, JUDGE, LAST_RESORT, LOCAL_OUTPUT_TOKENS, QUOTA_SELECTOR, UTILITY, EXECUTOR_TABLE, budgetsFromMetrics, codexArgv, codingTask, eligibleRows, endAnchor, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, isGenericType, isShellCAsk, jobHistory, jobState, recentFailures, localTask, mandatoryLabel, newestModel, mergeExecutorRows, metricsResult, parseVerdict, pickLabel, pickLocal, quotaFromMetrics, rankRows, repositoryFromOrigin, safePayload, scoreWindows } from './lib/policy'
 import type { Executor, ExecutorRow, JobOutcome, JobRecord, JobState, Label, QuotaReason, QuotaRow, Route, Sandbox, Score, SkipReason } from './lib/policy'
 import { customAgentSandbox, parseAgentDefinition } from './lib/agent-definition'
 import type { AgentDefinition } from './lib/agent-definition'
@@ -330,6 +330,83 @@ function repositoryTag(description: string | undefined): string | undefined {
   return repo && repository !== undefined && !['.', '..'].includes(repository) ? repo : undefined
 }
 
+// File paths named in the prompt, with URL schemes stripped and wrapping punctuation removed; deduplicated.
+function promptPaths(prompt: string): string[] {
+  const text = prompt.replace(/\b[a-z][a-z0-9+.-]*:\/\/[^\s"'`<>]*/gi, ' ')
+  const pattern = /(?:^|[\s("'`\[(,:=<>])(\S*[\\/]\S*|[A-Za-z0-9._-]+\.[A-Za-z0-9]{1,12})(?=$|[\s)\],;:!?<>"'`]|\.(?:\s|$))/gm
+  const paths = [...text.matchAll(pattern)].map((match) => match[1].replace(/^["'`(\[]+|[),.;:!?"'`\]]+$/g, ''))
+  return [...new Set(paths.filter((path) => path.length > 1))]
+}
+
+function parentPath(path: string): string {
+  const normalized = path.replace(/\/+$/g, '') || '/'
+  const parent = normalized.slice(0, normalized.lastIndexOf('/'))
+  return parent || '/'
+}
+
+// The absolute path a prompt names: `~` against the home directory, a relative path against the call's directory;
+// a Windows drive path resolves to nothing.
+function resolvePromptPath(path: string, cwd: string, home: string | undefined): string | undefined {
+  if (/^[A-Za-z]:[\\/]/.test(path)) return undefined
+  if (path.startsWith('~/')) return home ? `${home}${path.slice(1)}` : undefined
+  if (isAbsolutePath(path)) return path
+  if (!isAbsolutePath(cwd)) return undefined
+  return `${cwd.replace(/\/+$/g, '')}/${path.replace(/\\/g, '/')}`
+}
+
+async function realPath($: Engine, path: string): Promise<string | undefined> {
+  const result = await $.process.run(['realpath', path], { timeoutMs: 5_000 })
+  const resolved = result.stdout.trim()
+  return result.exitCode === 0 && result.isStdoutTruncated !== true && isAbsolutePath(resolved) ? resolved : undefined
+}
+
+// The git root of the nearest existing ancestor directory of the path, so a file the task creates resolves through
+// its parent. A path with no existing ancestor, or any failed or truncated read, gives no root.
+async function gitRoot($: Engine, path: string): Promise<string | undefined> {
+  let directory = path
+  for (;;) {
+    const resolved = await realPath($, directory)
+    if (!resolved) {
+      const parent = parentPath(directory)
+      if (parent === directory) return undefined
+      directory = parent
+      continue
+    }
+    const metadata = await $.fs.stat(resolved)
+    if (metadata.kind === 'file') directory = parentPath(resolved)
+    else if (metadata.kind === 'dir' || metadata.kind === 'directory') directory = resolved
+    else return undefined
+    break
+  }
+  const result = await $.process.run(['git', '-C', directory, 'rev-parse', '--show-toplevel'], { timeoutMs: 5_000 })
+  const root = result.stdout.trim()
+  if (result.exitCode !== 0 || result.isStdoutTruncated === true || !isAbsolutePath(root)) return undefined
+  return realPath($, root)
+}
+
+// The one git repository every prompt path lives in, else undefined: no paths, two different repositories, a path
+// outside every repository, or a failed read means no inference.
+async function repositoryRoot($: Engine, e: AgentCall): Promise<string | undefined> {
+  const paths = promptPaths(e.prompt)
+  if (!paths.length) return undefined
+  const cwd = await $.session.cwd()
+  const home = paths.some((path) => path.startsWith('~/')) ? await $.env.get('HOME') : undefined
+  let root: string | undefined
+  for (const path of paths) {
+    const absolute = resolvePromptPath(path, cwd, home)
+    if (!absolute) return undefined
+    const pathRoot = await gitRoot($, absolute)
+    if (!pathRoot || (root !== undefined && pathRoot !== root)) return undefined
+    root ??= pathRoot
+  }
+  return root
+}
+
+async function inferredRepository($: Engine, root: string): Promise<string | undefined> {
+  const origin = await $.process.run(['git', '-C', root, 'remote', 'get-url', 'origin'], { timeoutMs: 5_000 })
+  return origin.exitCode === 0 && origin.isStdoutTruncated !== true ? repositoryFromOrigin(origin.stdout.trim()) : undefined
+}
+
 async function github($: Engine, path: string): Promise<unknown> {
   let timer: { cancel: () => void } | undefined
   try {
@@ -351,11 +428,15 @@ async function github($: Engine, path: string): Promise<unknown> {
   }
 }
 
-// The tagged repository when the task is non-sensitive coding in a verified public repository; otherwise undefined.
+// The tagged repository, or without a tag the one inferred from the prompt paths, when the task is non-sensitive
+// coding in a verified public repository; otherwise undefined. Either way GitHub visibility decides.
 async function publicCodeRepo($: Engine, e: AgentCall): Promise<string | undefined> {
-  const repo = repositoryTag(e.description)
-  if (!codingTask(e.description) || !repo || mandatoryLabel(`${e.description ?? ''}\n${e.prompt}`)) return undefined
+  if (!codingTask(e.description) || mandatoryLabel(`${e.description ?? ''}\n${e.prompt}`)) return undefined
   try {
+    const tagged = repositoryTag(e.description)
+    const root = tagged ? undefined : await repositoryRoot($, e)
+    const repo = tagged ?? (root ? await inferredRepository($, root) : undefined)
+    if (!repo) return undefined
     const repository = await github($, repo) as { visibility?: string; private?: boolean }
     return repository.visibility === 'public' && repository.private === false ? repo : undefined
   } catch {
