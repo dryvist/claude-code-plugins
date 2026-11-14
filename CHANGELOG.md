@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.61.1](https://github.com/dryvist/claude-code-plugins/compare/v6.61.0...v6.61.1) (2026-11-14)
+
+
+### Bug Fixes
+
+* **jpe-ai-delegation:** pass the last rung through without changing the call ([#800](https://github.com/dryvist/claude-code-plugins/issues/800)) ([1f2fd08](https://github.com/dryvist/claude-code-plugins/commit/1f2fd0828f5cdf55eede4cc142a50b263f3e4f29))
+
 ## [6.61.0](https://github.com/dryvist/claude-code-plugins/compare/v6.60.1...v6.61.0) (2026-11-14)
 
 
