@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.25.1](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.25.0...jpe-ai-delegation-v1.25.1) (2026-11-14)
+
+
+### Bug Fixes
+
+* **jpe-ai-delegation:** pass the public-data marker when dispatching a sandbox job ([#808](https://github.com/dryvist/claude-code-plugins/issues/808)) ([fa81f39](https://github.com/dryvist/claude-code-plugins/commit/fa81f3981be3fde31368270fc3da5f6ef0067569))
+
 ## [1.25.0](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.24.0...jpe-ai-delegation-v1.25.0) (2026-11-14)
 
 
