@@ -2,7 +2,7 @@ import { describe, expect, test } from 'claude-code/testing'
 import type { EngineInterface } from 'claude-code'
 import { endAnchor, jobHistory, jobState, recentFailures } from './lib/policy'
 import { register } from './register'
-import { CODEX, EXECUTOR_TABLE, LAST_RESORT, codexArgv, eligibleRows, mergeExecutorRows, metricsResult, peakMultiplier, QUOTA_SELECTOR, quotaFromMetrics, rankRows, repositoryFromOrigin, validRow, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, localTask, mandatoryLabel, newestModel, parseVerdict, pickLocal, safePayload, scoreWindows, budgetsFromMetrics, forbiddenRowModel } from './lib/policy'
+import { CODEX, EXECUTOR_TABLE, LAST_RESORT, codexArgv, eligibleRows, mergeExecutorRows, metricsResult, peakMultiplier, QUOTA_SELECTOR, quotaFromMetrics, rankRows, repositoryFromOrigin, validRow, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, lastRungMarker, localTask, mandatoryLabel, newestModel, parseVerdict, pickLocal, promptToken, safePayload, scoreWindows, budgetsFromMetrics, forbiddenRowModel } from './lib/policy'
 import { customAgentSandbox, parseAgentDefinition } from './lib/agent-definition'
 import { RECORDED_QUOTA } from './fixtures/quota-instant-query'
 
@@ -188,6 +188,14 @@ function world(w: World = {}) {
   }
 }
 const text = (r: any): string => r.result.content[0].text
+// The explicit re-issue the last rung's failure text asks for: the same call with the last-rung model and effort
+// and the prompt-derived marker added to the description.
+const reissue = async (call: Record<string, unknown>) => ({
+  ...call,
+  model: LAST_RESORT.model,
+  effort: LAST_RESORT.effort,
+  description: `${call.description ?? ''} [rung: last ${await promptToken(String(call.prompt))}]`,
+})
 const runs = (w: ReturnType<typeof world>) => w.calls.filter((c) => c.argv[0] === 'codex' && c.argv[1] === 'exec')
 const gateways = { LITELLM_LOCAL_BASE_URL: 'http://localhost:8000', AGENT_ROUTE_GLM_MODEL: 'configured-glm', AGENT_ROUTE_OPENCODE_GO_MODEL: 'configured-go' }
 const coding = { description: '[class: public] [repo: owner/project] [task: code]', prompt: 'Implement the change.' }
@@ -291,9 +299,10 @@ describe('custom agent tool authority', () => {
       test(`spaced plain keys preserve the read-only allowlist: ${key}; ${tools}`, async () => {
         const definition = `---\nmodel: haiku\n${key}: ${tools}\n---\nRead the supplied files.`
         expect(parseAgentDefinition(definition).tools).toEqual(['Read', 'Grep', 'Glob'])
+        const call = { ...coding, description: `[class: standard] ${coding.description}`, subagent_type: 'reviewer' }
         for (const quota of [0, 1]) {
           const w = world({ quota, env: gateways, definition })
-          await w.agent({ ...coding, description: `[class: standard] ${coding.description}`, subagent_type: 'reviewer' })
+          await w.agent(call)
           if (quota === 0) {
             expect(runs(w)).toHaveLength(1)
             expect(runs(w)[0].argv).toContain('read-only')
@@ -301,7 +310,10 @@ describe('custom agent tool authority', () => {
             expect(w.nextCalls).toEqual([])
           } else {
             expect(runs(w)).toEqual([])
-            expect(w.nextCalls[0]).toMatchObject({ subagent_type: 'reviewer', model: 'haiku', effort: 'xhigh' })
+            expect(text(await w.agent(call))).toContain('no other executor took the task')
+            const again = await reissue(call)
+            await w.agent(again)
+            expect(w.nextCalls).toEqual([{ tool: 'Agent', ...again }])
           }
           expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
           expect(w.fetches).toEqual([])
@@ -403,9 +415,12 @@ describe('custom agent tool authority', () => {
   }
   for (const fields of ['tools: [Read, Grep, Glob]', 'tools: [Read, Write, Bash]']) {
     test(`capped restricted agents retain their type and skip sandbox jobs: ${fields}`, async () => {
+      const call = { ...coding, subagent_type: 'reviewer' }
       const w = world({ quota: 1, env: gateways, definition: `---\nmodel: inherit\n${fields}\n---\nFollow the custom instructions.` })
-      await w.agent({ ...coding, subagent_type: 'reviewer' })
-      expect(w.nextCalls[0]).toMatchObject({ ...coding, subagent_type: 'reviewer', model: 'haiku', effort: 'xhigh' })
+      expect(text(await w.agent(call))).toContain('no other executor took the task')
+      const again = await reissue(call)
+      await w.agent(again)
+      expect(w.nextCalls).toEqual([{ tool: 'Agent', ...again }])
       expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
       expect(w.fetches).toEqual([])
     })
@@ -581,13 +596,17 @@ describe('Codex rung', () => {
     expect(w.nextCalls).toEqual([])
   })
   for (const options of [{ worktreeExit: 1 }, { temporaryExit: 1 }, { cache: false }, { answer: '' }, { codexExit: 7 }]) {
-    test(`Codex failure continues to Haiku: ${JSON.stringify(options)}`, async () => {
+    test(`Codex failure stops at the last rung until the explicit re-issue: ${JSON.stringify(options)}`, async () => {
       const w = world({ ...options, env: gateways })
       const isolation = options.worktreeExit ? 'worktree' : undefined
-      expect(text(await w.agent({ isolation }))).toBe('haiku result')
-      expect(w.nextCalls[0]).toMatchObject({ model: 'haiku', effort: 'xhigh', ...(isolation ? { isolation } : {}) })
+      const issued = { description: '[class: standard]', prompt: 'Implement the change.', ...(isolation ? { isolation } : {}) }
+      expect(text(await w.agent(issued))).toContain('no other executor took the task')
+      expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'stopped', reason: 'last rung needs an explicit re-issue', fell_through_from: ['codex'] })
+      const again = await reissue(issued)
+      expect(text(await w.agent(again))).toBe('haiku result')
+      expect(w.nextCalls).toEqual([{ tool: 'Agent', ...again }])
       expect(w.fetches).toEqual([])
-      expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'haiku', fell_through_from: ['codex'] })
+      expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'haiku', reason: 'explicit last rung' })
     })
   }
   for (const options of [{ quota: 127 }, { quota: 2 }, { quotaThrows: true }]) {
@@ -696,10 +715,13 @@ describe('model and payload guards', () => {
 
 describe('capped ladder', () => {
   test('custom tool-using agents cannot opt into a text gateway', async () => {
+    const call = { ...textTask, subagent_type: 'reviewer' }
     const w = world({ quota: 1, env: gateways, definition: '---\nmodel: haiku\n---\nRead app.ts and run its tests.' })
-    await w.agent({ ...textTask, subagent_type: 'reviewer' })
+    expect(text(await w.agent(call))).toContain('no other executor took the task')
+    const again = await reissue(call)
+    await w.agent(again)
     expect(w.fetches).toEqual([])
-    expect(w.nextCalls[0]).toMatchObject({ subagent_type: 'reviewer', model: 'haiku', effort: 'xhigh', prompt: textTask.prompt })
+    expect(w.nextCalls).toEqual([{ tool: 'Agent', ...again }])
   })
   for (const task of [
     { description: '[class: standard]', prompt: 'Edit app.ts and run its tests.' },
@@ -712,9 +734,11 @@ describe('capped ladder', () => {
   ]) {
     test(`tool-dependent tasks skip chat gateways: ${task.prompt}`, async () => {
       const w = world({ quota: 1, zcodeAvailable: false, env: gateways })
-      await w.agent(task)
+      expect(text(await w.agent(task))).toContain('no other executor took the task')
+      const again = await reissue(task)
+      await w.agent(again)
       expect(nonGithub(w)).toEqual([])
-      expect(w.nextCalls[0]).toMatchObject({ model: 'haiku', effort: 'xhigh', prompt: task.prompt })
+      expect(w.nextCalls).toEqual([{ tool: 'Agent', ...again }])
     })
   }
   test('public coding uses zcode and verifies a ready labelled PR', async () => {
@@ -771,18 +795,23 @@ describe('capped ladder', () => {
   })
   for (const options of [{ repository: { visibility: 'private', private: true } }, { repository: { visibility: 'private', private: true }, properties: [{ property_name: 'ai-untrusted-ok', value: 'true' }] }, { githubError: true }, { githubInvalidJson: true }]) {
     test(`private or unverifiable repositories never dispatch zcode: ${JSON.stringify(options)}`, async () => {
+      const call = { ...coding, description: `${coding.description} [payload: classified-safe]` }
       const w = world({ quota: 1, env: gateways, ...options })
-      const r = await w.agent({ ...coding, description: `${coding.description} [payload: classified-safe]` })
-      expect(text(r)).toContain('haiku result')
+      expect(text(await w.agent(call))).toContain('no other executor took the task')
+      const again = await reissue(call)
+      expect(text(await w.agent(again))).toBe('haiku result')
       expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
       expect(w.fetches.some((f) => f.url.endsWith('/chat/completions'))).toBe(false)
-      expect(w.nextCalls[0]).toMatchObject({ model: 'haiku', effort: 'xhigh' })
+      expect(w.nextCalls).toEqual([{ tool: 'Agent', ...again }])
     })
   }
   for (const options of [{}, { githubError: true }, { githubInvalidJson: true }, { repository: { visibility: 'public', private: true } }, { zcodeAvailable: false }]) {
     test(`ineligible sandbox advances to a tool-capable executor: ${JSON.stringify(options)}`, async () => {
+      const call = options && Object.keys(options).length ? coding : { ...coding, description: '[class: public] [repo: owner/project]' }
       const w = world({ quota: 1, env: gateways, ...options })
-      expect(text(await w.agent(options && Object.keys(options).length ? coding : { ...coding, description: '[class: public] [repo: owner/project]' }))).toContain('haiku result')
+      expect(text(await w.agent(call))).toContain('no other executor took the task')
+      const again = await reissue(call)
+      expect(text(await w.agent(again))).toBe('haiku result')
       expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
       expect(w.fetches.some((f) => f.url.endsWith('/chat/completions'))).toBe(false)
     })
@@ -815,19 +844,80 @@ describe('capped ladder', () => {
     expect(w.nextCalls).toEqual([])
   })
   for (const options of [{ env: {} }, { env: gateways, gatewayStatus: { small: 503 } }, { env: gateways, gatewayAnswer: { small: '' } }, { env: gateways, gatewayInvalidJson: true }, { env: gateways, gatewayTimeout: true }, { env: gateways, gatewayFinish: 'length' }]) {
-    test(`a failed local check falls through to Haiku xhigh: ${JSON.stringify(options)}`, async () => {
+    test(`a failed local check falls through to the last rung: ${JSON.stringify(options)}`, async () => {
+      const call = { ...textTask, model: 'haiku', effort: 'low' }
       const w = world({ quota: 1, ...options })
-      await w.agent({ ...textTask, model: 'haiku', effort: 'low' })
-      expect(w.nextCalls[0]).toMatchObject({ model: 'haiku', effort: 'xhigh' })
+      expect(text(await w.agent(call))).toContain('no other executor took the task')
+      const again = await reissue(call)
+      await w.agent(again)
+      expect(w.nextCalls).toEqual([{ tool: 'Agent', ...again }])
       expect(runs(w)).toEqual([])
       expect(w.fetches.every((f) => !f.body || JSON.parse(f.body).model === 'small')).toBe(true)
     })
   }
   test('capped isolation skips transports that cannot preserve worktrees', async () => {
+    const call = { ...textTask, isolation: 'worktree' }
     const w = world({ quota: 1, env: gateways })
-    await w.agent({ ...textTask, isolation: 'worktree' })
+    expect(text(await w.agent(call))).toContain('no other executor took the task')
+    const again = await reissue(call)
+    await w.agent(again)
     expect(w.fetches).toEqual([])
-    expect(w.nextCalls[0]).toMatchObject({ isolation: 'worktree', model: 'haiku', effort: 'xhigh' })
+    expect(w.nextCalls).toEqual([{ tool: 'Agent', ...again }])
+  })
+})
+
+describe('last rung re-issue', () => {
+  const call = { description: '[class: standard]', prompt: 'Implement the change.' }
+  test('the marker token is the first 16 hex characters of the SHA-256 of the prompt', async () => {
+    expect(await promptToken('Implement the change.')).toBe('16098217470c9b28')
+    expect(await promptToken('A different prompt.')).not.toBe(await promptToken('Implement the change.'))
+    expect(lastRungMarker(`[rung: last ${await promptToken('x')}]`)).toBe(await promptToken('x'))
+    expect(lastRungMarker('no marker here')).toBeUndefined()
+    expect(lastRungMarker('[rung: last 0123456789abcdefg]')).toBeUndefined()
+    expect(lastRungMarker('[rung: last 0123456789abcdeg]')).toBeUndefined()
+  })
+  test('case 1: the stop names the skip reasons, the marker and the two fields, and no executor or core runs', async () => {
+    const w = world({ quota: 1, zcodeAvailable: false })
+    const stopped = text(await w.agent(call))
+    expect(stopped).toStartWith('FAIL | router | no other executor took the task')
+    expect(stopped).toContain('codex: exhausted')
+    expect(stopped).toContain('zcode: ineligible')
+    expect(stopped).toContain('[rung: last 16098217470c9b28]')
+    expect(stopped).toContain('model haiku, effort xhigh')
+    expect(w.nextCalls).toEqual([])
+    expect(w.fetches.some((f) => f.url.endsWith('/chat/completions'))).toBe(false)
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'stopped', reason: 'last rung needs an explicit re-issue' })
+  })
+  test('case 3: the re-issued call passes through with input deep-equal to what was issued', async () => {
+    const w = world({ quota: 1, zcodeAvailable: false })
+    await w.agent(call)
+    const again = await reissue(call)
+    expect(text(await w.agent(again))).toBe('haiku result')
+    expect(w.nextCalls).toEqual([{ tool: 'Agent', ...again }])
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'haiku', reason: 'explicit last rung' })
+    expect(work(w)).toEqual([])
+    expect(w.fetches).toEqual([])
+  })
+  test('a wrong token is routed normally', async () => {
+    const w = world({ quota: 1, zcodeAvailable: false })
+    const forged = { ...call, model: 'haiku', effort: 'xhigh', description: `${call.description} [rung: last 0123456789abcdef]` }
+    expect(text(await w.agent(forged))).toContain('no other executor took the task')
+    expect(w.nextCalls).toEqual([])
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'stopped', reason: 'last rung needs an explicit re-issue' })
+  })
+  test('model haiku without a marker is routed normally', async () => {
+    const w = world({ quota: 1, env: gateways, gatewayStatus: { small: 503 } })
+    expect(text(await w.agent({ ...textTask, model: 'haiku', effort: 'xhigh' }))).toContain('no other executor took the task')
+    expect(w.nextCalls).toEqual([])
+    // The ladder ran: the local rung was attempted before the stop, so the fields did not skip routing.
+    expect(w.fetches.some((f) => f.url.endsWith('/v1/chat/completions'))).toBe(true)
+  })
+  test('a forbidden model with a valid marker is still refused', async () => {
+    const w = world()
+    const forged = { ...call, model: 'opus', effort: 'xhigh', description: `${call.description} [rung: last ${await promptToken(call.prompt)}]` }
+    expect(text(await w.agent(forged))).toContain('subagents are forbidden')
+    expect(w.nextCalls).toEqual([])
+    expect(work(w)).toEqual([])
   })
 })
 
@@ -1006,19 +1096,25 @@ describe('routing batch', () => {
     expect(text(await w.agent({ description: '[class: text]', prompt: `Extract fields: ${'a'.repeat(140_000)}` }))).toContain('[routed: local local-only]')
     expect(JSON.parse(w.fetches[1].body!).model).toBe('local-only')
   })
-  test('3: a 200k-token classification is too large for local and lands on Haiku', async () => {
+  test('3: a 200k-token classification is too large for local and stops at the last rung', async () => {
     const w = world({ quota: 1, env: gateways })
-    await w.agent({ description: '[class: text]', prompt: `Classify: ${'a'.repeat(700_000)}` })
+    const call = { description: '[class: text]', prompt: `Classify: ${'a'.repeat(700_000)}` }
+    await w.agent(call)
     expect(w.fetches.map((f) => f.url)).toEqual(['http://localhost:8000/model/info'])
-    expect(w.nextCalls[0]).toMatchObject({ model: 'haiku', effort: 'xhigh' })
-    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'haiku', local: { alias: null } })
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'stopped', local: { alias: null } })
+    const again = await reissue(call)
+    await w.agent(again)
+    expect(w.nextCalls).toEqual([{ tool: 'Agent', ...again }])
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'haiku', reason: 'explicit last rung' })
   })
   for (const [name, options] of [['empty', { gatewayAnswer: { small: '' } }], ['times out', { gatewayTimeout: true }]] as const) {
-    test(`4: local ${name} falls through to Haiku`, async () => {
+    test(`4: local ${name} stops at the last rung for an explicit re-issue`, async () => {
       const w = world({ quota: 1, env: gateways, ...options })
       await w.agent(textTask)
-      expect(w.nextCalls[0]).toMatchObject({ model: 'haiku', effort: 'xhigh' })
-      expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'haiku', fell_through_from: ['local small'] })
+      expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'stopped', reason: 'last rung needs an explicit re-issue', fell_through_from: ['local small'] })
+      const again = await reissue(textTask)
+      await w.agent(again)
+      expect(w.nextCalls).toEqual([{ tool: 'Agent', ...again }])
     })
   }
   test('5: public-repo code with unknown sandbox quota takes ZCode by static order', async () => {
@@ -1032,12 +1128,14 @@ describe('routing batch', () => {
     expect(w.calls.find((c) => c.argv[0] === 'zcode-job')?.argv.slice(0, 5)).toEqual(['zcode-job', 'start', '--tool', 'opencode', 'owner/project'])
     expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'opencode-go', fell_through_from: ['zcode'] })
   })
-  test('7: private-repo code with Codex exhausted lands on Haiku, never a sandbox', async () => {
+  test('7: private-repo code with Codex exhausted stops at the last rung, never a sandbox', async () => {
     const w = world({ quota: 1, env: gateways, repository: { visibility: 'private', private: true } })
     await w.agent(coding)
     expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
-    expect(w.nextCalls[0]).toMatchObject({ model: 'haiku', effort: 'xhigh' })
-    expect(routeEvents(w).at(-1)).toMatchObject({ eligible: ['codex', 'haiku'], scores: { codex: { exhausted: true } } })
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'stopped', eligible: ['codex', 'haiku'], scores: { codex: { exhausted: true } } })
+    const again = await reissue(coding)
+    await w.agent(again)
+    expect(w.nextCalls).toEqual([{ tool: 'Agent', ...again }])
   })
   test('8: private-repo code with Codex quota to spare lands on Codex', async () => {
     const w = world({ env: gateways, repository: { visibility: 'private', private: true }, codexWindows: [{ used_percent: 10, window_seconds: 2000, reset_at: 2000 }] })
@@ -1052,18 +1150,27 @@ describe('routing batch', () => {
   for (const quota of [0, 1]) {
     test(`9: sensitive public-repo code never reaches a sandbox (quota ${quota})`, async () => {
       const w = world({ quota, env: gateways })
-      const r = await w.agent({ ...coding, prompt: 'Rotate the auth signing key using placeholders.' })
+      const call = { ...coding, prompt: 'Rotate the auth signing key using placeholders.' }
+      const r = await w.agent(call)
       expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
       expect(w.fetches).toEqual([])
       if (quota === 0) expect(text(r)).toContain('codex luna max, class bulk-complex')
-      else expect(w.nextCalls[0]).toMatchObject({ model: 'haiku', effort: 'xhigh' })
+      else {
+        expect(text(r)).toContain('no other executor took the task')
+        const again = await reissue(call)
+        await w.agent(again)
+        expect(w.nextCalls).toEqual([{ tool: 'Agent', ...again }])
+      }
     })
   }
-  test('10: Explore needs tools and lands on Haiku when Codex is exhausted', async () => {
+  test('10: Explore needs tools and stops at the last rung when Codex is exhausted', async () => {
+    const call = { description: 'read', subagent_type: 'Explore', prompt: 'Summarize the repository layout.' }
     const w = world({ quota: 1, env: gateways })
-    await w.agent({ description: 'read', subagent_type: 'Explore', prompt: 'Summarize the repository layout.' })
+    expect(text(await w.agent(call))).toContain('no other executor took the task')
+    const again = await reissue(call)
+    await w.agent(again)
     expect(w.fetches).toEqual([])
-    expect(w.nextCalls[0]).toMatchObject({ subagent_type: 'Explore', model: 'haiku', effort: 'xhigh' })
+    expect(w.nextCalls).toEqual([{ tool: 'Agent', ...again }])
   })
   test('11: a token-shaped payload fails before any executor', async () => {
     const w = world({ env: gateways })
@@ -1090,14 +1197,18 @@ describe('routing batch', () => {
     w.setNow(1_000_000 + 600_000)
     await w.agent()
     expect(reads()).toBe(2)
-    expect(w.nextCalls).toHaveLength(3)
+    expect(w.nextCalls).toHaveLength(0)
   })
   test('a [class: bulk] summarize request needs tools and never goes local', async () => {
+    const call = { description: '[class: bulk]', prompt: 'Summarize the files under src/.' }
     const w = world({ quota: 1, env: gateways })
-    await w.agent({ description: '[class: bulk]', prompt: 'Summarize the files under src/.' })
+    await w.agent(call)
     expect(w.fetches).toEqual([])
-    expect(w.nextCalls[0]).toMatchObject({ model: 'haiku', effort: 'xhigh' })
-    expect(routeEvents(w).at(-1)).toMatchObject({ local: null, chosen: 'haiku' })
+    expect(routeEvents(w).at(-1)).toMatchObject({ local: null, chosen: 'stopped', reason: 'last rung needs an explicit re-issue' })
+    const again = await reissue(call)
+    await w.agent(again)
+    expect(w.nextCalls).toEqual([{ tool: 'Agent', ...again }])
+    expect(w.fetches).toEqual([])
   })
 })
 
@@ -1350,11 +1461,14 @@ describe('cursor executor', () => {
     expect(w.nextCalls).toEqual([])
     expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'cursor', fell_through_from: ['zcode', 'opencode-go'] })
   })
-  test('Codex fails before unknown executors and Haiku remains last', async () => {
+  test('Codex fails before unknown executors and the last rung remains last', async () => {
     const w = world({ codexExit: 7, zcodeAvailable: false, env: gateways })
     await w.agent(coding)
-    expect(w.nextCalls[0]).toMatchObject({ model: 'haiku', effort: 'xhigh' })
-    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'haiku', fell_through_from: ['codex', 'zcode', 'opencode-go', 'cursor'], scores: { codex: { used: 50, line: 50 } } })
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'stopped', reason: 'last rung needs an explicit re-issue', fell_through_from: ['codex', 'zcode', 'opencode-go', 'cursor'], scores: { codex: { used: 50, line: 50 } } })
+    const again = await reissue(coding)
+    await w.agent(again)
+    expect(w.nextCalls).toEqual([{ tool: 'Agent', ...again }])
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'haiku', reason: 'explicit last rung' })
   })
   test('at-pace Codex ranks before unknown Cursor', () => {
     const rows = [EXECUTOR_TABLE[3], EXECUTOR_TABLE[2]]
@@ -1367,7 +1481,10 @@ describe('cursor executor', () => {
     expect(routeEvents(lead).at(-1).scores.cursor.exhausted).toBe(false)
     const out = world({ quota: 1, zcodeAvailable: false, env: gateways, cursorWindows: at(100) })
     await out.agent(coding)
-    expect(routeEvents(out).at(-1)).toMatchObject({ chosen: 'haiku', scores: { cursor: { exhausted: true } }, fell_through_from: ['zcode', 'opencode-go'] })
+    expect(routeEvents(out).at(-1)).toMatchObject({ chosen: 'stopped', reason: 'last rung needs an explicit re-issue', scores: { cursor: { exhausted: true } }, fell_through_from: ['zcode', 'opencode-go'] })
+    const again = await reissue(coding)
+    await out.agent(again)
+    expect(out.nextCalls).toEqual([{ tool: 'Agent', ...again }])
   })
   test('a failed Cursor quota row leaves its score unknown', async () => {
     const w = world({ quota: 1, env: gateways })
@@ -1378,7 +1495,11 @@ describe('cursor executor', () => {
     const w = world({ quota: 1, env: gateways, repository: { visibility: 'private', private: true }, cursorWindows: at(10) })
     await w.agent(coding)
     expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
-    expect(routeEvents(w).at(-1)).toMatchObject({ eligible: ['codex', 'haiku'], chosen: 'haiku' })
+    expect(routeEvents(w).at(-1)).toMatchObject({ eligible: ['codex', 'haiku'], chosen: 'stopped', reason: 'last rung needs an explicit re-issue' })
+    const again = await reissue(coding)
+    await w.agent(again)
+    expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
+    expect(w.nextCalls).toEqual([{ tool: 'Agent', ...again }])
   })
 })
 
@@ -1453,7 +1574,10 @@ describe('executor table', () => {
     await w.agent(coding)
     expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
     expect(w.calls.some((c) => c.stdin === 'executor override rows rejected: zcode\n')).toBe(true)
-    expect(routeEvents(w).at(-1)).toMatchObject({ eligible: ['codex', 'haiku'], chosen: 'haiku' })
+    expect(routeEvents(w).at(-1)).toMatchObject({ eligible: ['codex', 'haiku'], chosen: 'stopped', reason: 'last rung needs an explicit re-issue' })
+    const again = await reissue(coding)
+    await w.agent(again)
+    expect(w.nextCalls).toEqual([{ tool: 'Agent', ...again }])
   })
   test('an unreadable override falls back to the built-in table', async () => {
     const w = world({ quota: 1, env: gateways, files: { [OVERRIDE]: '{' } })
@@ -1463,21 +1587,25 @@ describe('executor table', () => {
   test('private work with Codex failing: skip reasons name every row', async () => {
     const w = world({ codexExit: 7, env: gateways, repository: { visibility: 'private', private: true } })
     await w.agent(coding)
-    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'haiku', skipped: { zcode: 'ineligible', 'opencode-go': 'ineligible', codex: 'failed', cursor: 'ineligible' } })
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'stopped', reason: 'last rung needs an explicit re-issue', skipped: { zcode: 'ineligible', 'opencode-go': 'ineligible', codex: 'failed', cursor: 'ineligible' } })
   })
-  // Haiku is chosen only when every other eligible row is exhausted, failed, expired or not installed.
+  // The last rung stops only when every other eligible row is exhausted, failed, expired or not installed.
   for (const [name, options, task] of [
     ['codex exhausted, sandboxes missing', { quota: 1, zcodeAvailable: false }, coding],
     ['codex failing, sandboxes disabled', { codexExit: 7, env: { AGENT_ROUTE_ZCODE_TOOLS: 'none' } }, coding],
     ['private, codex exhausted', { quota: 1, repository: { visibility: 'private', private: true } }, coding],
     ['non-code, codex failing', { answer: '' }, { description: '[class: standard]', prompt: 'Implement the change.' }],
   ] as const) {
-    test(`Haiku only when every eligible row is unavailable: ${name}`, async () => {
+    test(`the last rung only when every eligible row is unavailable: ${name}`, async () => {
       const w = world({ env: gateways, ...options } as never)
       await w.agent(task)
       const event = routeEvents(w).at(-1)
-      expect(event.chosen).toBe('haiku')
-      for (const id of event.eligible.filter((x: string) => x !== 'haiku')) expect(['exhausted', 'failed', 'expired', 'not_installed']).toContain(event.skipped[id])
+      expect(event.chosen).toBe('stopped')
+      expect(event.reason).toBe('last rung needs an explicit re-issue')
+      for (const id of event.eligible.filter((x: string) => x !== LAST_RESORT.model)) expect(['exhausted', 'failed', 'expired', 'not_installed']).toContain(event.skipped[id])
+      const again = await reissue(task as Record<string, unknown>)
+      await w.agent(again)
+      expect(w.nextCalls).toEqual([{ tool: 'Agent', ...again }])
     })
   }
   test('any available eligible row beats Haiku', async () => {
@@ -1583,7 +1711,8 @@ describe('paid rows and router-chat', () => {
       await w.agent(textTask)
       const event = routeEvents(w).at(-1)
       expect(event.skipped['chat-paid']).toBe('ineligible')
-      expect(event.chosen).toBe('haiku')
+      expect(event.chosen).toBe('stopped')
+      expect(event.reason).toBe('last rung needs an explicit re-issue')
       expect(w.fetches.some((f) => JSON.parse(f.body ?? '{}').model === 'paid-chat')).toBe(false)
     }
   })
@@ -1601,14 +1730,14 @@ describe('paid rows and router-chat', () => {
     await w.agent(textTask)
     const sent = w.fetches.filter((f) => f.url === 'http://localhost:8000/v1/chat/completions').map((f) => JSON.parse(f.body!).model)
     expect(sent).toEqual(['small'])
-    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'haiku', skipped: { 'chat-flat': 'failed' } })
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'stopped', reason: 'last rung needs an explicit re-issue', skipped: { 'chat-flat': 'failed' } })
   })
   test('router-chat applies the local size gate: a prompt over 60% of the window is skipped and falls through', async () => {
     const big = { description: '[class: text]', prompt: `Summarize this supplied text: ${'word '.repeat(60_000)}` }
     const w = world({ quota: 1, env: localDown, files: { [OVERRIDE]: JSON.stringify([flat]) } })
     await w.agent(big)
     expect(w.fetches.some((f) => f.url.endsWith('/chat/completions'))).toBe(false)
-    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'haiku', skipped: { 'chat-flat': 'ineligible' } })
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'stopped', reason: 'last rung needs an explicit re-issue', skipped: { 'chat-flat': 'ineligible' } })
   })
   for (const [name, task] of [
     ['[task: code]', { ...coding, description: `${coding.description} [class: text]` }],
@@ -1767,7 +1896,7 @@ describe('route telemetry', () => {
     ['checked local answer', { quota: 1, env: gateways }, textTask, 'local small', 'checked local answer'],
     ['sandbox executor', { quota: 1, env: gateways }, coding, 'zcode', 'highest-ranked eligible executor that answered'],
     ['sandbox job without a verified PR', { quota: 1, env: gateways, zcodeOutput: 'DONE|j-0123456789abcdef|no-pr\n' }, coding, 'zcode', 'sandbox job without a verified PR'],
-    ['terminal rung', { quota: 1, zcodeAvailable: false }, {}, 'haiku', 'terminal rung'],
+    ['last rung re-issue stop', { quota: 1, zcodeAvailable: false }, {}, 'stopped', 'last rung needs an explicit re-issue'],
     ['routing failed closed', { env: gateways, envThrows: 'LITELLM_LOCAL_BASE_URL' }, textTask, 'stopped', 'routing failed closed'],
   ]
   for (const [name, options, call, chosen, reason] of exits) {
@@ -1797,21 +1926,23 @@ describe('route telemetry failures', () => {
   })
   test('a failed log write never changes the routing result', async () => {
     const w = world({ quota: 1, zcodeAvailable: false, teeThrows: true })
-    expect(text(await w.agent())).toContain('haiku result')
+    expect(text(await w.agent())).toContain('no other executor took the task')
     const stopped = world({ teeThrows: true })
     expect(text(await stopped.agent({ model: 'opus' }))).toContain('subagents are forbidden')
   })
-  for (const [name, options, call, chosen, reason] of [
-    ['terminal rung', { quota: 1, zcodeAvailable: false }, {}, LAST_RESORT.model, 'terminal rung'],
-    ['native custom agent', { definition: '---\nmodel: haiku\ntools: mcp__tracker__*\n---\nPerform the task.' }, { subagent_type: 'reviewer' }, 'native custom agent', 'custom tool policy'],
-  ] as const) {
-    test(`a core rejection after the route line returns FAIL and writes no second line: ${name}`, async () => {
-      const w = world({ ...options, nextRejects: true })
-      expect(text(await w.agent(call))).toStartWith('FAIL | router | routing failed closed')
-      expect(routeEvents(w).filter((l) => l.event === 'route')).toHaveLength(1)
-      expect(routeEvents(w).at(-1)).toMatchObject({ chosen, reason })
-    })
-  }
+  test('the last rung never calls core, so a rejecting core cannot change its result', async () => {
+    const w = world({ quota: 1, zcodeAvailable: false, nextRejects: true })
+    expect(text(await w.agent())).toStartWith('FAIL | router | no other executor took the task')
+    expect(w.nextCalls).toEqual([])
+    expect(routeEvents(w).filter((l) => l.event === 'route')).toHaveLength(1)
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'stopped', reason: 'last rung needs an explicit re-issue' })
+  })
+  test('a core rejection after the route line returns FAIL and writes no second line: native custom agent', async () => {
+    const w = world({ definition: '---\nmodel: haiku\ntools: mcp__tracker__*\n---\nPerform the task.', nextRejects: true })
+    expect(text(await w.agent({ subagent_type: 'reviewer' }))).toStartWith('FAIL | router | routing failed closed')
+    expect(routeEvents(w).filter((l) => l.event === 'route')).toHaveLength(1)
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'native custom agent', reason: 'custom tool policy' })
+  })
   for (const type of ['\u001b[31mreviewer', 'a'.repeat(81), 'two words']) {
     test(`an unsafe agent type is logged as unrecognized: ${JSON.stringify(type).slice(0, 20)}`, async () => {
       const w = world()
@@ -1858,7 +1989,7 @@ describe('route telemetry content and bounds', () => {
   })
   test('a writer that exits non-zero is a failed write: no line counted, a UI notice, the same result', async () => {
     const w = world({ quota: 1, zcodeAvailable: false, teeExit: 1 })
-    expect(text(await w.agent())).toContain('haiku result')
+    expect(text(await w.agent())).toContain('no other executor took the task')
     expect(routeEvents(w)).toEqual([])
     expect(w.logs).toContain('ai-delegation: decision log write failed')
   })
@@ -1874,10 +2005,12 @@ describe('route telemetry content and bounds', () => {
     terminal.model = 'terminal-probe'
     try {
       const w = world({ quota: 1, zcodeAvailable: false })
-      await w.agent()
+      const stopped = text(await w.agent())
       const event = routeEvents(w).at(-1)
       expect(event.eligible.at(-1)).toBe('terminal-probe')
-      expect(event.chosen).toBe('terminal-probe')
+      expect(event.chosen).toBe('stopped')
+      expect(stopped).toContain('model terminal-probe, effort xhigh')
+      expect(stopped).not.toContain('haiku')
       const row = { ...EXECUTOR_TABLE.find((r) => r.transport === 'codex')!, id: 'terminal-probe' }
       expect(validRow(row)).toBeUndefined()
       expect(validRow({ ...row, id: saved })).toBeDefined()
