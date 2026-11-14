@@ -771,7 +771,7 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
   const token = await promptToken(original.prompt)
   const skippedList = Object.entries(event.skipped).map(([id, why]) => `${id}: ${why}`).join(', ') || 'none'
   const instruction = token === undefined
-    ? `Re-issue the same call with model ${LAST_RESORT.model} and effort ${LAST_RESORT.effort}.`
+    ? 'The last rung is unavailable because this runtime cannot compute the marker; no re-issue is accepted.'
     : `Re-issue the same call with model ${LAST_RESORT.model}, effort ${LAST_RESORT.effort} and the marker [rung: last ${token}] added to the description.`
   await logRoute($, event, 'stopped', 'last rung needs an explicit re-issue')
   return failure(original, `no other executor took the task (skipped: ${skippedList}). ${instruction}`)
