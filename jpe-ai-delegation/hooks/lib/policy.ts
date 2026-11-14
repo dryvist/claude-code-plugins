@@ -31,6 +31,25 @@ export const isAdvisory = (label: Label): boolean => label === 'plan' || label =
 // Claude is the last resort only: Haiku, never Sonnet, Opus or Fable.
 export const LAST_RESORT = { model: 'haiku', effort: 'xhigh' } as const
 
+// The explicit last-rung re-issue. The token is the first 16 hex characters of the SHA-256 of the prompt, so a
+// re-issued call with a different prompt never matches. WebCrypto comes from the runtime global because a hooks
+// module imports only its own files and 'claude-code'; any failure means no valid marker.
+type Subtle = { digest: (algorithm: string, data: Uint8Array) => Promise<ArrayBuffer> }
+const subtle = (globalThis as { crypto?: { subtle?: Subtle } }).crypto?.subtle
+const encoder = (globalThis as { TextEncoder?: new () => { encode: (text: string) => Uint8Array } }).TextEncoder
+export const promptToken = async (prompt: string): Promise<string | undefined> => {
+  try {
+    if (!subtle || !encoder) return undefined
+    const digest = await subtle.digest('SHA-256', new encoder().encode(prompt))
+    return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('').slice(0, 16)
+  } catch {
+    return undefined
+  }
+}
+// The marker token a description carries, else undefined.
+export const lastRungMarker = (description: string | undefined): string | undefined =>
+  description?.match(/\[rung: last ([0-9a-f]{16})\]/)?.[1]
+
 export const CLASSIFIER = `Classify the delegated task into one word. Default to standard unless there is an explicit reason for another.
 bulk: bulk work, reads and triage.
 bulk-complex: bulk work that is still somewhat complicated; all auth, secrets, router, memory and cluster work.

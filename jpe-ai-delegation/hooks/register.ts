@@ -1,5 +1,5 @@
 import type { EngineInterface, Register } from 'claude-code'
-import { CLASSIFIER, CODEX, JUDGE, LAST_RESORT, LOCAL_OUTPUT_TOKENS, QUOTA_SELECTOR, UTILITY, EXECUTOR_TABLE, budgetsFromMetrics, codexArgv, codingTask, eligibleRows, endAnchor, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, isGenericType, isShellCAsk, jobHistory, jobState, recentFailures, localTask, mandatoryLabel, newestModel, mergeExecutorRows, metricsResult, parseVerdict, pickLabel, pickLocal, quotaFromMetrics, rankRows, repositoryFromOrigin, safePayload, scoreWindows } from './lib/policy'
+import { CLASSIFIER, CODEX, JUDGE, LAST_RESORT, LOCAL_OUTPUT_TOKENS, QUOTA_SELECTOR, UTILITY, EXECUTOR_TABLE, budgetsFromMetrics, codexArgv, codingTask, eligibleRows, endAnchor, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, isGenericType, isShellCAsk, jobHistory, jobState, lastRungMarker, recentFailures, localTask, mandatoryLabel, newestModel, mergeExecutorRows, metricsResult, parseVerdict, pickLabel, pickLocal, promptToken, quotaFromMetrics, rankRows, repositoryFromOrigin, safePayload, scoreWindows } from './lib/policy'
 import type { Executor, ExecutorRow, JobOutcome, JobRecord, JobState, Label, QuotaReason, QuotaRow, Route, Sandbox, Score, SkipReason } from './lib/policy'
 import { customAgentSandbox, parseAgentDefinition } from './lib/agent-definition'
 import type { AgentDefinition } from './lib/agent-definition'
@@ -657,6 +657,12 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
     if (definition.prompt) e = { ...e, prompt: `Custom agent instructions:\n${definition.prompt}\n\nTask:\n${e.prompt}` }
   }
   if (!safePayload(`${e.description ?? ''}\n${e.prompt}`)) return stopRoute($, e, event, 'payload contains prohibited content')
+  // The explicit re-issue of the last rung was reviewed with this exact input, so it reaches core unchanged.
+  const marker = lastRungMarker(original.description)
+  if (original.model === LAST_RESORT.model && original.effort === LAST_RESORT.effort && marker !== undefined && marker === await promptToken(original.prompt)) {
+    await logRoute($, event, LAST_RESORT.model, 'explicit last rung')
+    return core(original)
+  }
   if (definition && customSandbox === undefined) {
     // An inherited model cannot be verified on a native pass-through.
     const model = original.model ?? definition.model
@@ -760,8 +766,15 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
     }
     event.fell_through_from.push(executor)
   }
-  await logRoute($, event, LAST_RESORT.model, 'terminal rung')
-  return core({ ...original, ...LAST_RESORT })
+  // No executor took the task: stop with the collected reasons and the one re-issue that reaches core. The marker
+  // is derived from the prompt, so a call re-issued with a different prompt cannot pass the check at the top.
+  const token = await promptToken(original.prompt)
+  const skippedList = Object.entries(event.skipped).map(([id, why]) => `${id}: ${why}`).join(', ') || 'none'
+  const instruction = token === undefined
+    ? 'The last rung is unavailable because this runtime cannot compute the marker; no re-issue is accepted.'
+    : `Re-issue the same call with model ${LAST_RESORT.model}, effort ${LAST_RESORT.effort} and the marker [rung: last ${token}] added to the description.`
+  await logRoute($, event, 'stopped', 'last rung needs an explicit re-issue')
+  return failure(original, `no other executor took the task (skipped: ${skippedList}). ${instruction}`)
 }
 
 // Answers core's bypass-immune "shell -c script runs rm" ask. Anything but a clean verdict returns core's own
