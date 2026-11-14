@@ -61,6 +61,10 @@ decision to `~/.claude/ai-delegation.log`:
    in a verified public repository; their dispatcher refuses private ones.
 2. Local. A generic, non-isolated, non-code spawn marked `[class: text]` goes
    to the on-host `small` alias, or `local-only` when the prompt is larger.
+   A spawn carrying neither `[class: text]` nor `[task: code]` is classified
+   once on the on-host `small` alias: `text` takes this rung, `code` makes the
+   sandboxes eligible, and `other` changes nothing; an explicit tag is always
+   the override, and a failed classification is `other`.
    Put all of the task's text in the prompt; the local model has no tools. The token estimate (characters / 3.5 plus 2048 output) must fit in
    60% of the alias's context window from the router's `/model/info`. An empty
    answer, a length cut-off, an error or a timeout falls through.
@@ -150,7 +154,10 @@ and `LLM_ROUTER_TOKEN_FILE`, or `LITELLM_LOCAL_BASE_URL`. Agent spawns marked
 `[class: text]` go to the local rung instead. Supply all required text in the
 prompt. Work requiring repository access, edits, tests or other tools continues
 to a tool-capable executor. Coding tags, custom agents, `Explore`, `Plan` and
-isolated tasks never take the local rung.
+isolated tasks never take the local rung. An untagged spawn is classified by
+the hook itself on the on-host `small` alias; every `route` line names the
+outcome under `kind` (`value` `text`, `code` or `other` with `source` `tag`,
+`classifier` or `none`).
 
 Run `agent-route <code|private|other>` from the plugin root to inspect the
 first eligible executor. `code` means public coding; use `other` for read-only

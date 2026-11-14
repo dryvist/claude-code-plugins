@@ -1,12 +1,14 @@
 import type { EngineInterface, Register } from 'claude-code'
-import { CLASSIFIER, CODEX, JUDGE, LAST_RESORT, LOCAL_OUTPUT_TOKENS, QUOTA_SELECTOR, UTILITY, EXECUTOR_TABLE, budgetsFromMetrics, codexArgv, codingTask, eligibleRows, endAnchor, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, isGenericType, isShellCAsk, jobHistory, jobState, recentFailures, localTask, mandatoryLabel, newestModel, mergeExecutorRows, metricsResult, parseVerdict, pickLabel, pickLocal, quotaFromMetrics, rankRows, repositoryFromOrigin, safePayload, scoreWindows } from './lib/policy'
-import type { Executor, ExecutorRow, JobOutcome, JobRecord, JobState, Label, QuotaReason, QuotaRow, Route, Sandbox, Score, SkipReason } from './lib/policy'
+import { CLASSIFIER, CODEX, JUDGE, KIND_CLASSIFIER, LAST_RESORT, LOCAL_OUTPUT_TOKENS, QUOTA_SELECTOR, UTILITY, EXECUTOR_TABLE, budgetsFromMetrics, codexArgv, codingTask, eligibleRows, endAnchor, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, isGenericType, isShellCAsk, jobHistory, jobState, recentFailures, localTask, mandatoryLabel, newestModel, mergeExecutorRows, metricsResult, parseKind, parseVerdict, pickLabel, pickLocal, quotaFromMetrics, rankRows, repositoryFromOrigin, safePayload, scoreWindows } from './lib/policy'
+import type { Executor, ExecutorRow, JobOutcome, JobRecord, JobState, Kind, Label, QuotaReason, QuotaRow, Route, Sandbox, Score, SkipReason } from './lib/policy'
 import { customAgentSandbox, parseAgentDefinition } from './lib/agent-definition'
 import type { AgentDefinition } from './lib/agent-definition'
 
 type Engine = EngineInterface
 type AgentCall = { description?: string; prompt: string; subagent_type?: string; model?: string; effort?: string; name?: string; isolation?: string }
 const TEXT_EXECUTOR_TIMEOUT_MS = 120_000
+const KIND_TIMEOUT_MS = 20_000
+const KIND_OUTPUT_TOKENS = 16
 const QUOTA_TIMEOUT_MS = 3_000
 const QUOTA_REFRESH_MS = 600_000
 const QUOTA_TOKEN_MAX_BYTES = 4096
@@ -16,7 +18,7 @@ const JOB_STATUS_BUDGET_MS = 3_000
 const JOB_STATUS_TIMEOUT_MS = 15_000
 const JOB_LOG_BYTES = 131_072
 const LOG_TIMEOUT_MS = 5_000
-const PROMPT_POLICY = 'The jpe-ai-delegation hook places every Agent spawn. Tag self-contained text work [class: text] and put all of its text in the prompt; the hook sends it to an on-host local model first. Every other spawn, and any local answer that fails its check, goes to the subscription executors it is eligible for, ranked by usage pace. ZCode, OpenCode Go and Cursor take only non-sensitive coding tagged [task: code] [repo: owner/repository] in a public repository; their output is a ready PR labelled human:review; leak-scan it before merge; never auto-merge. Codex Luna takes any task; never Terra. Haiku xhigh is always last. Nothing stops because an executor is unavailable. Never Sonnet, Opus or Fable subagents. Never send secrets, credentials, inventory or incident content to any executor. Antigravity stays a second-opinion reviewer, never an executor.'
+const PROMPT_POLICY = 'The jpe-ai-delegation hook places every Agent spawn. Tag self-contained text work [class: text] and put all of its text in the prompt; the hook sends it to an on-host local model first. An untagged spawn is classified by the hook itself, and an explicit tag always remains the override. Every other spawn, and any local answer that fails its check, goes to the subscription executors it is eligible for, ranked by usage pace. ZCode, OpenCode Go and Cursor take only non-sensitive coding tagged [task: code] [repo: owner/repository] in a public repository; their output is a ready PR labelled human:review; leak-scan it before merge; never auto-merge. Codex Luna takes any task; never Terra. Haiku xhigh is always last. Nothing stops because an executor is unavailable. Never Sonnet, Opus or Fable subagents. Never send secrets, credentials, inventory or incident content to any executor. Antigravity stays a second-opinion reviewer, never an executor.'
 
 // A quota read: the instant-query result, or why there is none.
 type QuotaFetch = { result?: unknown[]; failure?: 'quota_unconfigured' | 'quota_unreachable' }
@@ -266,6 +268,29 @@ async function runLocal($: Engine, e: AgentCall, base: string, alias: string, ti
   }
 }
 
+// One word from the on-host small alias about an untagged spawn: self-contained text, code, or neither. Only this
+// three-way kind is used; a failed or malformed classification names its kind in the decision log and is `other`.
+async function classifyKind($: Engine, e: AgentCall): Promise<Kind> {
+  let failure = 'no router URL'
+  try {
+    const base = (await $.env.get('LITELLM_LOCAL_BASE_URL'))?.replace(/\/+$/, '')
+    if (!base) throw new Error('router URL unset')
+    failure = 'timeout'
+    const response = await withTimeout($, $.http.fetch(`${base}/v1/chat/completions`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ model: 'small', max_tokens: KIND_OUTPUT_TOKENS, messages: [{ role: 'user', content: `${KIND_CLASSIFIER}\n\nTask:\n${e.description ?? ''}\n${e.prompt.slice(0, 4000)}` }] }),
+    }), KIND_TIMEOUT_MS)
+    failure = 'non-OK status'
+    if (!response.ok) throw new Error('HTTP failure')
+    failure = 'unparsable body'
+    return parseKind(JSON.parse(response.text)?.choices?.[0]?.message?.content)
+  } catch (error) {
+    if (failure === 'timeout' && (error as Error)?.message !== 'timeout') failure = 'unreachable'
+    await logDecision($, `classifier: ${failure}`)
+    return 'other'
+  }
+}
+
 // Classification itself runs on Codex Luna.
 async function classify($: Engine, e: AgentCall): Promise<Label> {
   const mandatory = mandatoryLabel(`${e.description ?? ''}\n${e.prompt}`)
@@ -429,9 +454,10 @@ async function github($: Engine, path: string): Promise<unknown> {
 }
 
 // The tagged repository, or without a tag the one inferred from the prompt paths, when the task is non-sensitive
-// coding in a verified public repository; otherwise undefined. Either way GitHub visibility decides.
-async function publicCodeRepo($: Engine, e: AgentCall): Promise<string | undefined> {
-  if (!codingTask(e.description) || mandatoryLabel(`${e.description ?? ''}\n${e.prompt}`)) return undefined
+// coding in a verified public repository; otherwise undefined. `codeTask` is an explicit `[task: code]` tag or a
+// `code` classification. Either way GitHub visibility decides.
+async function publicCodeRepo($: Engine, e: AgentCall, codeTask: boolean): Promise<string | undefined> {
+  if (!codeTask || mandatoryLabel(`${e.description ?? ''}\n${e.prompt}`)) return undefined
   try {
     const tagged = repositoryTag(e.description)
     const root = tagged ? undefined : await repositoryRoot($, e)
@@ -599,7 +625,7 @@ async function customAgentDefinition($: Engine, type: string): Promise<AgentDefi
 }
 
 type RouteEvent = {
-  agent_type: string; local: { alias: string | null; est_tokens: number } | null; eligible: string[]
+  agent_type: string; kind: { value: Kind; source: 'tag' | 'classifier' | 'none' }; local: { alias: string | null; est_tokens: number } | null; eligible: string[]
   scores: Record<string, { score: number | null; exhausted: boolean; effective: number | null; used: number | null; line: number | null } | null>; fell_through_from: string[]
   skipped: Record<string, SkipReason>; jobs: JobRecord[]
   quota_unknown: Record<string, QuotaReason>; quota_source: Record<string, string>
@@ -622,7 +648,7 @@ const agentType = (e: AgentCall, verified: boolean): string => {
   const type = e.subagent_type ?? 'general-purpose'
   return (verified || isGenericType(e)) && /^[\w:.-]{1,80}$/.test(type) && safePayload(type) ? type : 'unrecognized'
 }
-const newEvent = (e: AgentCall): RouteEvent => ({ agent_type: agentType(e, false), local: null, eligible: [], scores: {}, fell_through_from: [], skipped: {}, jobs: [], quota_unknown: {}, quota_source: {} })
+const newEvent = (e: AgentCall): RouteEvent => ({ agent_type: agentType(e, false), kind: { value: 'other', source: 'none' }, local: null, eligible: [], scores: {}, fell_through_from: [], skipped: {}, jobs: [], quota_unknown: {}, quota_source: {} })
 
 // Every exit that stops routing writes its route line too.
 async function stopRoute($: Engine, e: AgentCall, event: RouteEvent, reason: string): Promise<unknown> {
@@ -665,8 +691,16 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
     return core(original)
   }
 
+  // One three-way kind per spawn. An explicit tag wins without a request; an untagged eligible spawn asks the
+  // on-host small alias once, after the forbidden-model, custom-agent and payload checks above.
+  const genericRung = !definition && !e.isolation && isGenericType(e) && !['Explore', 'Plan'].includes(e.subagent_type ?? '')
+  if (codingTask(e.description)) event.kind = { value: 'code', source: 'tag' }
+  else if (localTask(e.description)) event.kind = { value: 'text', source: 'tag' }
+  else if (!genericRung || mandatoryLabel(`${e.description ?? ''}\n${e.prompt}`)) event.kind = { value: 'other', source: 'none' }
+  else event.kind = { value: await classifyKind($, e), source: 'classifier' }
+
   // Self-contained text work: the only work the local rung and router-chat rows take.
-  const textOnly = !definition && !e.isolation && isGenericType(e) && !['Explore', 'Plan'].includes(e.subagent_type ?? '') && !codingTask(e.description) && localTask(e.description)
+  const textOnly = genericRung && event.kind.value === 'text'
   const base = (await $.env.get('LITELLM_LOCAL_BASE_URL'))?.replace(/\/+$/, '')
 
   // Local rung: small, checkable, self-contained text on an on-host alias.
@@ -686,7 +720,7 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
 
   // Subscription rungs: eligibility, then usage pace; Haiku always ends the list.
   const restricted = definition && (definition.tools !== undefined || Boolean(definition.disallowedTools?.length))
-  const repo = restricted ? undefined : await publicCodeRepo($, e)
+  const repo = restricted ? undefined : await publicCodeRepo($, e, event.kind.value === 'code')
   const table = await loadExecutorTable($)
   // Without a clock reading no promotion is proven unexpired (Infinity expires them all) and no peak applies.
   const now = (await clockNow($)) ?? Number.POSITIVE_INFINITY

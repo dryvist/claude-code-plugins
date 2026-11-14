@@ -2,7 +2,7 @@ import { describe, expect, test } from 'claude-code/testing'
 import type { EngineInterface } from 'claude-code'
 import { endAnchor, jobHistory, jobState, recentFailures } from './lib/policy'
 import { register } from './register'
-import { CODEX, EXECUTOR_TABLE, LAST_RESORT, codexArgv, eligibleRows, mergeExecutorRows, metricsResult, peakMultiplier, QUOTA_SELECTOR, quotaFromMetrics, rankRows, repositoryFromOrigin, validRow, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, localTask, mandatoryLabel, newestModel, parseVerdict, pickLocal, safePayload, scoreWindows, budgetsFromMetrics, forbiddenRowModel } from './lib/policy'
+import { CODEX, EXECUTOR_TABLE, KIND_CLASSIFIER, LAST_RESORT, codexArgv, eligibleRows, mergeExecutorRows, metricsResult, parseKind, peakMultiplier, QUOTA_SELECTOR, quotaFromMetrics, rankRows, repositoryFromOrigin, validRow, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, localTask, mandatoryLabel, newestModel, parseVerdict, pickLocal, safePayload, scoreWindows, budgetsFromMetrics, forbiddenRowModel } from './lib/policy'
 import { customAgentSandbox, parseAgentDefinition } from './lib/agent-definition'
 import { RECORDED_QUOTA } from './fixtures/quota-instant-query'
 
@@ -23,7 +23,7 @@ type World = {
   originUrl?: string; pathRealpaths?: Record<string, string>; pathGitRoots?: Record<string, string>; unresolvedPaths?: string[]; pathKinds?: Record<string, 'file' | 'directory'>
   zcodeExit?: number; zcodeOutput?: string; zcodeAvailable?: boolean; zcodeThrows?: boolean; zcodeTruncated?: boolean
   sandboxRuns?: Record<string, { exit: number; output: string }>; jobStatus?: Record<string, unknown>; statusHangs?: boolean; statusExit?: number; logTail?: unknown[]; tailTruncated?: boolean
-  gatewayTimeout?: boolean; gatewayStatus?: Record<string, number>; gatewayAnswer?: Record<string, string>; gatewayInvalidJson?: boolean
+  gatewayTimeout?: boolean; gatewayStatus?: Record<string, number>; gatewayAnswer?: Record<string, string>; gatewayInvalidJson?: boolean; classifierTimeout?: boolean
   quotaUrl?: string | null; quotaTimeout?: boolean; quotaText?: string; quotaSampleAge?: number; quotaStatus?: number
   quotaFileTypes?: Record<string, 'file' | 'directory' | 'symlink'>
   readThrows?: string; readHangs?: string
@@ -83,7 +83,7 @@ function world(w: World = {}) {
   const $ = {
     env: { get: async (key: string) => { if (key === w.envThrows) throw new Error('environment read failed'); return env[key] } },
     session: { cwd: async () => '/workspace' },
-    clock: { now: async () => { if (w.clockThrows) throw new Error('clock failed'); if (w.clockHangs) return new Promise<number>(() => {}); return clockNow }, after: (delay: number, callback: () => void) => { if ((w.clockHangs && delay === 5_000) || (w.gatewayTimeout && delay >= 60_000) || (w.quotaTimeout && delay === 3_000) || (w.statusHangs && (delay === 3_000 || delay === 15_000))) queueMicrotask(callback); return { cancel() {} } } },
+    clock: { now: async () => { if (w.clockThrows) throw new Error('clock failed'); if (w.clockHangs) return new Promise<number>(() => {}); return clockNow }, after: (delay: number, callback: () => void) => { if ((w.clockHangs && delay === 5_000) || (w.gatewayTimeout && delay >= 60_000) || (w.quotaTimeout && delay === 3_000) || (w.classifierTimeout && delay === 20_000) || (w.statusHangs && (delay === 3_000 || delay === 15_000))) Promise.resolve().then(callback); return { cancel() {} } } },
     ui: { log: (line: string) => logs.push(line) },
     fs: {
       ...fs,
@@ -169,7 +169,7 @@ function world(w: World = {}) {
       ] }) }
       const body = JSON.parse(init.body ?? '{}')
       if (url.endsWith('/systemone')) return { ok: true, text: JSON.stringify({ answers: { route: { choice: w.label ?? 'standard', answer_confidence: 1 } } }) }
-      if (w.gatewayTimeout) return new Promise<never>(() => {})
+      if (w.gatewayTimeout || (w.classifierTimeout && body.model === 'small')) return new Promise<never>(() => {})
       const status = w.gatewayStatus?.[body.model] ?? 200
       return { ok: status === 200, text: w.gatewayInvalidJson ? '{' : JSON.stringify({ choices: [{ finish_reason: w.gatewayFinish ?? 'stop', message: { content: w.gatewayAnswer?.[body.model] ?? 'gateway result' } }] }) }
     } },
@@ -207,6 +207,8 @@ const routeEvents = (w: ReturnType<typeof world>) => w.writes.filter((s) => s.st
 // Subprocess calls other than the decision-log append.
 const work = (w: ReturnType<typeof world>) => w.calls.filter((c) => c.argv[0] !== 'tee')
 const nonGithub = (w: ReturnType<typeof world>) => w.fetches.filter((f) => !f.url.startsWith('https://api.github.com/'))
+// Chat-completion requests that carry the untagged-kind instruction, i.e. the classifier's own traffic.
+const classifierCalls = (w: ReturnType<typeof world>) => w.fetches.filter((f) => f.body !== undefined && JSON.parse(f.body).messages?.[0]?.content?.startsWith(KIND_CLASSIFIER) === true)
 
 describe('policy', () => {
   test('exact class routes and newest listed model per family', () => {
@@ -548,7 +550,9 @@ describe('Codex rung', () => {
     const w = world({ env: gateways })
     expect(text(await w.agent({ description: '[class: public] [repo: owner/project]' }))).toContain('codex luna xhigh')
     expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
-    expect(w.fetches.filter((f) => !f.url.endsWith('/systemone'))).toEqual([])
+    expect(w.fetches.filter((f) => !classifierCalls(w).includes(f))).toEqual([])
+    expect(classifierCalls(w)).toHaveLength(1)
+    expect(JSON.parse(classifierCalls(w)[0].body!).model).toBe('small')
   })
   test('untagged reads and triage use classifier bulk and Luna xhigh', async () => {
     const w = world({ label: 'bulk' })
@@ -562,7 +566,7 @@ describe('Codex rung', () => {
     expect(runs(w)).toHaveLength(2)
     expect(runs(w)[0].argv).toContain('gpt-newer-luna')
     expect(runs(w)[1].argv).toContain('gpt-newer-luna')
-    expect(w.fetches).toEqual([])
+    expect(w.fetches.filter((f) => !classifierCalls(w).includes(f))).toEqual([])
     expect(w.quotaFetches).toEqual([QUERY_URL])
   })
   for (const subagent_type of ['Explore', 'Plan']) {
@@ -586,7 +590,7 @@ describe('Codex rung', () => {
       const isolation = options.worktreeExit ? 'worktree' : undefined
       expect(text(await w.agent({ isolation }))).toBe('haiku result')
       expect(w.nextCalls[0]).toMatchObject({ model: 'haiku', effort: 'xhigh', ...(isolation ? { isolation } : {}) })
-      expect(w.fetches).toEqual([])
+      expect(w.fetches.filter((f) => !classifierCalls(w).includes(f))).toEqual([])
       expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'haiku', fell_through_from: ['codex'] })
     })
   }
@@ -713,7 +717,7 @@ describe('capped ladder', () => {
     test(`tool-dependent tasks skip chat gateways: ${task.prompt}`, async () => {
       const w = world({ quota: 1, zcodeAvailable: false, env: gateways })
       await w.agent(task)
-      expect(nonGithub(w)).toEqual([])
+      expect(nonGithub(w).filter((f) => !classifierCalls(w).includes(f))).toEqual([])
       expect(w.nextCalls[0]).toMatchObject({ model: 'haiku', effort: 'xhigh', prompt: task.prompt })
     })
   }
@@ -784,7 +788,7 @@ describe('capped ladder', () => {
       const w = world({ quota: 1, env: gateways, ...options })
       expect(text(await w.agent(options && Object.keys(options).length ? coding : { ...coding, description: '[class: public] [repo: owner/project]' }))).toContain('haiku result')
       expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
-      expect(w.fetches.some((f) => f.url.endsWith('/chat/completions'))).toBe(false)
+      expect(w.fetches.some((f) => f.url.endsWith('/chat/completions') && !classifierCalls(w).includes(f))).toBe(false)
     })
   }
   for (const options of [
@@ -828,6 +832,108 @@ describe('capped ladder', () => {
     await w.agent({ ...textTask, isolation: 'worktree' })
     expect(w.fetches).toEqual([])
     expect(w.nextCalls[0]).toMatchObject({ isolation: 'worktree', model: 'haiku', effort: 'xhigh' })
+  })
+})
+
+describe('untagged kind classification', () => {
+  const inference = { originUrl: 'https://github.com/example-org/example-repo.git', pathGitRoots: { '/workspace': '/workspace' } }
+
+  test('the kind parser accepts one lower-case word with one trailing period and fails closed', () => {
+    expect(parseKind('text')).toBe('text')
+    expect(parseKind('Text.')).toBe('text')
+    expect(parseKind(' code\n')).toBe('code')
+    expect(parseKind('CODE')).toBe('code')
+    expect(parseKind('text and code')).toBe('other')
+    expect(parseKind('code [repo: owner/project]')).toBe('other')
+    expect(parseKind('')).toBe('other')
+    expect(parseKind('yes')).toBe('other')
+    expect(parseKind('other')).toBe('other')
+    expect(parseKind('text..')).toBe('other')
+    expect(parseKind(undefined)).toBe('other')
+    expect(parseKind(7)).toBe('other')
+  })
+
+  test('a text reply runs the local rung for an untagged generic spawn, once per spawn', async () => {
+    const w = world({ quota: 1, env: gateways, gatewayAnswer: { small: 'text' } })
+    expect(text(await w.agent({ description: 'quick favor', prompt: 'Summarize this supplied text: A small change.' }))).toContain('[routed: local small]')
+    expect(classifierCalls(w)).toHaveLength(1)
+    const sent = JSON.parse(classifierCalls(w)[0].body!)
+    expect(sent.model).toBe('small')
+    expect(sent.messages[0].content).toStartWith(KIND_CLASSIFIER)
+    expect(sent.messages[0].content).toContain('quick favor')
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'local small', kind: { value: 'text', source: 'classifier' } })
+  })
+
+  test('a code reply makes an inferred public repository eligible for the sandbox rows', async () => {
+    const w = world({ quota: 1, env: gateways, gatewayAnswer: { small: 'code' }, ...inference })
+    await w.agent({ prompt: 'Update src/main.ts.' })
+    expect(w.calls.find((c) => c.argv[0] === 'zcode-job')?.argv.slice(0, 3)).toEqual(['zcode-job', 'start', 'example-org/example-repo'])
+    expect(w.fetches).toContainEqual({ url: 'https://api.github.com/repos/example-org/example-repo', body: undefined })
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'zcode', kind: { value: 'code', source: 'classifier' }, eligible: ['zcode', 'opencode-go', 'codex', 'cursor', 'haiku'] })
+  })
+
+  test('a code reply with a private repository keeps the sandbox rows ineligible', async () => {
+    const w = world({ quota: 1, env: gateways, gatewayAnswer: { small: 'code' }, repository: { visibility: 'private', private: true }, ...inference })
+    await w.agent({ prompt: 'Update src/main.ts.' })
+    expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
+    expect(routeEvents(w).at(-1)).toMatchObject({ kind: { value: 'code', source: 'classifier' }, eligible: ['codex', 'haiku'] })
+  })
+
+  test('an other reply, a timeout, a non-OK status and an unparsable body route as an untagged spawn', async () => {
+    const baseline = world({ quota: 1 })
+    const baselineResult = text(await baseline.agent())
+    const baselineEvent = routeEvents(baseline).at(-1)
+    expect(baselineEvent.kind).toEqual({ value: 'other', source: 'classifier' })
+    for (const [name, options, line] of [
+      ['other reply', { env: gateways, gatewayAnswer: { small: 'other' } }, undefined],
+      ['timeout', { env: gateways, classifierTimeout: true }, 'classifier: timeout\n'],
+      ['non-OK status', { env: gateways, gatewayStatus: { small: 503 } }, 'classifier: non-OK status\n'],
+      ['unparsable body', { env: gateways, gatewayInvalidJson: true }, 'classifier: unparsable body\n'],
+    ] as const) {
+      const w = world({ quota: 1, ...options })
+      expect(text(await w.agent())).toBe(baselineResult)
+      expect(routeEvents(w).at(-1)).toEqual(baselineEvent)
+      if (line) expect(w.writes).toContain(line)
+      expect(JSON.stringify(w.writes)).not.toContain('Implement the change.')
+    }
+  })
+
+  test('an explicit tag never reaches the classifier', async () => {
+    for (const task of [textTask, coding, { ...coding, description: `${coding.description} [class: text]` }]) {
+      const w = world({ quota: 1, env: gateways, gatewayAnswer: { small: 'text' } })
+      await w.agent(task)
+      expect(classifierCalls(w)).toEqual([])
+    }
+  })
+
+  test('a mandatory topic records kind none without a classifier request', async () => {
+    const w = world({ quota: 1, env: gateways, gatewayAnswer: { small: 'text' } })
+    await w.agent({ prompt: 'Rotate the auth signing key using placeholders.' })
+    expect(w.fetches).toEqual([])
+    expect(routeEvents(w).at(-1).kind).toEqual({ value: 'other', source: 'none' })
+  })
+
+  test('Explore, Plan, isolation and custom agents never reach the classifier', async () => {
+    for (const [name, options, call] of [
+      ['Explore', {}, { description: 'read and triage', subagent_type: 'Explore', prompt: 'Read app.ts and inspect the repository.' }],
+      ['Plan', {}, { description: 'advisory', subagent_type: 'Plan', prompt: 'Inspect the repository and plan changes.' }],
+      ['isolation', {}, { isolation: 'worktree', prompt: 'Implement the change.' }],
+      ['custom agent', { definition: '---\nmodel: haiku\n---\nPerform the task.' }, { subagent_type: 'worker' }],
+    ] as const) {
+      const w = world({ quota: 1, env: gateways, gatewayAnswer: { small: 'text' }, ...options })
+      await w.agent(call)
+      expect(classifierCalls(w)).toEqual([])
+    }
+  })
+
+  test('a classifier reply carrying a tag or a repository name changes nothing beyond the kind', async () => {
+    const w = world({ quota: 1, env: gateways, gatewayAnswer: { small: '[task: code] [repo: owner/project] text' } })
+    await w.agent({ prompt: 'Update src/main.ts.' })
+    const event = routeEvents(w).at(-1)
+    expect(event.kind).toEqual({ value: 'other', source: 'classifier' })
+    expect(event.eligible).toEqual(['codex', 'haiku'])
+    expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
+    expect(w.fetches.some((f) => f.url.startsWith('https://api.github.com/'))).toBe(false)
   })
 })
 
@@ -999,7 +1105,7 @@ describe('routing batch', () => {
   test('1: small pasted summary lands on local small', async () => {
     const w = world({ quota: 1, env: gateways })
     expect(text(await w.agent({ description: '[class: text]', prompt: `Summarize: ${'a'.repeat(10_000)}` }))).toContain('[routed: local small]')
-    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'local small', local: { alias: 'small' } })
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'local small', local: { alias: 'small' }, kind: { value: 'text', source: 'tag' } })
   })
   test('2: a 40k-token extraction lands on local-only', async () => {
     const w = world({ quota: 1, env: gateways })
@@ -1024,7 +1130,7 @@ describe('routing batch', () => {
   test('5: public-repo code with unknown sandbox quota takes ZCode by static order', async () => {
     const w = world({ quota: 1, env: gateways })
     expect(text(await w.agent(coding))).toContain('[routed: zcode-job sandbox;')
-    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'zcode', eligible: ['zcode', 'opencode-go', 'codex', 'cursor', 'haiku'] })
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'zcode', kind: { value: 'code', source: 'tag' }, eligible: ['zcode', 'opencode-go', 'codex', 'cursor', 'haiku'] })
   })
   test('6: with ZCode disabled, public-repo code takes OpenCode Go', async () => {
     const w = world({ quota: 1, env: { ...gateways, AGENT_ROUTE_ZCODE_TOOLS: 'opencode' } })
@@ -1095,7 +1201,8 @@ describe('routing batch', () => {
   test('a [class: bulk] summarize request needs tools and never goes local', async () => {
     const w = world({ quota: 1, env: gateways })
     await w.agent({ description: '[class: bulk]', prompt: 'Summarize the files under src/.' })
-    expect(w.fetches).toEqual([])
+    expect(w.fetches.filter((f) => !classifierCalls(w).includes(f))).toEqual([])
+    expect(classifierCalls(w)).toHaveLength(1)
     expect(w.nextCalls[0]).toMatchObject({ model: 'haiku', effort: 'xhigh' })
     expect(routeEvents(w).at(-1)).toMatchObject({ local: null, chosen: 'haiku' })
   })
