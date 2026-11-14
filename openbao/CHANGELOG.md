@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.22.2](https://github.com/dryvist/claude-code-plugins/compare/openbao-v4.22.1...openbao-v4.22.2) (2026-11-14)
+
+
+### Bug Fixes
+
+* **openbao-secrets:** point to the secrets-separation rule instead of restating it ([#795](https://github.com/dryvist/claude-code-plugins/issues/795)) ([c2e557b](https://github.com/dryvist/claude-code-plugins/commit/c2e557b3d8bc02b0e1e8608943abb8dd25349278))
+
 ## [4.22.1](https://github.com/dryvist/claude-code-plugins/compare/openbao-v4.22.0...openbao-v4.22.1) (2026-10-28)
 
 

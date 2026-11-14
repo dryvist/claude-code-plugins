@@ -1,5 +1,5 @@
 {
-  ".": "6.60.0",
+  ".": "6.60.1",
   "ai-cli-harness-better-practices": "4.31.0",
   "ai-delegation": "6.16.0",
   "code-standards": "6.3.0",
@@ -12,7 +12,7 @@
   "infra-orchestration": "6.3.0",
   "jpe-ai-delegation": "1.22.0",
   "infra-standards": "6.2.1",
-  "openbao": "4.22.1",
+  "openbao": "4.22.2",
   "ansible": "1.1.0",
   "cribl": "1.1.0",
   "splunk": "1.1.0",
