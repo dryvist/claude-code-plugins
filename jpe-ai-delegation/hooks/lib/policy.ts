@@ -92,6 +92,9 @@ export const forbiddenRowModel = (model: string | undefined): boolean => /sonnet
 // Local screening happens before any classifier or executor receives the payload.
 export const safePayload = (text: string): boolean => !/(-----BEGIN (?:[A-Z]+ )?PRIVATE KEY-----|\b(?:gh[pousr]_|github_pat_|xox[baprs]-|sk-(?:proj-|ant-)?)[A-Za-z0-9_-]{12,}|\bAKIA[A-Z0-9]{16}\b|\b(?:password|passwd|token|api[_-]?key|secret[_-]?key)["']?\s*[:=]\s*\S+|\bauthorization\s*:\s*bearer\s+\S+|\[content:\s*(?:secrets|credentials|inventory|incident)\]|\b(?:ansible_host|ansible_password)\s*:|\b(?:incident|outage)\s+(?:timeline|report)\s*:)/i.test(text)
 export const codingTask = (description: string | undefined): boolean => /\[task: code\]/.test(description ?? '')
+// A review ask: the text asks for a review, audit or verdict and asks for no change, so the task never needs to write.
+export const reviewOnly = (text: string): boolean =>
+  /\b(review|audit|verdict)\b/i.test(text) && !/\b(fix|implement|edit|write|apply|commit|refactor|change the|update the)\b/i.test(text)
 
 // The owner/name candidate named by a GitHub https or ssh origin URL, with or without .git; undefined for anything
 // else. Only a candidate: the caller still verifies visibility before the repository grants eligibility.
@@ -143,6 +146,10 @@ export function newestModel(cacheText: string, family: string): string | undefin
   return found[0]?.slug
 }
 
+// One wall-clock budget shared by both routed children, a `codex exec` and a headless harness child: measured local
+// coding runs needed up to 92 turns and 1,192 s, so a routed task gets 100 turns and 25 minutes.
+export const ROUTED_CHILD_TIMEOUT_MS = 1_500_000
+
 // The only way to build a `codex exec` command. Reject mismatched families and unsupported efforts;
 // a missing model throws too, because `codex` would then fall back to its configured default.
 export function codexArgv(sandbox: Sandbox, route: Route, model: string | undefined, outputFile: string): string[] {
@@ -160,7 +167,7 @@ export function codexArgv(sandbox: Sandbox, route: Route, model: string | undefi
 // argument; the model and context window reach the child through its environment, not the command line.
 export function harnessArgv(sandbox: Sandbox): string[] {
   if (sandbox !== 'read-only' && sandbox !== 'workspace-write') throw new Error(`harness sandbox must be read-only or workspace-write, got ${sandbox}`)
-  const argv = ['claude', '-p', '--bare', '--exclude-dynamic-system-prompt-sections', '--no-session-persistence', '--output-format', 'json', '--max-turns', '40', '--permission-mode', sandbox === 'read-only' ? 'dontAsk' : 'acceptEdits']
+  const argv = ['claude', '-p', '--bare', '--exclude-dynamic-system-prompt-sections', '--no-session-persistence', '--output-format', 'json', '--max-turns', '100', '--permission-mode', sandbox === 'read-only' ? 'dontAsk' : 'acceptEdits']
   if (sandbox === 'read-only') return [...argv, '--tools', 'Read,Grep,Glob']
   return [...argv, '--tools', 'Bash,Read,Edit,Write,Grep,Glob', '--settings', JSON.stringify({ sandbox: { enabled: true, autoAllowBashIfSandboxed: true, allowUnsandboxedCommands: false, failIfUnavailable: true } })]
 }

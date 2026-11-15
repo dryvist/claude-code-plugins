@@ -1,5 +1,5 @@
 import type { EngineInterface, Register } from 'claude-code'
-import { CLASSIFIER, CLASSIFIER_ALIAS, CODEX, CODEX_QUOTA_THRESHOLD, JUDGE, JUDGE_ALIAS, JUDGE_OUTPUT_TOKENS, LAST_RESORT, LOCAL_OUTPUT_TOKENS, QUOTA_SELECTOR, EXECUTOR_TABLE, budgetsFromMetrics, codexArgv, harnessArgv, codingTask, eligibleRows, endAnchor, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, isGenericType, isShellCAsk, jobHistory, jobState, lastRungMarker, recentFailures, localTask, mandatoryLabel, newestModel, mergeExecutorRows, metricsResult, parseCodexQuota, parseVerdict, pickLabel, pickLocal, promptToken, quotaFromMetrics, rankRows, repositoryFromOrigin, safePayload, scoreWindows, KIND_CLASSIFIER, parseKind } from './lib/policy'
+import { CLASSIFIER, CLASSIFIER_ALIAS, CODEX, CODEX_QUOTA_THRESHOLD, JUDGE, JUDGE_ALIAS, JUDGE_OUTPUT_TOKENS, LAST_RESORT, LOCAL_OUTPUT_TOKENS, QUOTA_SELECTOR, ROUTED_CHILD_TIMEOUT_MS, EXECUTOR_TABLE, budgetsFromMetrics, codexArgv, harnessArgv, codingTask, eligibleRows, endAnchor, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, isGenericType, isShellCAsk, jobHistory, jobState, lastRungMarker, recentFailures, localTask, mandatoryLabel, newestModel, mergeExecutorRows, metricsResult, parseCodexQuota, parseVerdict, pickLabel, pickLocal, promptToken, quotaFromMetrics, rankRows, repositoryFromOrigin, reviewOnly, safePayload, scoreWindows, KIND_CLASSIFIER, parseKind } from './lib/policy'
 import type { CodexQuotaRead, Executor, ExecutorRow, JobOutcome, JobRecord, JobState, Label, QuotaReason, QuotaRow, Route, Sandbox, Score, SkipReason, Kind, Verdict } from './lib/policy'
 import { customAgentSandbox, parseAgentDefinition } from './lib/agent-definition'
 import type { AgentDefinition } from './lib/agent-definition'
@@ -423,20 +423,26 @@ async function runRoutedCodex($: Engine, e: AgentCall, route: string, codexRoute
     if (worktree.exitCode !== 0) return undefined
     detail += `, worktree ${cwd}`
   }
-  const out = await runCodex($, codexRoute, sandbox, e.prompt, 600_000, cwd)
+  const out = await runCodex($, codexRoute, sandbox, e.prompt, ROUTED_CHILD_TIMEOUT_MS, cwd)
   if (!out) return undefined
   await logDecision($, `route: ${route} -> codex ${codexRoute.family} ${codexRoute.effort} (${sandbox})`)
   return routedResult(e, 'ai-delegation-codex', out, `[routed: codex ${codexRoute.family} ${codexRoute.effort}, ${detail}]`, started === null ? 0 : ((await clockNow($)) ?? started) - started)
+}
+
+// The one sandbox decision both subscription rungs share: advisory classes, Explore and Plan types, a read-only custom
+// agent, and a task that asks for a review, audit or verdict without asking for any change never write.
+function routedSandbox(e: AgentCall, label: Label, customSandbox: Sandbox | undefined): Sandbox {
+  const advisory = isAdvisory(label) || isAdvisory(explicitLabel(e.description) ?? label)
+  return advisory || e.subagent_type === 'Explore' || e.subagent_type === 'Plan' || customSandbox === 'read-only' || reviewOnly(`${e.description ?? ''}\n${e.prompt}`) ? 'read-only' : 'workspace-write'
 }
 
 // The Codex rung: classify, pick the sandbox, run. Undefined on any failure so routing continues. The label comes from
 // the shared per-spawn classifier, so a rung that runs after another asks no second classification.
 async function runCodexRung($: Engine, e: AgentCall, customSandbox: Sandbox | undefined, rungLabel: () => Promise<Label>): Promise<unknown | undefined> {
   const label = await rungLabel()
-  const advisory = isAdvisory(label) || isAdvisory(explicitLabel(e.description) ?? label)
+  const sandbox = routedSandbox(e, label, customSandbox)
   if (mandatoryLabel(`${e.description ?? ''}\n${e.prompt}`)) e = { ...e, description: `${e.description ?? ''} [class: bulk-complex]` }
-  const codexSandbox: Sandbox = advisory || e.subagent_type === 'Explore' || e.subagent_type === 'Plan' || customSandbox === 'read-only' ? 'read-only' : 'workspace-write'
-  return runRoutedCodex($, e, label, CODEX[label], codexSandbox, `class ${label}`)
+  return runRoutedCodex($, e, label, CODEX[label], sandbox, `class ${label}`)
 }
 
 // One harness run under the row's alias; the same working directory rules as Codex, including the temporary worktree.
@@ -451,7 +457,7 @@ async function runRoutedHarness($: Engine, e: AgentCall, row: ExecutorRow, sandb
     const worktree = await $.process.run(['git', '-C', await $.session.cwd(), 'worktree', 'add', '--detach', cwd, 'HEAD'], { timeoutMs: 30_000 })
     if (worktree.exitCode !== 0) return undefined
   }
-  const out = await runHarness($, row, sandbox, e.prompt, 600_000, cwd)
+  const out = await runHarness($, row, sandbox, e.prompt, ROUTED_CHILD_TIMEOUT_MS, cwd)
   if (!out) return undefined
   await logDecision($, `route: ${row.id} -> harness ${row.model} (${sandbox})`)
   return routedResult(e, 'ai-delegation-harness', out, `[routed: harness ${row.model}]`, started === null ? 0 : ((await clockNow($)) ?? started) - started)
@@ -460,9 +466,8 @@ async function runRoutedHarness($: Engine, e: AgentCall, row: ExecutorRow, sandb
 // The harness rung: classify, pick the sandbox by exactly the Codex rung's input, run.
 async function runHarnessRung($: Engine, e: AgentCall, row: ExecutorRow, customSandbox: Sandbox | undefined, rungLabel: () => Promise<Label>): Promise<unknown | undefined> {
   const label = await rungLabel()
-  const advisory = isAdvisory(label) || isAdvisory(explicitLabel(e.description) ?? label)
+  const sandbox = routedSandbox(e, label, customSandbox)
   if (mandatoryLabel(`${e.description ?? ''}\n${e.prompt}`)) e = { ...e, description: `${e.description ?? ''} [class: bulk-complex]` }
-  const sandbox: Sandbox = advisory || e.subagent_type === 'Explore' || e.subagent_type === 'Plan' || customSandbox === 'read-only' ? 'read-only' : 'workspace-write'
   return runRoutedHarness($, e, row, sandbox)
 }
 
