@@ -1,0 +1,179 @@
+diff --git a/.github/workflows/validate-plugin.yml b/.github/workflows/validate-plugin.yml
+index a1c5757..ad1ad57 100644
+--- a/.github/workflows/validate-plugin.yml
++++ b/.github/workflows/validate-plugin.yml
+@@ -1,22 +1,111 @@
+ name: Validate Claude Code Plugin
+ 
+ on:
+-  push:
+-    branches: ["**"]
+   pull_request:
+     branches: [main]
++  merge_group:
++
++concurrency:
++  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
++  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+ 
+ permissions:
+   contents: read
+ 
+ jobs:
++  changes:
++    runs-on: ubuntu-latest
++    permissions:
++      contents: read
++      # dorny/paths-filter lists changed files through the REST API on
++      # pull_request events, which requires pull-requests: read
++      pull-requests: read
++    outputs:
++      # JSON array of matched filter names, e.g. ["ansible", "shared"]
++      plugins: ${{ steps.filter.outputs.changes }}
++    steps:
++      # For merge_group events dorny/paths-filter detects changes with git
++      # commands against the commit hashes from the event, so the code must
++      # be checked out; pull_request events go through the REST API instead.
++      - name: Checkout code
++        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
++
++      - name: Detect changed plugins
++        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
++        id: filter
++        with:
++          filters: |
++            ai-cli-harness-better-practices:
++              - 'ai-cli-harness-better-practices/**'
++            ai-delegation:
++              - 'ai-delegation/**'
++            ansible:
++              - 'ansible/**'
++            ask-default:
++              - 'ask-default/**'
++            attention-notify:
++              - 'attention-notify/**'
++            code-standards:
++              - 'code-standards/**'
++            codeql-resolver:
++              - 'codeql-resolver/**'
++            content-guards:
++              - 'content-guards/**'
++            cribl:
++              - 'cribl/**'
++            estate-lsp:
++              - 'estate-lsp/**'
++            git-guards:
++              - 'git-guards/**'
++            git-workflows:
++              - 'git-workflows/**'
++            github-workflows:
++              - 'github-workflows/**'
++            homelab-ops:
++              - 'homelab-ops/**'
++            infra-orchestration:
++              - 'infra-orchestration/**'
++            infra-standards:
++              - 'infra-standards/**'
++            jpe-ai-delegation:
++              - 'jpe-ai-delegation/**'
++            openbao:
++              - 'openbao/**'
++            process-cleanup:
++              - 'process-cleanup/**'
++            project-standards:
++              - 'project-standards/**'
++            splunk:
++              - 'splunk/**'
++            testing:
++              - 'testing/**'
++            shared:
++              - 'schemas/**'
++              - 'scripts/**'
++              - '.github/workflows/validate-plugin.yml'
++
+   validate:
++    needs: changes
+     runs-on: ubuntu-latest
++    timeout-minutes: 20
+ 
+     steps:
+       - name: Checkout code
+         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+ 
++      - name: Determine plugins to validate
++        env:
++          MATCHED: ${{ needs.changes.outputs.plugins }}
++        run: |
++          # Merge-queue runs and changes to shared surfaces (schemas,
++          # scripts, this workflow) validate every plugin; a pull request
++          # touching only some plugin directories validates just those.
++          if [ "$GITHUB_EVENT_NAME" = "merge_group" ] || jq -e 'index("shared") != null' >/dev/null <<<"$MATCHED"; then
++            echo "PLUGINS_TO_VALIDATE=all" >> "$GITHUB_ENV"
++          else
++            echo "PLUGINS_TO_VALIDATE=$MATCHED" >> "$GITHUB_ENV"
++          fi
++
+       - name: Setup Go
+         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+         with:
+@@ -32,10 +121,14 @@ jobs:
+ 
+       - name: Validate plugin structure
+         run: |
+-          # Validate all plugins with .claude-plugin/plugin.json
++          # Validate plugins with .claude-plugin/plugin.json
+           for plugin_dir in */; do
+             plugin_name="${plugin_dir%/}"
+             if [ -f "$plugin_dir.claude-plugin/plugin.json" ]; then
++              # Path filter: skip plugins whose directories did not change
++              if [ "$PLUGINS_TO_VALIDATE" != "all" ] && ! jq -e --arg plugin "$plugin_name" 'index($plugin) != null' >/dev/null <<<"$PLUGINS_TO_VALIDATE"; then
++                continue
++              fi
+               # Skip plugins with no skills/commands/agents (hooks-only plugins have nothing for cclint to lint)
+               plugin_json="$plugin_dir.claude-plugin/plugin.json"
+               has_lintable=$(jq -r '(.skills//[])+(.commands//[])+(.agents//[])|length' "$plugin_json" 2>/dev/null || echo "0")
+@@ -65,10 +158,14 @@ jobs:
+ 
+       - name: Validate plugin.json schemas
+         run: |
+-          # Validate all plugin.json files against the schema
++          # Validate plugin.json files against the schema
+           for plugin_dir in */; do
+             plugin_name="${plugin_dir%/}"
+             if [ -f "$plugin_dir.claude-plugin/plugin.json" ]; then
++              # Path filter: skip plugins whose directories did not change
++              if [ "$PLUGINS_TO_VALIDATE" != "all" ] && ! jq -e --arg plugin "$plugin_name" 'index($plugin) != null' >/dev/null <<<"$PLUGINS_TO_VALIDATE"; then
++                continue
++              fi
+               echo "Schema validating $plugin_name plugin.json..."
+               check-jsonschema --schemafile schemas/plugin.schema.json "$plugin_dir.claude-plugin/plugin.json"
+             fi
+@@ -120,9 +217,11 @@ jobs:
+           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+ 
+       - name: Validate jpe-ai-delegation (the hooks module must load)
++        if: env.PLUGINS_TO_VALIDATE == 'all' || contains(env.PLUGINS_TO_VALIDATE, 'jpe-ai-delegation')
+         run: claude plugin validate ./jpe-ai-delegation
+ 
+       - name: Run jpe-ai-delegation hook tests
++        if: env.PLUGINS_TO_VALIDATE == 'all' || contains(env.PLUGINS_TO_VALIDATE, 'jpe-ai-delegation')
+         run: claude plugin test ./jpe-ai-delegation
+ 
+       - name: Run tests
+@@ -144,6 +243,7 @@ jobs:
+   # hook module under 3.9 to catch that runtime breakage before release.
+   hook-runtime-py39:
+     runs-on: ubuntu-latest
++    timeout-minutes: 10
+     steps:
+       - name: Checkout code
+         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+@@ -151,7 +251,7 @@ jobs:
+       - name: Setup Python 3.9
+         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+         with:
+-          python-version: '3.15'
++          python-version: '3.9'
+ 
+       - name: Import hook scripts under Python 3.9
+         run: ./scripts/check-hooks-py39.sh
