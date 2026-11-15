@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.64.2](https://github.com/dryvist/claude-code-plugins/compare/v6.64.1...v6.64.2) (2026-11-15)
+
+
+### Bug Fixes
+
+* **jpe-ai-delegation:** give the read-only harness a sandboxed shell that cannot write its directory ([#823](https://github.com/dryvist/claude-code-plugins/issues/823)) ([570dcab](https://github.com/dryvist/claude-code-plugins/commit/570dcab82291951004a61650ae99b75c0b5e77d2))
+
 ## [6.64.1](https://github.com/dryvist/claude-code-plugins/compare/v6.64.0...v6.64.1) (2026-11-15)
 
 
