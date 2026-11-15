@@ -1,23 +1,24 @@
 ---
 name: rebase-pr
 description: >-
-  Local rebase-merge workflow for pull requests with signed commits, pushed
-  directly to the PR's base branch. Refuses on git-flow repos when the base
-  is main — direct pushes to main are banned there; use /promote-release.
+  Recreate a conflicted PR branch on a fresh branch with signed commits, then
+  land with gh pr merge --auto. Never pushes to the base branch and never
+  updates a branch from its base.
 ---
 
 # rebase-pr
 
-Merge a PR using local `git rebase` + signed commits + a direct push to the
-PR's base branch.
+Recover a pull request that has a real merge conflict. Recreate its commits on
+a fresh branch cut from the base, with signed commits, then land with
+`gh pr merge --auto`.
 
-`gh pr merge --rebase` cannot sign commits. Local rebase with `commit.gpgsign=true`
-signs every rebased commit. Pushing the base branch directly auto-closes the PR.
+`commit.gpgsign=true` signs every rebased commit. The fresh branch replaces the
+conflicted one; the PR is landed with native auto-merge, never by a direct push
+to the base branch.
 
-This only works where direct pushes to the base branch are allowed: trunk
-repos' `main`, or a git-flow repo's `develop`. Git-flow's `main` accepts
-merge commits only and never direct pushes — Step 0 refuses before any of
-this runs.
+Nobody updates a PR branch from its base: no `gh pr update-branch`, no merging
+the base into the branch, no BEHIND sync. The queue tests the merged result.
+Only a real conflict is recreated, on a fresh branch.
 
 ## Dispatch
 
@@ -50,13 +51,11 @@ DEFAULT_BRANCH=$(gh repo view --json defaultBranchRef --jq '.defaultBranchRef.na
 If `BASE_BRANCH == main` AND `DEFAULT_BRANCH == develop` (repo is on git-flow — see
 /gh-cli-patterns Canonical Default-Branch Detection), **ABORT**:
 
-> "This is a `develop` → `main` promotion PR on a git-flow repo. Direct pushes to
-> `main` are banned there — `main` accepts merge commits only, with no exceptions.
-> Run `/promote-release` instead."
+> "This is a `develop` → `main` promotion PR on a git-flow repo. Promotion is
+> daily and automatic; agents do not promote by hand. Squash and rebase into
+> `main` are refused there — `main` accepts merge commits only."
 
-Otherwise continue — `BASE_BRANCH` is either a trunk repo's `main` or a git-flow
-repo's `develop`, both of which allow this workflow's direct push. Use
-`<BASE_BRANCH>` in every step below.
+Otherwise continue. Use `<BASE_BRANCH>` in every step below.
 
 > If the PR belongs to a stack, this workflow does not apply. Use
 > `/pr-stacks` to manage the stack.
@@ -82,106 +81,100 @@ gh api repos/<OWNER>/<REPO>/rulesets \
 
 Only `required_signatures` belongs on all-branches.
 
-## Step 1: Validate PR Ready
+## Step 1: Validate PR State
 
 Run the **canonical PR-readiness gate** from /gh-cli-patterns against
 `<PR_NUMBER>`. Replace `<OWNER>`, `<REPO>`, `<PR_NUMBER>` per the placeholder convention in
 that skill.
 
-**Abort if any fail:**
+This skill exists for a real conflict. Confirm the PR is open and conflicted
+before recreating it:
 
 | Field | Must be | Abort message |
 |-------|---------|---------------|
-| `state` | `OPEN` | "PR is not open — run `/finalize-pr` to fix" |
-| `mergeable` | `MERGEABLE` | "PR has merge conflicts — run `/finalize-pr` to fix" |
-| `mergeStateStatus` | `CLEAN` or `HAS_HOOKS` | "PR merge state is {value} — run `/finalize-pr` to fix" |
-| `isDraft` | `false` | "PR is a draft — mark ready first, then run `/finalize-pr`" |
-| `reviewDecision` | `APPROVED` or `null` | "PR needs approval — run `/finalize-pr` to fix" |
-| `statusCheckRollup.state` | `SUCCESS` | "CI is not passing: {state} — run `/finalize-pr` to fix" |
-| All `reviewThreads.isResolved` | `true` | "Unresolved review threads — run `/finalize-pr` to fix" |
+| `state` | `OPEN` | "PR is not open — nothing to recreate" |
+| `mergeable` | `CONFLICTING` | "PR has no real conflict — land it with `/merge-pr` instead" |
 | `reviewThreads.pageInfo.hasNextPage` | `false` | ">100 threads — paginate and re-verify" |
 
-## Step 2: Sync the PR Branch
+A push to a queued PR removes it from the queue. If the PR is in the merge
+queue, skip it — do not recreate or push to it. One writer at a time per PR.
 
-Use the existing PR worktree. For branch setup and PR-branch sync, follow the
-[Git Town rule](https://github.com/dryvist/ai-llm-prompts/blob/main/auto-ai-agent/instructions/agentsmd/rules/on-demand/git-flow.md).
-Then verify that the PR commits are ahead of `<BASE_BRANCH>`:
+## Step 2: Recreate The Branch On A Fresh Branch
+
+Cut a fresh branch from the base and replay the PR's commits onto it with
+signed commits. Replace `<BASE_BRANCH>` and `{branch}` before running:
+
+```bash
+git fetch origin <BASE_BRANCH>
+git switch -c {branch}-recreated origin/<BASE_BRANCH>
+git rebase --onto origin/<BASE_BRANCH> origin/<BASE_BRANCH> {branch}
+```
+
+Resolve any conflicts as the rebase pauses (see Edge Cases). Keep
+`commit.gpgsign=true` so every replayed commit is signed. Then verify the
+recreated commits are ahead of `<BASE_BRANCH>`:
 
 ```bash
 git log --oneline origin/<BASE_BRANCH>..HEAD
 ```
 
-## Step 4: Force-Push and Wait for CI
+Never merge the base into the branch and never run `gh pr update-branch`.
 
-Replace `<PR_NUMBER>` before running:
+## Step 3: Push The Fresh Branch
+
+Push the recreated branch. Replace `{branch}` before running:
 
 ```bash
-git push --force-with-lease origin {branch}
-gh pr checks <PR_NUMBER> --watch --interval 15
+git push -u origin {branch}-recreated
 ```
 
-**Do NOT proceed until all checks pass.**
-
-If force-with-lease fails on a bot branch (no upstream tracking):
+If force-with-lease is needed on a bot branch (no upstream tracking):
 
 ```bash
-git branch --set-upstream-to=origin/{branch} {branch}
-git push --force-with-lease origin {branch}
+git branch --set-upstream-to=origin/{branch}-recreated {branch}-recreated
+git push --force-with-lease origin {branch}-recreated
 ```
 
-## Step 5: Fast-Forward Merge to Base Branch
+Open a ready PR from the fresh branch against `<BASE_BRANCH>` and close the
+conflicted PR, referencing the new one. Never open a draft.
 
-Replace `<BASE_BRANCH>` before running (`cd` into that branch's own worktree, not
-necessarily a directory literally named `main`):
+## Step 4: Land With Auto-Merge
+
+Land the new PR with native auto-merge. Replace `<PR_NUMBER>` before running:
 
 ```bash
-cd ../<BASE_BRANCH>
-git merge-base --is-ancestor origin/<BASE_BRANCH> {branch}  # verify FF is possible; exit 0 = yes
-git merge --ff-only {branch}
+gh pr merge <PR_NUMBER> --auto --squash
 ```
 
-If `merge-base --is-ancestor` exits non-zero, the base branch moved since rebase — go back to Step 2.
-
-## Step 6: Push Base Branch
-
-Replace `<BASE_BRANCH>` before running:
+On a merge-queue branch this adds the PR to the queue; elsewhere it arms
+auto-merge. Never merge by hand in any other way. Verify the merge state:
 
 ```bash
-git push origin <BASE_BRANCH>
+gh pr view <PR_NUMBER> --json mergeStateStatus,autoMergeRequest
 ```
 
-If rejected with "Code scanning waiting". Replace `<PR_NUMBER>` and `<BASE_BRANCH>` before running:
+## Step 5: Cleanup
+
+After the PR is merged, clean up the old conflicted branch and its worktree:
 
 ```bash
-gh pr checks <PR_NUMBER> --watch --interval 15
-git push origin <BASE_BRANCH>   # retry after checks pass
-```
-
-Verify merged. Replace `<PR_NUMBER>` before running:
-
-```bash
-gh pr view <PR_NUMBER> --json state --jq '.state'   # expect: MERGED
-```
-
-## Step 7: Cleanup
-
-```bash
-git worktree remove {worktree-path}   # remove the merged PR's worktree if one exists
-git branch -d {branch}              # use -D only after confirming state=MERGED
+git worktree remove {worktree-path}   # remove the old PR's worktree if one exists
+git branch -d {branch}                # use -D only after confirming state=MERGED
 git push origin --delete {branch}
 git worktree prune
 ```
 
 ## Never Do This
 
-- **NEVER** use `gh pr merge` — GitHub cannot sign rebase commits
+- **NEVER** push to the base branch — land only with `gh pr merge --auto`
+- **NEVER** run `gh pr update-branch` or merge the base into the branch
 - **NEVER** `git push --force origin <BASE_BRANCH>` — only force-push feature branches
 - **NEVER** create a local branch from `FETCH_HEAD` — use `origin/{branch}`
-- **NEVER** push to the base branch before CI passes on the rebased branch
 - **NEVER** skip the GraphQL PR validation check
 - **NEVER** use `git branch -D` without first confirming `state=MERGED`
 - **NEVER** fix issues inline — if validation fails, abort and suggest `/finalize-pr`
-- **NEVER** run this skill's push step against `main` on a git-flow repo — the
+- **NEVER** push to a PR that is in the merge queue — a push removes it from the queue
+- **NEVER** recreate a promotion PR into `main` on a git-flow repo — the
   Prerequisite step must have already refused; if it didn't, stop and re-check
 
 ## Edge Cases
@@ -196,15 +189,8 @@ git add {conflicted-files}
 git rebase --continue
 ```
 
-**Push to base branch rejected (code scanning):**
-Wait for CI with `gh pr checks <PR_NUMBER> --watch --interval 15`, then retry push.
-
 **PR already merged:**
-Skip Steps 1–6. Go directly to Step 7 cleanup.
-
-**merge-base --is-ancestor exits non-zero:**
-The base branch moved while you were waiting for CI. Follow the Git Town rule
-to sync the PR branch, then repeat the checks before retrying.
+Skip Steps 1–4. Go directly to Step 5 cleanup.
 
 ### Pre-Push Hook Auto-Fixes Files
 
@@ -215,17 +201,15 @@ to sync the PR branch, then repeat the checks before retrying.
 ```bash
 git add -A
 git commit -m "style: apply pre-push hook auto-fixes"
-git push --force-with-lease origin {branch}
+git push --force-with-lease origin {branch}-recreated
 ```
 
 This commonly occurs with release-please CHANGELOG.md entries that don't conform to markdownlint rules.
 
 ## Related Skills
 
-- **merge-pr** (github-workflows) — Merge after rebase-pr prepares the branch
-- **finalize-pr** (github-workflows) — Full PR finalization pipeline that may invoke rebase-pr
-- **promote-release** (github-workflows) — The develop → main merge-commit path this skill refuses to substitute for
+- **merge-pr** (github-workflows) — arms native auto-merge after rebase-pr recreates the branch
+- **finalize-pr** (github-workflows) — full PR finalization pipeline that may invoke rebase-pr
 - **pr-stacks** (github-workflows) — stack submission and merge tracking
-- For branch creation and PR-branch sync, follow the [Git Town rule](https://github.com/dryvist/ai-llm-prompts/blob/main/auto-ai-agent/instructions/agentsmd/rules/on-demand/git-flow.md).
 - **pr-standards** (github-workflows) — PR creation and review standards
-- **gh-cli-patterns** (github-workflows) — Canonical gh CLI command shapes, placeholder convention, PR-readiness gate, default-branch detection
+- **gh-cli-patterns** (github-workflows) — canonical gh CLI command shapes, placeholder convention, PR-readiness gate, default-branch detection

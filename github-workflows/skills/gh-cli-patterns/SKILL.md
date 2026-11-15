@@ -36,7 +36,7 @@ Standard replacements:
 ## Canonical Default-Branch Detection
 
 Repos in this org run one of two branch models. Detect which one before
-using any literal `main` in a PR base, sync target, or merge command:
+using any literal `main` in a PR base or merge command:
 
 ```bash
 gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name'
@@ -45,8 +45,8 @@ gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name'
 
 | `<DEFAULT_BRANCH>` | Model | What it means for skills in this plugin |
 |---|---|---|
-| `main` | Trunk | `main` is both the default branch and production. `/merge-pr` merges into it with its normal default (merge commit) or `--squash`/`-s`. |
-| `develop` | git-flow (see [git-flow rule](https://github.com/dryvist/ai-llm-prompts/blob/main/auto-ai-agent/instructions/agentsmd/rules/on-demand/git-flow.md)) | `develop` is the default integration branch — feature PRs target it, `/merge-pr`'s default (merge commit) or `--squash` both apply. `main` is production only: **merge commits only**, no direct pushes. Release-please opens the release PR on `develop` and tags its commit after promotion to `main`. |
+| `main` | Trunk | `main` is both the default branch and production. `/merge-pr` arms auto-merge into it with its normal default (merge commit) or `--squash`/`-s`. |
+| `develop` | git-flow (see [git-flow rule](https://github.com/dryvist/ai-llm-prompts/blob/main/auto-ai-agent/instructions/agentsmd/rules/on-demand/git-flow.md)) | `develop` is the default integration branch — feature PRs target it, `/merge-pr`'s default (merge commit) or `--squash` both apply. `main` is production only: **merge commits only**, no direct pushes. Promotion from `develop` to `main` is daily and automatic; agents do not promote by hand. |
 
 **Never infer the model from the current local branch name** — always read
 `defaultBranchRef` (or `origin/HEAD`) fresh, since it can differ per repo and
@@ -54,8 +54,51 @@ per invocation.
 
 A PR's own base branch (`gh pr view --json baseRefName --jq '.baseRefName'`)
 can still be `main` on a git-flow repo — that is a promotion PR (`develop` →
-`main`), not a feature PR, and it is merge-commit-only regardless of what
-this section's detection returns. See `/promote-release`.
+`main`), not a feature PR. Promotion is daily and automatic; agents do not
+promote by hand, and squash/rebase into `main` is refused.
+
+## Merge Tiers And Landing
+
+A repository has a custom property `merge_tier`:
+
+| `merge_tier` | Behavior |
+|---|---|
+| `hot` | Native merge queue on the default branch; heavy checks run once in the queue. |
+| `standard` | No queue; native auto-merge. |
+| `legacy` | Behaves as before. |
+
+To land a pull request an agent runs `gh pr merge <number> --auto --squash`
+(merge commit only for a promotion into `main` on a git-flow repository). On a
+queue branch this adds the pull request to the merge queue; elsewhere it arms
+auto-merge. An agent never merges by hand in another way.
+
+Every agent pull request is opened ready, never as a draft. The platform arms
+native auto-merge on it. No person approves or clicks merge. The only hold is
+the label `human:review`; agents never add it.
+
+Nobody updates a pull request branch from its base: no `gh pr update-branch`,
+no merging the base into the branch, no BEHIND sync. The queue tests the merged
+result. A branch with a real conflict is recreated on a fresh branch. A push to
+a queued pull request removes it from the queue, so writers skip a pull request
+that is in the queue. One writer at a time per pull request.
+
+Lanes: tiny (10 changed lines or fewer, all low-risk files) and land-first
+(label `land-first`, no guarded path) merge on fast checks and get their heavy
+checks and review after merge (label `checks:deferred`). Normal and guarded
+lanes get review and heavy checks before merge.
+
+There is no release freeze and no `release:in-progress` label. Promotion from
+the default branch to `main` on git-flow repositories is daily and automatic.
+Agents do not promote by hand.
+
+The pr-shepherd agent handles only two things: merge conflicts, and a CHANGES
+verdict from `AI Merge Gate`. It skips queued pull requests.
+
+Read merge state with:
+
+```bash
+gh pr view <PR_NUMBER> --json mergeStateStatus,autoMergeRequest
+```
 
 ## `gh pr view --json` — REST-Only
 
@@ -131,19 +174,17 @@ Required values — abort if any fail:
 | All `reviewThreads.isResolved` | `true` | "Unresolved threads" |
 | `reviewThreads.pageInfo.hasNextPage` | `false` | ">100 threads — paginate" |
 
-Read the required contexts from the base branch rules and compare them with
-the rollup context names (`.name // .context`) before declaring the gate ready:
-
-```bash
-gh api repos/<OWNER>/<REPO>/rules/branches/<BASE> \
-  --jq '[.[]|select(.type=="required_status_checks")|.parameters.required_status_checks[].context]'
-```
+The required status-check contexts are exactly `gate / Merge Gate` and
+`AI Merge Gate`. `AI Merge Gate` is a check posted by a reviewer App after a
+different-model review. There is no verdict file and no merge script. Compare
+the required contexts with the rollup context names (`.name // .context`)
+before declaring the gate ready.
 
 Fetch and evaluate the complete [PR feedback ledger](references/pr-feedback-ledger.md).
 An absent required context is reported by name as `required check never reported`,
 never as a bare `BLOCKED` result.
 
-> NOT-ready `mergeStateStatus` values: `BEHIND`, `BLOCKED`, `DIRTY`, `DRAFT`, `UNKNOWN`, `UNSTABLE`.
+> NOT-ready `mergeStateStatus` values: `BLOCKED`, `DIRTY`, `DRAFT`, `UNKNOWN`, `UNSTABLE`.
 
 ## Canonical Code-Scanning Alert Count
 

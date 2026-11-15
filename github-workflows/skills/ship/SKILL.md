@@ -56,19 +56,17 @@ git status --porcelain
 **If changes exist** (staged or unstaged), execute inline:
 
 0. **Claim check** (session-coordination rule): before creating a new PR,
-   search for a competing claim — an open PR (draft or ready) from another
+   search for a competing claim — an open PR from another
    session covering the same issue or files:
 
    ```bash
-   gh pr list --state open --json number,title,isDraft,headRefName,body
+   gh pr list --state open --json number,title,headRefName,body
    ```
 
    If one exists, do NOT create a duplicate: stop, report the competing PR,
    and offer consolidation (comment with your session id; earliest claim
    wins). Otherwise continue.
-1. If on the default branch, follow the
-   [Git Town rule](https://github.com/dryvist/ai-llm-prompts/blob/main/auto-ai-agent/instructions/agentsmd/rules/on-demand/git-flow.md)
-   to create `{type}/{sid8}-{description}` (derive from changes; `{sid8}` = session id per session-coordination).
+1. If on the default branch, create `{type}/{sid8}-{description}` (derive from changes; `{sid8}` = session id per session-coordination).
 2. Stage changes: `git add <relevant files>` (no `-A` — be selective)
 3. Commit with conventional commit message: `git commit -m "type: description"`
 4. **Simplify**: Invoke /simplify on all changes in the commit. If /simplify produces
@@ -78,13 +76,11 @@ git status --porcelain
    `npm run lint`, `make lint`, etc.). If failures are found, fix them and amend the commit.
    Skip this step if no lint command is discoverable.
 6. Push: `git push -u origin HEAD`
-7. Create a PR: `gh pr create --fill` (or with title/body derived from the commit).
-   Use a draft if it must wait for a person. Include the
-   session id (`<runtime>-<host>-<8hex>`) in the PR body. The org `pr-automerge`
-   workflow arms non-draft PRs; agents never arm auto-merge.
-   It uses a merge commit for PRs into `main` on git-flow repos and squash otherwise.
-   It never arms `develop` to `main` promotions. Never assume the PR merged;
-   verify its state before reporting.
+7. Create a ready PR: `gh pr create --fill` (or with title/body derived from the commit).
+   Never open a draft. Include the session id (`<runtime>-<host>-<8hex>`) in the PR body.
+   The platform arms native auto-merge on the ready PR. No person approves or clicks
+   merge; the only hold is the label `human:review`, which agents never add.
+   Never assume the PR merged; verify its state before reporting.
 8. **Pacing**: Run `sleep 2` after `gh pr create` to allow GitHub to index the PR
 9. Capture PR number from output (look for `pull/NUMBER` pattern)
 10. Add it to the PR list
@@ -149,12 +145,6 @@ Invoke `/finalize-pr <PR_NUMBER>` directly via the Skill tool — no subagent ne
 The context brief from Step 1.5 is already in session context and will be available
 when `/finalize-pr` invokes `/resolve-pr-threads`.
 
-> [!IMPORTANT]
-> If the repo uses Git Flow (default branch is `develop`), once the feature PR is
-> merged into `develop` and validated, you must promote `develop` to `main` using
-> `/promote-release`. Add a reminder to the active session checklist to perform
-> this merge before completing the session.
-
 ### Multiple PRs (2+ PRs in list)
 
 Process PRs **sequentially** — invoke `/finalize-pr` for each PR one at a time
@@ -181,6 +171,11 @@ local fan-out; see [the claude-projects rule](https://github.com/dryvist/ai-llm-
 
 **Do NOT run `/resolve-pr-threads` separately** — `/finalize-pr` already invokes it
 internally. Running both causes race conditions on GraphQL mutations and git pushes.
+
+**Writer rules**: one writer at a time per PR. A push to a queued PR removes it
+from the queue, so skip a PR that is in the merge queue. Read the merge state
+with `gh pr view <PR_NUMBER> --json mergeStateStatus,autoMergeRequest` before
+pushing.
 
 ## Step 3: Aggregate Results
 
@@ -238,7 +233,6 @@ PRs in the current repo (including unrelated ones).
 ## Related Skills
 
 - finalize-pr (github-workflows) — invoked by ship to drive each PR to mergeable state
-- merge-pr (github-workflows) — merge a PR after ship reports it ready
+- merge-pr (github-workflows) — arms native auto-merge after ship reports a PR ready
 - resolve-pr-threads (github-workflows) — invoked internally via finalize-pr to resolve review threads
 - gh-cli-patterns (github-workflows) — canonical gh CLI command shapes, placeholder convention, PR gate, code-scanning query
-- For branch creation and PR-branch sync, follow the [Git Town rule](https://github.com/dryvist/ai-llm-prompts/blob/main/auto-ai-agent/instructions/agentsmd/rules/on-demand/git-flow.md).

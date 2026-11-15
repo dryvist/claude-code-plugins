@@ -1,32 +1,36 @@
 ---
 name: merge-pr
 description: >-
-  Merge a PR into its base branch. Defaults to a merge commit; pass --squash
-  or -s to squash instead. Falls back to squash when the repo disallows merge
-  commits. Single PR by number or current branch. Refuses to squash/rebase into
-  main on a git-flow repo — use /promote-release there instead.
+  Arm native auto-merge on a PR with gh pr merge --auto. Defaults to a merge
+  commit; pass --squash or -s to squash instead. Falls back to squash when the
+  repo disallows merge commits. Single PR by number or current branch. Refuses
+  to squash/rebase into main on a git-flow repo; promotion is daily and automatic.
 metadata:
   argument-hint: "[PR_NUMBER] [--squash|-s]"
 ---
 
 # Merge PR
 
-Validates readiness, invokes `/finalize-pr` for soft blocks, then merges.
-Hard stops abort immediately. Some cases require human action: closed/merged PR,
-draft, unresolvable conflicts, unrecoverable CI, or more than 100 review threads.
+Validates readiness, invokes `/finalize-pr` for soft blocks, then arms native
+auto-merge. Hard stops abort immediately. Some cases require human action:
+closed/merged PR, unresolvable conflicts, unrecoverable CI, or more than 100
+review threads.
 
 > **State warning**: Branch state, remote tracking, and PR status change between
 > invocations. Re-run all git/gh commands from Step 1.
 
 ## Critical Rules
 
-- Run the [canonical PR-readiness gate](../gh-cli-patterns/SKILL.md#canonical-pr-readiness-gate) on every invocation before merging
+- Run the [canonical PR-readiness gate](../gh-cli-patterns/SKILL.md#canonical-pr-readiness-gate) on every invocation before arming auto-merge
 - PR metadata updates are `/finalize-pr`'s responsibility
 - Invoke `/finalize-pr` for soft blocks; abort on hard stops with reason
+- Land only with `gh pr merge <PR_NUMBER> --auto` plus the resolved method flag.
+  On a merge-queue branch this adds the PR to the queue; elsewhere it arms
+  auto-merge. Never merge by hand in any other way.
 - Merge commit is the default; `--squash`/`-s` opts into a squash merge
 - Squash and rebase are never used to merge into `main` on a git-flow repo —
-  Step 0 guards this. Plain merge commit into `main` on a git-flow repo IS
-  allowed — that's the `/promote-release` path.
+  Step 0 guards this. Promotion from the default branch to `main` is daily and
+  automatic; agents do not promote by hand.
 - If the PR belongs to a stack, merging it lands every unmerged layer below it
   atomically, and a partial merge auto-retargets the layers above. Do not treat
   those as orphans; see `/pr-stacks`.
@@ -41,18 +45,12 @@ DEFAULT_BRANCH=$(gh repo view --json defaultBranchRef --jq '.defaultBranchRef.na
 ```
 
 If `BASE_BRANCH == main` AND `DEFAULT_BRANCH == develop` (repo is on git-flow —
-see /gh-cli-patterns Canonical Default-Branch Detection):
+see /gh-cli-patterns Canonical Default-Branch Detection), **abort immediately,
+no finalize**:
 
-- **`--squash`/`-s` was passed → abort immediately, no finalize**:
-
-  > "This is a `develop` → `main` promotion PR on a git-flow repo. `main` accepts
-  > merge commits only — squash and rebase are banned by ruleset, no exceptions.
-  > Run `/promote-release` instead, or merge manually with `gh pr merge --merge`."
-
-- **No `--squash` (default merge commit) → this is a legitimate promotion.**
-  Continue to Step 1, but note in the final report that `/promote-release` is
-  the normal entry point for this (it also opens the PR and explains
-  release-please) — this invocation may be a manual equivalent of that.
+> "This is a `develop` → `main` promotion PR on a git-flow repo. Promotion is
+> daily and automatic; agents do not promote by hand. `main` accepts merge
+> commits only — squash and rebase are banned by ruleset, no exceptions."
 
 Otherwise (trunk repo, or a git-flow repo's ordinary feature PR into `develop`),
 continue to Step 1 with the requested (or default) merge method.
@@ -141,21 +139,21 @@ Store the title in a shell variable:
 SQUASH_TITLE="<generated title>"
 ```
 
-## Step 3: Execute The Merge
+## Step 3: Arm Native Auto-Merge
 
-Capture the branch name before merging (needed for cleanup). Replace `<PR_NUMBER>` before running:
+Capture the branch name (needed for cleanup and the report). Replace `<PR_NUMBER>` before running:
 
 ```bash
 BRANCH=$(gh pr view <PR_NUMBER> --json headRefName --jq '.headRefName')
 ```
 
 Merge without `--delete-branch` (avoids `git switch` failure in bare+worktree repos).
-Use the heredoc body pattern from /gh-cli-patterns.
+Use the heredoc body pattern from /gh-cli-patterns. Always pass `--auto`.
 
 **Squash** (Step 0.5 resolved to squash, whether by `--squash`/`-s` or fallback):
 
 ```bash
-gh pr merge <PR_NUMBER> --squash --subject "$SQUASH_TITLE" --body "$(cat <<'EOF'
+gh pr merge <PR_NUMBER> --auto --squash --subject "$SQUASH_TITLE" --body "$(cat <<'EOF'
 ... generated body ...
 EOF
 )"
@@ -164,12 +162,35 @@ EOF
 **Merge commit** (default):
 
 ```bash
-gh pr merge <PR_NUMBER> --merge
+gh pr merge <PR_NUMBER> --auto --merge
 ```
 
 Single-quoted `'EOF'` prevents shell expansion. Closing `EOF` must be alone on its own line with no leading whitespace.
 
-Delete the remote branch (GitHub may have auto-deleted it on merge — `|| true` handles that):
+On a merge-queue branch (`merge_tier: hot`, base is the default branch) this adds
+the PR to the merge queue; elsewhere it arms auto-merge. The platform merges when
+the required checks pass. No person approves or clicks merge. The only hold is
+the label `human:review`; agents never add it.
+
+Verify the merge state. Replace `<PR_NUMBER>` before running:
+
+```bash
+gh pr view <PR_NUMBER> --json mergeStateStatus,autoMergeRequest
+```
+
+Never merge by hand in any other way, and never wait-then-merge. A push to a
+queued PR removes it from the queue — do not push to a queued PR.
+
+Clean up only after the PR is actually merged. Check the state:
+
+```bash
+gh pr view <PR_NUMBER> --json state --jq '.state'
+```
+
+If the state is not `MERGED`, stop here and report that auto-merge is armed.
+Leave the branch and worktree in place; the platform merges when checks pass.
+
+If the state is `MERGED`, delete the remote branch (GitHub may have auto-deleted it on merge — `|| true` handles that):
 
 ```bash
 git push origin --delete "$BRANCH" || true
@@ -190,6 +211,8 @@ git branch -d "$BRANCH" || true
 
 ## Step 4: Sync Base Branch
 
+Run only after the PR is merged:
+
 ```bash
 git switch <BASE_BRANCH>
 git pull origin <BASE_BRANCH>
@@ -201,17 +224,16 @@ git worktree prune
 Invoke at any time — auto-finalizes if needed:
 
 ```text
-/merge-pr             # Current branch PR, merge commit
-/merge-pr 42          # Specific PR number, merge commit
-/merge-pr 42 --squash # Specific PR number, squash merge
-/merge-pr -s          # Current branch PR, squash merge
+/merge-pr             # Current branch PR, arms auto-merge (merge commit)
+/merge-pr 42          # Specific PR number, arms auto-merge (merge commit)
+/merge-pr 42 --squash # Specific PR number, arms auto-merge (squash)
+/merge-pr -s          # Current branch PR, arms auto-merge (squash)
 ```
 
 ## Related Skills
 
 - finalize-pr (github-workflows) — invoked automatically by merge-pr when blockers are found
-- rebase-pr (github-workflows) — alternative merge strategy that preserves commit history
+- rebase-pr (github-workflows) — recreates a conflicted PR branch on a fresh branch, then arms auto-merge
 - pr-stacks (github-workflows) — stack-aware merge: landing a layer takes every unmerged layer below it
-- promote-release (github-workflows) — the develop → main promotion path; calls this skill directly and never squashes
 - pr-standards (github-workflows) — PR authoring and review standards
 - gh-cli-patterns (github-workflows) — canonical gh CLI command shapes, placeholder convention, PR-readiness gate, default-branch detection

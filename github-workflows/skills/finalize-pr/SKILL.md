@@ -33,10 +33,8 @@ to fix; `/simplify` ran once after all other fixes (Step 2.3.5 — pre-push
 simplification is `/ship`'s job, not this skill's); local linters and tests
 pass; title/description/linked-issues were regenerated via a delegate (routing per core AGENTS.md)
 before reporting ready; bot-authored PRs (dependabot, release-please,
-claude, github-actions, etc.) were never filtered out; org mode never
-crossed the org boundary the current repo implies; and, on a Git Flow repo,
-the post-merge `develop`→`main` promotion via `/promote-release` was added
-to the active session checklist as mandatory, not optional.
+claude, github-actions, etc.) were never filtered out; and org mode never
+crossed the org boundary the current repo implies.
 
 ## Phase 1: PR Discovery and Targeting
 
@@ -90,6 +88,11 @@ start of each iteration. For org-wide mode, use `repository.nameWithOwner` from 
 
 Steps 2.1 and 2.2 start concurrently (2.1 is non-blocking). Steps 2.3 and 2.4 run sequentially after 2.2.
 
+**Writer rules**: one writer at a time per PR. A push to a queued PR removes it
+from the queue, so skip a PR that is in the merge queue. Read the merge state
+with `gh pr view <PR_NUMBER> --json mergeStateStatus,autoMergeRequest` before
+pushing.
+
 ### 2.1 Start CI Monitoring (BACKGROUND)
 
 Launch CI monitoring in a background Task agent (`run_in_background: true` on the Task tool).
@@ -117,14 +120,13 @@ After completion, validate locally.
 
 #### Merge State and Conflicts
 
-If `mergeStateStatus` is `BEHIND`, follow the
-[Git Town rule](https://github.com/dryvist/ai-llm-prompts/blob/main/auto-ai-agent/instructions/agentsmd/rules/on-demand/git-flow.md)
-to sync the PR branch before continuing. For a `develop` → `main` promotion PR, use `/promote-release`.
+Nobody updates a PR branch from its base: no `gh pr update-branch`, no merging
+the base into the branch, no BEHIND sync. The queue tests the merged result.
 
 Check if the PR has git conflicts (`mergeable` field). **`mergeable: MERGEABLE` means no git
-conflicts only** — it does NOT mean the PR is fully ready to merge. **If conflicts**: sync the
-PR branch using the Git Town rule above, resolve conflicts locally, and report any that remain.
-After resolution, validate locally. Full
+conflicts only** — it does NOT mean the PR is fully ready to merge. **If a real conflict**:
+recreate the branch on a fresh branch with `/rebase-pr`, then land with
+`gh pr merge --auto`. After resolution, validate locally. Full
 readiness verification (including `mergeStateStatus`, CI, CodeQL, review decision, threads) happens
 in Phase 3.
 
@@ -169,8 +171,8 @@ that skill.
 | Field | Required | Abort message |
 |-------|---------|---------------|
 | `state` | `OPEN` | "PR is not open" |
-| `mergeable` | `MERGEABLE` | "PR has git conflicts — rebase/merge in Phase 2" |
-| `mergeStateStatus` | `CLEAN` or `HAS_HOOKS` | "PR merge state is `{value}` — update a `BEHIND` branch in Phase 2; repair other blockers" |
+| `mergeable` | `MERGEABLE` | "PR has git conflicts — recreate the branch in Phase 2" |
+| `mergeStateStatus` | `CLEAN` or `HAS_HOOKS` | "PR merge state is `{value}` — repair blockers in Phase 2" |
 | `isDraft` | `false` | "PR is a draft — mark ready for review first" |
 | `reviewDecision` | `APPROVED` or `null` | "Review decision is `{value}` — changes requested or required" |
 | `statusCheckRollup.state` | `SUCCESS` | "CI rollup is `{state}` — fix failures in Phase 2" |
@@ -179,9 +181,8 @@ that skill.
 | All `reviewThreads.isResolved` | `true` | "Unresolved threads — run `/resolve-pr-threads`" |
 | `reviewThreads.pageInfo.hasNextPage` | `false` | "More than 100 threads — paginate manually and re-verify" |
 
-> **`mergeStateStatus` values that are NOT ready:** `BEHIND` (follow the Git Town rule from Phase 2),
-> `BLOCKED` (branch protection — could be required review, CodeQL, or required
-> status check), `DIRTY` (conflicts), `DRAFT`, `UNKNOWN` (GitHub computing),
+> **`mergeStateStatus` values that are NOT ready:** `BLOCKED` (branch protection — could be
+> a required status check), `DIRTY` (conflicts), `DRAFT`, `UNKNOWN` (GitHub computing),
 > `UNSTABLE` (checks failed or pending). Any of these = return to Phase 2.
 
 ### 3.2 CodeQL Gate (REST — separate from CI, re-run now)
@@ -245,10 +246,9 @@ For `all`/`org` modes: Phases 2-5 loop per PR, Phase 6 aggregates results.
 
 ## Related Skills
 
-- merge-pr (github-workflows) — merge a PR after finalize-pr reports ready
+- merge-pr (github-workflows) — arms native auto-merge after finalize-pr reports ready
 - resolve-pr-threads (github-workflows) — invoked internally to resolve review threads
-- rebase-pr (github-workflows) — alternative merge strategy after finalize-pr reports ready
+- rebase-pr (github-workflows) — recreates a conflicted branch on a fresh branch, then arms auto-merge
 - pr-standards (github-workflows) — PR authoring and review standards
 - code-quality-standards (code-standards) — code quality guidelines applied during fixes
 - gh-cli-patterns (github-workflows) — canonical gh CLI command shapes, placeholder convention, PR gate, code-scanning query
-- For branch creation and PR-branch sync, follow the [Git Town rule](https://github.com/dryvist/ai-llm-prompts/blob/main/auto-ai-agent/instructions/agentsmd/rules/on-demand/git-flow.md).

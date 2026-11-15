@@ -44,7 +44,7 @@ Blocked — needs human (2):
 | Emoji | Condition |
 |-------|-----------|
 | ✅ | `mergeable == MERGEABLE` AND `mergeStateStatus == CLEAN` or `HAS_HOOKS`, no unresolved threads, zero unaddressed feedback, and every required check reported |
-| 🟡 | `mergeStateStatus == BEHIND`/`UNKNOWN`/`UNSTABLE`, `reviewDecision == REVIEW_REQUIRED`, or `mergeable == UNKNOWN` (GitHub computing) |
+| 🟡 | `mergeStateStatus == UNKNOWN`/`UNSTABLE`, `reviewDecision == REVIEW_REQUIRED`, or `mergeable == UNKNOWN` (GitHub computing) |
 | 🔴 | `mergeable == CONFLICTING`, `mergeStateStatus == BLOCKED`/`DIRTY`/`DRAFT`, `reviewDecision == CHANGES_REQUESTED`, unresolved threads, unaddressed feedback, a required check never reported, `isDraft == true`, or CI failed |
 
 ## Status tags
@@ -62,7 +62,6 @@ Append after the URL, separated by ` | `. Omit when no issues exist ("Ready for 
 | `CI pending` | `statusCheckRollup.state != SUCCESS` | `mergeStateStatus == UNKNOWN`/`UNSTABLE` |
 | `CI failed` | CI checks terminal failure | `mergeStateStatus == BLOCKED` (when other fields clean) |
 | `Draft` | `isDraft == true` | `isDraft == true` |
-| `Behind {default}` | `mergeStateStatus == BEHIND` | `mergeStateStatus == BEHIND` |
 
 ## Data queries
 
@@ -70,6 +69,12 @@ Append after the URL, separated by ` | `. Omit when no issues exist ("Ready for 
 
 ```bash
 gh pr view <PR_NUMBER> --json url --jq '.url'
+```
+
+**Read merge state** (auto-merge armed, queue status):
+
+```bash
+gh pr view <PR_NUMBER> --json mergeStateStatus,autoMergeRequest
 ```
 
 **Fetch all open PRs** (for Section 2 — one GraphQL call per affected repo):
@@ -95,8 +100,9 @@ gh api graphql -f query='
 
 For org-wide mode, run once per repo from Phase 1 discovery, replacing `<OWNER>`/`<REPO>`.
 
-For each PR, compare the base branch's required contexts with the complete
-rollup context names using the [canonical PR-readiness gate](../SKILL.md#canonical-pr-readiness-gate).
+For each PR, compare the required contexts (`gate / Merge Gate` and
+`AI Merge Gate`) with the complete rollup context names using the
+[canonical PR-readiness gate](../SKILL.md#canonical-pr-readiness-gate).
 Report an absent required context by name as `required check never reported`;
 see [github-actions-silent-failures](../../github-actions-silent-failures/SKILL.md).
 
@@ -117,11 +123,12 @@ see [github-actions-silent-failures](../../github-actions-silent-failures/SKILL.
 ## Merge commands
 
 All modes: `/merge-pr <NUMBER>` — run from the worktree of the target repo.
-The repo context is shown as a label, not a flag (the skill has no `--repo` argument):
+`/merge-pr` arms native auto-merge with `gh pr merge --auto`. The repo context
+is shown as a label, not a flag (the skill has no `--repo` argument):
 
 ```text
 Ready to merge (1):
-  /merge-pr 42   (JacobPEvans/claude-code-plugins)
+  /merge-pr 42   (<OWNER>/<REPO>)
 ```
 
 For org-wide mode, note the target repo so the user knows which worktree to navigate to.
