@@ -1,0 +1,8 @@
+# commit-check: the tool's default branch types plus `topic` for shared topic branches.
+[branch]
+conventional_branch = true
+allow_branch_types = [
+  "feature", "bugfix", "hotfix", "release", "chore", "feat", "fix", "build", "ci", "docs", "perf",
+  "refactor", "style", "test", "ai", "claude", "codex", "copilot", "cursor", "agents", "dependabot",
+  "renovate", "topic",
+]
