@@ -2,7 +2,7 @@ import { describe, expect, test } from 'claude-code/testing'
 import type { EngineInterface } from 'claude-code'
 import { endAnchor, jobHistory, jobState, recentFailures } from './lib/policy'
 import { register } from './register'
-import { CODEX, CLASSIFIER, CODEX_QUOTA_THRESHOLD, EXECUTOR_TABLE, LAST_RESORT, codexArgv, eligibleRows, mergeExecutorRows, metricsResult, parseCodexQuota, peakMultiplier, QUOTA_SELECTOR, quotaFromMetrics, rankRows, repositoryFromOrigin, validRow, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, lastRungMarker, localTask, mandatoryLabel, newestModel, parseVerdict, pickLocal, promptToken, safePayload, scoreWindows, budgetsFromMetrics, forbiddenRowModel, KIND_CLASSIFIER, parseKind } from './lib/policy'
+import { CODEX, CLASSIFIER, CODEX_QUOTA_THRESHOLD, EXECUTOR_TABLE, LAST_RESORT, codexArgv, harnessArgv, eligibleRows, mergeExecutorRows, metricsResult, parseCodexQuota, peakMultiplier, QUOTA_SELECTOR, quotaFromMetrics, rankRows, repositoryFromOrigin, validRow, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, lastRungMarker, localTask, mandatoryLabel, newestModel, parseVerdict, pickLocal, promptToken, safePayload, scoreWindows, budgetsFromMetrics, forbiddenRowModel, KIND_CLASSIFIER, parseKind } from './lib/policy'
 import { customAgentSandbox, parseAgentDefinition } from './lib/agent-definition'
 import { RECORDED_QUOTA } from './fixtures/quota-instant-query'
 
@@ -20,6 +20,7 @@ type World = {
   quota?: number; codexWindows?: unknown[]; cursorWindows?: unknown[]; now?: number; gatewayFinish?: string; quotaThrows?: boolean; cache?: boolean; codexExit?: number; answer?: string; label?: string
   codexQuota?: 'absent' | 'hangs' | 'refused' | string
   env?: Record<string, string>; definition?: string; files?: Record<string, string>; fsThrows?: boolean; worktreeExit?: number; temporaryExit?: number
+  harnessAnswer?: string; harnessStdout?: string; harnessExit?: number; harnessElapsedMs?: number
   repository?: unknown; properties?: unknown; githubPrivateAuth?: boolean; githubAuthDenied?: boolean; pr?: unknown; githubError?: boolean; githubInvalidJson?: boolean
   originUrl?: string; pathRealpaths?: Record<string, string>; pathGitRoots?: Record<string, string>; unresolvedPaths?: string[]; pathKinds?: Record<string, 'file' | 'directory'>
   zcodeExit?: number; zcodeOutput?: string; zcodeAvailable?: boolean; zcodeThrows?: boolean; zcodeTruncated?: boolean
@@ -85,7 +86,7 @@ function world(w: World = {}) {
   const $ = {
     env: { get: async (key: string) => { if (key === w.envThrows) throw new Error('environment read failed'); return env[key] } },
     session: { cwd: async () => '/workspace' },
-    clock: { now: async () => { if (w.clockThrows) throw new Error('clock failed'); if (w.clockHangs) return new Promise<number>(() => {}); return clockNow }, after: (delay: number, callback: () => void) => { if ((w.clockHangs && delay === 5_000) || (w.gatewayTimeout && delay >= 60_000) || (w.quotaTimeout && delay === 3_000) || (w.classifierTimeout && delay === 20_000) || (w.codexQuota === 'hangs' && delay === 15_000) || (w.statusHangs && (delay === 3_000 || delay === 15_000))) Promise.resolve().then(callback); return { cancel() {} } } },
+    clock: { now: async () => { if (w.clockThrows) throw new Error('clock failed'); if (w.clockHangs) return new Promise<number>(() => {}); return clockNow }, after: (delay: number, callback: () => void) => { if ((w.clockHangs && delay === 5_000) || (w.gatewayTimeout && (delay >= 60_000 || delay === 20_000)) || (w.quotaTimeout && delay === 3_000) || (w.classifierTimeout && delay === 20_000) || (w.codexQuota === 'hangs' && delay === 15_000) || (w.statusHangs && (delay === 3_000 || delay === 15_000))) Promise.resolve().then(callback); return { cancel() {} } } },
     ui: { log: (line: string) => logs.push(line) },
     fs: {
       ...fs,
@@ -125,6 +126,12 @@ function world(w: World = {}) {
       if (argv[0] === 'codex') {
         output = init?.stdin?.startsWith('Classify the delegated task') ? w.label ?? 'standard' : w.answer ?? 'task result'
         return { ...RAN, exitCode: w.codexExit ?? 0 }
+      }
+      if (argv[0] === 'claude') {
+        // Unless the world answers the harness, the child fails its check as before the knob existed.
+        if (w.harnessAnswer === undefined && w.harnessStdout === undefined && w.harnessExit === undefined) return RAN
+        clockNow += w.harnessElapsedMs ?? 0
+        return { ...RAN, exitCode: w.harnessExit ?? 0, stdout: w.harnessStdout ?? JSON.stringify({ is_error: false, result: w.harnessAnswer }) }
       }
       if (argv[0] === 'codex-quota') {
         if (w.codexQuota === undefined || w.codexQuota === 'absent') throw new Error('spawn codex-quota ENOENT')
@@ -274,6 +281,31 @@ describe('policy', () => {
     expect(parseCodexQuota('{"p":"40"}', 80)).toEqual({ kind: 'unknown' })
     expect(parseCodexQuota('no object here', 80)).toEqual({ kind: 'unknown' })
     expect(parseCodexQuota('', 80)).toEqual({ kind: 'unknown' })
+  })
+  test('the harness rows lead the table, take private work and build the two exact command lines', () => {
+    expect(EXECUTOR_TABLE[0].transport).toBe('harness')
+    expect(EXECUTOR_TABLE[0].private_ok).toBe(true)
+    expect(eligibleRows([EXECUTOR_TABLE[0]], false, 0).rows.map((r) => r.id)).toEqual(['homelab-harness'])
+    expect(harnessArgv('read-only')).toEqual(['claude', '-p', '--bare', '--exclude-dynamic-system-prompt-sections', '--no-session-persistence', '--output-format', 'json', '--max-turns', '40', '--permission-mode', 'dontAsk', '--tools', 'Read,Grep,Glob'])
+    expect(harnessArgv('workspace-write')).toEqual(['claude', '-p', '--bare', '--exclude-dynamic-system-prompt-sections', '--no-session-persistence', '--output-format', 'json', '--max-turns', '40', '--permission-mode', 'acceptEdits', '--tools', 'Bash,Read,Edit,Write,Grep,Glob', '--settings', JSON.stringify({ sandbox: { enabled: true, autoAllowBashIfSandboxed: true, allowUnsandboxedCommands: false, failIfUnavailable: true } })])
+  })
+  test('harness row validation: a good row passes; a missing model and a bad window fail', () => {
+    const row = { id: 'host-harness', transport: 'harness', model: 'medium', window: 80000, trust: 'subscription-trusted', private_ok: true, price: 0 }
+    expect(validRow(row)).toBeTruthy()
+    expect(validRow({ ...row, model: 'medium-homelab' })).toBeTruthy()
+    expect(validRow({ ...row, model: undefined })).toBeUndefined()
+    expect(validRow({ ...row, model: 'Medium_1' })).toBeUndefined()
+    expect(validRow({ ...row, window: undefined })).toBeUndefined()
+    expect(validRow({ ...row, window: 15999 })).toBeUndefined()
+    expect(validRow({ ...row, window: 2000001 })).toBeUndefined()
+    expect(validRow({ ...row, window: 80000.5 })).toBeUndefined()
+  })
+  test('a harness row ranks ahead of every other transport when every quota is unknown', () => {
+    const now = Date.parse('2026-11-14T12:00:00Z')
+    const privateRows = eligibleRows(EXECUTOR_TABLE, false, 0).rows
+    expect(rankRows(privateRows, {}, now).order).toEqual(['homelab-harness', 'host-harness', 'codex'])
+    expect(rankRows(EXECUTOR_TABLE, { codex: { score: 3, exhausted: false, used: 10, line: 50, distance: 40 }, zcode: { score: 9, exhausted: false, used: 0, line: 50, distance: 50 } }, now).order[0]).toBe('homelab-harness')
+    expect(rankRows(EXECUTOR_TABLE, {}, now).skipped).toEqual({})
   })
 })
 
@@ -450,7 +482,7 @@ describe('custom agent tool authority', () => {
       await w.agent(again)
       expect(w.nextCalls).toEqual([{ tool: 'Agent', ...again }])
       expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
-      expect(w.fetches).toEqual([])
+      expect(w.fetches.filter((f) => !classifierCalls(w).includes(f) && !labelClassifyCalls(w).includes(f))).toEqual([])
     })
   }
   test('omitting tools keeps unrestricted sandbox eligibility at every quota', async () => {
@@ -582,7 +614,7 @@ describe('Codex rung', () => {
   test('known at-pace Codex ranks ahead of unknown sandboxes for tagged public coding', async () => {
     const w = world()
     expect(text(await w.agent(coding))).toContain('codex luna xhigh')
-    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'codex', eligible: ['qwen', 'zcode', 'opencode-go', 'codex', 'cursor', 'haiku'], scores: { codex: { used: 50, line: 50 } } })
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'codex', eligible: ['homelab-harness', 'host-harness', 'qwen', 'zcode', 'opencode-go', 'codex', 'cursor', 'haiku'], scores: { codex: { used: 50, line: 50 } } })
     expect(runs(w)).toHaveLength(1)
     expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
     expect(w.fetches.map((f) => f.url)).toEqual(['https://api.github.com/repos/owner/project'])
@@ -631,7 +663,7 @@ describe('Codex rung', () => {
       const isolation = options.worktreeExit ? 'worktree' : undefined
       const issued = { description: '[class: standard]', prompt: 'Implement the change.', ...(isolation ? { isolation } : {}) }
       expect(text(await w.agent(issued))).toContain('no other executor took the task')
-      expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'stopped', reason: 'last rung needs an explicit re-issue', fell_through_from: ['codex'] })
+      expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'stopped', reason: 'last rung needs an explicit re-issue', fell_through_from: ['homelab-harness', 'host-harness', 'codex'] })
       const again = await reissue(issued)
       expect(text(await w.agent(again))).toBe('haiku result')
       expect(w.nextCalls).toEqual([{ tool: 'Agent', ...again }])
@@ -643,7 +675,7 @@ describe('Codex rung', () => {
     test(`unknown quota and an absent native read skip Codex as quota_unknown: ${JSON.stringify(options)}`, async () => {
       const w = world(options)
       expect(text(await w.agent())).toContain('no other executor took the task')
-      expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'stopped', skipped: { codex: 'quota_unknown' }, eligible: ['codex', 'haiku'], scores: { codex: { used: null, line: null } } })
+      expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'stopped', skipped: { codex: 'quota_unknown' }, eligible: ['homelab-harness', 'host-harness', 'codex', 'haiku'], scores: { codex: { used: null, line: null } } })
     })
   }
 })
@@ -750,7 +782,7 @@ describe('capped ladder', () => {
     expect(text(await w.agent(call))).toContain('no other executor took the task')
     const again = await reissue(call)
     await w.agent(again)
-    expect(w.fetches).toEqual([])
+      expect(w.fetches.filter((f) => !classifierCalls(w).includes(f) && !labelClassifyCalls(w).includes(f))).toEqual([])
     expect(w.nextCalls).toEqual([{ tool: 'Agent', ...again }])
   })
   for (const task of [
@@ -767,7 +799,7 @@ describe('capped ladder', () => {
       expect(text(await w.agent(task))).toContain('no other executor took the task')
       const again = await reissue(task)
       await w.agent(again)
-      expect(nonGithub(w).filter((f) => !classifierCalls(w).includes(f))).toEqual([])
+      expect(nonGithub(w).filter((f) => !classifierCalls(w).includes(f) && !labelClassifyCalls(w).includes(f))).toEqual([])
       expect(w.nextCalls).toEqual([{ tool: 'Agent', ...again }])
     })
   }
@@ -777,8 +809,8 @@ describe('capped ladder', () => {
     expect(w.calls.find((c) => c.argv[0] === 'zcode-job')?.argv).toEqual(['zcode-job', 'start', '--tool', 'opencode-qwen', 'owner/project', `${coding.prompt}\n\nReturn a ready PR labelled human:review. Never auto-merge. The trusted lead must leak-scan the PR before merge.`])
     expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'qwen', kind: { value: 'code', source: 'tag' } })
     expect(w.calls.find((c) => c.argv[1] === 'start')?.env).toEqual({ UNTRUSTED_OK: 'public' })
-    expect(w.calls.filter((c) => c.argv[1] !== 'start').every((c) => c.env === undefined)).toBe(true)
-    expect(w.fetches.map((f) => f.url)).toEqual(['https://api.github.com/repos/owner/project', 'https://api.github.com/repos/owner/project/pulls/12'])
+    expect(w.calls.filter((c) => c.argv[0] !== 'claude' && c.argv[1] !== 'start').every((c) => c.env === undefined)).toBe(true)
+    expect(w.fetches.map((f) => f.url)).toEqual(['https://api.github.com/repos/owner/project', 'http://localhost:8000/v1/chat/completions', 'https://api.github.com/repos/owner/project/pulls/12'])
     expect(w.nextCalls).toEqual([])
   })
   test('AGENT_ROUTE_ZCODE_TOOLS without opencode-qwen skips the qwen row and dispatches zcode plainly', async () => {
@@ -791,7 +823,7 @@ describe('capped ladder', () => {
     const w = world({ quota: 1, env: { ...gateways, AGENT_ROUTE_ZCODE_TOOLS: 'opencode-qwen' } })
     expect(text(await w.agent(coding))).toContain('[routed: Qwen sandbox;')
     expect(w.calls.find((c) => c.argv[0] === 'zcode-job')?.argv.slice(0, 4)).toEqual(['zcode-job', 'start', '--tool', 'opencode-qwen'])
-    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'qwen', eligible: ['qwen', 'zcode', 'opencode-go', 'codex', 'cursor', 'haiku'] })
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'qwen', eligible: ['homelab-harness', 'host-harness', 'qwen', 'zcode', 'opencode-go', 'codex', 'cursor', 'haiku'] })
   })
   test('an untagged new file under a repository path infers the repository from its origin', async () => {
     const w = world({ quota: 1, env: gateways, originUrl: 'https://github.com/example-org/example-repo.git',
@@ -799,7 +831,7 @@ describe('capped ladder', () => {
     await w.agent({ description: '[task: code]', prompt: 'Create /tmp/example/repo/new-feature.ts with the helper.' })
     expect(w.calls.find((c) => c.argv[0] === 'zcode-job')?.argv.slice(0, 5)).toEqual(['zcode-job', 'start', '--tool', 'opencode-qwen', 'example-org/example-repo'])
     expect(w.fetches).toContainEqual({ url: 'https://api.github.com/repos/example-org/example-repo', body: undefined })
-    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'qwen', eligible: ['qwen', 'zcode', 'opencode-go', 'codex', 'cursor', 'haiku'] })
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'qwen', eligible: ['homelab-harness', 'host-harness', 'qwen', 'zcode', 'opencode-go', 'codex', 'cursor', 'haiku'] })
   })
   test('a path whose nearest existing parent is outside any repository is not inferred', async () => {
     const w = world({ quota: 1, env: gateways, originUrl: 'https://github.com/example-org/example-repo.git',
@@ -807,7 +839,7 @@ describe('capped ladder', () => {
     await w.agent({ description: '[task: code]', prompt: 'Create /tmp/example/absent/child/new.ts and run the checks.' })
     expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
     expect(w.fetches.some((f) => f.url.startsWith('https://api.github.com/repos/'))).toBe(false)
-    expect(routeEvents(w).at(-1).eligible).toEqual(['codex', 'haiku'])
+    expect(routeEvents(w).at(-1).eligible).toEqual(['homelab-harness', 'host-harness', 'codex', 'haiku'])
   })
   test('paths in two repositories leave the repository uninferred', async () => {
     const w = world({ quota: 1, env: gateways, originUrl: 'https://github.com/example-org/example-repo.git',
@@ -816,7 +848,7 @@ describe('capped ladder', () => {
     await w.agent({ description: '[task: code]', prompt: 'Update /tmp/example/repo/src/main.ts and /tmp/example/other/notes.md.' })
     expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
     expect(w.fetches.some((f) => f.url.startsWith('https://api.github.com/repos/'))).toBe(false)
-    expect(routeEvents(w).at(-1).eligible).toEqual(['codex', 'haiku'])
+    expect(routeEvents(w).at(-1).eligible).toEqual(['homelab-harness', 'host-harness', 'codex', 'haiku'])
   })
   test('a relative prompt path resolves against the session directory and infers the repository', async () => {
     const w = world({ quota: 1, env: gateways, originUrl: 'git@github.com:example-org/example-repo.git', pathGitRoots: { '/workspace': '/workspace' } })
@@ -846,7 +878,7 @@ describe('capped ladder', () => {
       const again = await reissue(call)
       expect(text(await w.agent(again))).toBe('haiku result')
       expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
-      expect(w.fetches.some((f) => f.url.endsWith('/chat/completions'))).toBe(false)
+      expect(w.fetches.some((f) => f.url.endsWith('/chat/completions') && !classifierCalls(w).includes(f) && !labelClassifyCalls(w).includes(f))).toBe(false)
       expect(w.nextCalls).toEqual([{ tool: 'Agent', ...again }])
     })
   }
@@ -858,7 +890,7 @@ describe('capped ladder', () => {
       const again = await reissue(call)
       expect(text(await w.agent(again))).toBe('haiku result')
       expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
-      expect(w.fetches.some((f) => f.url.endsWith('/chat/completions') && !classifierCalls(w).includes(f))).toBe(false)
+      expect(w.fetches.some((f) => f.url.endsWith('/chat/completions') && !classifierCalls(w).includes(f) && !labelClassifyCalls(w).includes(f))).toBe(false)
     })
   }
   for (const options of [
@@ -877,7 +909,7 @@ describe('capped ladder', () => {
         : 'zcodeTruncated' in options ? { chosen: 'stopped', reason: 'qwen dispatch failed before the job was accepted' }
           : { chosen: 'qwen', reason: 'sandbox job without a verified PR' }
       expect(routeEvents(w).at(-1)).toMatchObject(expected)
-      expect(w.fetches.some((f) => f.url.endsWith('/chat/completions'))).toBe(false)
+      expect(w.fetches.some((f) => f.url.endsWith('/chat/completions') && !classifierCalls(w).includes(f) && !labelClassifyCalls(w).includes(f))).toBe(false)
       expect(w.nextCalls).toEqual([])
     })
   }
@@ -906,7 +938,7 @@ describe('capped ladder', () => {
     expect(text(await w.agent(call))).toContain('no other executor took the task')
     const again = await reissue(call)
     await w.agent(again)
-    expect(w.fetches).toEqual([])
+    expect(w.fetches.filter((f) => !classifierCalls(w).includes(f) && !labelClassifyCalls(w).includes(f))).toEqual([])
     expect(w.nextCalls).toEqual([{ tool: 'Agent', ...again }])
   })
 })
@@ -1000,18 +1032,18 @@ describe('untagged kind classification', () => {
     await w.agent({ prompt: 'Update src/main.ts.' })
     expect(w.calls.find((c) => c.argv[0] === 'zcode-job')?.argv.slice(0, 5)).toEqual(['zcode-job', 'start', '--tool', 'opencode-qwen', 'example-org/example-repo'])
     expect(w.fetches).toContainEqual({ url: 'https://api.github.com/repos/example-org/example-repo', body: undefined })
-    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'qwen', kind: { value: 'code', source: 'classifier' }, eligible: ['qwen', 'zcode', 'opencode-go', 'codex', 'cursor', 'haiku'] })
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'qwen', kind: { value: 'code', source: 'classifier' }, eligible: ['homelab-harness', 'host-harness', 'qwen', 'zcode', 'opencode-go', 'codex', 'cursor', 'haiku'] })
   })
 
   test('a code reply with a private repository keeps the sandbox rows ineligible', async () => {
     const w = world({ quota: 1, env: gateways, gatewayAnswer: { small: 'code' }, repository: { visibility: 'private', private: true }, ...inference })
     await w.agent({ prompt: 'Update src/main.ts.' })
     expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
-    expect(routeEvents(w).at(-1)).toMatchObject({ kind: { value: 'code', source: 'classifier' }, eligible: ['codex', 'haiku'] })
+    expect(routeEvents(w).at(-1)).toMatchObject({ kind: { value: 'code', source: 'classifier' }, eligible: ['homelab-harness', 'host-harness', 'codex', 'haiku'] })
   })
 
   test('an other reply, a timeout, a non-OK status and an unparsable body route as an untagged spawn', async () => {
-    const baseline = world({ quota: 1 })
+    const baseline = world({ quota: 1, env: gateways, gatewayAnswer: { small: 'other' } })
     const baselineResult = text(await baseline.agent())
     const baselineEvent = routeEvents(baseline).at(-1)
     expect(baselineEvent.kind).toEqual({ value: 'other', source: 'classifier' })
@@ -1062,7 +1094,7 @@ describe('untagged kind classification', () => {
     await w.agent({ prompt: 'Update src/main.ts.' })
     const event = routeEvents(w).at(-1)
     expect(event.kind).toEqual({ value: 'other', source: 'classifier' })
-    expect(event.eligible).toEqual(['codex', 'haiku'])
+    expect(event.eligible).toEqual(['homelab-harness', 'host-harness', 'codex', 'haiku'])
     expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
     expect(w.fetches.some((f) => f.url.startsWith('https://api.github.com/'))).toBe(false)
   })
@@ -1145,8 +1177,8 @@ describe('judge and session policy', () => {
 
 describe('scoring and eligibility policy', () => {
   test('eligibility: sandbox tools see public code only; Codex sees everything', () => {
-    expect(eligibleRows(EXECUTOR_TABLE, true, 0).rows.map((r) => r.id)).toEqual(['qwen', 'zcode', 'opencode-go', 'codex', 'cursor'])
-    expect(eligibleRows(EXECUTOR_TABLE, false, 0).rows.map((r) => r.id)).toEqual(['codex'])
+    expect(eligibleRows(EXECUTOR_TABLE, true, 0).rows.map((r) => r.id)).toEqual(['homelab-harness', 'host-harness', 'qwen', 'zcode', 'opencode-go', 'codex', 'cursor'])
+    expect(eligibleRows(EXECUTOR_TABLE, false, 0).rows.map((r) => r.id)).toEqual(['homelab-harness', 'host-harness', 'codex'])
     expect(eligibleRows(EXECUTOR_TABLE, false, 0).skipped).toEqual({ qwen: 'ineligible', zcode: 'ineligible', 'opencode-go': 'ineligible', cursor: 'ineligible' })
     expect(validRow(EXECUTOR_TABLE[0])).toBeTruthy()
   })
@@ -1161,7 +1193,8 @@ describe('scoring and eligibility policy', () => {
     expect(scoreWindows(undefined, 1000)).toEqual({ score: undefined, exhausted: false })
   })
   test('known under-line scores lead; unknown rows keep static order; exhausted drop', () => {
-    const rows = EXECUTOR_TABLE.slice(0, 4)
+    // The two harness rows sit first in the table, so the pace group here is the four rows after them.
+    const rows = EXECUTOR_TABLE.slice(2, 6)
     const offPeak = Date.parse('2026-11-14T12:00:00Z')
     expect(rankRows(rows, {}, offPeak).order).toEqual(['qwen', 'zcode', 'opencode-go', 'codex'])
     expect(rankRows(rows, { codex: { score: 3, exhausted: false, used: 10, line: 50, distance: 40 } }, offPeak).order).toEqual(['codex', 'qwen', 'zcode', 'opencode-go'])
@@ -1198,29 +1231,29 @@ describe('usage pace ranking', () => {
   const atDistance = (distance: number) => ({ exhausted: false, used: 50 - distance, line: 50, distance })
 
   test('an under-line executor ranks ahead of an over-line executor', () => {
-    const rows = [EXECUTOR_TABLE[1], EXECUTOR_TABLE[3]]
+    const rows = [EXECUTOR_TABLE[3], EXECUTOR_TABLE[5]]
     const scores = { zcode: atDistance(-1), codex: atDistance(1) }
     expect(rankRows(rows, scores, now).order).toEqual(['codex', 'zcode'])
   })
   test('under-line executors rank by distance descending and ties keep table order', () => {
-    const rows = [EXECUTOR_TABLE[1], EXECUTOR_TABLE[3], EXECUTOR_TABLE[4]]
+    const rows = [EXECUTOR_TABLE[3], EXECUTOR_TABLE[5], EXECUTOR_TABLE[6]]
     const scores = { zcode: atDistance(10), codex: atDistance(30), cursor: atDistance(30) }
     expect(rankRows(rows, scores, now).order).toEqual(['codex', 'cursor', 'zcode'])
   })
   test('all over-line executors rank with the least over first', () => {
-    const rows = [EXECUTOR_TABLE[1], EXECUTOR_TABLE[3], EXECUTOR_TABLE[4]]
+    const rows = [EXECUTOR_TABLE[3], EXECUTOR_TABLE[5], EXECUTOR_TABLE[6]]
     const scores = { zcode: atDistance(-30), codex: atDistance(-5), cursor: atDistance(-10) }
     expect(rankRows(rows, scores, now).order).toEqual(['codex', 'cursor', 'zcode'])
   })
   test('unknown executors stay between known under-line and over-line executors', () => {
-    const rows = [EXECUTOR_TABLE[1], EXECUTOR_TABLE[2], EXECUTOR_TABLE[3]]
+    const rows = [EXECUTOR_TABLE[3], EXECUTOR_TABLE[4], EXECUTOR_TABLE[5]]
     const scores = { zcode: atDistance(-1), codex: atDistance(1) }
     expect(rankRows(rows, scores, now).order).toEqual(['codex', 'opencode-go', 'zcode'])
   })
-  test('equal distances and unknown scores keep table order, so the lowest-priced qwen row ranks first', () => {
+  test('equal distances and unknown scores keep table order, so the first harness row ranks first', () => {
     const equal = { qwen: atDistance(30), zcode: atDistance(30), 'opencode-go': atDistance(30), codex: atDistance(30), cursor: atDistance(30) }
-    expect(rankRows(EXECUTOR_TABLE, equal, now).order[0]).toBe('qwen')
-    expect(rankRows(EXECUTOR_TABLE, {}, now).order[0]).toBe('qwen')
+    expect(rankRows(EXECUTOR_TABLE, equal, now).order[0]).toBe('homelab-harness')
+    expect(rankRows(EXECUTOR_TABLE, {}, now).order[0]).toBe('homelab-harness')
   })
   test('the line reaches 100 at the one-day margin for a long window', () => {
     const day = 86_400
@@ -1259,13 +1292,13 @@ describe('usage pace ranking', () => {
     await w.agent(coding)
     const event = routeEvents(w).at(-1)
     expect(event.eligible).toEqual([...EXECUTOR_TABLE.map((row) => row.id), LAST_RESORT.model])
-    expect(event.chosen).toBe(EXECUTOR_TABLE[0].id)
+    expect(event.chosen).toBe(EXECUTOR_TABLE[2].id)
     for (const row of EXECUTOR_TABLE) expect(event.scores[row.id]).toMatchObject({ used: null, line: null })
   })
-  test('no readings keep table order only without promotions: an appended promotion ranks first', () => {
+  test('no readings keep table order only without promotions: an appended promotion ranks first after the harness rows', () => {
     const promotion = { id: 'promo-free', transport: 'sandbox', tool: 'opencode-free', trust: 'sandbox-public', private_ok: false, price: 0, kind: 'promotion', expires: '2030-01-01T00:00:00Z' }
     const rows = mergeExecutorRows(EXECUTOR_TABLE, [promotion]).rows
-    expect(rankRows(rows, {}, Date.parse('2026-11-14T12:00:00Z')).order).toEqual(['promo-free', ...EXECUTOR_TABLE.map((row) => row.id)])
+    expect(rankRows(rows, {}, Date.parse('2026-11-14T12:00:00Z')).order).toEqual(['homelab-harness', 'host-harness', 'promo-free', ...EXECUTOR_TABLE.slice(2).map((row) => row.id)])
   })
 })
 
@@ -1285,7 +1318,7 @@ describe('routing batch', () => {
     const w = world({ quota: 1, env: gateways })
     const call = { description: '[class: text]', prompt: `Classify: ${'a'.repeat(700_000)}` }
     await w.agent(call)
-    expect(w.fetches.map((f) => f.url)).toEqual(['http://localhost:8000/model/info'])
+    expect(w.fetches.map((f) => f.url)).toEqual(['http://localhost:8000/model/info', 'http://localhost:8000/v1/chat/completions'])
     expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'stopped', local: { alias: null } })
     const again = await reissue(call)
     await w.agent(again)
@@ -1296,7 +1329,7 @@ describe('routing batch', () => {
     test(`4: local ${name} stops at the last rung for an explicit re-issue`, async () => {
       const w = world({ quota: 1, env: gateways, ...options })
       await w.agent(textTask)
-      expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'stopped', reason: 'last rung needs an explicit re-issue', fell_through_from: ['local small'] })
+      expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'stopped', reason: 'last rung needs an explicit re-issue', fell_through_from: ['local small', 'homelab-harness', 'host-harness'] })
       const again = await reissue(textTask)
       await w.agent(again)
       expect(w.nextCalls).toEqual([{ tool: 'Agent', ...again }])
@@ -1305,19 +1338,19 @@ describe('routing batch', () => {
   test('5: public-repo code with unknown sandbox quota takes Qwen by static order', async () => {
     const w = world({ quota: 1, env: gateways })
     expect(text(await w.agent(coding))).toContain('[routed: Qwen sandbox;')
-    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'qwen', kind: { value: 'code', source: 'tag' }, eligible: ['qwen', 'zcode', 'opencode-go', 'codex', 'cursor', 'haiku'] })
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'qwen', kind: { value: 'code', source: 'tag' }, eligible: ['homelab-harness', 'host-harness', 'qwen', 'zcode', 'opencode-go', 'codex', 'cursor', 'haiku'] })
   })
   test('6: with Qwen and ZCode disabled, public-repo code takes OpenCode Go', async () => {
     const w = world({ quota: 1, env: { ...gateways, AGENT_ROUTE_ZCODE_TOOLS: 'opencode' } })
     expect(text(await w.agent(coding))).toContain('[routed: OpenCode Go sandbox;')
     expect(w.calls.find((c) => c.argv[0] === 'zcode-job')?.argv.slice(0, 5)).toEqual(['zcode-job', 'start', '--tool', 'opencode', 'owner/project'])
-    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'opencode-go', fell_through_from: ['qwen', 'zcode'] })
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'opencode-go', fell_through_from: ['homelab-harness', 'host-harness', 'qwen', 'zcode'] })
   })
   test('7: private-repo code with Codex exhausted stops at the last rung, never a sandbox', async () => {
     const w = world({ quota: 1, env: gateways, repository: { visibility: 'private', private: true } })
     await w.agent(coding)
     expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
-    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'stopped', eligible: ['codex', 'haiku'], scores: { codex: { exhausted: true } } })
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'stopped', eligible: ['homelab-harness', 'host-harness', 'codex', 'haiku'], scores: { codex: { exhausted: true } } })
     const again = await reissue(coding)
     await w.agent(again)
     expect(w.nextCalls).toEqual([{ tool: 'Agent', ...again }])
@@ -1338,7 +1371,7 @@ describe('routing batch', () => {
       const call = { ...coding, prompt: 'Rotate the auth signing key using placeholders.' }
       const r = await w.agent(call)
       expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
-      expect(w.fetches).toEqual([])
+      expect(w.fetches.filter((f) => !classifierCalls(w).includes(f) && !labelClassifyCalls(w).includes(f))).toEqual([])
       if (quota === 0) expect(text(r)).toContain('codex luna max, class bulk-complex')
       else {
         expect(text(r)).toContain('no other executor took the task')
@@ -1705,19 +1738,19 @@ describe('cursor executor', () => {
     expect(text(await w.agent(coding))).toContain('[routed: Cursor sandbox;')
     expect(w.calls.find((c) => c.argv[0] === 'zcode-job')?.argv.slice(0, 5)).toEqual(['zcode-job', 'start', '--tool', 'cursor-agent', 'owner/project'])
     expect(w.nextCalls).toEqual([])
-    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'cursor', fell_through_from: ['qwen', 'zcode', 'opencode-go'] })
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'cursor', fell_through_from: ['homelab-harness', 'host-harness', 'qwen', 'zcode', 'opencode-go'] })
   })
   test('Codex fails before unknown executors and the last rung remains last', async () => {
     const w = world({ codexExit: 7, zcodeAvailable: false, env: gateways })
     await w.agent(coding)
-    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'stopped', reason: 'last rung needs an explicit re-issue', fell_through_from: ['codex', 'qwen', 'zcode', 'opencode-go', 'cursor'], scores: { codex: { used: 50, line: 50 } } })
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'stopped', reason: 'last rung needs an explicit re-issue', fell_through_from: ['homelab-harness', 'host-harness', 'codex', 'qwen', 'zcode', 'opencode-go', 'cursor'], scores: { codex: { used: 50, line: 50 } } })
     const again = await reissue(coding)
     await w.agent(again)
     expect(w.nextCalls).toEqual([{ tool: 'Agent', ...again }])
     expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'haiku', reason: 'explicit last rung' })
   })
   test('at-pace Codex ranks before unknown Cursor', () => {
-    const rows = [EXECUTOR_TABLE[4], EXECUTOR_TABLE[3]]
+    const rows = [EXECUTOR_TABLE[6], EXECUTOR_TABLE[5]]
     const scores = { codex: { score: 0, exhausted: false, used: 50, line: 50, distance: 0 } }
     expect(rankRows(rows, scores, Date.parse('2026-11-14T12:00:00Z')).order).toEqual(['codex', 'cursor'])
   })
@@ -1727,7 +1760,7 @@ describe('cursor executor', () => {
     expect(routeEvents(lead).at(-1).scores.cursor.exhausted).toBe(false)
     const out = world({ quota: 1, zcodeAvailable: false, env: gateways, cursorWindows: at(100) })
     await out.agent(coding)
-    expect(routeEvents(out).at(-1)).toMatchObject({ chosen: 'stopped', reason: 'last rung needs an explicit re-issue', scores: { cursor: { exhausted: true } }, fell_through_from: ['qwen', 'zcode', 'opencode-go'] })
+    expect(routeEvents(out).at(-1)).toMatchObject({ chosen: 'stopped', reason: 'last rung needs an explicit re-issue', scores: { cursor: { exhausted: true } }, fell_through_from: ['homelab-harness', 'host-harness', 'qwen', 'zcode', 'opencode-go'] })
     const again = await reissue(coding)
     await out.agent(again)
     expect(out.nextCalls).toEqual([{ tool: 'Agent', ...again }])
@@ -1741,7 +1774,7 @@ describe('cursor executor', () => {
     const w = world({ quota: 1, env: gateways, repository: { visibility: 'private', private: true }, cursorWindows: at(10) })
     await w.agent(coding)
     expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
-    expect(routeEvents(w).at(-1)).toMatchObject({ eligible: ['codex', 'haiku'], chosen: 'stopped', reason: 'last rung needs an explicit re-issue' })
+    expect(routeEvents(w).at(-1)).toMatchObject({ eligible: ['homelab-harness', 'host-harness', 'codex', 'haiku'], chosen: 'stopped', reason: 'last rung needs an explicit re-issue' })
     const again = await reissue(coding)
     await w.agent(again)
     expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
@@ -1753,16 +1786,17 @@ describe('executor table', () => {
   const OVERRIDE = '/home/test/.config/ai-delegation/executors.json'
   const promo = { id: 'promo-free', transport: 'sandbox', tool: 'opencode-free', trust: 'sandbox-public', private_ok: false, price: 0, kind: 'promotion' }
   test('the built-in table holds every row and validates', () => {
-    expect(EXECUTOR_TABLE.map((r) => r.id)).toEqual(['qwen', 'zcode', 'opencode-go', 'codex', 'cursor'])
+    expect(EXECUTOR_TABLE.map((r) => r.id)).toEqual(['homelab-harness', 'host-harness', 'qwen', 'zcode', 'opencode-go', 'codex', 'cursor'])
     expect(EXECUTOR_TABLE.every((r) => validRow(r))).toBe(true)
-    expect(EXECUTOR_TABLE[0]).toEqual({ id: 'qwen', transport: 'sandbox', tool: 'opencode-qwen', trust: 'sandbox-public', private_ok: false, price: 0.5 })
+    expect(EXECUTOR_TABLE[0]).toEqual({ id: 'homelab-harness', transport: 'harness', model: 'medium-homelab', window: 80000, trust: 'subscription-trusted', private_ok: true, price: 0 })
+    expect(EXECUTOR_TABLE[2]).toEqual({ id: 'qwen', transport: 'sandbox', tool: 'opencode-qwen', trust: 'sandbox-public', private_ok: false, price: 0.5 })
   })
   test('validation: only subscription-trusted rows may take private work; ids and promotions are strict', () => {
-    expect(validRow({ ...EXECUTOR_TABLE[0], private_ok: true })).toBeUndefined()
-    expect(validRow({ ...EXECUTOR_TABLE[0], trust: 'untrusted-api' })).toBeUndefined()
-    expect(validRow({ ...EXECUTOR_TABLE[0], id: 'haiku' })).toBeUndefined()
-    expect(validRow({ ...EXECUTOR_TABLE[0], id: 'Bad Id' })).toBeUndefined()
-    expect(validRow({ ...EXECUTOR_TABLE[0], tool: undefined })).toBeUndefined()
+    expect(validRow({ ...EXECUTOR_TABLE[2], private_ok: true })).toBeUndefined()
+    expect(validRow({ ...EXECUTOR_TABLE[2], trust: 'untrusted-api' })).toBeUndefined()
+    expect(validRow({ ...EXECUTOR_TABLE[2], id: 'haiku' })).toBeUndefined()
+    expect(validRow({ ...EXECUTOR_TABLE[2], id: 'Bad Id' })).toBeUndefined()
+    expect(validRow({ ...EXECUTOR_TABLE[2], tool: undefined })).toBeUndefined()
     expect(validRow({ ...promo })).toBeUndefined()
     expect(validRow({ ...promo, expires: '2030-01-01T00:00:00Z' })).toBeTruthy()
   })
@@ -1773,7 +1807,7 @@ describe('executor table', () => {
     expect(validRow({ ...forged, trust: 'sandbox-public' })).toBeUndefined()
     const { rows, rejected } = mergeExecutorRows(EXECUTOR_TABLE, [forged, { id: 'zcode', trust: 'subscription-trusted', private_ok: true }])
     expect(rejected).toEqual(['sandbox-private', 'zcode'])
-    expect(rows.map((r) => r.id)).toEqual(['qwen', 'zcode', 'opencode-go', 'codex', 'cursor'])
+    expect(rows.map((r) => r.id)).toEqual(['homelab-harness', 'host-harness', 'qwen', 'zcode', 'opencode-go', 'codex', 'cursor'])
     expect(rows.find((r) => r.id === 'zcode')).toMatchObject({ trust: 'sandbox-public', private_ok: false })
   })
   test('merge: rows override by id, new ids append, invalid rows are rejected by name', () => {
@@ -1800,16 +1834,16 @@ describe('executor table', () => {
       cursor: { exhausted: true },
     }
     const r = rankRows(rows, scores, peakMonday)
-    expect(r.order).toEqual(['promo-free', 'codex', 'opencode-go', 'qwen', 'zcode'])
+    expect(r.order).toEqual(['homelab-harness', 'host-harness', 'promo-free', 'codex', 'opencode-go', 'qwen', 'zcode'])
     expect(r.effective).toMatchObject({ zcode: 5, 'opencode-go': 5, codex: 8 })
     expect(r.skipped).toEqual({ cursor: 'exhausted' })
-    expect(rankRows(rows, scores, Date.parse('2026-11-14T07:30:00Z')).order).toEqual(['promo-free', 'codex', 'opencode-go', 'qwen', 'zcode'])
+    expect(rankRows(rows, scores, Date.parse('2026-11-14T07:30:00Z')).order).toEqual(['homelab-harness', 'host-harness', 'promo-free', 'codex', 'opencode-go', 'qwen', 'zcode'])
   })
   test('an override promotion sorts first for public code while it lasts', async () => {
     const w = world({ quota: 1, env: gateways, files: { [OVERRIDE]: JSON.stringify([{ ...promo, expires: '2030-01-01T00:00:00Z' }]) } })
     expect(text(await w.agent(coding))).toContain('[routed: opencode-free sandbox;')
     expect(w.calls.find((c) => c.argv[0] === 'zcode-job')?.argv.slice(0, 5)).toEqual(['zcode-job', 'start', '--tool', 'opencode-free', 'owner/project'])
-    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'promo-free', eligible: ['qwen', 'zcode', 'opencode-go', 'codex', 'cursor', 'promo-free', 'haiku'] })
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'promo-free', eligible: ['homelab-harness', 'host-harness', 'qwen', 'zcode', 'opencode-go', 'codex', 'cursor', 'promo-free', 'haiku'] })
   })
   test('an expired promotion is skipped with reason expired', async () => {
     const w = world({ quota: 1, env: gateways, files: { [OVERRIDE]: JSON.stringify([{ ...promo, expires: '1969-12-31T00:00:00Z' }]) } })
@@ -1821,7 +1855,7 @@ describe('executor table', () => {
     await w.agent(coding)
     expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
     expect(w.calls.some((c) => c.stdin === 'executor override rows rejected: zcode\n')).toBe(true)
-    expect(routeEvents(w).at(-1)).toMatchObject({ eligible: ['codex', 'haiku'], chosen: 'stopped', reason: 'last rung needs an explicit re-issue' })
+    expect(routeEvents(w).at(-1)).toMatchObject({ eligible: ['homelab-harness', 'host-harness', 'codex', 'haiku'], chosen: 'stopped', reason: 'last rung needs an explicit re-issue' })
     const again = await reissue(coding)
     await w.agent(again)
     expect(w.nextCalls).toEqual([{ tool: 'Agent', ...again }])
@@ -1862,6 +1896,45 @@ describe('executor table', () => {
     expect(w.nextCalls).toEqual([])
   })
 })
+describe('harness executor', () => {
+  test('a checked harness answer is routed under the row id with the model named in the footer', async () => {
+    const w = world({ quota: 1, env: gateways, harnessAnswer: 'done' })
+    expect(text(await w.agent())).toContain('[routed: harness medium-homelab]')
+    const claude = w.calls.filter((c) => c.argv[0] === 'claude')
+    expect(claude).toHaveLength(1)
+    expect(claude[0].argv).toEqual(harnessArgv('workspace-write'))
+    expect(claude[0].stdin).toBe('Implement the change.')
+    expect(claude[0].env).toMatchObject({ ANTHROPIC_BASE_URL: 'http://localhost:8000', ANTHROPIC_AUTH_TOKEN: 'local-proxy', ANTHROPIC_API_KEY: '', CLAUDE_CODE_OAUTH_TOKEN: '', ANTHROPIC_MODEL: 'medium-homelab', ANTHROPIC_DEFAULT_OPUS_MODEL: 'medium-homelab', ANTHROPIC_DEFAULT_SONNET_MODEL: 'medium-homelab', ANTHROPIC_DEFAULT_HAIKU_MODEL: 'medium-homelab', CLAUDE_CODE_SUBAGENT_MODEL: 'medium-homelab', CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1', CLAUDE_CODE_MAX_CONTEXT_TOKENS: '80000', CLAUDE_CODE_MAX_OUTPUT_TOKENS: '8000', CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT: '', CLAUDE_CODE_USE_BEDROCK: '', CLAUDE_CODE_USE_VERTEX: '', CLAUDE_CODE_USE_FOUNDRY: '', ANTHROPIC_CUSTOM_HEADERS: '' })
+    expect(claude[0].env?.PATH).toBe('/home/test/.local/bin:')
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'homelab-harness', reason: 'highest-ranked eligible executor that answered' })
+  })
+  test('a harness answer that fails its check moves to the next row, the second harness row, then Codex', async () => {
+    const w = world({ env: gateways, harnessStdout: '{"is_error":false,"result":"   "}' })
+    expect(text(await w.agent())).toContain('[routed: codex luna xhigh')
+    const claude = w.calls.filter((c) => c.argv[0] === 'claude')
+    expect(claude).toHaveLength(2)
+    expect(claude[1].env?.ANTHROPIC_MODEL).toBe('medium')
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'codex', skipped: { 'homelab-harness': 'failed', 'host-harness': 'failed' } })
+  })
+  test('without a router base URL the harness rows are skipped as not_installed and no child runs', async () => {
+    const w = world({})
+    expect(text(await w.agent())).toContain('[routed: codex luna xhigh')
+    expect(w.calls.filter((c) => c.argv[0] === 'claude')).toHaveLength(0)
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'codex', skipped: { 'homelab-harness': 'not_installed', 'host-harness': 'not_installed' } })
+  })
+  test('a harness run that fails 30 s or more after it started skips the remaining harness row', async () => {
+    const w = world({ env: gateways, harnessExit: 7, harnessElapsedMs: 30_000 })
+    expect(text(await w.agent())).toContain('[routed: codex luna xhigh')
+    expect(w.calls.filter((c) => c.argv[0] === 'claude')).toHaveLength(1)
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'codex', skipped: { 'homelab-harness': 'failed', 'host-harness': 'failed' } })
+  })
+  test('a harness run that fails fast still tries the next harness row', async () => {
+    const w = world({ env: gateways, harnessExit: 7 })
+    expect(text(await w.agent())).toContain('[routed: codex luna xhigh')
+    expect(w.calls.filter((c) => c.argv[0] === 'claude')).toHaveLength(2)
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'codex' })
+  })
+})
 describe('paid rows and router-chat', () => {
   const OVERRIDE = '/home/test/.config/ai-delegation/executors.json'
   const chat = { id: 'chat-paid', transport: 'router-chat', model: 'paid-chat', trust: 'sandbox-public', private_ok: false, price: 1, billing: 'paid', budget_daily_usd: 5, budget_key: 'agent-chat' }
@@ -1889,7 +1962,7 @@ describe('paid rows and router-chat', () => {
     const paid = { billing: 'paid', budget_daily_usd: 5, budget_key: 'agent-chat', private_ok: false }
     expect(validRow({ ...EXECUTOR_TABLE[2], ...paid })).toBeUndefined()
     expect(validRow({ ...EXECUTOR_TABLE[2], ...paid, trust: 'sandbox-public' })).toBeUndefined()
-    expect(validRow({ ...EXECUTOR_TABLE[0], ...paid })).toBeUndefined()
+    expect(validRow({ ...EXECUTOR_TABLE[2], ...paid })).toBeUndefined()
     expect(validRow({ ...chat, ...paid })).toBeTruthy()
   })
   test('validation: a paid row is sandbox-public and never a promotion', () => {
@@ -1937,7 +2010,7 @@ describe('paid rows and router-chat', () => {
     expect([...budgetsFromMetrics([budget('agent-chat', '5', 61), budget('agent-chat', '5', 60)], ['agent-chat'], 1000)]).toEqual([['agent-chat', 5]])
   })
   test('eligibility on public work: a paid row with unknown or spent budget is skipped with its reason', () => {
-    const rows = [EXECUTOR_TABLE[3], chat as never]
+    const rows = [EXECUTOR_TABLE[5], chat as never]
     expect(eligibleRows(rows, true, 0, new Map()).skipped).toEqual({ 'chat-paid': 'budget_unknown' })
     expect(eligibleRows(rows, true, 0, new Map([['agent-chat', 0]])).skipped).toEqual({ 'chat-paid': 'budget_spent' })
     expect(eligibleRows(rows, true, 0, new Map([['agent-chat', 0.5]])).rows.map((r) => r.id)).toEqual(['codex', 'chat-paid'])
@@ -1968,14 +2041,14 @@ describe('paid rows and router-chat', () => {
     const r = await w.agent(textTask)
     expect(text(r)).toContain('router answer')
     expect(text(r)).toContain('[routed: router-chat local-only]')
-    const sent = w.fetches.filter((f) => f.url === 'http://localhost:8000/v1/chat/completions').map((f) => JSON.parse(f.body!).model)
+    const sent = w.fetches.filter((f) => f.url === 'http://localhost:8000/v1/chat/completions' && !classifierCalls(w).includes(f) && !labelClassifyCalls(w).includes(f)).map((f) => JSON.parse(f.body!).model)
     expect(sent).toEqual(['small', 'local-only'])
-    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'chat-flat', fell_through_from: ['local small'] })
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'chat-flat', fell_through_from: ['local small', 'homelab-harness', 'host-harness'] })
   })
   test('a router-chat row never re-sends the prompt to the alias the local rung just failed', async () => {
     const w = world({ quota: 1, env: localDown, gatewayStatus: noLocal, files: { [OVERRIDE]: JSON.stringify([{ ...flat, model: 'small' }]) } })
     await w.agent(textTask)
-    const sent = w.fetches.filter((f) => f.url === 'http://localhost:8000/v1/chat/completions').map((f) => JSON.parse(f.body!).model)
+    const sent = w.fetches.filter((f) => f.url === 'http://localhost:8000/v1/chat/completions' && !classifierCalls(w).includes(f) && !labelClassifyCalls(w).includes(f)).map((f) => JSON.parse(f.body!).model)
     expect(sent).toEqual(['small'])
     expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'stopped', reason: 'last rung needs an explicit re-issue', skipped: { 'chat-flat': 'failed' } })
   })
@@ -1983,7 +2056,7 @@ describe('paid rows and router-chat', () => {
     const big = { description: '[class: text]', prompt: `Summarize this supplied text: ${'word '.repeat(60_000)}` }
     const w = world({ quota: 1, env: localDown, files: { [OVERRIDE]: JSON.stringify([flat]) } })
     await w.agent(big)
-    expect(w.fetches.some((f) => f.url.endsWith('/chat/completions'))).toBe(false)
+    expect(w.fetches.some((f) => f.url.endsWith('/chat/completions') && !classifierCalls(w).includes(f) && !labelClassifyCalls(w).includes(f))).toBe(false)
     expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'stopped', reason: 'last rung needs an explicit re-issue', skipped: { 'chat-flat': 'ineligible' } })
   })
   for (const [name, task] of [

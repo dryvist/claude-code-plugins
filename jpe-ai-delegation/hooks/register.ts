@@ -1,5 +1,5 @@
 import type { EngineInterface, Register } from 'claude-code'
-import { CLASSIFIER, CLASSIFIER_ALIAS, CODEX, CODEX_QUOTA_THRESHOLD, JUDGE, JUDGE_ALIAS, JUDGE_OUTPUT_TOKENS, LAST_RESORT, LOCAL_OUTPUT_TOKENS, QUOTA_SELECTOR, EXECUTOR_TABLE, budgetsFromMetrics, codexArgv, codingTask, eligibleRows, endAnchor, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, isGenericType, isShellCAsk, jobHistory, jobState, lastRungMarker, recentFailures, localTask, mandatoryLabel, newestModel, mergeExecutorRows, metricsResult, parseCodexQuota, parseVerdict, pickLabel, pickLocal, promptToken, quotaFromMetrics, rankRows, repositoryFromOrigin, safePayload, scoreWindows, KIND_CLASSIFIER, parseKind } from './lib/policy'
+import { CLASSIFIER, CLASSIFIER_ALIAS, CODEX, CODEX_QUOTA_THRESHOLD, JUDGE, JUDGE_ALIAS, JUDGE_OUTPUT_TOKENS, LAST_RESORT, LOCAL_OUTPUT_TOKENS, QUOTA_SELECTOR, EXECUTOR_TABLE, budgetsFromMetrics, codexArgv, harnessArgv, codingTask, eligibleRows, endAnchor, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, isGenericType, isShellCAsk, jobHistory, jobState, lastRungMarker, recentFailures, localTask, mandatoryLabel, newestModel, mergeExecutorRows, metricsResult, parseCodexQuota, parseVerdict, pickLabel, pickLocal, promptToken, quotaFromMetrics, rankRows, repositoryFromOrigin, safePayload, scoreWindows, KIND_CLASSIFIER, parseKind } from './lib/policy'
 import type { CodexQuotaRead, Executor, ExecutorRow, JobOutcome, JobRecord, JobState, Label, QuotaReason, QuotaRow, Route, Sandbox, Score, SkipReason, Kind, Verdict } from './lib/policy'
 import { customAgentSandbox, parseAgentDefinition } from './lib/agent-definition'
 import type { AgentDefinition } from './lib/agent-definition'
@@ -15,6 +15,9 @@ const CODEX_QUOTA_TIMEOUT_MS = 15_000
 const CODEX_QUOTA_TTL_MS = 14_400_000
 const CODEX_QUOTA_FAILURE_TTL_MS = 600_000
 const CODEX_QUOTA_KEY = 'codex-quota'
+// A harness run that failed at least this long after it started did work and gave up, so the remaining harness rows
+// are skipped and the next row of another transport runs.
+const HARNESS_FALLBACK_MS = 30_000
 const QUOTA_TIMEOUT_MS = 3_000
 const QUOTA_REFRESH_MS = 600_000
 const QUOTA_TOKEN_MAX_BYTES = 4096
@@ -258,6 +261,59 @@ async function runCodex($: Engine, codexRoute: Route, sandbox: Sandbox, prompt: 
   return undefined
 }
 
+// One headless Claude Code child on the on-host router, under the row's role alias. Its stdout is one JSON object
+// whose `result` is the final text; an empty or errored answer is a failed check, so routing continues.
+async function runHarness($: Engine, row: ExecutorRow, sandbox: Sandbox, prompt: string, timeoutMs: number, cwd?: string): Promise<string | undefined> {
+  let failure: string | undefined
+  try {
+    const base = (await $.env.get('LITELLM_LOCAL_BASE_URL'))?.replace(/\/+$/, '')
+    if (!base) failure = 'router URL unset'
+    else {
+      const home = (await $.env.get('HOME')) ?? ''
+      // `$HOME/.local/bin` first: on some hosts the first `claude` on the session's PATH is a wrapper that cannot run
+      // headless. An empty string clears the parent's value.
+      const env: Record<string, string> = {
+        ANTHROPIC_BASE_URL: base,
+        ANTHROPIC_AUTH_TOKEN: 'local-proxy',
+        ANTHROPIC_API_KEY: '',
+        CLAUDE_CODE_OAUTH_TOKEN: '',
+        ANTHROPIC_CUSTOM_HEADERS: '',
+        CLAUDE_CODE_USE_BEDROCK: '',
+        CLAUDE_CODE_USE_VERTEX: '',
+        CLAUDE_CODE_USE_FOUNDRY: '',
+        ANTHROPIC_MODEL: row.model!,
+        ANTHROPIC_DEFAULT_OPUS_MODEL: row.model!,
+        ANTHROPIC_DEFAULT_SONNET_MODEL: row.model!,
+        ANTHROPIC_DEFAULT_HAIKU_MODEL: row.model!,
+        CLAUDE_CODE_SUBAGENT_MODEL: row.model!,
+        CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1',
+        CLAUDE_CODE_MAX_CONTEXT_TOKENS: String(row.window!),
+        CLAUDE_CODE_MAX_OUTPUT_TOKENS: '8000',
+        // With the unknown-window enforcement on, the child only compacts after the model rejects an over-long prompt,
+        // where the run dies.
+        CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT: '',
+        PATH: `${home}/.local/bin:${await $.env.get('PATH') ?? ''}`,
+      }
+      const argv = harnessArgv(sandbox)
+      // The process API has no working-directory option, so a working directory goes through a shell that execs the
+      // child in it.
+      const r = await $.process.run(cwd ? ['/bin/sh', '-c', 'cd "$1" && shift && exec "$@"', 'sh', cwd, ...argv] : argv, { stdin: prompt, timeoutMs, env })
+      if (r.exitCode !== 0) failure = `harness exited with code ${r.exitCode}`
+      else {
+        const parsed = JSON.parse(r.stdout) as { is_error?: unknown; result?: unknown }
+        const text = typeof parsed.result === 'string' ? parsed.result.trim() : ''
+        if (parsed.is_error !== false || !text) failure = 'harness returned no checked result'
+        else return text
+      }
+    }
+  } catch {
+    failure = 'harness invocation failed'
+  }
+  $.ui.log(`ai-delegation: harness failed: ${failure ?? 'unknown failure'}`)
+  await logDecision($, `harness failure: ${failure ?? 'unknown failure'}`)
+  return undefined
+}
+
 // Append-only decision log; `tee -a` keeps parallel hooks from dropping each other's lines. Every step is bounded by
 // LOG_TIMEOUT_MS. True when the line was written; a failed write is reported in the UI and never changes a decision.
 async function logDecision($: Engine, line: string): Promise<boolean> {
@@ -373,13 +429,41 @@ async function runRoutedCodex($: Engine, e: AgentCall, route: string, codexRoute
   return routedResult(e, 'ai-delegation-codex', out, `[routed: codex ${codexRoute.family} ${codexRoute.effort}, ${detail}]`, started === null ? 0 : ((await clockNow($)) ?? started) - started)
 }
 
-// The Codex rung: classify, pick the sandbox, run. Undefined on any failure so routing continues.
-async function runCodexRung($: Engine, e: AgentCall, customSandbox: Sandbox | undefined): Promise<unknown | undefined> {
-  const label = await classify($, e)
+// The Codex rung: classify, pick the sandbox, run. Undefined on any failure so routing continues. The label comes from
+// the shared per-spawn classifier, so a rung that runs after another asks no second classification.
+async function runCodexRung($: Engine, e: AgentCall, customSandbox: Sandbox | undefined, rungLabel: () => Promise<Label>): Promise<unknown | undefined> {
+  const label = await rungLabel()
   const advisory = isAdvisory(label) || isAdvisory(explicitLabel(e.description) ?? label)
   if (mandatoryLabel(`${e.description ?? ''}\n${e.prompt}`)) e = { ...e, description: `${e.description ?? ''} [class: bulk-complex]` }
   const codexSandbox: Sandbox = advisory || e.subagent_type === 'Explore' || e.subagent_type === 'Plan' || customSandbox === 'read-only' ? 'read-only' : 'workspace-write'
   return runRoutedCodex($, e, label, CODEX[label], codexSandbox, `class ${label}`)
+}
+
+// One harness run under the row's alias; the same working directory rules as Codex, including the temporary worktree.
+async function runRoutedHarness($: Engine, e: AgentCall, row: ExecutorRow, sandbox: Sandbox): Promise<unknown | undefined> {
+  const started = await clockNow($)
+  let cwd: string | undefined
+  if (e.isolation) {
+    if (e.isolation !== 'worktree') return undefined
+    const temporary = await $.process.run(['mktemp', '-d'], { timeoutMs: 5_000 })
+    cwd = temporary.stdout.trim()
+    if (temporary.exitCode !== 0 || !cwd.startsWith('/')) return undefined
+    const worktree = await $.process.run(['git', '-C', await $.session.cwd(), 'worktree', 'add', '--detach', cwd, 'HEAD'], { timeoutMs: 30_000 })
+    if (worktree.exitCode !== 0) return undefined
+  }
+  const out = await runHarness($, row, sandbox, e.prompt, 600_000, cwd)
+  if (!out) return undefined
+  await logDecision($, `route: ${row.id} -> harness ${row.model} (${sandbox})`)
+  return routedResult(e, 'ai-delegation-harness', out, `[routed: harness ${row.model}]`, started === null ? 0 : ((await clockNow($)) ?? started) - started)
+}
+
+// The harness rung: classify, pick the sandbox by exactly the Codex rung's input, run.
+async function runHarnessRung($: Engine, e: AgentCall, row: ExecutorRow, customSandbox: Sandbox | undefined, rungLabel: () => Promise<Label>): Promise<unknown | undefined> {
+  const label = await rungLabel()
+  const advisory = isAdvisory(label) || isAdvisory(explicitLabel(e.description) ?? label)
+  if (mandatoryLabel(`${e.description ?? ''}\n${e.prompt}`)) e = { ...e, description: `${e.description ?? ''} [class: bulk-complex]` }
+  const sandbox: Sandbox = advisory || e.subagent_type === 'Explore' || e.subagent_type === 'Plan' || customSandbox === 'read-only' ? 'read-only' : 'workspace-write'
+  return runRoutedHarness($, e, row, sandbox)
 }
 
 function routedResult(e: AgentCall, agentId: string, out: string, footer: string, duration: number): unknown {
@@ -787,14 +871,31 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
   // on this repository sits out for a while.
   let outcomes: JobOutcome[] | undefined
   const tools = await sandboxTools($)
+  let harnessDown = false
+  // One label classification per spawn, asked by whichever rung runs first.
+  let labelPromise: Promise<Label> | undefined
+  const rungLabel = (): Promise<Label> => (labelPromise ??= classify($, e))
   for (const executor of ranked.order.filter((id) => quota.nativeSkips[id] === undefined)) {
     const row = rows.find((r) => r.id === executor)!
     let result: unknown | undefined
     let cancelled = false
     let unaccepted = false
     let unconfirmed = false
-    if (row.transport === 'codex') {
-      result = await runCodexRung($, e, customSandbox)
+    if (row.transport === 'harness') {
+      // Without the router base URL the transport is unavailable: skip without attempting, and without naming the row
+      // as fallen through. The remaining harness rows are skipped once a harness run failed after doing work for 30 s
+      // or more.
+      if (!base) { skipped[executor] = 'not_installed'; continue }
+      if (harnessDown) { skipped[executor] = 'failed'; continue }
+      const startedAt = await clockNow($)
+      result = await runHarnessRung($, e, row, customSandbox, rungLabel)
+      if (!result) {
+        skipped[executor] = 'failed'
+        const ended = await clockNow($)
+        if (startedAt !== null && ended !== null && ended - startedAt >= HARNESS_FALLBACK_MS) harnessDown = true
+      }
+    } else if (row.transport === 'codex') {
+      result = await runCodexRung($, e, customSandbox, rungLabel)
       if (!result) skipped[executor] = 'failed'
     } else if (row.transport === 'router-chat' && event.fell_through_from.includes(`local ${row.model}`)) {
       // The local rung already sent this prompt to this alias and it failed its check.
