@@ -286,7 +286,9 @@ describe('policy', () => {
     expect(EXECUTOR_TABLE[0].transport).toBe('harness')
     expect(EXECUTOR_TABLE[0].private_ok).toBe(true)
     expect(eligibleRows([EXECUTOR_TABLE[0]], false, 0).rows.map((r) => r.id)).toEqual(['homelab-harness'])
-    expect(harnessArgv('read-only')).toEqual(['claude', '-p', '--bare', '--exclude-dynamic-system-prompt-sections', '--no-session-persistence', '--output-format', 'json', '--max-turns', '40', '--permission-mode', 'dontAsk', '--tools', 'Read,Grep,Glob'])
+    expect(harnessArgv('read-only', '/workspace')).toEqual(['claude', '-p', '--bare', '--exclude-dynamic-system-prompt-sections', '--no-session-persistence', '--output-format', 'json', '--max-turns', '40', '--permission-mode', 'dontAsk', '--tools', 'Bash,Read', '--settings', JSON.stringify({ sandbox: { enabled: true, autoAllowBashIfSandboxed: true, allowUnsandboxedCommands: false, failIfUnavailable: true, filesystem: { denyWrite: ['/workspace'] } } })])
+    expect(() => harnessArgv('read-only')).toThrow('absolute directory')
+    expect(() => harnessArgv('read-only', 'relative/path')).toThrow('absolute directory')
     expect(harnessArgv('workspace-write')).toEqual(['claude', '-p', '--bare', '--exclude-dynamic-system-prompt-sections', '--no-session-persistence', '--output-format', 'json', '--max-turns', '40', '--permission-mode', 'acceptEdits', '--tools', 'Bash,Read,Edit,Write,Grep,Glob', '--settings', JSON.stringify({ sandbox: { enabled: true, autoAllowBashIfSandboxed: true, allowUnsandboxedCommands: false, failIfUnavailable: true } })])
   })
   test('harness row validation: a good row passes; a missing model and a bad window fail', () => {
@@ -1897,6 +1899,11 @@ describe('executor table', () => {
   })
 })
 describe('harness executor', () => {
+  test('a read-only spawn gets a sandboxed shell that cannot write the session directory', async () => {
+    const w = world({ quota: 1, env: gateways, harnessAnswer: 'found' })
+    expect(text(await w.agent({ subagent_type: 'Explore', description: 'read and triage', prompt: 'Read app.ts.' }))).toContain('[routed: harness medium-homelab]')
+    expect(w.calls.filter((c) => c.argv[0] === 'claude')[0].argv).toEqual(harnessArgv('read-only', '/workspace'))
+  })
   test('a checked harness answer is routed under the row id with the model named in the footer', async () => {
     const w = world({ quota: 1, env: gateways, harnessAnswer: 'done' })
     expect(text(await w.agent())).toContain('[routed: harness medium-homelab]')

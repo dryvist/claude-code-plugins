@@ -296,7 +296,7 @@ async function runHarness($: Engine, row: ExecutorRow, sandbox: Sandbox, prompt:
         CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT: '',
         PATH: `${home}/.local/bin:${await $.env.get('PATH') ?? ''}`,
       }
-      const argv = harnessArgv(sandbox)
+      const argv = harnessArgv(sandbox, cwd ?? await $.session.cwd())
       // The process API has no working-directory option, so a working directory goes through a shell that execs the
       // child in it.
       const r = await $.process.run(cwd ? ['/bin/sh', '-c', 'cd "$1" && shift && exec "$@"', 'sh', cwd, ...argv] : argv, { stdin: prompt, timeoutMs, env })

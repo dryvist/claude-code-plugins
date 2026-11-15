@@ -155,13 +155,18 @@ export function codexArgv(sandbox: Sandbox, route: Route, model: string | undefi
   return ['codex', 'exec', '-s', sandbox, '-c', `model_reasoning_effort="${effort}"`, '--skip-git-repo-check', '-m', model, '-o', outputFile, '-']
 }
 
-// The only way to run one headless harness child. The read-only spawn may read but never change the tree; the
-// write-capable spawn accepts edits under the child's own sandbox settings. The prompt goes on stdin, never as an
-// argument; the model and context window reach the child through its environment, not the command line.
-export function harnessArgv(sandbox: Sandbox): string[] {
+// The only way to run one headless harness child. Both spawns get a sandboxed shell, because the child has no
+// search tools of its own. The read-only spawn may read but never change `tree`, the directory it runs in: it has no
+// edit tools and its sandbox denies writes there. The write-capable spawn accepts edits under the child's own sandbox
+// settings. The prompt goes on stdin, never as an argument; the model and context window reach the child through its
+// environment, not the command line.
+export function harnessArgv(sandbox: Sandbox, tree?: string): string[] {
   if (sandbox !== 'read-only' && sandbox !== 'workspace-write') throw new Error(`harness sandbox must be read-only or workspace-write, got ${sandbox}`)
   const argv = ['claude', '-p', '--bare', '--exclude-dynamic-system-prompt-sections', '--no-session-persistence', '--output-format', 'json', '--max-turns', '40', '--permission-mode', sandbox === 'read-only' ? 'dontAsk' : 'acceptEdits']
-  if (sandbox === 'read-only') return [...argv, '--tools', 'Read,Grep,Glob']
+  if (sandbox === 'read-only') {
+    if (!tree?.startsWith('/')) throw new Error('a read-only harness needs the absolute directory it runs in')
+    return [...argv, '--tools', 'Bash,Read', '--settings', JSON.stringify({ sandbox: { enabled: true, autoAllowBashIfSandboxed: true, allowUnsandboxedCommands: false, failIfUnavailable: true, filesystem: { denyWrite: [tree] } } })]
+  }
   return [...argv, '--tools', 'Bash,Read,Edit,Write,Grep,Glob', '--settings', JSON.stringify({ sandbox: { enabled: true, autoAllowBashIfSandboxed: true, allowUnsandboxedCommands: false, failIfUnavailable: true } })]
 }
 
