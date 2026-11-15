@@ -22,6 +22,8 @@ const QUOTA_TIMEOUT_MS = 3_000
 const QUOTA_REFRESH_MS = 600_000
 const QUOTA_TOKEN_MAX_BYTES = 4096
 const isAbsolutePath = (path: string): boolean => path.startsWith('/')
+// A caught error's own text on one bounded line, so the decision log tells a failed spawn from a bad answer.
+const errText = (err: unknown): string => (err instanceof Error ? err.message : String(err)).replace(/\s+/g, ' ').slice(0, 200)
 const MODEL_INFO_TIMEOUT_MS = 10_000
 const JOB_STATUS_BUDGET_MS = 3_000
 const JOB_STATUS_TIMEOUT_MS = 15_000
@@ -244,8 +246,8 @@ async function runCodex($: Engine, codexRoute: Route, sandbox: Sandbox, prompt: 
         failure = 'codex exec returned an empty final message'
       }
     }
-  } catch {
-    failure = 'codex exec invocation or output read failed'
+  } catch (err) {
+    failure = `codex exec invocation or output read failed: ${errText(err)}`
   } finally {
     if (outputFile) {
       try {
@@ -306,8 +308,8 @@ async function runHarness($: Engine, row: ExecutorRow, sandbox: Sandbox, prompt:
         else return text
       }
     }
-  } catch {
-    failure = 'harness invocation failed'
+  } catch (err) {
+    failure = `harness invocation failed: ${errText(err)}`
   }
   $.ui.log(`ai-delegation: harness failed: ${failure ?? 'unknown failure'}`)
   await logDecision($, `harness failure: ${failure ?? 'unknown failure'}`)
