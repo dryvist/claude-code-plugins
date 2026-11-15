@@ -15,7 +15,7 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
 
     steps:
       - name: Checkout code
@@ -147,7 +147,8 @@ jobs:
   # unions (`X | None`) are valid syntax but crash at runtime on <3.10. Import each
   # hook module under 3.9 to catch that runtime breakage before release.
   hook-runtime-py39:
-    runs-on: ubuntu-latest
+    # setup-python publishes no Python 3.9 build for newer images than this one.
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - name: Checkout code
