@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.63.2](https://github.com/dryvist/claude-code-plugins/compare/v6.63.1...v6.63.2) (2026-11-15)
+
+
+### Bug Fixes
+
+* **jpe-ai-delegation:** keep utility calls local and read the Codex quota natively ([#812](https://github.com/dryvist/claude-code-plugins/issues/812)) ([e72f2cb](https://github.com/dryvist/claude-code-plugins/commit/e72f2cb471d5832c83649983d73e8ab93b20e0e7))
+
 ## [6.63.1](https://github.com/dryvist/claude-code-plugins/compare/v6.63.0...v6.63.1) (2026-11-14)
 
 
