@@ -1,5 +1,13 @@
 # Changelog
 
+## [6.64.0](https://github.com/dryvist/claude-code-plugins/compare/v6.63.2...v6.64.0) (2026-11-15)
+
+
+### Features
+
+* **agent:** zcode run j-562d15ab696af32c ([b6f4063](https://github.com/dryvist/claude-code-plugins/commit/b6f4063aa4681bca774873c3045b7e874daf93db))
+* **jpe-ai-delegation:** add a harness transport with two local executor rows ([#817](https://github.com/dryvist/claude-code-plugins/issues/817)) ([b6f4063](https://github.com/dryvist/claude-code-plugins/commit/b6f4063aa4681bca774873c3045b7e874daf93db))
+
 ## [6.63.2](https://github.com/dryvist/claude-code-plugins/compare/v6.63.1...v6.63.2) (2026-11-15)
 
 
