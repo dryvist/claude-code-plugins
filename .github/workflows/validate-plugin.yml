@@ -1,10 +1,13 @@
 name: Validate Claude Code Plugin
 
 on:
-  push:
-    branches: ["**"]
   pull_request:
     branches: [main]
+  merge_group:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -12,6 +15,7 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Checkout code
@@ -144,6 +148,7 @@ jobs:
   # hook module under 3.9 to catch that runtime breakage before release.
   hook-runtime-py39:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -151,7 +156,7 @@ jobs:
       - name: Setup Python 3.9
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
-          python-version: '3.15'
+          python-version: '3.9'
 
       - name: Import hook scripts under Python 3.9
         run: ./scripts/check-hooks-py39.sh
