@@ -13,8 +13,8 @@ repo (see `gh-cli-patterns`, github-workflows, for detection).
 
 > [!IMPORTANT]
 > For Git Flow repositories, feature and bugfix PRs must always target `develop`.
-> You must also add a checklist item to the session plan to merge `develop` into
-> `main` (using `/promote-release`) before wrapping up the session.
+> Promotion from `develop` to `main` is daily and automatic; agents do not
+> promote by hand.
 
 Stacked PRs are not exempt: the guards and standards below apply to every layer.
 Because `gh stack submit` creates the PRs (rather than `gh pr create`), run the
@@ -196,9 +196,9 @@ Every issue MUST have explicit, checkbox-format acceptance criteria.
 
 ## Related Skills
 
-- **rebase-pr** (git-workflows) — Rebase-merge workflow for merging approved PRs
+- **rebase-pr** (git-workflows) — Recreates a conflicted PR branch on a fresh branch, then arms auto-merge
 - **finalize-pr** (github-workflows) — Finalize PR state before merging
 - **git-workflow-standards** (git-workflows) — Branch and worktree conventions that feed into PRs
 - **pr-stacks** (github-workflows) — stack submission and merge tracking
 - **gh-cli-patterns** (github-workflows) — Canonical default-branch detection (trunk vs git-flow)
-- For branch creation and PR-branch sync, follow the [Git Town rule](https://github.com/dryvist/ai-llm-prompts/blob/main/auto-ai-agent/instructions/agentsmd/rules/on-demand/git-flow.md).
+- For branch creation and PR targets, follow the [Git Town rule](https://github.com/dryvist/ai-llm-prompts/blob/main/auto-ai-agent/instructions/agentsmd/rules/on-demand/git-flow.md).

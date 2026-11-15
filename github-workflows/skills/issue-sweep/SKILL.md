@@ -9,7 +9,7 @@ An issue is a **claim about reality**, written in the past. A sweep tests those
 claims against the code and the running system, acts on what the evidence
 supports, and turns the rest into a plan.
 
-`/pr-sweep` clears merge-ready work; this clears *stated* work.
+This skill clears *stated* work.
 `/shape-issues` creates issues; this consumes them. `auto-maintain`
 (ai-delegation) is an open-ended dispatch loop; this is a bounded pass ending
 in a plan and a report.
@@ -120,13 +120,15 @@ Issue Sweep — <scope>
   plan template: [references/issue-verification.md](references/issue-verification.md).
 - Per-tracker operations, capability probing, normalization:
   [references/tracker-adapters.md](references/tracker-adapters.md).
-- Multi-tracker or multi-repo runs reuse `/pr-sweep`'s parallel protocol.
+- Multi-tracker or multi-repo runs: one worker per tracker, independent trackers
+  in parallel, writes serial within a tracker. Reuse the triage worker for
+  execution. Each order pins `(id, last-activity)`; re-read at write time and
+  void the order if it moved.
 - **Claude project route:** run one project thread per repository instead of the
   local fan-out; see [the claude-projects rule](https://github.com/dryvist/ai-llm-prompts/blob/main/auto-ai-agent/instructions/agentsmd/rules/on-demand/claude-projects.md).
 
 ## Related Skills
 
-- **pr-sweep** (github-workflows) — the same architecture for open PRs.
 - **shape-issues** (github-workflows) — creates issues; this consumes them.
 - **gh-cli-patterns** (github-workflows) — canonical GitHub command shapes.
 - **auto-maintain** (ai-delegation) — continuous dispatch; this is bounded.

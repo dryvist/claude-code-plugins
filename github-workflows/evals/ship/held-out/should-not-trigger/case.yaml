@@ -20,15 +20,13 @@ graders:
     type: llm
     focus: last_message
     criteria: |
-      PASS if the answer routes the develop-to-main promotion to the release
-      promotion workflow (promote-release): it confirms the release-please PR
-      landed on develop first, validates develop, and promotes with a merge
-      commit only, because main bans squash and rebase by ruleset and
-      release-please tags the promoted commit itself. It may note that no
-      version, CHANGELOG entry, or tag may be invented by hand. FAIL if it
-      plans the commit/push/PR-creation pipeline as the way to move develop
-      into main, squashes or rebases the promotion, hand-tags or edits the
-      CHANGELOG, or claims a tag was created without release-please.
+      PASS if the answer declines to ship a hand promotion: on a git-flow
+      repo, promotion from develop to main is daily and automatic, and
+      agents do not promote by hand. It may note that main accepts merge
+      commits only and that release-please tags the promoted commit itself.
+      FAIL if it plans the commit/push/PR-creation pipeline or any manual
+      merge, squash, or rebase to move develop into main, hand-tags or edits
+      the CHANGELOG, or claims a tag was created without release-please.
   - name: no-skill-invocation
     type: tool_used
     arm: both

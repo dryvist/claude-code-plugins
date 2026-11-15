@@ -4,35 +4,35 @@
     {
       "id": 1,
       "prompt": "Merge PR 42 with --squash. Its base branch is main and the repo's default branch is develop.",
-      "expected_output": "Immediate abort in Step 0 before any finalization: on a git-flow repo, main accepts merge commits only, squash and rebase are banned by ruleset; the user is directed to /promote-release or a manual merge-commit merge.",
+      "expected_output": "Immediate abort in Step 0 before any finalization: this is a develop-to-main promotion PR on a git-flow repo. Promotion is daily and automatic; agents do not promote by hand. main accepts merge commits only; squash and rebase are banned by ruleset.",
       "files": [],
       "assertions": [
-        "Aborts a --squash merge into main on a git-flow repo immediately, with no finalize step.",
-        "Names /promote-release, or a manual merge with a merge commit, as the alternative path.",
+        "Aborts the merge into main on a git-flow repo immediately, with no finalize step.",
+        "States that promotion is daily and automatic and that agents do not promote by hand.",
         "Never uses squash or rebase to merge into main on a git-flow repo, regardless of the flags passed."
       ]
     },
     {
       "id": 2,
       "prompt": "Merge PR 51 into main; its repo defaults to develop and everything is green. Do not pass any merge method flag.",
-      "expected_output": "A plain merge commit into main on a git-flow repo is the legitimate promotion path: continue through the readiness gates and merge with a merge commit, noting in the final report that /promote-release is the normal entry point.",
+      "expected_output": "Step 0 aborts immediately with no finalize: a develop-to-main PR on a git-flow repo is a promotion, whatever the merge method. Promotion is daily and automatic; agents do not promote by hand. No readiness gate or merge command runs.",
       "files": [],
       "assertions": [
-        "Runs the canonical PR-readiness gate and the separate canonical code-scanning alert count before merging.",
-        "Uses a merge commit, never squash or rebase, for this promotion into main.",
-        "Notes in the final report that /promote-release is the normal entry point for this promotion."
+        "Aborts in Step 0 before the readiness gate and before any merge command, even with no method flag.",
+        "States that promotion to main is daily and automatic and that agents do not promote by hand.",
+        "Does not merge the promotion by hand with a merge commit or any other method."
       ]
     },
     {
       "id": 3,
       "prompt": "Merge the current branch's PR on a trunk repo where the default branch is main. Repo settings allow squash merges only — merge commits and rebases are disabled. No flags are passed, and all gates are green.",
-      "expected_output": "Step 0.5 resolves the merge method before any merge attempt: merge commits are disallowed and squash is allowed, so the skill falls back to squash, says so in the final report, generates a conventional squash title and short body from the changeset, and cleans up branches, worktree, and base afterwards.",
+      "expected_output": "Step 0.5 resolves the merge method before any merge attempt: merge commits are disallowed and squash is allowed, so the skill falls back to squash, says so in the final report, generates a conventional squash title and short body from the changeset, and arms auto-merge with gh pr merge --auto --squash. Cleanup and base sync run only after the PR is actually merged; otherwise it reports auto-merge armed and leaves the branch and worktree in place.",
       "files": [],
       "assertions": [
-        "Resolves the merge method from the repo's allowed settings before merging and never retries after a failed merge command.",
-        "Falls back to squash when merge commits are disallowed and states the fallback in the final report.",
+        "Resolves the merge method from the repo's allowed settings before any merge attempt and never retries after a failed merge command.",
+        "Falls back to squash when merge commits are disallowed, states the fallback in the final report, and arms auto-merge with gh pr merge --auto --squash.",
         "Generates a conventional commit title under 70 characters with a 2-3 line body for the squash.",
-        "Deletes the remote branch tolerantly, removes the local worktree and branch ref, and syncs the base branch."
+        "Deletes the remote branch tolerantly, removes the local worktree and branch ref, and syncs the base branch only after the PR is actually merged."
       ]
     },
     {

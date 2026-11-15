@@ -28,13 +28,17 @@ SKILL.md rules below, not prose style.
 - Claim check before PR creation; earliest claim wins, no duplicates.
 - Git Town branch naming on the default branch; selective staging; conventional
   commit; local validation before push.
+- PRs are opened ready, never as drafts; the platform arms native auto-merge.
+  No person approves or clicks merge; the only hold is the label
+  `human:review`, which agents never add.
 - PRs finalize sequentially via /finalize-pr; /resolve-pr-threads is never run
-  separately; agents never arm auto-merge.
+  separately. One writer at a time per PR; a push to a queued PR removes it
+  from the queue, so a queued PR is skipped.
 - Before any "Ready to merge": live Gate 1 (`mergeStateStatus` `CLEAN` or
   `HAS_HOOKS`) and Gate 2 (code-scanning alert count `0`, separate from CI);
   missing required contexts report `required check never reported`.
-- On a Git Flow repo, develop-to-main promotion is routed to /promote-release
-  as a mandatory checklist item.
+- Promotion from develop to main on a Git Flow repo is daily and automatic;
+  agents do not promote by hand.
 - Never assume a PR merged; re-run everything from Step 0 on every invocation.
 
 ## Held-out cases

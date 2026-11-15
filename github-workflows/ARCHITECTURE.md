@@ -25,16 +25,14 @@ graph LR
 ## 1. Skill Dependency Map
 
 All skills and their cross-plugin dependencies. `/refresh-repo`,
-`/prune-branches`, `/rebase-pr`, `/merge-pr`, `/promote-release`,
-`/pr-stacks`, and
+`/prune-branches`, `/rebase-pr`, `/merge-pr`, `/pr-stacks`, and
 `/gh-cli-patterns` are local to this plugin (no cross-plugin hop) —
-`/merge-pr`, `/rebase-pr`, and
-`/promote-release` all consume the canonical PR-readiness gate and the
-default-branch detection from `/gh-cli-patterns` directly. On a git-flow repo,
-`/rebase-pr` refuses a `main`-targeting PR outright, `/merge-pr` refuses only a
-`--squash`/`-s` attempt against `main` (a plain merge-commit call is a valid
-promotion), and both point to `/promote-release`, which invokes `/merge-pr`
-directly for the actual merge.
+`/merge-pr` and `/rebase-pr` consume the canonical PR-readiness gate and the
+default-branch detection from `/gh-cli-patterns` directly. `/merge-pr` arms
+native auto-merge with `gh pr merge --auto`. On a git-flow repo, `/rebase-pr`
+refuses a `main`-targeting PR outright, and `/merge-pr` aborts a `develop` →
+`main` promotion PR. Promotion to `main` is daily and automatic; agents do not
+promote by hand.
 
 ```mermaid
 flowchart TD
@@ -43,7 +41,6 @@ flowchart TD
     RPT["/resolve-pr-threads"]:::ai
     SMP["/merge-pr"]:::ai
     RBP["/rebase-pr"]:::ai
-    PRR["/promote-release"]:::ai
     RFR["/refresh-repo"]:::ai
     PBR["/prune-branches"]:::ai
     GCP["/gh-cli-patterns"]:::ai
@@ -68,16 +65,10 @@ flowchart TD
 
     RPT -->|"Step 3"| RCR
 
-    SMP -->|"refuses --squash, points to (git-flow + base=main)"| PRR
-    RBP -->|"refuses, points to (git-flow + base=main)"| PRR
-    PRR -->|"drives PR to mergeable"| FPR
-    PRR -->|"invokes for the merge commit"| SMP
-
     FPR -.->|"reference"| GCP
     SHIP -.->|"reference"| GCP
     SMP -.->|"reference"| GCP
     RBP -.->|"reference"| GCP
-    PRR -.->|"reference"| GCP
     RFR -.->|"reference"| GCP
     RPT -.->|"reference"| GCP
 
@@ -130,27 +121,23 @@ flowchart TD
         F22A & F22B & F22C --> F23 --> F235 --> F24 --> F3 --> F4 --> F5
     end
 
-    subgraph HUMAN ["HUMAN — Decision Point"]
+    subgraph MERGE ["AI — Arm auto-merge (/merge-pr)"]
         direction TB
-        H1["Review PR on GitHub"]:::human
-        H2{"Approve or\nRequest changes?"}:::human
-        H3["AI resolves via\n/resolve-pr-threads"]:::ai
-        H4["Decision: merge"]:::human
+        M0["Step 0: abort a develop → main promotion PR\non a git-flow repo"]:::ai
+        M1["Validate readiness\n(/gh-cli-patterns PR-readiness gate)"]:::ai
+        M2["Merge commit (default)\nor generate squash message (--squash)"]:::ai
+        M3["gh pr merge --auto --merge\nor --auto --squash"]:::ai
+        M4["After merge: git switch base branch && git pull"]:::ai
 
-        H1 --> H2
-        H2 -->|"Changes requested"| H3 --> H1
-        H2 -->|"Approved"| H4
+        M0 --> M1 --> M2 --> M3
     end
 
-    subgraph MERGE ["AI — On Human Command (/merge-pr)"]
+    subgraph PLATFORM ["Platform — native auto-merge"]
         direction TB
-        M0["Step 0: refuse --squash if base=main\non a git-flow repo\n(see /promote-release)"]:::ai
-        M1["Validate readiness\n(/gh-cli-patterns PR-readiness gate)"]:::ai
-        M2["Merge commit (default)\nor generate squash commit (--squash)"]:::ai
-        M3["gh pr merge --merge\nor --squash"]:::ai
-        M4["git switch base branch && git pull"]:::ai
+        P1["Required checks pass:\ngate / Merge Gate + AI Merge Gate"]:::ai
+        P2["Platform merges the PR\nNo person approves or clicks merge\nOnly hold: label human:review"]:::ai
 
-        M0 --> M1 --> M2 --> M3 --> M4
+        P1 --> P2
     end
 
     subgraph CLEANUP ["AI — On Human Command (/wrap-up from ai-cli-harness-better-practices)"]
@@ -164,8 +151,9 @@ flowchart TD
         W2 --> W4
     end
 
-    F5 --> H1
-    H4 --> M1
+    F5 --> M0
+    M3 --> P1
+    P2 --> M4
     M4 --> CLEANUP
 
     classDef ai fill:#e3f2fd,stroke:#1565c0,color:#0d47a1

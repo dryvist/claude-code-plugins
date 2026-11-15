@@ -24,7 +24,6 @@
     "./skills/merge-pr",
     "./skills/rebase-pr",
     "./skills/pr-stacks",
-    "./skills/promote-release",
     "./skills/refresh-repo",
     "./skills/prune-branches",
     "./skills/gh-cli-patterns",
@@ -33,7 +32,6 @@
     "./skills/resolve-pr-threads",
     "./skills/trigger-ai-reviews",
     "./skills/shared-workflow-org-refs",
-    "./skills/pr-sweep",
     "./skills/github-code-search",
     "./skills/github-actions-silent-failures",
     "./skills/pr-standards"

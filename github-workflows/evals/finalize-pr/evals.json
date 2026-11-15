@@ -27,23 +27,23 @@
     {
       "id": 3,
       "prompt": "Finalize PR #77. The readiness query shows mergeable MERGEABLE and mergeStateStatus BEHIND; CI is passing, threads are resolved, and an hour ago in this session the same PR already passed the full gate.",
-      "expected_output": "MERGEABLE means git-conflict-free only; a BEHIND merge state is fixed in Phase 2 by syncing the PR branch, and Phase 3 is re-run against live API state on this invocation regardless of the earlier verification.",
+      "expected_output": "MERGEABLE means git-conflict-free only. Nobody updates a PR branch from its base: no gh pr update-branch, no merging the base into the branch, no BEHIND sync — the queue tests the merged result. Phase 3 is re-run against live API state on this invocation regardless of the earlier verification.",
       "files": [],
       "assertions": [
         "Rejects the hour-old verification and re-runs the Phase 3 gate against live API state.",
-        "Updates the BEHIND branch via the Git Town rule before continuing.",
+        "Does not run gh pr update-branch, merge the base into the branch, or otherwise sync the BEHIND branch.",
         "Does not conflate mergeable MERGEABLE with full merge readiness."
       ]
     },
     {
       "id": 4,
       "prompt": "PR #15 is finally green, conflict-free, approved, and CodeQL-clean with all threads resolved. Finish the finalization for it. The PR description still says WIP and there is an existing Zammad ticket reference in the body. Our repo's default branch is develop.",
-      "expected_output": "Phase 4 regenerates the title and description through a delegate and applies them together, carrying the Zammad reference forward verbatim; the mandatory develop-to-main /promote-release checklist item is recorded for this Git Flow repo; then the Canonical PR Status Summary titled PR Status is emitted.",
+      "expected_output": "Phase 4 regenerates the title and description through a delegate and applies them together, carrying the Zammad reference forward verbatim; promotion from develop to main is daily and automatic and agents do not promote by hand; then the Canonical PR Status Summary titled PR Status is emitted.",
       "files": [],
       "assertions": [
         "Regenerates the title in conventional commit format under 70 characters and the description with Summary, Changes, and Test Plan sections through a delegate.",
         "Carries the existing Zammad reference forward verbatim and links related issues.",
-        "Adds the post-merge develop-to-main promotion via /promote-release to the session checklist as mandatory on this Git Flow repo.",
+        "Does not promote to main by hand and does not add a promotion checklist item; promotion is daily and automatic.",
         "Reports ready only after the live Phase 3 gates passed on this invocation, not on earlier verification."
       ]
     }

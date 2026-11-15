@@ -21,14 +21,14 @@ The `purge-pr` focused mode (bottom of this file) bypasses Step 0 entirely.
 ## Delegate the bulk read
 
 Everything this skill reads before it decides is token-heavy and reasoning-light:
-the `/session-status` report, the `origin/main..origin/develop` promotion log, the
-open-PR listing, and the remaining plan/TaskList items Path B groups. Hand that
+the `/session-status` report, the open-PR listing, and the remaining plan/TaskList
+items Path B groups. Hand that
 raw material to the **router** via the `local-subagents` skill (ai-delegation)
 at the cheapest capable tier — capability `small`, or a subagent carrying an explicit
 lower `model:` when the input is longer than one call holds. The premium lead
 makes the Path A/Path B verdict over the returned table, never the raw dump.
 
-Cap the input: at most 30 promotion-log lines and 30 PRs. Truncate, do not
+Cap the input: at most 30 PRs. Truncate, do not
 paginate. Exact small-model prompt text:
 [references/path-b-and-purge-pr.md](references/path-b-and-purge-pr.md#small-model-extraction-prompt).
 
@@ -49,45 +49,8 @@ Determine the completion outcome based on `/session-status`'s report:
 
 - **Path A** (complete): Every TaskList task is complete (or empty), AND
   every plan-file checklist item is checked or complete (or no plan file exists).
-
-  *Additional Git Flow Requirement* — **repository only**. Establish that first:
-
-  ```bash
-  git rev-parse --is-inside-work-tree >/dev/null 2>&1 || echo "not a repository"
-  ```
-
-  Outside a repository, skip this requirement entirely; completion is decided by
-  the TaskList and plan checklist alone.
-
-  Inside one, determine whether this is a git-flow repo (default branch
-  `develop`). Run this as **one block** — the resolution and its use must share a
-  shell (see
-  [ARCHITECTURE.md](../../ARCHITECTURE.md#resolving-the-default-branch)) — and
-  take exactly one of three branches; this gate must never fail open:
-
-  ```bash
-  default_branch=$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null)
-  default_branch=${default_branch#origin/}
-  [ -n "$default_branch" ] || default_branch=$(
-    gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name' 2>/dev/null)
-
-  if [ -z "$default_branch" ]; then
-    echo "BLOCKED: default branch unresolved; cannot confirm promotion state"
-  elif [ "$default_branch" = develop ]; then
-    git fetch origin --force develop main &&
-      git log --oneline origin/main..origin/develop
-  else
-    echo "trunk repo — promotion requirement does not apply"
-  fi
-  ```
-
-  `refs/remotes/origin/HEAD` is unset in fetch-based and CI checkouts, so the
-  first branch is reachable in practice; treat it as **unknown, not clean**. The
-  plan is incomplete until promotion state is positively confirmed.
-
-  When the log shows commits, they MUST be promoted to `main` via
-  `/promote-release`. Until then the plan is **incomplete** and the session must
-  not follow Path A.
+  Promotion from the default branch to `main` on a git-flow repo is daily and
+  automatic; agents do not promote by hand.
 - **Path B** (incomplete): Any TaskList task or plan checklist item
   remains incomplete.
 
@@ -185,7 +148,6 @@ Wrap-Up Summary
   Branch cleanup:   done or skipped
   Follow-ups filed: <n> tracked (<identifiers>) or "none" or "listed only — <reason>"
   Follow-up prompt: done or skipped
-  Git Flow promote: done or N/A
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
@@ -236,5 +198,5 @@ in one operation. Sequence and command shapes:
   opens a GitHub issue
 - **troubleshoot-worktree** (git-workflows) — Worktree-removal command shape reused by `purge-pr` mode
 - **pr-standards** (github-workflows) — Workaround Classification rubric used to decide when `purge-pr` is the right action
-- For branch creation and PR-branch sync, follow the [Git Town rule](https://github.com/dryvist/ai-llm-prompts/blob/main/auto-ai-agent/instructions/agentsmd/rules/on-demand/git-flow.md).
+- For branch creation, follow the [Git Town rule](https://github.com/dryvist/ai-llm-prompts/blob/main/auto-ai-agent/instructions/agentsmd/rules/on-demand/git-flow.md).
 - **local-subagents** (ai-delegation) — the router mechanics used by "Delegate the bulk read": live model menu, tier choice, and the fallback rule.

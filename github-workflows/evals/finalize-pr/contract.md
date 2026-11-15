@@ -29,14 +29,19 @@ SKILL.md rules below, not prose style.
 - Phase 3 runs live on every invocation with no short-circuit; subagent
   self-reports and earlier in-session results are stale snapshots.
 - `mergeable` MERGEABLE is git-conflict-free only; `mergeStateStatus` must be
-  `CLEAN` or `HAS_HOOKS`, `BEHIND` is fixed via the Git Town rule.
+  `CLEAN` or `HAS_HOOKS`. Nobody updates a PR branch from its base: no
+  `gh pr update-branch`, no base merge, no BEHIND sync. A real conflict is
+  recreated on a fresh branch via /rebase-pr, then landed with
+  `gh pr merge --auto`.
 - CodeQL is separate from CI; the canonical alert count must be `0`.
 - /simplify runs once at Step 2.3.5 after fixes; pre-push simplification is
   /ship's job. Bots are never filtered; org mode never crosses the org
   boundary; metadata regeneration is delegated (title under 70 chars,
   Summary/Changes/Test Plan, Zammad reference carried forward verbatim).
-- On a Git Flow repo the post-merge develop-to-main promotion via
-  /promote-release is added to the session checklist as mandatory.
+- One writer at a time per PR; a push to a queued PR removes it from the
+  queue, so a queued PR is skipped.
+- Promotion from the default branch to main on a Git Flow repo is daily and
+  automatic; agents do not promote by hand.
 
 ## Held-out cases
 

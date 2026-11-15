@@ -16,9 +16,10 @@ feat/auth            → PR #1   (base: main)     ← bottom
 main / develop                                  ← trunk
 ```
 
-For branch creation, PR targets, and PR-branch sync, follow the
+For branch creation and PR targets, follow the
 [Git Town rule](https://github.com/dryvist/ai-llm-prompts/blob/main/auto-ai-agent/instructions/agentsmd/rules/on-demand/git-flow.md).
-For Git-flow promotion, use `/promote-release`.
+Promotion to `main` on a git-flow repo is daily and automatic; agents do not
+promote by hand.
 
 > [!IMPORTANT]
 > All branches must live in the same repository — cross-fork stacks are not
@@ -68,6 +69,6 @@ requests CLI commands* docs; the upstream `gh-stack` skill covers it in depth.
 - gh-cli-patterns (github-workflows) — default-branch (trunk vs git-flow) detection
 - pr-standards (github-workflows) — PR creation guards, issue linking
 - git-workflow-standards (git-workflows) — branch hygiene and worktree cleanup
-- merge-pr (github-workflows) — merges the stack-aware way
-- rebase-pr (github-workflows) — local rebase-merge for individual PRs
+- merge-pr (github-workflows) — arms native auto-merge the stack-aware way
+- rebase-pr (github-workflows) — recreates a conflicted PR branch on a fresh branch, then arms auto-merge
 - prune-branches (github-workflows) — protects `--base` refs, so stack layers are safe

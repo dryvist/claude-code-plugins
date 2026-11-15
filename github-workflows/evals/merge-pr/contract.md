@@ -24,10 +24,13 @@ SKILL.md rules below, not prose style.
 
 **Rules under test** (`github-workflows/skills/merge-pr/SKILL.md`):
 
-- Step 0 refuses squash and rebase into main on a git-flow repo; a --squash
-  request aborts immediately with no finalize and names /promote-release.
-- A plain merge commit into main on a git-flow repo is allowed and noted as
-  the manual equivalent of /promote-release.
+- Step 0 aborts a develop-to-main promotion PR on a git-flow repo immediately,
+  with no finalize, whatever the merge method. Promotion is daily and
+  automatic; agents do not promote by hand.
+- Landing uses `gh pr merge <PR_NUMBER> --auto` plus the resolved method flag.
+  On a merge-queue branch this adds the PR to the queue; elsewhere it arms
+  auto-merge. Never merge by hand in any other way, and never push to a
+  queued PR.
 - Step 0.5 resolves the merge method from repo settings before any merge
   attempt; a failed merge command is never retried; fallbacks are reported.
 - The canonical readiness gate and the separate code-scanning alert count run
@@ -35,8 +38,10 @@ SKILL.md rules below, not prose style.
   /finalize-pr and re-verify.
 - Squash merges generate a conventional title under 70 characters and a short
   body; merge commits skip message generation.
-- Cleanup deletes the remote branch tolerantly, removes the local worktree and
-  branch ref, and syncs the base branch; PR metadata updates are
+- Cleanup runs only after the PR is actually merged: it deletes the remote
+  branch tolerantly, removes the local worktree and branch ref, and syncs the
+  base branch. If the PR is not merged, the skill reports auto-merge armed
+  and leaves the branch and worktree in place. PR metadata updates are
   /finalize-pr's responsibility.
 
 ## Held-out cases

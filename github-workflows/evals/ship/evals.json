@@ -4,12 +4,12 @@
     {
       "id": 1,
       "prompt": "Ship my current work. Two uncommitted files fix a nil-pointer crash tracked in issue #512. We are on the default branch of a trunk repo, the tree is dirty, and nothing is pushed. Walk through every action from a cold start through the final status report.",
-      "expected_output": "Claim check, Git Town branch off the default branch, selective staging and one conventional commit, simplify-amend, local validation, push, PR creation without arming auto-merge, sequential finalization, and live gate re-verification before any PR is listed ready.",
+      "expected_output": "Claim check, Git Town branch off the default branch, selective staging and one conventional commit, simplify-amend, local validation, push, ready PR creation with the platform arming native auto-merge, sequential finalization, and live gate re-verification before any PR is listed ready.",
       "files": [],
       "assertions": [
         "Searches open PRs for a competing claim before creating a PR and stops on an earlier claim instead of duplicating it.",
         "Creates a `{type}/{sid8}-{description}` branch when on the default branch and stages selected files without `-A`.",
-        "Never arms auto-merge and never assumes the PR merged; live state is verified before reporting.",
+        "Opens a ready PR, never a draft, and never adds the human:review label; the platform arms native auto-merge. Never assumes the PR merged; live state is verified before reporting.",
         "Invokes /finalize-pr via the Skill tool and does not run /resolve-pr-threads separately."
       ]
     },
@@ -38,12 +38,12 @@
     {
       "id": 4,
       "prompt": "Our repo uses Git Flow with `develop` as the default branch. The feature PR has just merged into `develop` and validation passed. Ship what is left so the fix reaches customers.",
-      "expected_output": "The remaining develop-to-main promotion is routed to /promote-release and recorded as a mandatory active-session checklist item; ship itself does not perform the promotion.",
+      "expected_output": "Promotion from develop to main is daily and automatic; agents do not promote by hand. Ship does not merge into main and does not add a promotion checklist item; it reports that the automatic daily promotion carries the fix to main.",
       "files": [],
       "assertions": [
-        "Routes the develop-to-main promotion to /promote-release rather than merging into main itself.",
-        "Adds the promotion to the active session checklist as mandatory, not optional, before completing the session.",
-        "Does not promote with squash or rebase."
+        "States that promotion from develop to main is daily and automatic and that agents do not promote by hand.",
+        "Does not merge, squash, or rebase develop into main and does not route to a hand promotion.",
+        "Does not add a promotion item to the session checklist."
       ]
     }
   ]
