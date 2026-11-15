@@ -1928,6 +1928,11 @@ describe('harness executor', () => {
     expect(w.calls.filter((c) => c.argv[0] === 'claude')).toHaveLength(1)
     expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'codex', skipped: { 'homelab-harness': 'failed', 'host-harness': 'failed' } })
   })
+  test('a harness call that throws logs the error text with the failure', async () => {
+    const w = world({ env: gateways, harnessStdout: 'not json' })
+    await w.agent()
+    expect(w.writes.some((s) => /harness failure: harness invocation failed: \S/.test(s))).toBe(true)
+  })
   test('a harness run that fails fast still tries the next harness row', async () => {
     const w = world({ env: gateways, harnessExit: 7 })
     expect(text(await w.agent())).toContain('[routed: codex luna xhigh')
