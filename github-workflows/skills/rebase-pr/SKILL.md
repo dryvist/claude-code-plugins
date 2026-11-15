@@ -105,17 +105,18 @@ Cut a fresh branch from the base and replay the PR's commits onto it with
 signed commits. Replace `<BASE_BRANCH>` and `{branch}` before running:
 
 ```bash
-git fetch origin <BASE_BRANCH>
+git fetch origin <BASE_BRANCH> {branch}
 git switch -c {branch}-recreated origin/<BASE_BRANCH>
-git rebase --onto origin/<BASE_BRANCH> origin/<BASE_BRANCH> {branch}
+git cherry-pick "$(git merge-base origin/<BASE_BRANCH> origin/{branch})..origin/{branch}"
 ```
 
-Resolve any conflicts as the rebase pauses (see Edge Cases). Keep
+Resolve any conflicts as the cherry-pick pauses (see Edge Cases). Keep
 `commit.gpgsign=true` so every replayed commit is signed. Then verify the
-recreated commits are ahead of `<BASE_BRANCH>`:
+recreated commits are on the fresh branch, ahead of `<BASE_BRANCH>`:
 
 ```bash
-git log --oneline origin/<BASE_BRANCH>..HEAD
+git branch --show-current                      # must print {branch}-recreated
+git log --oneline origin/<BASE_BRANCH>..HEAD   # must list the replayed commits
 ```
 
 Never merge the base into the branch and never run `gh pr update-branch`.
@@ -126,13 +127,6 @@ Push the recreated branch. Replace `{branch}` before running:
 
 ```bash
 git push -u origin {branch}-recreated
-```
-
-If force-with-lease is needed on a bot branch (no upstream tracking):
-
-```bash
-git branch --set-upstream-to=origin/{branch}-recreated {branch}-recreated
-git push --force-with-lease origin {branch}-recreated
 ```
 
 Open a ready PR from the fresh branch against `<BASE_BRANCH>` and close the
@@ -168,7 +162,7 @@ git worktree prune
 
 - **NEVER** push to the base branch — land only with `gh pr merge --auto`
 - **NEVER** run `gh pr update-branch` or merge the base into the branch
-- **NEVER** `git push --force origin <BASE_BRANCH>` — only force-push feature branches
+- **NEVER** force-push — the fresh branch needs none
 - **NEVER** create a local branch from `FETCH_HEAD` — use `origin/{branch}`
 - **NEVER** skip the GraphQL PR validation check
 - **NEVER** use `git branch -D` without first confirming `state=MERGED`
@@ -179,14 +173,14 @@ git worktree prune
 
 ## Edge Cases
 
-**Rebase conflicts:**
+**Cherry-pick conflicts:**
 
 ```bash
-# git rebase pauses and lists conflicted files
+# git cherry-pick pauses and lists conflicted files
 git status                     # see conflicted files
 # edit files to resolve
 git add {conflicted-files}
-git rebase --continue
+git cherry-pick --continue
 ```
 
 **PR already merged:**
@@ -201,7 +195,7 @@ Skip Steps 1–4. Go directly to Step 5 cleanup.
 ```bash
 git add -A
 git commit -m "style: apply pre-push hook auto-fixes"
-git push --force-with-lease origin {branch}-recreated
+git push origin {branch}-recreated
 ```
 
 This commonly occurs with release-please CHANGELOG.md entries that don't conform to markdownlint rules.

@@ -67,10 +67,11 @@ A repository has a custom property `merge_tier`:
 | `standard` | No queue; native auto-merge. |
 | `legacy` | Behaves as before. |
 
-To land a pull request an agent runs `gh pr merge <number> --auto --squash`
-(merge commit only for a promotion into `main` on a git-flow repository). On a
-queue branch this adds the pull request to the merge queue; elsewhere it arms
-auto-merge. An agent never merges by hand in another way.
+To land a pull request an agent runs `gh pr merge <number> --auto` with the
+method `/merge-pr` selects. On a queue branch this adds the pull request to the
+merge queue; elsewhere it arms auto-merge. An agent never merges by hand in
+another way. The platform opens the promotion pull request into `main` on a
+git-flow repository and merges it with a merge commit; an agent never lands it.
 
 Every agent pull request is opened ready, never as a draft. The platform arms
 native auto-merge on it. No person approves or clicks merge. The only hold is
