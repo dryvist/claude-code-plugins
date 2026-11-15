@@ -22,9 +22,6 @@ export const CODEX: Record<Label, Route> = {
   deep: { family: 'luna', effort: 'xhigh' },
 }
 
-// The classifier and the permission judge are simple, high-volume calls.
-export const UTILITY: Route = CODEX.bulk
-
 // Plan and deep judgment is advice: it never writes.
 export const isAdvisory = (label: Label): boolean => label === 'plan' || label === 'deep'
 
@@ -238,7 +235,7 @@ export function mergeExecutorRows(base: readonly ExecutorRow[], override: unknow
   return { rows, rejected }
 }
 
-export type SkipReason = 'ineligible' | 'exhausted' | 'expired' | 'not_installed' | 'failed' | 'recent_failures' | 'budget_unknown' | 'budget_spent'
+export type SkipReason = 'ineligible' | 'exhausted' | 'expired' | 'not_installed' | 'failed' | 'recent_failures' | 'budget_unknown' | 'budget_spent' | 'quota_unknown'
 
 // How a sandbox job ended, from the dispatcher's `status`: `end` decides, and `duration` (whole seconds the job ran)
 // only dates the end.
@@ -326,6 +323,12 @@ export function peakMultiplier(row: ExecutorRow, nowMs: number): number {
 
 // On-host router aliases only, smallest first; `*-homelab` aliases leave the host and are never used.
 export const LOCAL_ALIASES = [{ alias: 'small', timeoutMs: 60_000 }, { alias: 'local-only', timeoutMs: 120_000 }] as const
+// The two utility calls that never spend the Codex subscription: label classification on the smallest alias and the
+// permission judge on `medium`, both on the same on-host chat endpoint the local rung uses.
+export const CLASSIFIER_ALIAS = LOCAL_ALIASES[0].alias
+export const JUDGE_ALIAS = 'medium'
+// Room for one verdict object: {"verdict":"safe"|"unsafe","reason":"<one sentence>"}.
+export const JUDGE_OUTPUT_TOKENS = 200
 export const LOCAL_OUTPUT_TOKENS = 2048
 // Only work the lead marks as self-contained text; a chat-only model cannot read files or run tools.
 export const localTask = (description: string | undefined): boolean => /\[class: text\]/.test(description ?? '')
@@ -449,6 +452,24 @@ export function scoreWindows(windows: QuotaWindow[] | undefined, nowSeconds: num
     score = score === undefined ? s : Math.min(score, s)
   }
   return { score: exhausted ? undefined : score, exhausted, ...pace }
+}
+
+// Codex is eligible only when a quota read reports the primary window below this used percent.
+export const CODEX_QUOTA_THRESHOLD = 80
+// One native `codex-quota` read: `ok` carries a usable used percent below the threshold, `exhausted` is a refusal by
+// exit code or a reading at or above it, and `unknown` is an absent command, a timeout or no parsable object.
+export type CodexQuotaRead = { kind: 'ok' | 'exhausted' | 'unknown'; used?: number }
+// The command prints one JSON object after a banner, for example `codex-quota: available {"p":85.0,"s":null}`, where
+// `p` is the primary window's used percent (0 to 100) and may be null. A null, out-of-range or non-numeric `p`, or no
+// object at all, is never scored as empty or full.
+export function parseCodexQuota(stdout: string, threshold: number): CodexQuotaRead {
+  try {
+    const p = JSON.parse(stdout.match(/\{[^{}]*\}/s)?.[0] ?? '')?.p
+    if (typeof p !== 'number' || !Number.isFinite(p) || p < 0 || p > 100) return { kind: 'unknown' }
+    return p >= threshold ? { kind: 'exhausted', used: p } : { kind: 'ok', used: p }
+  } catch {
+    return { kind: 'unknown' }
+  }
 }
 
 // Promotions first; at/below-line readings by distance (furthest under first), unknown in table order, then

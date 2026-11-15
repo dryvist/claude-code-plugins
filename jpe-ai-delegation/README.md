@@ -8,7 +8,8 @@ This plugin is specific to the maintainer's own setup and is not intended for ge
 
 ## Hooks
 
-- **Spawn router and permission judge** - Apply the maintainer-specific policy documented in the delegation-ladder references
+- **Spawn router and permission judge** - Apply the maintainer-specific policy documented in the delegation-ladder references; untagged spawns are classified on the on-host router's `small` alias and shell permission asks are judged on its `medium` alias, so neither utility call spends the Codex subscription
+- **Codex eligibility** - When the metrics feed has no fresh Codex row, the hook reads the native `codex-quota` command instead (cached for four hours, failures for ten minutes) and skips Codex unless it exits 0 below the 80-percent used threshold
 - **Sandbox executors** - Qwen (`opencode-qwen`) ranks first for public coding, ahead of ZCode, OpenCode Go and Cursor
 
 ## Installation
