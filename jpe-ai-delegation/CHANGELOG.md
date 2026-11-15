@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.26.2](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.26.1...jpe-ai-delegation-v1.26.2) (2026-11-15)
+
+
+### Bug Fixes
+
+* **jpe-ai-delegation:** give the read-only harness a sandboxed shell that cannot write its directory ([#823](https://github.com/dryvist/claude-code-plugins/issues/823)) ([570dcab](https://github.com/dryvist/claude-code-plugins/commit/570dcab82291951004a61650ae99b75c0b5e77d2))
+
 ## [1.26.1](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.26.0...jpe-ai-delegation-v1.26.1) (2026-11-15)
 
 
