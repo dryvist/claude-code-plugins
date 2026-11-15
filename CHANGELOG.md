@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.64.1](https://github.com/dryvist/claude-code-plugins/compare/v6.64.0...v6.64.1) (2026-11-15)
+
+
+### Bug Fixes
+
+* **jpe-ai-delegation:** log the caught error text when a harness or Codex call throws ([#821](https://github.com/dryvist/claude-code-plugins/issues/821)) ([2ae2940](https://github.com/dryvist/claude-code-plugins/commit/2ae2940f88d84e862f09ce375f737c391cf1fa38))
+
 ## [6.64.0](https://github.com/dryvist/claude-code-plugins/compare/v6.63.2...v6.64.0) (2026-11-15)
 
 
