@@ -1,0 +1,40 @@
+name: OpenHands CI Fix
+
+on:
+  workflow_run:
+    workflows: ["CI Gate", "Validate Claude Code Plugin"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      failure_run_id:
+        description: ID of the failed run
+        required: true
+        type: string
+      failure_head_branch:
+        description: Head branch of the failed run
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  fix:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'failure'
+    uses: JacobPEvans/.github-ai/.github/workflows/cc-ci-fix.yml@fe5d5e7bd1fc2c598880cb7d78fadaf4e883ba5a # v2.7.0
+    with:
+      # Hosted runners cannot reach the model router; the review pool can.
+      runner_label: review
+      agent: openhands
+      local_model: medium
+      daily_run_limit: "20"
+      ci_structure: "CI Gate (Markdown lint and file size checks, aggregated in Merge Gate); Validate Claude Code Plugin (manifest validation and plugin tests)"
+      failure_conclusion: ${{ github.event_name == 'workflow_dispatch' && 'failure' || '' }}
+      failure_run_id: ${{ inputs.failure_run_id }}
+      failure_head_branch: ${{ inputs.failure_head_branch }}
+      failure_head_repository: ${{ github.event_name == 'workflow_dispatch' && github.repository || '' }}
+      failure_actor: ${{ github.event_name == 'workflow_dispatch' && github.actor || '' }}
+    secrets: inherit
