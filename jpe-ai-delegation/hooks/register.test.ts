@@ -2,7 +2,7 @@ import { describe, expect, test } from 'claude-code/testing'
 import type { EngineInterface } from 'claude-code'
 import { endAnchor, jobHistory, jobState, recentFailures } from './lib/policy'
 import { register } from './register'
-import { CODEX, EXECUTOR_TABLE, LAST_RESORT, codexArgv, eligibleRows, mergeExecutorRows, metricsResult, peakMultiplier, QUOTA_SELECTOR, quotaFromMetrics, rankRows, repositoryFromOrigin, validRow, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, lastRungMarker, localTask, mandatoryLabel, newestModel, parseVerdict, pickLocal, promptToken, safePayload, scoreWindows, budgetsFromMetrics, forbiddenRowModel, KIND_CLASSIFIER, parseKind } from './lib/policy'
+import { CODEX, CLASSIFIER, CODEX_QUOTA_THRESHOLD, EXECUTOR_TABLE, LAST_RESORT, codexArgv, eligibleRows, mergeExecutorRows, metricsResult, parseCodexQuota, peakMultiplier, QUOTA_SELECTOR, quotaFromMetrics, rankRows, repositoryFromOrigin, validRow, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, lastRungMarker, localTask, mandatoryLabel, newestModel, parseVerdict, pickLocal, promptToken, safePayload, scoreWindows, budgetsFromMetrics, forbiddenRowModel, KIND_CLASSIFIER, parseKind } from './lib/policy'
 import { customAgentSandbox, parseAgentDefinition } from './lib/agent-definition'
 import { RECORDED_QUOTA } from './fixtures/quota-instant-query'
 
@@ -18,6 +18,7 @@ const CORE_ASK = { decision: 'ask', reason: 'This shell -c script runs rm.' }
 type Call = { argv: string[]; stdin?: string; env?: Record<string, string> }
 type World = {
   quota?: number; codexWindows?: unknown[]; cursorWindows?: unknown[]; now?: number; gatewayFinish?: string; quotaThrows?: boolean; cache?: boolean; codexExit?: number; answer?: string; label?: string
+  codexQuota?: 'absent' | 'hangs' | 'refused' | string
   env?: Record<string, string>; definition?: string; files?: Record<string, string>; fsThrows?: boolean; worktreeExit?: number; temporaryExit?: number
   repository?: unknown; properties?: unknown; githubPrivateAuth?: boolean; githubAuthDenied?: boolean; pr?: unknown; githubError?: boolean; githubInvalidJson?: boolean
   originUrl?: string; pathRealpaths?: Record<string, string>; pathGitRoots?: Record<string, string>; unresolvedPaths?: string[]; pathKinds?: Record<string, 'file' | 'directory'>
@@ -41,6 +42,7 @@ function world(w: World = {}) {
   register(on as never)
   const calls: Call[] = []
   const writes: string[] = []
+  const storeMap = new Map<string, unknown>()
   const fetches: { url: string; body?: string }[] = []
   const quotaFetches: string[] = []
   const quotaHeaders: Record<string, string>[] = []
@@ -83,7 +85,7 @@ function world(w: World = {}) {
   const $ = {
     env: { get: async (key: string) => { if (key === w.envThrows) throw new Error('environment read failed'); return env[key] } },
     session: { cwd: async () => '/workspace' },
-    clock: { now: async () => { if (w.clockThrows) throw new Error('clock failed'); if (w.clockHangs) return new Promise<number>(() => {}); return clockNow }, after: (delay: number, callback: () => void) => { if ((w.clockHangs && delay === 5_000) || (w.gatewayTimeout && delay >= 60_000) || (w.quotaTimeout && delay === 3_000) || (w.classifierTimeout && delay === 20_000) || (w.statusHangs && (delay === 3_000 || delay === 15_000))) Promise.resolve().then(callback); return { cancel() {} } } },
+    clock: { now: async () => { if (w.clockThrows) throw new Error('clock failed'); if (w.clockHangs) return new Promise<number>(() => {}); return clockNow }, after: (delay: number, callback: () => void) => { if ((w.clockHangs && delay === 5_000) || (w.gatewayTimeout && delay >= 60_000) || (w.quotaTimeout && delay === 3_000) || (w.classifierTimeout && delay === 20_000) || (w.codexQuota === 'hangs' && delay === 15_000) || (w.statusHangs && (delay === 3_000 || delay === 15_000))) Promise.resolve().then(callback); return { cancel() {} } } },
     ui: { log: (line: string) => logs.push(line) },
     fs: {
       ...fs,
@@ -123,6 +125,12 @@ function world(w: World = {}) {
       if (argv[0] === 'codex') {
         output = init?.stdin?.startsWith('Classify the delegated task') ? w.label ?? 'standard' : w.answer ?? 'task result'
         return { ...RAN, exitCode: w.codexExit ?? 0 }
+      }
+      if (argv[0] === 'codex-quota') {
+        if (w.codexQuota === undefined || w.codexQuota === 'absent') throw new Error('spawn codex-quota ENOENT')
+        if (w.codexQuota === 'hangs') return new Promise<never>(() => {})
+        if (w.codexQuota === 'refused') return { ...RAN, exitCode: 1, stdout: 'codex-quota: denied' }
+        return { ...RAN, stdout: w.codexQuota }
       }
       if (argv[0] === 'gh') {
         const value = argv[2].endsWith('/properties/values') ? w.properties : w.repository
@@ -174,6 +182,10 @@ function world(w: World = {}) {
       return { ok: status === 200, text: w.gatewayInvalidJson ? '{' : JSON.stringify({ choices: [{ finish_reason: w.gatewayFinish ?? 'stop', message: { content: w.gatewayAnswer?.[body.model] ?? 'gateway result' } }] }) }
     } },
     model: { complete: async (input: unknown) => { modelCalls.push(input); return { isAnswered: true, text: w.answer ?? '' } } },
+    store: {
+      get: async (key: string) => storeMap.get(key),
+      set: async (key: string, value: unknown) => { storeMap.set(key, value) },
+    },
   }
   async function invoke(event: string, e: unknown, core: unknown = { result: { content: [{ text: 'haiku result' }] } }) {
     const handler = handlers.get(event)!
@@ -183,7 +195,7 @@ function world(w: World = {}) {
       return handler.caught($, e, next)
     }
   }
-  return { calls, writes, fetches, quotaFetches, quotaHeaders, allFetches, fsTouches, fsReads, fsStats, modelCalls, nextCalls, logs, invoke, setNow: (ms: number) => { clockNow = ms },
+  return { calls, writes, storeMap, fetches, quotaFetches, quotaHeaders, allFetches, fsTouches, fsReads, fsStats, modelCalls, nextCalls, logs, invoke, setNow: (ms: number) => { clockNow = ms },
     agent: (e: Record<string, unknown> = {}) => invoke('tool.call', { tool: 'Agent', description: '[class: standard]', prompt: 'Implement the change.', ...e }),
   }
 }
@@ -217,6 +229,10 @@ const work = (w: ReturnType<typeof world>) => w.calls.filter((c) => c.argv[0] !=
 const nonGithub = (w: ReturnType<typeof world>) => w.fetches.filter((f) => !f.url.startsWith('https://api.github.com/'))
 // Chat-completion requests that carry the untagged-kind instruction, i.e. the classifier's own traffic.
 const classifierCalls = (w: ReturnType<typeof world>) => w.fetches.filter((f) => f.body !== undefined && JSON.parse(f.body).messages?.[0]?.content?.startsWith(KIND_CLASSIFIER) === true)
+// Chat-completion requests that carry the label-classifier instruction, i.e. the Codex rung's classification traffic.
+const labelClassifyCalls = (w: ReturnType<typeof world>) => w.fetches.filter((f) => f.body !== undefined && JSON.parse(f.body).messages?.[0]?.content?.startsWith(CLASSIFIER) === true)
+// The fixed native quota command, one entry per call.
+const codexQuotaCalls = (w: ReturnType<typeof world>) => w.calls.filter((c) => c.argv[0] === 'codex-quota')
 
 describe('policy', () => {
   test('exact class routes and newest listed model per family', () => {
@@ -248,6 +264,16 @@ describe('policy', () => {
     expect(isAdvisory('complex')).toBe(false)
     expect(parseVerdict('{"verdict":"safe","reason":"bounded"}')).toEqual({ verdict: 'safe', reason: 'bounded' })
     expect(parseVerdict('{"verdict":"maybe","reason":"x"}')).toBeUndefined()
+  })
+  test('the native codex-quota read parses the threshold and fails closed', () => {
+    expect(CODEX_QUOTA_THRESHOLD).toBe(80)
+    expect(parseCodexQuota('codex-quota: available {"p":85.0,"s":null}', 80)).toEqual({ kind: 'exhausted', used: 85 })
+    expect(parseCodexQuota('codex-quota: available {"p":40,"s":null}', 80)).toEqual({ kind: 'ok', used: 40 })
+    expect(parseCodexQuota('codex-quota: available {"p":null,"s":null}', 80)).toEqual({ kind: 'unknown' })
+    expect(parseCodexQuota('codex-quota: available {"p":150}', 80)).toEqual({ kind: 'unknown' })
+    expect(parseCodexQuota('{"p":"40"}', 80)).toEqual({ kind: 'unknown' })
+    expect(parseCodexQuota('no object here', 80)).toEqual({ kind: 'unknown' })
+    expect(parseCodexQuota('', 80)).toEqual({ kind: 'unknown' })
   })
 })
 
@@ -557,7 +583,7 @@ describe('Codex rung', () => {
     const w = world()
     expect(text(await w.agent(coding))).toContain('codex luna xhigh')
     expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'codex', eligible: ['qwen', 'zcode', 'opencode-go', 'codex', 'cursor', 'haiku'], scores: { codex: { used: 50, line: 50 } } })
-    expect(runs(w)).toHaveLength(2)
+    expect(runs(w)).toHaveLength(1)
     expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
     expect(w.fetches.map((f) => f.url)).toEqual(['https://api.github.com/repos/owner/project'])
   })
@@ -565,23 +591,23 @@ describe('Codex rung', () => {
     const w = world({ env: gateways })
     expect(text(await w.agent({ description: '[class: public] [repo: owner/project]' }))).toContain('codex luna xhigh')
     expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
-    expect(w.fetches.filter((f) => !classifierCalls(w).includes(f))).toEqual([])
-    expect(classifierCalls(w)).toHaveLength(1)
-    expect(JSON.parse(classifierCalls(w)[0].body!).model).toBe('small')
+    expect(w.fetches.filter((f) => !classifierCalls(w).includes(f) && !labelClassifyCalls(w).includes(f))).toEqual([])
+    expect(labelClassifyCalls(w)).toHaveLength(1)
+    expect(JSON.parse(labelClassifyCalls(w)[0].body!).model).toBe('small')
   })
-  test('untagged reads and triage use classifier bulk and Luna xhigh', async () => {
-    const w = world({ label: 'bulk' })
+  test('untagged reads and triage classify bulk on the local alias and use Luna xhigh', async () => {
+    const w = world({ env: gateways, gatewayAnswer: { small: 'bulk' } })
     expect(text(await w.agent({ description: 'read and triage', prompt: 'Read the README.' }))).toContain('codex luna xhigh')
-    expect(runs(w)).toHaveLength(2)
-    expect(runs(w)[0].stdin).toContain('bulk: bulk work, reads and triage.')
+    expect(runs(w)).toHaveLength(1)
+    expect(runs(w)[0].argv).toContain('workspace-write')
   })
-  test('classification itself stays on Codex while quota is available', async () => {
-    const w = world({ env: gateways, label: 'complex' })
+  test('classification itself runs on the local small alias and makes zero Codex calls', async () => {
+    const w = world({ env: gateways, gatewayAnswer: { small: 'complex' } })
     expect(text(await w.agent({ description: 'coordinated change' }))).toContain('codex luna max')
-    expect(runs(w)).toHaveLength(2)
-    expect(runs(w)[0].argv).toContain('gpt-newer-luna')
-    expect(runs(w)[1].argv).toContain('gpt-newer-luna')
-    expect(w.fetches.filter((f) => !classifierCalls(w).includes(f))).toEqual([])
+    expect(runs(w)).toHaveLength(1)
+    expect(labelClassifyCalls(w)).toHaveLength(1)
+    expect(JSON.parse(labelClassifyCalls(w)[0].body!).model).toBe('small')
+    expect(JSON.parse(labelClassifyCalls(w)[0].body!).messages[0].content).toStartWith(CLASSIFIER)
     expect(w.quotaFetches).toEqual([QUERY_URL])
   })
   for (const subagent_type of ['Explore', 'Plan']) {
@@ -609,15 +635,15 @@ describe('Codex rung', () => {
       const again = await reissue(issued)
       expect(text(await w.agent(again))).toBe('haiku result')
       expect(w.nextCalls).toEqual([{ tool: 'Agent', ...again }])
-      expect(w.fetches.filter((f) => !classifierCalls(w).includes(f))).toEqual([])
+      expect(w.fetches.filter((f) => !classifierCalls(w).includes(f) && !labelClassifyCalls(w).includes(f))).toEqual([])
       expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'haiku', reason: 'explicit last rung' })
     })
   }
   for (const options of [{ quota: 127 }, { quota: 2 }, { quotaThrows: true }]) {
-    test(`unknown quota keeps the static order and still tries Codex: ${JSON.stringify(options)}`, async () => {
+    test(`unknown quota and an absent native read skip Codex as quota_unknown: ${JSON.stringify(options)}`, async () => {
       const w = world(options)
-      expect(text(await w.agent())).toContain('codex luna xhigh')
-      expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'codex', scores: { codex: { used: null, line: null } } })
+      expect(text(await w.agent())).toContain('no other executor took the task')
+      expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'stopped', skipped: { codex: 'quota_unknown' }, eligible: ['codex', 'haiku'], scores: { codex: { used: null, line: null } } })
     })
   }
 })
@@ -1043,25 +1069,57 @@ describe('untagged kind classification', () => {
 })
 
 describe('judge and session policy', () => {
-  test('Codex judge honors safe verdict and leaves malformed verdicts to the core', async () => {
-    for (const answer of ['{"verdict":"safe","reason":"bounded"}', 'not a verdict']) {
-      const w = world({ answer })
+  test('the judge approves on a local safe verdict and makes zero Codex process calls', async () => {
+    const w = world({ env: gateways, gatewayAnswer: { medium: '{"verdict":"safe","reason":"bounded"}' } })
+    const r = await w.invoke('tool.check', { input: { command: 'rm ./file' } }, CORE_ASK)
+    expect(r.decision).toBe('allow')
+    expect(r.reason).toContain('ai-delegation judge (local medium)')
+    expect(runs(w)).toEqual([])
+    expect(codexQuotaCalls(w)).toEqual([])
+    expect(w.modelCalls).toEqual([])
+    const ask = w.fetches.filter((f) => f.url.endsWith('/chat/completions'))
+    expect(ask).toHaveLength(1)
+    expect(JSON.parse(ask[0].body!).model).toBe('medium')
+    expect(w.writes.some((s) => s.startsWith('judge: safe by local medium'))).toBe(true)
+  })
+  test('the judge denies on a local unsafe verdict', async () => {
+    const w = world({ env: gateways, gatewayAnswer: { medium: '{"verdict":"unsafe","reason":"reaches the home directory"}' } })
+    const r = await w.invoke('tool.check', { input: { command: 'rm /other' } }, CORE_ASK)
+    expect(r.decision).toBe('deny')
+    expect(r.reason).toContain('reaches the home directory')
+    expect(runs(w)).toEqual([])
+    expect(w.modelCalls).toEqual([])
+  })
+  test('the judge leaves the dialog to the person on no verdict', async () => {
+    for (const [name, options, line] of [
+      ['unparsable verdict', { env: gateways, gatewayAnswer: { medium: 'not a verdict' } }, 'judge: no verdict (unparsable body), dialog left to the person\n'],
+      ['router unset', {}, 'judge: no verdict (no router URL), dialog left to the person\n'],
+      ['non-OK status', { env: gateways, gatewayStatus: { medium: 503 } }, 'judge: no verdict (non-OK status), dialog left to the person\n'],
+      ['timeout', { env: gateways, gatewayTimeout: true }, 'judge: no verdict (timeout), dialog left to the person\n'],
+    ] as const) {
+      const w = world(options)
       const r = await w.invoke('tool.check', { input: { command: 'rm ./file' } }, CORE_ASK)
-      expect(r.decision).toBe(answer.startsWith('{') ? 'allow' : 'ask')
+      expect(`${name}:${r.decision}`).toBe(`${name}:ask`)
+      expect(runs(w)).toEqual([])
       expect(w.modelCalls).toEqual([])
+      expect(w.writes).toContain(line)
     }
   })
-  test('mandatory judge topics also use Luna max and name the class', async () => {
-    const w = world({ answer: '{"verdict":"safe","reason":"bounded"}' })
-    await w.invoke('tool.check', { input: { command: 'rm ./auth-cache' } }, CORE_ASK)
-    expect(runs(w)[0].argv).toContain('model_reasoning_effort="max"')
-    expect(runs(w)[0].stdin).toStartWith('[class: bulk-complex]')
+  test('the judge never falls back to a gateway, the last resort or Codex', async () => {
+    const w = world({ quota: 1, env: gateways, gatewayStatus: { medium: 503, 'configured-glm': 200, 'configured-go': 200 }, gatewayAnswer: { 'configured-glm': '{"verdict":"safe","reason":"bounded"}', 'configured-go': '{"verdict":"safe","reason":"bounded"}' } })
+    expect((await w.invoke('tool.check', { input: { command: 'rm /other' } }, CORE_ASK)).decision).toBe('ask')
+    expect(w.fetches.map((f) => JSON.parse(f.body!).model)).toEqual(['medium'])
+    expect(w.modelCalls).toEqual([])
+    expect(runs(w)).toEqual([])
   })
-  test('capped judge tries GLM and Go before Haiku', async () => {
-    const w = world({ quota: 1, env: gateways, gatewayStatus: { 'configured-glm': 503, 'configured-go': 503 }, answer: '{"verdict":"unsafe","reason":"outside tree"}' })
-    expect((await w.invoke('tool.check', { input: { command: 'rm /other' } }, CORE_ASK)).decision).toBe('deny')
-    expect(w.fetches.map((f) => JSON.parse(f.body!).model)).toEqual(['configured-glm', 'configured-go'])
-    expect(w.modelCalls[0]).toMatchObject({ model: 'haiku', effort: 'xhigh' })
+  test('mandatory judge topics judge locally on the medium alias and name the class', async () => {
+    const w = world({ env: gateways, gatewayAnswer: { medium: '{"verdict":"safe","reason":"bounded"}' } })
+    const r = await w.invoke('tool.check', { input: { command: 'rm ./auth-cache' } }, CORE_ASK)
+    expect(r.decision).toBe('allow')
+    const ask = w.fetches.filter((f) => f.url.endsWith('/chat/completions'))
+    expect(ask).toHaveLength(1)
+    expect(JSON.parse(ask[0].body!).messages[0].content).toStartWith('[class: bulk-complex]')
+    expect(w.writes.some((s) => s.startsWith('judge: safe by local medium'))).toBe(true)
   })
   test('unknown quota and sensitive shell input leave core ask without model calls', async () => {
     for (const options of [{ quota: 127 }, { quota: 1 }]) {
@@ -1408,25 +1466,25 @@ describe('quota from the metrics store', () => {
     expect(event.quota_source).toEqual({ 'codex/five_hour': 'provider', 'codex/weekly': 'provider', 'cursor/monthly': 'estimate' })
     expect(typeof event.scores.codex.score).toBe('number')
   })
-  test('env unset: every quota is unknown and no request is made', async () => {
+  test('env unset: every quota is unknown, no request is made, and an absent native read skips Codex', async () => {
     const w = world({ quotaUrl: null })
-    expect(text(await w.agent())).toContain('codex luna xhigh')
+    expect(text(await w.agent())).toContain('no other executor took the task')
     expect(w.quotaFetches).toEqual([])
     expect(w.fetches).toEqual([])
-    expect(routeEvents(w).at(-1)).toMatchObject({ scores: { codex: { used: null, line: null } }, quota_unknown: { codex: 'quota_unconfigured', cursor: 'quota_unconfigured' } })
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'stopped', skipped: { codex: 'quota_unknown' }, scores: { codex: { used: null, line: null } }, quota_unknown: { codex: 'quota_unconfigured', cursor: 'quota_unconfigured' } })
   })
   for (const [name, options] of unknownCases.slice(1)) {
-    test(`${name}: every quota is unknown as quota_unreachable and Codex is still tried`, async () => {
+    test(`${name}: every quota is unknown as quota_unreachable and the absent native read skips Codex`, async () => {
       const w = world({ ...options, env: gateways })
-      expect(text(await w.agent())).toContain('codex luna xhigh')
+      expect(text(await w.agent())).toContain('no other executor took the task')
       expect(w.quotaFetches).toEqual([QUERY_URL])
-      expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'codex', scores: { codex: { used: null, line: null } }, quota_unknown: { codex: 'quota_unreachable', cursor: 'quota_unreachable' } })
+      expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'stopped', skipped: { codex: 'quota_unknown' }, scores: { codex: { used: null, line: null } }, quota_unknown: { codex: 'quota_unreachable', cursor: 'quota_unreachable' } })
     })
   }
-  test('a stale sample in the store reads as quota_stale, never as a score', async () => {
+  test('a stale sample in the store reads as quota_stale and the absent native read skips Codex', async () => {
     const w = world({ quotaSampleAge: 901, env: gateways })
     await w.agent()
-    expect(routeEvents(w).at(-1)).toMatchObject({ scores: { codex: { used: null, line: null } }, quota_unknown: { 'codex/weekly': 'quota_stale', cursor: 'quota_missing' } })
+    expect(routeEvents(w).at(-1)).toMatchObject({ skipped: { codex: 'quota_unknown' }, scores: { codex: { used: null, line: null } }, quota_unknown: { 'codex/weekly': 'quota_stale', cursor: 'quota_missing' } })
   })
   test('staleness is judged on the clock at routing time, not when the sample was read', async () => {
     const w = world({ now: RECORDED_NOW_MS, quotaText: JSON.stringify(recorded()) })
@@ -1438,6 +1496,7 @@ describe('quota from the metrics store', () => {
     const event = routeEvents(w).at(-1)
     expect(event.quota_unknown).toEqual({ 'codex/five_hour': 'quota_stale', 'codex/weekly': 'quota_stale' })
     expect(event.scores.codex).toMatchObject({ used: null, line: null })
+    expect(event.skipped).toMatchObject({ codex: 'quota_unknown' })
     expect(w.quotaFetches).toHaveLength(2)
   })
   test('placeholder-free: no unknown quota is ever scored as empty or full', async () => {
@@ -1546,15 +1605,15 @@ describe('quota from the metrics store', () => {
   })
   test('a token read that never settles is cut by the 3 s budget and routing completes', async () => {
     const w = world({ quotaTimeout: true, readHangs: TOKEN_FILE, env: { ...gateways, AGENT_QUOTA_TOKEN_FILE: TOKEN_FILE } })
-    expect(text(await w.agent())).toContain('codex luna xhigh')
+    expect(text(await w.agent())).toContain('no other executor took the task')
     expect(w.quotaFetches).toEqual([])
-    expect(routeEvents(w).at(-1)).toMatchObject({ quota_unknown: { codex: 'quota_unreachable', cursor: 'quota_unreachable' } })
+    expect(routeEvents(w).at(-1)).toMatchObject({ skipped: { codex: 'quota_unknown' }, quota_unknown: { codex: 'quota_unreachable', cursor: 'quota_unreachable' } })
   })
   for (const status of [401, 403]) {
-    test(`HTTP ${status}: every quota is unknown as quota_unreachable`, async () => {
+    test(`HTTP ${status}: every quota is unknown as quota_unreachable and the absent native read skips Codex`, async () => {
       const w = world({ quotaStatus: status, env: { ...gateways, AGENT_QUOTA_TOKEN_FILE: TOKEN_FILE }, files: { [TOKEN_FILE]: 'quota-secret-value' } })
-      expect(text(await w.agent())).toContain('codex luna xhigh')
-      expect(routeEvents(w).at(-1)).toMatchObject({ scores: { codex: { score: null, exhausted: false, effective: null, used: null, line: null } }, quota_unknown: { codex: 'quota_unreachable', cursor: 'quota_unreachable' } })
+      expect(text(await w.agent())).toContain('no other executor took the task')
+      expect(routeEvents(w).at(-1)).toMatchObject({ scores: { codex: { score: null, exhausted: false, effective: null, used: null, line: null } }, skipped: { codex: 'quota_unknown' }, quota_unknown: { codex: 'quota_unreachable', cursor: 'quota_unreachable' } })
     })
   }
   test('the token appears only in the quota GET header: never in a URL, a body, the route event, a log or a command', async () => {
@@ -1569,15 +1628,73 @@ describe('quota from the metrics store', () => {
       expect(JSON.stringify(w.nextCalls)).not.toContain(SECRET)
     }
   })
-  test('quota never runs a local command, whatever the environment names', async () => {
+  test('quota runs only the fixed codex-quota command, never an environment-named one', async () => {
     const envs: Record<string, string>[] = [{}, { TOKEN_METER_BIN: '/opt/meter' }]
     for (const env of envs) {
       const w = world({ quotaUrl: null, env })
       await w.agent({ description: '[class: standard]' })
-      expect(w.calls.filter((c) => /quota|meter|^which /.test(c.argv.join(' ')))).toEqual([])
-      expect(runs(w)).toHaveLength(1)
+      expect(w.calls.filter((c) => /meter|^which /.test(c.argv.join(' ')))).toEqual([])
+      expect(codexQuotaCalls(w).map((c) => c.argv)).toEqual([['codex-quota']])
+      expect(runs(w)).toEqual([])
       expect(w.quotaFetches).toEqual([])
+      expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'stopped', skipped: { codex: 'quota_unknown' } })
     }
+  })
+})
+
+describe('codex quota from the native command', () => {
+  // Private work reaches only the codex row, so its eligibility is the whole decision.
+  const privateCode = { repository: { visibility: 'private', private: true } }
+  test('a native read below the threshold keeps Codex eligible with its used percent', async () => {
+    const w = world({ quotaUrl: null, codexQuota: 'codex-quota: available {"p":40,"s":null}', ...privateCode })
+    expect(text(await w.agent(coding))).toContain('codex luna xhigh')
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'codex', quota_source: { codex: 'codex-quota' }, scores: { codex: { exhausted: false, used: 40, line: null } } })
+    expect(codexQuotaCalls(w).map((c) => c.argv)).toEqual([['codex-quota']])
+  })
+  test('a native read at or above the threshold skips Codex as exhausted', async () => {
+    const w = world({ quotaUrl: null, codexQuota: 'codex-quota: available {"p":85.0,"s":null}', ...privateCode })
+    expect(text(await w.agent(coding))).toContain('no other executor took the task')
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'stopped', skipped: { codex: 'exhausted' }, quota_source: { codex: 'codex-quota' }, scores: { codex: { exhausted: true, used: 85 } } })
+    expect(runs(w)).toEqual([])
+  })
+  for (const [codexQuota, why] of [
+    ['refused', 'exhausted'],
+    ['codex-quota: available not-json', 'quota_unknown'],
+    ['absent', 'quota_unknown'],
+    ['hangs', 'quota_unknown'],
+    ['codex-quota: available {"p":null,"s":null}', 'quota_unknown'],
+  ] as const) {
+    test(`a ${codexQuota} native read skips Codex as ${why}`, async () => {
+      const w = world({ quotaUrl: null, codexQuota, ...privateCode })
+      await w.agent(coding)
+      expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'stopped', skipped: { codex: why } })
+    })
+  }
+  test('the four-hour cache serves later routes without a second codex-quota call', async () => {
+    const w = world({ quotaUrl: null, codexQuota: 'codex-quota: available {"p":40,"s":null}', ...privateCode })
+    expect(text(await w.agent(coding))).toContain('codex luna xhigh')
+    await w.agent(coding)
+    expect(codexQuotaCalls(w)).toHaveLength(1)
+    expect(w.storeMap.get('codex-quota')).toMatchObject({ kind: 'ok', used: 40 })
+    w.setNow(1_000_000 + 14_400_000)
+    await w.agent(coding)
+    expect(codexQuotaCalls(w)).toHaveLength(2)
+  })
+  test('an unknown native read is retried after ten minutes', async () => {
+    const w = world({ quotaUrl: null, codexQuota: 'absent', ...privateCode })
+    await w.agent(coding)
+    await w.agent(coding)
+    expect(codexQuotaCalls(w)).toHaveLength(1)
+    expect(w.storeMap.get('codex-quota')).toMatchObject({ kind: 'unknown' })
+    w.setNow(1_000_000 + 600_000)
+    await w.agent(coding)
+    expect(codexQuotaCalls(w)).toHaveLength(2)
+  })
+  test('a fresh feed row for codex still decides; the native command is not consulted', async () => {
+    const w = world({ codexQuota: 'codex-quota: available {"p":85.0,"s":null}' })
+    expect(text(await w.agent(coding))).toContain('codex luna xhigh')
+    expect(codexQuotaCalls(w)).toEqual([])
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'codex', scores: { codex: { used: 50, line: 50 } }, quota_source: { 'codex/weekly': 'provider' } })
   })
 })
 
@@ -2048,10 +2165,10 @@ describe('route telemetry failures', () => {
     expect(routeEvents(w).at(-1)).toMatchObject({ ts_ms: null, chosen: 'stopped' })
   })
   test('a clock that never answers on the executor ladder still routes and writes the route line', async () => {
-    // Without a clock reading quota staleness is unknown, and unknown never blocks a rung, so Codex takes the task.
+    // Without a clock reading quota staleness is unknown, and without a decisive native read Codex is skipped.
     const w = world({ quota: 1, zcodeAvailable: false, clockHangs: true })
-    expect(text(await w.agent())).toContain('[routed: codex')
-    expect(routeEvents(w).at(-1)).toMatchObject({ ts_ms: null, chosen: EXECUTOR_TABLE.find((r) => r.transport === 'codex')!.id })
+    expect(text(await w.agent())).toContain('no other executor took the task')
+    expect(routeEvents(w).at(-1)).toMatchObject({ ts_ms: null, chosen: 'stopped', skipped: { codex: 'quota_unknown' } })
     expect(routeEvents(w).at(-1).quota_unknown).not.toEqual({})
   })
   test('a failed log write never changes the routing result', async () => {

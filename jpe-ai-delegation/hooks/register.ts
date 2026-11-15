@@ -1,6 +1,6 @@
 import type { EngineInterface, Register } from 'claude-code'
-import { CLASSIFIER, CODEX, JUDGE, LAST_RESORT, LOCAL_OUTPUT_TOKENS, QUOTA_SELECTOR, UTILITY, EXECUTOR_TABLE, budgetsFromMetrics, codexArgv, codingTask, eligibleRows, endAnchor, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, isGenericType, isShellCAsk, jobHistory, jobState, lastRungMarker, recentFailures, localTask, mandatoryLabel, newestModel, mergeExecutorRows, metricsResult, parseVerdict, pickLabel, pickLocal, promptToken, quotaFromMetrics, rankRows, repositoryFromOrigin, safePayload, scoreWindows, KIND_CLASSIFIER, parseKind } from './lib/policy'
-import type { Executor, ExecutorRow, JobOutcome, JobRecord, JobState, Label, QuotaReason, QuotaRow, Route, Sandbox, Score, SkipReason, Kind } from './lib/policy'
+import { CLASSIFIER, CLASSIFIER_ALIAS, CODEX, CODEX_QUOTA_THRESHOLD, JUDGE, JUDGE_ALIAS, JUDGE_OUTPUT_TOKENS, LAST_RESORT, LOCAL_OUTPUT_TOKENS, QUOTA_SELECTOR, EXECUTOR_TABLE, budgetsFromMetrics, codexArgv, codingTask, eligibleRows, endAnchor, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, isGenericType, isShellCAsk, jobHistory, jobState, lastRungMarker, recentFailures, localTask, mandatoryLabel, newestModel, mergeExecutorRows, metricsResult, parseCodexQuota, parseVerdict, pickLabel, pickLocal, promptToken, quotaFromMetrics, rankRows, repositoryFromOrigin, safePayload, scoreWindows, KIND_CLASSIFIER, parseKind } from './lib/policy'
+import type { CodexQuotaRead, Executor, ExecutorRow, JobOutcome, JobRecord, JobState, Label, QuotaReason, QuotaRow, Route, Sandbox, Score, SkipReason, Kind, Verdict } from './lib/policy'
 import { customAgentSandbox, parseAgentDefinition } from './lib/agent-definition'
 import type { AgentDefinition } from './lib/agent-definition'
 
@@ -9,6 +9,12 @@ type AgentCall = { description?: string; prompt: string; subagent_type?: string;
 const TEXT_EXECUTOR_TIMEOUT_MS = 120_000
 const KIND_TIMEOUT_MS = 20_000
 const KIND_OUTPUT_TOKENS = 16
+const JUDGE_TIMEOUT_MS = 60_000
+const CODEX_QUOTA_TIMEOUT_MS = 15_000
+// A decisive native read serves for four hours; an unknown one is retried after ten minutes.
+const CODEX_QUOTA_TTL_MS = 14_400_000
+const CODEX_QUOTA_FAILURE_TTL_MS = 600_000
+const CODEX_QUOTA_KEY = 'codex-quota'
 const QUOTA_TIMEOUT_MS = 3_000
 const QUOTA_REFRESH_MS = 600_000
 const QUOTA_TOKEN_MAX_BYTES = 4096
@@ -122,17 +128,69 @@ function rowScore(rows: QuotaRow[], id: string, nowSeconds: number): Score | und
   return score.exhausted || score.score !== undefined || score.distance !== undefined ? score : undefined
 }
 
-type QuotaView = { scores: Partial<Record<Executor, Score>>; unknown: Record<string, QuotaReason>; sources: Record<string, string>; budgets: Map<string, number> }
+type QuotaView = { scores: Partial<Record<Executor, Score>>; unknown: Record<string, QuotaReason>; sources: Record<string, string>; budgets: Map<string, number>; nativeSkips: Record<Executor, SkipReason> }
+
+// One native `codex-quota` read as cached in the plugin's store: the read time decides freshness.
+type NativeQuota = CodexQuotaRead & { at?: number }
+
+// The subscription's own answer: exit code 0 means it may be used and the printed object carries the used percent; any
+// non-zero exit is a refusal. An absent command, a timeout beyond the 15 s budget, or no parsable object is unknown.
+async function readCodexQuota($: Engine): Promise<CodexQuotaRead> {
+  try {
+    const result = await withTimeout($, $.process.run(['codex-quota'], { timeoutMs: CODEX_QUOTA_TIMEOUT_MS }), CODEX_QUOTA_TIMEOUT_MS)
+    if (result.exitCode !== 0) return { kind: 'exhausted' }
+    return parseCodexQuota(result.stdout, CODEX_QUOTA_THRESHOLD)
+  } catch {
+    return { kind: 'unknown' }
+  }
+}
+
+// The native read behind the metrics feed, cached in the plugin's store: a decisive read serves for four hours and an
+// unknown one for ten minutes. Without a clock reading every call re-runs the command and nothing is cached.
+async function nativeCodexQuota($: Engine): Promise<NativeQuota> {
+  const now = await clockNow($)
+  try {
+    const cached = (await $.store.get(CODEX_QUOTA_KEY)) as NativeQuota | undefined
+    const fresh = typeof cached?.at === 'number' && Number.isFinite(cached.at) && now !== null && now - cached.at >= 0 &&
+      (cached.kind === 'unknown' ? now - cached.at < CODEX_QUOTA_FAILURE_TTL_MS : (cached.kind === 'ok' || cached.kind === 'exhausted') && now - cached.at < CODEX_QUOTA_TTL_MS)
+    if (fresh && cached) return cached
+  } catch {
+    // An unreadable store entry is a cache miss.
+  }
+  const read = await readCodexQuota($)
+  if (now !== null) {
+    try {
+      await $.store.set(CODEX_QUOTA_KEY, { ...read, at: now })
+    } catch {
+      // A failed store write only costs the next read its cache.
+    }
+  }
+  return read
+}
+
+// The native read decides codex whenever the feed left it without a score: eligible below the threshold with its used
+// percent recorded, exhausted at or above it or on a refusal, and quota_unknown when no decisive read is possible.
+async function applyNativeCodex($: Engine, view: QuotaView): Promise<void> {
+  const read = await nativeCodexQuota($)
+  if (read.kind === 'unknown') {
+    view.nativeSkips.codex = 'quota_unknown'
+    return
+  }
+  view.sources.codex = 'codex-quota'
+  view.scores.codex = read.kind === 'exhausted' ? { exhausted: true, ...(read.used === undefined ? {} : { used: read.used }) } : { exhausted: false, used: read.used }
+}
 
 // Scores for table rows that name a quota executor, judged for staleness at this moment. Rows without one stay unknown.
+// When the feed leaves codex without a score, the native `codex-quota` read decides instead.
 async function currentQuota($: Engine, table: readonly ExecutorRow[]): Promise<QuotaView> {
   const read = await quotaRows($)
   const ms = await clockNow($)
   const ids = [...new Set(table.flatMap((r) => (r.quota ? [r.quota] : [])))]
-  const view: QuotaView = { scores: {}, unknown: {}, sources: {}, budgets: new Map() }
+  const view: QuotaView = { scores: {}, unknown: {}, sources: {}, budgets: new Map(), nativeSkips: {} }
   // Staleness cannot be judged without a clock reading, so every quota is unknown.
   if (!read.result || ms === null) {
     for (const id of ids) view.unknown[id] = read.result ? 'quota_stale' : (read.failure ?? 'quota_unreachable')
+    if (ids.includes('codex')) await applyNativeCodex($, view)
     return view
   }
   const now = ms / 1000
@@ -144,6 +202,8 @@ async function currentQuota($: Engine, table: readonly ExecutorRow[]): Promise<Q
     const score = r.quota ? rowScore(adapted.rows, r.quota, now) : undefined
     if (score) view.scores[r.id] = score
   }
+  // The feed is the decider only while it answers for codex; a missing or stale codex row falls to the native read.
+  if (view.scores.codex === undefined && ids.includes('codex')) await applyNativeCodex($, view)
   return view
 }
 
@@ -212,26 +272,6 @@ async function logDecision($: Engine, line: string): Promise<boolean> {
   return false
 }
 
-async function routerTarget($: Engine): Promise<{ url: string; headers: Record<string, string> }> {
-  const tokenFile = await $.env.get('LLM_ROUTER_TOKEN_FILE')
-  const headers: Record<string, string> = { 'content-type': 'application/json' }
-  let base: string
-  if (tokenFile) {
-    const routerUrl = await $.env.get('LLM_ROUTER_URL')
-    if (!routerUrl) throw new Error('router URL unset')
-    let token: string
-    try { token = (await $.fs.read(tokenFile)).trim() } catch { throw new Error('token file unreadable') }
-    if (!token) throw new Error('token file empty')
-    base = routerUrl.replace(/\/+$/, '')
-    headers.authorization = `Bearer ${token}`
-  } else {
-    const localBase = await $.env.get('LITELLM_LOCAL_BASE_URL')
-    if (!localBase) throw new Error(await $.env.get('LLM_ROUTER_URL') ? 'token file unset' : 'router URL unset')
-    base = `${localBase.replace(/\/+$/, '')}/v1`
-  }
-  return { url: `${base}/chat/completions`, headers }
-}
-
 // Context windows of the on-host aliases, read once per session from the local router.
 function localModelWindows($: Engine, base: string): Promise<Record<string, number | undefined>> {
   localWindows ??= (async () => {
@@ -291,7 +331,8 @@ async function classifyKind($: Engine, e: AgentCall): Promise<Kind> {
   }
 }
 
-// Classification itself runs on Codex Luna.
+// Classification runs on the on-host small alias, the same chat endpoint classifyKind uses; any failure classifies
+// standard, as it always has.
 async function classify($: Engine, e: AgentCall): Promise<Label> {
   const mandatory = mandatoryLabel(`${e.description ?? ''}\n${e.prompt}`)
   if (mandatory) return mandatory
@@ -300,7 +341,18 @@ async function classify($: Engine, e: AgentCall): Promise<Label> {
   if (e.subagent_type === 'Plan') return 'plan'
   if (e.subagent_type === 'Explore') return 'bulk'
   const task = `${e.description ?? ''}\n${e.prompt.slice(0, 4000)}`
-  return pickLabel(await runCodex($, UTILITY, 'read-only', `${CLASSIFIER}\n\nTask:\n${task}`, 90_000)) ?? 'standard'
+  try {
+    const base = (await $.env.get('LITELLM_LOCAL_BASE_URL'))?.replace(/\/+$/, '')
+    if (!base) throw new Error('router URL unset')
+    const response = await withTimeout($, $.http.fetch(`${base}/v1/chat/completions`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ model: CLASSIFIER_ALIAS, max_tokens: KIND_OUTPUT_TOKENS, messages: [{ role: 'user', content: `${CLASSIFIER}\n\nTask:\n${task}` }] }),
+    }), KIND_TIMEOUT_MS)
+    if (!response.ok) throw new Error('HTTP failure')
+    return pickLabel(JSON.parse(response.text)?.choices?.[0]?.message?.content) ?? 'standard'
+  } catch {
+    return 'standard'
+  }
 }
 
 async function runRoutedCodex($: Engine, e: AgentCall, route: string, codexRoute: Route, sandbox: Sandbox, detail: string): Promise<unknown | undefined> {
@@ -565,28 +617,6 @@ async function runSandboxExecutor($: Engine, e: AgentCall, repo: string, tool: s
   }
 }
 
-type Gateway = 'Z.ai GLM' | 'OpenCode Go'
-async function runGateway($: Engine, e: AgentCall, gateway: Gateway): Promise<string | undefined> {
-  try {
-    // The module loader needs a literal variable name in each $.env.get call.
-    const model = gateway === 'Z.ai GLM' ? await $.env.get('AGENT_ROUTE_GLM_MODEL') : await $.env.get('AGENT_ROUTE_OPENCODE_GO_MODEL')
-    if (!model) return undefined
-    const target = await routerTarget($)
-    const response = await withTimeout($, $.http.fetch(target.url, {
-      method: 'POST', headers: target.headers,
-      body: JSON.stringify({ model, messages: [{ role: 'user', content: e.prompt }] }),
-    }), TEXT_EXECUTOR_TIMEOUT_MS)
-    if (!response.ok) throw new Error('HTTP failure')
-    const out = JSON.parse(response.text)?.choices?.[0]?.message?.content
-    if (typeof out !== 'string' || !out.trim()) throw new Error('empty content')
-    await logDecision($, `route: capped -> ${gateway}`)
-    return out.trim()
-  } catch {
-    await logDecision($, `route: ${gateway} unavailable`)
-    return undefined
-  }
-}
-
 async function customAgentDefinition($: Engine, type: string): Promise<AgentDefinition | undefined> {
   if (!/^[\w:.-]+$/.test(type)) return undefined
   const cwd = await $.session.cwd()
@@ -739,6 +769,8 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
   event.quota_source = quota.sources
   const ranked = rankRows(rows, scores, now)
   Object.assign(skipped, ranked.skipped)
+  // A codex row the native read could not decide is not a candidate, whatever its feed telemetry says.
+  for (const [id, why] of Object.entries(quota.nativeSkips)) skipped[id] = why
   event.eligible = [...rows.map((r) => r.id), LAST_RESORT.model]
   event.skipped = skipped
   for (const r of rows) {
@@ -755,7 +787,7 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
   // on this repository sits out for a while.
   let outcomes: JobOutcome[] | undefined
   const tools = await sandboxTools($)
-  for (const executor of ranked.order) {
+  for (const executor of ranked.order.filter((id) => quota.nativeSkips[id] === undefined)) {
     const row = rows.find((r) => r.id === executor)!
     let result: unknown | undefined
     let cancelled = false
@@ -812,8 +844,33 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
   return failure(original, `no other executor took the task (skipped: ${skippedList}). ${instruction}`)
 }
 
-// Answers core's bypass-immune "shell -c script runs rm" ask. Anything but a clean verdict returns core's own
-// result, so the person still sees the dialog; a failure never allows.
+// One judge ask on the on-host medium alias, the same endpoint classifyKind uses: a parsed verdict, or why there is
+// none. The dialog is left to the person on any failure.
+async function judgeVerdict($: Engine, ask: string): Promise<{ verdict?: Verdict; failure: string }> {
+  let failure = 'no router URL'
+  try {
+    const base = (await $.env.get('LITELLM_LOCAL_BASE_URL'))?.replace(/\/+$/, '')
+    if (!base) throw new Error('router URL unset')
+    failure = 'timeout'
+    const response = await withTimeout($, $.http.fetch(`${base}/v1/chat/completions`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ model: JUDGE_ALIAS, max_tokens: JUDGE_OUTPUT_TOKENS, messages: [{ role: 'user', content: ask }] }),
+    }), JUDGE_TIMEOUT_MS)
+    failure = 'non-OK status'
+    if (!response.ok) throw new Error('HTTP failure')
+    failure = 'unparsable body'
+    const verdict = parseVerdict(JSON.parse(response.text)?.choices?.[0]?.message?.content)
+    if (!verdict) throw new Error('no verdict in reply')
+    return { verdict }
+  } catch (error) {
+    if (failure === 'timeout' && (error as Error)?.message !== 'timeout') failure = 'unreachable'
+    return { failure }
+  }
+}
+
+// Answers core's bypass-immune "shell -c script runs rm" ask on the on-host medium alias; the Codex subscription is
+// never spent on it. Anything but a parsed safe verdict returns core's own result, so the person still sees the dialog;
+// a failure never allows.
 async function judge($: Engine, e: { input: unknown }, next: (e: never) => Promise<{ decision: string; reason?: string }>): Promise<unknown> {
   const core = await next(e as never)
   if (!isShellCAsk(core.decision, core.reason)) return core
@@ -821,28 +878,13 @@ async function judge($: Engine, e: { input: unknown }, next: (e: never) => Promi
   const command = String((e.input as { command?: unknown })?.command ?? '')
   if (!safePayload(command)) return core
   const label = mandatoryLabel(command)
-  const judgeRoute = label ? CODEX[label] : UTILITY
   const ask = `${label ? `[class: ${label}]\n` : ''}${JUDGE}\n\nCommand:\n\`\`\`\n${command}\n\`\`\``
-  const codex = await currentCodexScore($)
-  const ready = codex !== undefined && !codex.exhausted
-  let by = `codex ${judgeRoute.family} ${judgeRoute.effort}`
-  let verdict = ready ? parseVerdict(await runCodex($, judgeRoute, 'read-only', ask, 120_000)) : undefined
-  if (codex?.exhausted) {
-    for (const gateway of ['Z.ai GLM', 'OpenCode Go'] as const) {
-      const out = await runGateway($, { prompt: ask }, gateway)
-      verdict = parseVerdict(out)
-      if (verdict) { by = gateway; break }
-    }
-    if (!verdict) {
-      by = `${LAST_RESORT.model} ${LAST_RESORT.effort}`
-      const r = await $.model.complete({ model: LAST_RESORT.model, effort: LAST_RESORT.effort, prompt: ask, maxTokens: 400, timeoutMs: 60_000 })
-      verdict = parseVerdict(r.isAnswered ? r.text : undefined)
-    }
-  }
+  const { verdict, failure } = await judgeVerdict($, ask)
   if (!verdict) {
-    await logDecision($, 'judge: no verdict, dialog left to the person')
+    await logDecision($, `judge: no verdict (${failure}), dialog left to the person`)
     return core
   }
+  const by = `local ${JUDGE_ALIAS}`
   await logDecision($, `judge: ${verdict.verdict} by ${by}: ${verdict.reason.slice(0, 200)}`)
   const reason = `ai-delegation judge (${by}): ${verdict.reason}`
   return { decision: verdict.verdict === 'safe' ? 'allow' : 'deny', reason }
