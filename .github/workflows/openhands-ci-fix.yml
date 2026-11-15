@@ -23,7 +23,7 @@ permissions:
 
 jobs:
   fix:
-    uses: JacobPEvans/.github-ai/.github/workflows/cc-ci-fix.yml@8f35253c3d513db4050740e79f5055b3e5d15437 # v2.11.0
+    uses: JacobPEvans/.github-ai/.github/workflows/cc-ci-fix.yml@1bbfa5817bcb8f380c3607960f0b795b49c72f91 # v2.11.2
     with:
       # Hosted runners cannot reach the model router; the review pool can.
       runner_label: review
