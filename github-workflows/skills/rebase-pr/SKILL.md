@@ -134,11 +134,8 @@ conflicted PR, referencing the new one. Never open a draft.
 
 ## Step 4: Land With Auto-Merge
 
-Land the new PR with native auto-merge. Replace `<PR_NUMBER>` before running:
-
-```bash
-gh pr merge <PR_NUMBER> --auto --squash
-```
+Land the new PR with `/merge-pr`. It selects the merge method the base branch
+allows and runs `gh pr merge <PR_NUMBER> --auto` with it.
 
 On a merge-queue branch this adds the PR to the queue; elsewhere it arms
 auto-merge. Never merge by hand in any other way. Verify the merge state:
