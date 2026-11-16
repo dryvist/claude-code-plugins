@@ -642,6 +642,7 @@ describe('Codex rung', () => {
     expect(labelClassifyCalls(w)).toHaveLength(1)
     expect(JSON.parse(labelClassifyCalls(w)[0].body!).model).toBe('small')
     expect(JSON.parse(labelClassifyCalls(w)[0].body!).messages[0].content).toStartWith(CLASSIFIER)
+    expect(JSON.parse(labelClassifyCalls(w)[0].body!).chat_template_kwargs).toEqual({ enable_thinking: false })
     expect(w.quotaFetches).toEqual([QUERY_URL])
   })
   for (const subagent_type of ['Explore', 'Plan']) {
@@ -1025,6 +1026,7 @@ describe('untagged kind classification', () => {
     const sent = JSON.parse(classifierCalls(w)[0].body!)
     expect(sent.model).toBe('small')
     expect(sent.messages[0].content).toStartWith(KIND_CLASSIFIER)
+    expect(sent.chat_template_kwargs).toEqual({ enable_thinking: false })
     expect(sent.messages[0].content).toContain('quick favor')
     expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'local small', kind: { value: 'text', source: 'classifier' } })
   })
@@ -1114,6 +1116,7 @@ describe('judge and session policy', () => {
     const ask = w.fetches.filter((f) => f.url.endsWith('/chat/completions'))
     expect(ask).toHaveLength(1)
     expect(JSON.parse(ask[0].body!).model).toBe('medium')
+    expect(JSON.parse(ask[0].body!).chat_template_kwargs).toEqual({ enable_thinking: false })
     expect(w.writes.some((s) => s.startsWith('judge: safe by local medium'))).toBe(true)
   })
   test('the judge denies on a local unsafe verdict', async () => {
