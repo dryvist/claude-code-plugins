@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.64.3](https://github.com/dryvist/claude-code-plugins/compare/v6.64.2...v6.64.3) (2026-11-16)
+
+
+### Bug Fixes
+
+* **jpe-ai-delegation:** ask the classifier and judge models to answer without reasoning ([#825](https://github.com/dryvist/claude-code-plugins/issues/825)) ([4d0b0ec](https://github.com/dryvist/claude-code-plugins/commit/4d0b0eca41e9a3db6a86d863477e34c8fd2357d1))
+
 ## [6.64.2](https://github.com/dryvist/claude-code-plugins/compare/v6.64.1...v6.64.2) (2026-11-15)
 
 
