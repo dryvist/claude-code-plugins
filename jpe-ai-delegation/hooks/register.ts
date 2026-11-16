@@ -9,6 +9,8 @@ type AgentCall = { description?: string; prompt: string; subagent_type?: string;
 const TEXT_EXECUTOR_TIMEOUT_MS = 120_000
 const KIND_TIMEOUT_MS = 20_000
 const KIND_OUTPUT_TOKENS = 16
+// One-word and one-object utility asks: a model that reasons first spends the output limit before it answers.
+const NO_THINKING = { chat_template_kwargs: { enable_thinking: false } }
 const JUDGE_TIMEOUT_MS = 60_000
 const CODEX_QUOTA_TIMEOUT_MS = 15_000
 // A decisive native read serves for four hours; an unknown one is retried after ten minutes.
@@ -376,7 +378,7 @@ async function classifyKind($: Engine, e: AgentCall): Promise<Kind> {
     failure = 'timeout'
     const response = await withTimeout($, $.http.fetch(`${base}/v1/chat/completions`, {
       method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ model: 'small', max_tokens: KIND_OUTPUT_TOKENS, messages: [{ role: 'user', content: `${KIND_CLASSIFIER}\n\nTask:\n${e.description ?? ''}\n${e.prompt.slice(0, 4000)}` }] }),
+      body: JSON.stringify({ model: 'small', max_tokens: KIND_OUTPUT_TOKENS, ...NO_THINKING, messages: [{ role: 'user', content: `${KIND_CLASSIFIER}\n\nTask:\n${e.description ?? ''}\n${e.prompt.slice(0, 4000)}` }] }),
     }), KIND_TIMEOUT_MS)
     failure = 'non-OK status'
     if (!response.ok) throw new Error('HTTP failure')
@@ -404,7 +406,7 @@ async function classify($: Engine, e: AgentCall): Promise<Label> {
     if (!base) throw new Error('router URL unset')
     const response = await withTimeout($, $.http.fetch(`${base}/v1/chat/completions`, {
       method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ model: CLASSIFIER_ALIAS, max_tokens: KIND_OUTPUT_TOKENS, messages: [{ role: 'user', content: `${CLASSIFIER}\n\nTask:\n${task}` }] }),
+      body: JSON.stringify({ model: CLASSIFIER_ALIAS, max_tokens: KIND_OUTPUT_TOKENS, ...NO_THINKING, messages: [{ role: 'user', content: `${CLASSIFIER}\n\nTask:\n${task}` }] }),
     }), KIND_TIMEOUT_MS)
     if (!response.ok) throw new Error('HTTP failure')
     return pickLabel(JSON.parse(response.text)?.choices?.[0]?.message?.content) ?? 'standard'
@@ -957,7 +959,7 @@ async function judgeVerdict($: Engine, ask: string): Promise<{ verdict?: Verdict
     failure = 'timeout'
     const response = await withTimeout($, $.http.fetch(`${base}/v1/chat/completions`, {
       method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ model: JUDGE_ALIAS, max_tokens: JUDGE_OUTPUT_TOKENS, messages: [{ role: 'user', content: ask }] }),
+      body: JSON.stringify({ model: JUDGE_ALIAS, max_tokens: JUDGE_OUTPUT_TOKENS, ...NO_THINKING, messages: [{ role: 'user', content: ask }] }),
     }), JUDGE_TIMEOUT_MS)
     failure = 'non-OK status'
     if (!response.ok) throw new Error('HTTP failure')
