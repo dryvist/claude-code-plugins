@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.14.0](https://github.com/JacobPEvans-ai/claude-code-plugins/compare/github-workflows-v6.13.0...github-workflows-v6.14.0) (2026-11-17)
+
+
+### Features
+
+* **ai-delegation:** run agentops orchestrate from premium-agent-orchestration ([#831](https://github.com/JacobPEvans-ai/claude-code-plugins/issues/831)) ([8077bad](https://github.com/JacobPEvans-ai/claude-code-plugins/commit/8077bad312da6ce1b761bb4d7a5bd64cbee09032))
+
 ## [6.13.0](https://github.com/dryvist/claude-code-plugins/compare/github-workflows-v6.12.0...github-workflows-v6.13.0) (2026-11-09)
 
 
