@@ -23,8 +23,9 @@ description: Use when looking up available tools, skills, commands, agents, or p
 | Create GitHub issues | `/shape-issues` | `github-workflows` | Shape Up method |
 | Resolve PR threads | `/resolve-pr-threads` | `github-workflows` | Thread resolution |
 | Resolve CodeQL alerts | `/resolve-codeql` | `codeql-resolver` | Fix alerts |
-| Autonomous maintenance | `/auto-maintain` | `ai-delegation` | Finds work |
-| Delegate to AI models | `/delegate-to-ai` | `ai-delegation` | Generic task and result safeguards |
+| Pick the next wave of work | `/agentops:navigate` | `agentops` | Finds work |
+| Delegate to AI models | `/agentops:orchestrate` | `agentops` | Packet and result checks |
+| Multi-model review | `/agentops:council` | `agentops` | Independent judges |
 | Use the maintainer's delegation route | `/delegation-ladder` | `jpe-ai-delegation` | Maintainer-specific; not intended for general use |
 | Orchestrate premium agents | `/premium-agent-orchestration` | `ai-delegation` | Preserve senior judgment |
 | Offload to a local or cheap model | `/local-subagents` | `ai-delegation` | Live model menu with speed/quality hints |

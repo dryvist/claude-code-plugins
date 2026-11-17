@@ -10,9 +10,9 @@ claims against the code and the running system, acts on what the evidence
 supports, and turns the rest into a plan.
 
 `/pr-sweep` clears merge-ready work; this clears *stated* work.
-`/shape-issues` creates issues; this consumes them. `auto-maintain`
-(ai-delegation) is an open-ended dispatch loop; this is a bounded pass ending
-in a plan and a report.
+`/shape-issues` creates issues; this consumes them. `/agentops:orchestrate`
+is an open-ended dispatch loop; this is a bounded pass ending in a plan and a
+report.
 
 ## Invariants
 
@@ -129,5 +129,5 @@ Issue Sweep — <scope>
 - **pr-sweep** (github-workflows) — the same architecture for open PRs.
 - **shape-issues** (github-workflows) — creates issues; this consumes them.
 - **gh-cli-patterns** (github-workflows) — canonical GitHub command shapes.
-- **auto-maintain** (ai-delegation) — continuous dispatch; this is bounded.
-- **systematic-debugging** (superpowers) — when verifying a claim becomes a real investigation.
+- **`/agentops:orchestrate`** — continuous dispatch; this is bounded.
+- **`/agentops:research`** — when verifying a claim becomes a real investigation.

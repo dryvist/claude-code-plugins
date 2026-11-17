@@ -25,7 +25,8 @@ No shell, writes, network, services, or operator grants. Assertions grade the
 SKILL.md rules below, not prose style.
 
 **Rules under test**
-(`ai-delegation/skills/premium-agent-orchestration/SKILL.md`):
+(`ai-delegation/skills/premium-agent-orchestration/SKILL.md` together with the `/agentops:orchestrate` skill it runs;
+the briefing, result-judging and failure rules below now come from that skill):
 
 - On load, run the reset: re-read the goal and success criteria, list every
   in-flight delegate and background job, judge each finished result against
