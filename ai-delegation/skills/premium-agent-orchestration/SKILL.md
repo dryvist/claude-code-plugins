@@ -70,7 +70,8 @@ carries the tool's instructions, so no other context does.
 ## Keep the fleet working
 
 Every worker and subagent is working, waiting on a named event with a
-background wake condition while its next item runs, or closed. Never wake only
-to say "still waiting". Sweep for idle sessions on an interval shorter than the
+background wake condition while its next item runs, or closed. While a job
+runs, start the next piece of work in the same turn and arm a background wait that wakes the session when the job ends.
+Never wake only to say "still waiting". Sweep for idle sessions on an interval shorter than the
 prompt-cache lifetime, on the cheapest session that can do it, never the lead.
 The procedure is in `references/fleet-utilization.md`.
