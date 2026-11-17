@@ -10,7 +10,7 @@ const RAN = { exitCode: 0, stdout: '', stderr: '', isStdoutTruncated: false }
 const CACHE = JSON.stringify({ models: [
   { slug: 'gpt-older-luna', visibility: 'list', priority: 9 },
   { slug: 'gpt-newer-luna', visibility: 'list', priority: 4 },
-  { slug: 'gpt-newer-terra', visibility: 'list', priority: 1 },
+  { slug: 'gpt-newer-fixture', visibility: 'list', priority: 1 },
   { slug: 'gpt-hidden-luna', visibility: 'hide', priority: 0 },
 ] })
 const PR = { html_url: 'https://github.com/owner/project/pull/12', state: 'open', draft: false, labels: [{ name: 'human:review' }] }
@@ -243,21 +243,23 @@ const codexQuotaCalls = (w: ReturnType<typeof world>) => w.calls.filter((c) => c
 
 describe('policy', () => {
   test('exact class routes and newest listed model per family', () => {
-    expect(CODEX).toEqual({ bulk: { family: 'luna', effort: 'xhigh' }, 'bulk-complex': { family: 'luna', effort: 'max' }, standard: { family: 'luna', effort: 'xhigh' }, complex: { family: 'luna', effort: 'max' }, plan: { family: 'luna', effort: 'xhigh' }, deep: { family: 'luna', effort: 'xhigh' } })
+    expect(CODEX).toEqual({ bulk: { family: 'luna', effort: 'xhigh' }, 'bulk-complex': { family: 'luna', effort: 'xhigh' }, standard: { family: 'luna', effort: 'xhigh' }, complex: { family: 'luna', effort: 'xhigh' }, plan: { family: 'luna', effort: 'xhigh' }, deep: { family: 'luna', effort: 'xhigh' } })
     expect(newestModel(CACHE, 'luna')).toBe('gpt-newer-luna')
-    expect(newestModel(CACHE, 'terra')).toBe('gpt-newer-terra')
+    expect(newestModel(CACHE, 'fixture')).toBe('gpt-newer-fixture')
     expect(newestModel(CACHE, 'missing')).toBeUndefined()
     expect(LAST_RESORT).toEqual({ model: 'haiku', effort: 'xhigh' })
   })
   for (const [label, route] of Object.entries(CODEX)) {
     test(`command builder accepts ${label} and binds family, effort and output`, () => {
       const argv = codexArgv('read-only', route, `gpt-newer-${route.family}`, '/tmp/out')
+      expect(argv[argv.indexOf('-m') + 1]).toBe(`gpt-newer-${route.family}`)
+      expect(argv).toContain('-c')
       expect(argv).toContain(`model_reasoning_effort="${route.effort}"`)
       expect(argv.slice(-3)).toEqual(['-o', '/tmp/out', '-'])
     })
   }
   test('command builder rejects any non-Luna family, unsupported efforts and missing output', () => {
-    for (const effort of ['', 'ultra', 'high', 'medium']) expect(() => codexArgv('read-only', { family: 'luna', effort }, 'gpt-luna', '/tmp/out')).toThrow()
+    for (const effort of ['', 'ultra', 'high', 'medium', 'max']) expect(() => codexArgv('read-only', { family: 'luna', effort }, 'gpt-luna', '/tmp/out')).toThrow()
     for (const model of [undefined, '', 'gpt-sol', 'gpt-luna-mini']) expect(() => codexArgv('read-only', CODEX.bulk, model, '/tmp/out')).toThrow()
     expect(() => codexArgv('read-only', { family: 'terra', effort: 'high' } as never, 'gpt-terra', '/tmp/out')).toThrow()
     expect(() => codexArgv('read-only', CODEX.bulk, 'gpt-terra', '/tmp/out')).toThrow()
@@ -600,14 +602,14 @@ describe('Codex rung', () => {
       const w = world()
       const r = await w.agent({ prompt: `Implement ${topic} support using placeholders.` })
       expect(mandatoryLabel(`${topic} work`)).toBe('bulk-complex')
-      expect(text(r)).toContain('codex luna max, class bulk-complex')
+      expect(text(r)).toContain('codex luna xhigh, class bulk-complex')
       expect(runs(w)).toHaveLength(1)
     })
   }
   for (const label of ['plan', 'deep']) {
     test(`mandatory auth classification preserves explicit ${label} sandbox`, async () => {
       const w = world()
-      expect(text(await w.agent({ description: `[class: ${label}]`, prompt: 'Review authentication design using placeholders.' }))).toContain('codex luna max, class bulk-complex')
+      expect(text(await w.agent({ description: `[class: ${label}]`, prompt: 'Review authentication design using placeholders.' }))).toContain('codex luna xhigh, class bulk-complex')
       expect(runs(w)).toHaveLength(1)
       expect(runs(w)[0].argv).toContain('read-only')
       expect(runs(w)[0].argv).not.toContain('workspace-write')
@@ -637,7 +639,7 @@ describe('Codex rung', () => {
   })
   test('classification itself runs on the local small alias and makes zero Codex calls', async () => {
     const w = world({ env: gateways, gatewayAnswer: { small: 'complex' } })
-    expect(text(await w.agent({ description: 'coordinated change' }))).toContain('codex luna max')
+    expect(text(await w.agent({ description: 'coordinated change' }))).toContain('codex luna xhigh')
     expect(runs(w)).toHaveLength(1)
     expect(labelClassifyCalls(w)).toHaveLength(1)
     expect(JSON.parse(labelClassifyCalls(w)[0].body!).model).toBe('small')
@@ -1175,7 +1177,7 @@ describe('judge and session policy', () => {
       const policy = r.sections[0].text
       expect(policy).not.toContain('Check codex-quota first')
       expect(policy).toStartWith(`codex-quota: ${status}\nThe jpe-ai-delegation hook places every Agent spawn.`)
-      for (const fragment of ['Tag self-contained text work [class: text]', 'put all of its text in the prompt', 'on-host local model first', 'ranked by usage pace', 'non-sensitive coding tagged [task: code] [repo: owner/repository] in a public repository', 'ready PR labelled human:review', 'leak-scan it before merge', 'never auto-merge', 'Codex Luna takes any task', 'never Terra', 'Haiku xhigh is always last', 'Nothing stops because an executor is unavailable', 'Never Sonnet, Opus or Fable subagents', 'Never send secrets, credentials, inventory or incident content to any executor', 'Antigravity stays a second-opinion reviewer']) expect(policy).toContain(fragment)
+      for (const fragment of ['Tag self-contained text work [class: text]', 'put all of its text in the prompt', 'on-host local model first', 'ranked by usage pace', 'non-sensitive coding tagged [task: code] [repo: owner/repository] in a public repository', 'ready PR labelled human:review', 'leak-scan it before merge', 'never auto-merge', 'Codex runs Luna at xhigh, the only Codex model and effort', 'Delegation routing', 'Haiku xhigh is always last', 'Nothing stops because an executor is unavailable', 'Never Sonnet, Opus or Fable subagents', 'Never send secrets, credentials, inventory or incident content to any executor', 'Antigravity stays a second-opinion reviewer']) expect(policy).toContain(fragment)
     })
   }
 })
@@ -1367,7 +1369,7 @@ describe('routing batch', () => {
   })
   test('8b: a positive Codex score also leads ZCode on public code', async () => {
     const w = world({ env: gateways, codexWindows: [{ used_percent: 10, window_seconds: 2000, reset_at: 2000 }] })
-    expect(text(await w.agent(coding))).toContain('codex luna')
+    expect(text(await w.agent(coding))).toContain('codex luna xhigh')
     expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
   })
   for (const quota of [0, 1]) {
@@ -1377,7 +1379,7 @@ describe('routing batch', () => {
       const r = await w.agent(call)
       expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
       expect(w.fetches.filter((f) => !classifierCalls(w).includes(f) && !labelClassifyCalls(w).includes(f))).toEqual([])
-      if (quota === 0) expect(text(r)).toContain('codex luna max, class bulk-complex')
+      if (quota === 0) expect(text(r)).toContain('codex luna xhigh, class bulk-complex')
       else {
         expect(text(r)).toContain('no other executor took the task')
         const again = await reissue(call)

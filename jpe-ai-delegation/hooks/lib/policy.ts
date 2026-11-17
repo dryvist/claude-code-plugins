@@ -3,21 +3,20 @@
 export type Label = 'bulk' | 'bulk-complex' | 'standard' | 'complex' | 'plan' | 'deep'
 export type Verdict = { verdict: 'safe' | 'unsafe'; reason: string }
 export type Sandbox = 'read-only' | 'workspace-write'
-// The ladder routes Codex Luna only; Terra is never selected.
 export type Family = 'luna'
 export type Route = { family: Family; effort: string }
 
 // 'bulk-complex' comes before 'bulk' and 'complex' so `pickLabel` matches the longer word first.
 export const LABELS: readonly Label[] = ['bulk-complex', 'bulk', 'standard', 'complex', 'plan', 'deep']
 
-export const CODEX_EFFORTS: Record<Family, readonly string[]> = { luna: ['xhigh', 'max'] }
+// Codex runs Luna at xhigh (ai-llm-prompts AGENTS.md, 'Delegation routing').
+export const CODEX_EFFORTS: Record<Family, readonly string[]> = { luna: ['xhigh'] }
 
-// Luna `xhigh` default, `max` as needed; plan and deep are advisory workers (read-only sandbox).
 export const CODEX: Record<Label, Route> = {
   bulk: { family: 'luna', effort: 'xhigh' },
-  'bulk-complex': { family: 'luna', effort: 'max' },
+  'bulk-complex': { family: 'luna', effort: 'xhigh' },
   standard: { family: 'luna', effort: 'xhigh' },
-  complex: { family: 'luna', effort: 'max' },
+  complex: { family: 'luna', effort: 'xhigh' },
   plan: { family: 'luna', effort: 'xhigh' },
   deep: { family: 'luna', effort: 'xhigh' },
 }
