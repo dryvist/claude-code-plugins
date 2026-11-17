@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.69.0](https://github.com/JacobPEvans-ai/claude-code-plugins/compare/v6.68.0...v6.69.0) (2026-11-17)
+
+
+### Features
+
+* **project-standards:** point skill-builder to agentops skill-builder ([#841](https://github.com/JacobPEvans-ai/claude-code-plugins/issues/841)) ([dee0124](https://github.com/JacobPEvans-ai/claude-code-plugins/commit/dee012401b47681944e141070b970ef72a75c4af))
+
 ## [6.68.0](https://github.com/JacobPEvans-ai/claude-code-plugins/compare/v6.67.0...v6.68.0) (2026-11-17)
 
 
