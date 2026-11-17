@@ -94,8 +94,8 @@ experiment; source registers load for provenance. S4's isolation reference
 candidate and personal skills are absent. A draft can be delivered before
 behavioral acceptance, with unrun checks identified separately.
 
-[Native development cases](../../../evals/skill-builder/native/) specify observable expectations, with
-baseline revision and acceptance criteria in [the eval contract](../../../evals/skill-builder/contract.md).
+Native development cases specify observable expectations, with
+baseline revision and acceptance criteria in [the eval contract](../../../evals/native-protocol.md).
 Trigger selection, actual task execution, schema/lint validation, and deployed
 performance are different measurements. A review of instructions or a hand-run
 case does not establish target-harness trigger precision or a held-out result.

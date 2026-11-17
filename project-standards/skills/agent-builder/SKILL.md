@@ -16,7 +16,7 @@ For provenance or a refresh, consult the dated [source register](references/sour
 [ecosystem and research register](references/sources-ecosystem.md), and
 [findings and rule trace](references/findings.md).
 For builder regression testing, use the [native suite](../../evals/agent-builder/native/).
-Follow the shared [eval contract](../../evals/skill-builder/contract.md) for comparisons.
+Follow the shared [eval contract](../../evals/native-protocol.md) for comparisons.
 
 ## Establish the contract
 
@@ -119,7 +119,7 @@ Metadata grants no authority. Verify filesystem, network, and connector
 restrictions separately from approvals. Enforce consequential calls before
 execution, including after handoffs; output checks cannot undo side effects.
 Managed-checkpoint approval for commands that must never run unattended is
-owned by [skill-builder's enforcement guidance](../skill-builder/SKILL.md)
+owned by the [enforcement guidance](references/evaluation-contract.md#enforcement-and-managed-checkpoints)
 (O10) and applies from there.
 Stop on denial or exhausted budget without broadening tools or credentials.
 When a safeguard stops a subagent, retry with a narrower prompt or report
