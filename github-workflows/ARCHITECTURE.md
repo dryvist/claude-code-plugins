@@ -53,7 +53,7 @@ flowchart TD
     CPR["Commit + /simplify + validate\n+ push + PR create (inline)"]:::ai
     RCQ["/resolve-codeql\n(codeql-resolver)"]:::external
     SIMP["/simplify\n(external)"]:::external
-    RCR["superpowers:receiving-code-review\n(superpowers, external)"]:::external
+    RCR["/agentops:research\n(agentops, external)"]:::external
     CLAUDE["Claude bot review"]:::external
     GEMINI["Gemini bot review"]:::external
     COPILOT["Copilot reviewer"]:::external

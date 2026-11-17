@@ -173,7 +173,7 @@ local fan-out; see [the claude-projects rule](https://github.com/dryvist/ai-llm-
 ### What `/finalize-pr` handles
 
 - CodeQL violation resolution
-- Review thread resolution (via `/resolve-pr-threads` → `superpowers:receiving-code-review`)
+- Review thread resolution (via `/resolve-pr-threads` → `/agentops:research`)
 - Merge conflict resolution
 - CI failure fixes
 - Code simplification (via `/simplify`)
