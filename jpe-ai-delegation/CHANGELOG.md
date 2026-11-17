@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.26.4](https://github.com/JacobPEvans-ai/claude-code-plugins/compare/jpe-ai-delegation-v1.26.3...jpe-ai-delegation-v1.26.4) (2026-11-17)
+
+
+### Bug Fixes
+
+* **jpe-ai-delegation:** run child CLIs from the current profile and log why they fail ([#834](https://github.com/JacobPEvans-ai/claude-code-plugins/issues/834)) ([54b2e4c](https://github.com/JacobPEvans-ai/claude-code-plugins/commit/54b2e4c9f2e360ae70bbee32fdc79270e8346e2a))
+
 ## [1.26.3](https://github.com/dryvist/claude-code-plugins/compare/jpe-ai-delegation-v1.26.2...jpe-ai-delegation-v1.26.3) (2026-11-16)
 
 
