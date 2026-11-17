@@ -1,12 +1,12 @@
 ---
 name: orchestrate-infra
-description: Master orchestrator for cross-repo infrastructure with dependency graph dispatch
+description: Runs /agentops:orchestrate for cross-repo infrastructure work and adds the OpenTofu-before-Ansible dependency order
 ---
 
 # Infrastructure Orchestrator
 
-Master orchestrator for cross-repo infrastructure operations. Manages the dependency graph
-between Terraform and Ansible repositories and dispatches Task subagents for each phase.
+Run `/agentops:orchestrate` for dispatch, launch, observation and result checks.
+This skill adds the dependency order between the OpenTofu and Ansible repositories.
 
 ## Dependency Graph
 
@@ -33,30 +33,25 @@ across all Ansible repos.
 
 ### sync-inventory
 
-Export Terraform outputs as Ansible inventory and distribute to all Ansible repos. See `/infra-sync-inventory` for details.
+Export Terraform outputs as Ansible inventory and distribute to all Ansible repos. See `/sync-inventory` for details.
 
 ### e2e-test
 
-Full pipeline validation: validate, plan, export inventory, syntax-check, check, diff. See `/infra-e2e-test` for details.
+Full pipeline validation: validate, plan, export inventory, syntax-check, check, diff. See `/test-e2e` for details.
 
-## Execution Pattern
+## Order
 
-1. **Resolve repo paths**: locate each target repo locally
-2. **Dispatch OpenTofu phase**: Launch a subagent for tofu-proxmox operations
-3. **Await completion**: OpenTofu must complete before Ansible phases
-4. **Dispatch Ansible phases**: Launch parallel subagents for independent Ansible repos (invoke `superpowers:dispatching-parallel-agents`)
-5. **Collect results**: Aggregate success/failure from all subagents
-6. **Report**: Summary with per-repo status
+1. Locate each target repo locally.
+2. Run the OpenTofu phase first. Ansible phases wait until it completes.
+3. Run independent Ansible repos in parallel, in graph order.
+4. If a phase fails, stop its dependents. Independent repos continue.
+5. Report the status of each repo.
 
 ## Secret Injection
 
 Terrakube obtains short-lived OpenBao credentials through its native dynamic
 provider credential flow. Ansible uses native OpenBao lookups under its own
 policy. Never export, copy, or hardcode runtime credentials.
-
-## Error Handling
-
-If any phase fails, report the failure and stop dependent phases. Independent repos continue in parallel.
 
 ## Related Skills
 

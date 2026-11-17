@@ -4,9 +4,9 @@ Claude Code plugin for cross-repo infrastructure orchestration across Terraform 
 
 ## Skills
 
-- **`/infra-orchestrate`** - Master orchestrator with dependency graph dispatch across infrastructure repos
-- **`/infra-sync-inventory`** - Export Terraform inventory and distribute to Ansible repositories
-- **`/infra-e2e-test`** - End-to-end pipeline validation across Terraform and Ansible repos
+- **`/orchestrate-infra`** - Runs `/agentops:orchestrate` and adds the OpenTofu-before-Ansible dependency order
+- **`/sync-inventory`** - Export Terraform inventory and distribute to Ansible repositories
+- **`/test-e2e`** - End-to-end pipeline validation across Terraform and Ansible repos
 
 ## Installation
 
@@ -17,10 +17,10 @@ claude plugins add jacobpevans-cc-plugins/infra-orchestration
 ## Usage
 
 ```text
-/infra-orchestrate plan-all
-/infra-orchestrate validate-all
-/infra-sync-inventory
-/infra-e2e-test
+/orchestrate-infra plan-all
+/orchestrate-infra validate-all
+/sync-inventory
+/test-e2e
 ```
 
 ## License
