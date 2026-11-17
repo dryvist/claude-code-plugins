@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.65.0](https://github.com/JacobPEvans-ai/claude-code-plugins/compare/v6.64.4...v6.65.0) (2026-11-17)
+
+
+### Features
+
+* **ai-delegation:** run agentops orchestrate from premium-agent-orchestration ([#831](https://github.com/JacobPEvans-ai/claude-code-plugins/issues/831)) ([8077bad](https://github.com/JacobPEvans-ai/claude-code-plugins/commit/8077bad312da6ce1b761bb4d7a5bd64cbee09032))
+
 ## [6.64.4](https://github.com/JacobPEvans-ai/claude-code-plugins/compare/v6.64.3...v6.64.4) (2026-11-17)
 
 
