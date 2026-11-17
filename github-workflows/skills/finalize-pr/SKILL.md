@@ -100,7 +100,7 @@ Do NOT wait for the agent to finish — proceed to 2.2 immediately.
 ### 2.2 Parallel Fixes
 
 Run these checks simultaneously. Launch independent fixes in parallel via
-Task agents when they touch different files. Invoke `superpowers:dispatching-parallel-agents` for dispatch patterns.
+Task agents when they touch different files. Use `/agentops:orchestrate` for dispatch.
 
 #### CodeQL Violations
 

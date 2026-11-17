@@ -15,7 +15,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for integration diagrams and the master s
   `--squash`/`-s` to squash instead. Refuses squash/rebase into main on git-flow repos
 - **`/promote-release`** - Prepare the release on `develop`, then merge-commit its promotion to `main`, where release-please tags it
 - **`/pr-stacks`** - Split a large change into an ordered chain of dependent PRs with `gh stack`: layering, cascading rebase, and stack-aware merge
-- **`/resolve-pr-threads`** - Orchestrate resolution of PR review threads (requires superpowers plugin)
+- **`/resolve-pr-threads`** - Orchestrate resolution of PR review threads (requires the agentops plugin)
 - **`/gh-cli-patterns`** - Canonical reference for gh CLI command shapes used by other skills in this plugin, including trunk-vs-git-flow default-branch detection
 - **`/shape-issues`** - Shape raw ideas into actionable GitHub Issues using Shape Up methodology
 - **`/trigger-ai-reviews`** - Trigger Claude, Gemini, and Copilot reviews on a PR
@@ -56,9 +56,9 @@ claude plugins add jacobpevans-cc-plugins/github-workflows
 | Skill | Requires | Why |
 |-------|----------|-----|
 | `/ship` | `/simplify` skill | Invokes /simplify pre-push for code cleanup |
-| `/resolve-pr-threads` | `superpowers` plugin | Sub-agents invoke `superpowers:receiving-code-review` for review feedback handling |
+| `/resolve-pr-threads` | `agentops` plugin | Checks each review claim with `/agentops:research` and `/agentops:validate` |
 
-Install superpowers: `claude plugins add superpowers-marketplace/superpowers`
+Install agentops: `claude plugin marketplace add boshu2/agentops`, then `claude plugin install agentops@agentops-marketplace`
 
 ## License
 

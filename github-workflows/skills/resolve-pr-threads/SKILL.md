@@ -3,8 +3,8 @@ name: resolve-pr-threads
 description: >-
   Orchestrates resolution of all GitHub PR feedback, including review threads,
   comments, review bodies, and review-bot findings, by grouping related feedback,
-  processing each group sequentially inline with superpowers:receiving-code-review,
-  and resolving threads via GraphQL. Use when you need to batch-process
+  checking each claim against the code with /agentops:research before acting,
+  processing groups sequentially, and resolving threads via GraphQL. Use when you need to batch-process
   review feedback to unblock a PR merge.
 allowed-tools: Read, Edit, Write, Grep, Glob, Bash(gh *), Bash(git *), Skill
 metadata:
@@ -106,8 +106,11 @@ Fetch every source without a date filter so a later commit cannot hide feedback.
 
 ### Step 3: Process Groups Sequentially (Inline)
 
-**First**: Invoke `superpowers:receiving-code-review` via the Skill tool once.
-Read and follow its full pattern. This applies to all thread and comment processing below.
+Check every reviewer claim against the code before you act on it. When a claim
+needs evidence, run `/agentops:research` (does the claim hold, with citations).
+When a fix needs a fresh go/no-go, run `/agentops:validate`. Never accept or
+reject feedback without that check. This applies to all thread and comment
+processing below.
 
 #### 3a: Process Thread Groups
 
@@ -116,8 +119,8 @@ Process each thread group **sequentially** (one group at a time, no sub-agents).
 For each thread group:
 
 1. Read the code at the referenced location(s)
-2. Apply the receiving-code-review pattern: fix the issue or answer with
-   verifiable evidence. Acknowledgment alone does not address a finding.
+2. Check the claim, then fix the issue or answer with verifiable evidence.
+   Acknowledgment alone does not address a finding.
 3. If implementing a fix, make the change and commit (do NOT push yet)
 4. Reply to each inline comment using the **REST reply pattern** from /gh-cli-patterns
    and include that item's exact `<!-- addressed: <id> -->` marker.
@@ -140,7 +143,7 @@ Process each comment group **sequentially** after all thread groups. Skip if no 
 
 For each feedback group:
 
-1. Apply the receiving-code-review pattern; fix the issue or answer the question.
+1. Check the claim as above; fix the issue or answer the question.
 2. For review bodies, post an issue comment quoting the first line. For issue
    comments and review bodies, post via `gh api repos/<OWNER>/<REPO>/issues/<PR_NUMBER>/comments`;
    include that item's exact ledger marker in the reply. For inline comments, use
