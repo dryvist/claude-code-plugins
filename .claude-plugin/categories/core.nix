@@ -64,6 +64,7 @@
     "session-status"
     "replan"
     "wrap-up"
+    "track-followups"
     # jacobpevans codeql-resolver
     "codeql-permission-classification"
     "github-workflow-security-patterns"
