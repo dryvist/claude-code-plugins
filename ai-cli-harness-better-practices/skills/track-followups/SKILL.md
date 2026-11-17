@@ -13,7 +13,6 @@ metadata:
       - triage
     related_skills:
       - wrap-up
-      - session-status
 ---
 
 # Track Follow-Ups
@@ -22,7 +21,8 @@ Given follow-up items that have already been triaged, put each one where it will
 be seen again. **A listed follow-up is not a tracked follow-up.** This skill
 creates the item and reports back what it created.
 
-It owns the routing and the creation mechanics. Callers own the triage.
+It owns the routing and the creation mechanics. Callers own the triage: when
+items arrive untriaged, run `/agentops:triage` on each one first.
 
 ## Routing
 
@@ -181,6 +181,6 @@ target lands.
 
 - **wrap-up** (this plugin) — calls this skill at Path A step A2.5 so follow-ups
   are recorded before the handoff artifact is built.
-- **session-status** (this plugin) — produces the triage this skill consumes.
-- **goal** (this plugin) — supplies the objective for the session-sized bucket
+- **`/agentops:triage`** — decides take, ask for more, or close for untriaged items.
+- **`/agentops:craft-goal`** — supplies the objective for the session-sized bucket
   carried in the next-session prompt rather than tracked here.
