@@ -18,7 +18,6 @@
   "skills": [
     "./skills/goal",
     "./skills/session-status",
-    "./skills/resume",
     "./skills/replan",
     "./skills/wrap-up",
     "./skills/track-followups"
