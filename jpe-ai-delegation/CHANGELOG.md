@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.27.0](https://github.com/JacobPEvans-ai/claude-code-plugins/compare/jpe-ai-delegation-v1.26.4...jpe-ai-delegation-v1.27.0) (2026-11-17)
+
+
+### Features
+
+* **jpe-ai-delegation:** Codex runs Luna at xhigh ([#843](https://github.com/JacobPEvans-ai/claude-code-plugins/issues/843)) ([be7c22e](https://github.com/JacobPEvans-ai/claude-code-plugins/commit/be7c22e6c95c6498eff1cb047672a290729044a7))
+
 ## [1.26.4](https://github.com/JacobPEvans-ai/claude-code-plugins/compare/jpe-ai-delegation-v1.26.3...jpe-ai-delegation-v1.26.4) (2026-11-17)
 
 
