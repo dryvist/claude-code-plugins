@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.68.0](https://github.com/JacobPEvans-ai/claude-code-plugins/compare/v6.67.0...v6.68.0) (2026-11-17)
+
+
+### Features
+
+* **infra-orchestration:** run agentops orchestrate from orchestrate-infra ([#829](https://github.com/JacobPEvans-ai/claude-code-plugins/issues/829)) ([2d826dd](https://github.com/JacobPEvans-ai/claude-code-plugins/commit/2d826ddc8c881912dfde2edc47b1950060af7f3e))
+
 ## [6.67.0](https://github.com/JacobPEvans-ai/claude-code-plugins/compare/v6.66.0...v6.67.0) (2026-11-17)
 
 
