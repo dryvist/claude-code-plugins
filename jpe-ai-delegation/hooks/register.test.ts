@@ -17,7 +17,7 @@ const PR = { html_url: 'https://github.com/owner/project/pull/12', state: 'open'
 const CORE_ASK = { decision: 'ask', reason: 'This shell -c script runs rm.' }
 type Call = { argv: string[]; stdin?: string; env?: Record<string, string> }
 type World = {
-  quota?: number; codexWindows?: unknown[]; cursorWindows?: unknown[]; now?: number; gatewayFinish?: string; quotaThrows?: boolean; cache?: boolean; codexExit?: number; answer?: string; label?: string
+  quota?: number; codexStderr?: string; codexWindows?: unknown[]; cursorWindows?: unknown[]; now?: number; gatewayFinish?: string; quotaThrows?: boolean; cache?: boolean; codexExit?: number; answer?: string; label?: string
   codexQuota?: 'absent' | 'hangs' | 'refused' | string
   env?: Record<string, string>; definition?: string; files?: Record<string, string>; fsThrows?: boolean; worktreeExit?: number; temporaryExit?: number
   harnessAnswer?: string; harnessStdout?: string; harnessExit?: number; harnessElapsedMs?: number
@@ -125,7 +125,7 @@ function world(w: World = {}) {
       }
       if (argv[0] === 'codex') {
         output = init?.stdin?.startsWith('Classify the delegated task') ? w.label ?? 'standard' : w.answer ?? 'task result'
-        return { ...RAN, exitCode: w.codexExit ?? 0 }
+        return { ...RAN, exitCode: w.codexExit ?? 0, stderr: w.codexStderr ?? '' }
       }
       if (argv[0] === 'claude') {
         // Unless the world answers the harness, the child fails its check as before the knob existed.
@@ -1915,7 +1915,7 @@ describe('harness executor', () => {
     expect(claude[0].argv).toEqual(harnessArgv('workspace-write'))
     expect(claude[0].stdin).toBe('Implement the change.')
     expect(claude[0].env).toMatchObject({ ANTHROPIC_BASE_URL: 'http://localhost:8000', ANTHROPIC_AUTH_TOKEN: 'local-proxy', ANTHROPIC_API_KEY: '', CLAUDE_CODE_OAUTH_TOKEN: '', ANTHROPIC_MODEL: 'medium-homelab', ANTHROPIC_DEFAULT_OPUS_MODEL: 'medium-homelab', ANTHROPIC_DEFAULT_SONNET_MODEL: 'medium-homelab', ANTHROPIC_DEFAULT_HAIKU_MODEL: 'medium-homelab', CLAUDE_CODE_SUBAGENT_MODEL: 'medium-homelab', CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1', CLAUDE_CODE_MAX_CONTEXT_TOKENS: '80000', CLAUDE_CODE_MAX_OUTPUT_TOKENS: '8000', CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT: '', CLAUDE_CODE_USE_BEDROCK: '', CLAUDE_CODE_USE_VERTEX: '', CLAUDE_CODE_USE_FOUNDRY: '', ANTHROPIC_CUSTOM_HEADERS: '' })
-    expect(claude[0].env?.PATH).toBe('/home/test/.local/bin:/run/current-system/sw/bin:')
+    expect(claude[0].env?.PATH).toBe('/home/test/.local/bin:/run/current-system/sw/bin')
     expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'homelab-harness', reason: 'highest-ranked eligible executor that answered' })
   })
   test('a harness answer that fails its check moves to the next row, the second harness row, then Codex', async () => {
@@ -1939,10 +1939,16 @@ describe('harness executor', () => {
     expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'codex', skipped: { 'homelab-harness': 'failed', 'host-harness': 'failed' } })
   })
   test('every child CLI runs with the current profile ahead of the PATH the session started with', async () => {
-    const w = world({ env: { ...gateways, USER: 'u', PATH: '/nix/store/stale-launchers/bin:/usr/bin' }, harnessExit: 7 })
+    const w = world({ quotaUrl: null, codexQuota: 'codex-quota: available {"p":40,"s":null}', env: { ...gateways, USER: 'u', PATH: '/nix/store/stale-launchers/bin:/usr/bin' }, harnessExit: 7 })
     await w.agent()
     const current = '/home/test/.local/bin:/etc/profiles/per-user/u/bin:/run/current-system/sw/bin:/nix/store/stale-launchers/bin:/usr/bin'
-    for (const name of ['claude', 'codex']) expect(w.calls.filter((c) => c.argv[0] === name).map((c) => c.env?.PATH)).toContain(current)
+    for (const name of ['claude', 'codex', 'codex-quota']) expect(w.calls.filter((c) => c.argv[0] === name).map((c) => c.env?.PATH)).toContain(current)
+  })
+  test('a failed codex run logs its first stderr line with token-like runs redacted', async () => {
+    const w = world({ env: gateways, harnessExit: 7, codexExit: 127, codexStderr: 'line 4: /opt/homebrew/bin/codex: No such file or directory\nkey sk-abcdefghijklmnopqrstuvwxyz0123' })
+    await w.agent()
+    expect(w.writes.some((s) => s.includes('codex failure: codex exec exited with code 127 (line 4: /opt/homebrew/bin/codex: No such file or directory)'))).toBe(true)
+    expect(w.writes.join('\n')).not.toContain('abcdefghijklmnopqrstuvwxyz0123')
   })
   test('a failed harness logs the headless result subtype and turn count', async () => {
     const w = world({ env: gateways, harnessExit: 1, harnessStdout: '{"is_error":true,"subtype":"error_max_turns","num_turns":40}' })

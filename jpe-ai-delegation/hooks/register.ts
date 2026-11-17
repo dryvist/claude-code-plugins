@@ -30,15 +30,16 @@ const errText = (err: unknown): string => (err instanceof Error ? err.message : 
 // A session keeps the PATH it started with, so after a host rebuild its first `codex` or `claude` can be a store path
 // the new generation dropped. The current profile's directories go ahead of the inherited PATH for every child CLI;
 // `$HOME/.local/bin` stays first because on some hosts the first `claude` on the session's PATH cannot run headless.
+// Empty entries are dropped: an empty PATH element means the working directory, which may be a repository under review.
 async function childPath($: Engine): Promise<string> {
-  const home = (await $.env.get('HOME')) ?? ''
+  const home = await $.env.get('HOME')
   const user = await $.env.get('USER')
-  const current = [`${home}/.local/bin`, ...(user ? [`/etc/profiles/per-user/${user}/bin`] : []), '/run/current-system/sw/bin']
-  return `${current.join(':')}:${(await $.env.get('PATH')) ?? ''}`
+  const current = [...(home ? [`${home}/.local/bin`] : []), ...(user ? [`/etc/profiles/per-user/${user}/bin`] : []), '/run/current-system/sw/bin']
+  return [...current, ...((await $.env.get('PATH')) ?? '').split(':')].filter(Boolean).join(':')
 }
 
 // Why a child CLI failed, for the decision log: the headless JSON result's subtype and turn count when stdout carries
-// one, else the first non-empty stderr line. One short suffix, or nothing.
+// one, else the first non-empty stderr line with token-like runs redacted. One short suffix, or nothing.
 function childDetail(stdout: string, stderr: string): string {
   try {
     const p = JSON.parse(stdout) as { subtype?: unknown; num_turns?: unknown }
@@ -47,7 +48,7 @@ function childDetail(stdout: string, stderr: string): string {
     // Not a JSON result; fall back to stderr.
   }
   const line = stderr.split('\n').find((l) => l.trim())
-  return line ? ` (${errText(line)})` : ''
+  return line ? ` (${errText(line.replace(/[A-Za-z0-9_+=-]{24,}/g, '[redacted]'))})` : ''
 }
 const MODEL_INFO_TIMEOUT_MS = 10_000
 const JOB_STATUS_BUDGET_MS = 3_000
