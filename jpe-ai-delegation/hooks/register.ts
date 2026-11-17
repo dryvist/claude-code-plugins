@@ -26,6 +26,29 @@ const QUOTA_TOKEN_MAX_BYTES = 4096
 const isAbsolutePath = (path: string): boolean => path.startsWith('/')
 // A caught error's own text on one bounded line, so the decision log tells a failed spawn from a bad answer.
 const errText = (err: unknown): string => (err instanceof Error ? err.message : String(err)).replace(/\s+/g, ' ').slice(0, 200)
+
+// A session keeps the PATH it started with, so after a host rebuild its first `codex` or `claude` can be a store path
+// the new generation dropped. The current profile's directories go ahead of the inherited PATH for every child CLI;
+// `$HOME/.local/bin` stays first because on some hosts the first `claude` on the session's PATH cannot run headless.
+async function childPath($: Engine): Promise<string> {
+  const home = (await $.env.get('HOME')) ?? ''
+  const user = await $.env.get('USER')
+  const current = [`${home}/.local/bin`, ...(user ? [`/etc/profiles/per-user/${user}/bin`] : []), '/run/current-system/sw/bin']
+  return `${current.join(':')}:${(await $.env.get('PATH')) ?? ''}`
+}
+
+// Why a child CLI failed, for the decision log: the headless JSON result's subtype and turn count when stdout carries
+// one, else the first non-empty stderr line. One short suffix, or nothing.
+function childDetail(stdout: string, stderr: string): string {
+  try {
+    const p = JSON.parse(stdout) as { subtype?: unknown; num_turns?: unknown }
+    if (typeof p?.subtype === 'string') return ` (${errText(p.subtype)}${typeof p.num_turns === 'number' ? `, ${p.num_turns} turns` : ''})`
+  } catch {
+    // Not a JSON result; fall back to stderr.
+  }
+  const line = stderr.split('\n').find((l) => l.trim())
+  return line ? ` (${errText(line)})` : ''
+}
 const MODEL_INFO_TIMEOUT_MS = 10_000
 const JOB_STATUS_BUDGET_MS = 3_000
 const JOB_STATUS_TIMEOUT_MS = 15_000
@@ -144,7 +167,7 @@ type NativeQuota = CodexQuotaRead & { at?: number }
 // non-zero exit is a refusal. An absent command, a timeout beyond the 15 s budget, or no parsable object is unknown.
 async function readCodexQuota($: Engine): Promise<CodexQuotaRead> {
   try {
-    const result = await withTimeout($, $.process.run(['codex-quota'], { timeoutMs: CODEX_QUOTA_TIMEOUT_MS }), CODEX_QUOTA_TIMEOUT_MS)
+    const result = await withTimeout($, $.process.run(['codex-quota'], { timeoutMs: CODEX_QUOTA_TIMEOUT_MS, env: { PATH: await childPath($) } }), CODEX_QUOTA_TIMEOUT_MS)
     if (result.exitCode !== 0) return { kind: 'exhausted' }
     return parseCodexQuota(result.stdout, CODEX_QUOTA_THRESHOLD)
   } catch {
@@ -239,9 +262,9 @@ async function runCodex($: Engine, codexRoute: Route, sandbox: Sandbox, prompt: 
       const model = (await $.fs.exists(cache)) ? newestModel((await $.fs.read(cache)) as string, codexRoute.family) : undefined
       const argv = codexArgv(sandbox, codexRoute, model, outputFile)
       if (cwd) argv.splice(2, 0, '-C', cwd)
-      const r = await $.process.run(argv, { stdin: prompt, timeoutMs })
+      const r = await $.process.run(argv, { stdin: prompt, timeoutMs, env: { PATH: await childPath($) } })
       if (r.exitCode !== 0) {
-        failure = `codex exec exited with code ${r.exitCode}`
+        failure = `codex exec exited with code ${r.exitCode}${childDetail('', r.stderr)}`
       } else {
         const text = ((await $.fs.read(outputFile)) as string).trim()
         if (text) return text
@@ -273,9 +296,7 @@ async function runHarness($: Engine, row: ExecutorRow, sandbox: Sandbox, prompt:
     const base = (await $.env.get('LITELLM_LOCAL_BASE_URL'))?.replace(/\/+$/, '')
     if (!base) failure = 'router URL unset'
     else {
-      const home = (await $.env.get('HOME')) ?? ''
-      // `$HOME/.local/bin` first: on some hosts the first `claude` on the session's PATH is a wrapper that cannot run
-      // headless. An empty string clears the parent's value.
+      // An empty string clears the parent's value.
       const env: Record<string, string> = {
         ANTHROPIC_BASE_URL: base,
         ANTHROPIC_AUTH_TOKEN: 'local-proxy',
@@ -296,13 +317,13 @@ async function runHarness($: Engine, row: ExecutorRow, sandbox: Sandbox, prompt:
         // With the unknown-window enforcement on, the child only compacts after the model rejects an over-long prompt,
         // where the run dies.
         CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT: '',
-        PATH: `${home}/.local/bin:${await $.env.get('PATH') ?? ''}`,
+        PATH: await childPath($),
       }
       const argv = harnessArgv(sandbox, cwd ?? await $.session.cwd())
       // The process API has no working-directory option, so a working directory goes through a shell that execs the
       // child in it.
       const r = await $.process.run(cwd ? ['/bin/sh', '-c', 'cd "$1" && shift && exec "$@"', 'sh', cwd, ...argv] : argv, { stdin: prompt, timeoutMs, env })
-      if (r.exitCode !== 0) failure = `harness exited with code ${r.exitCode}`
+      if (r.exitCode !== 0) failure = `harness exited with code ${r.exitCode}${childDetail(r.stdout, r.stderr)}`
       else {
         const parsed = JSON.parse(r.stdout) as { is_error?: unknown; result?: unknown }
         const text = typeof parsed.result === 'string' ? parsed.result.trim() : ''
