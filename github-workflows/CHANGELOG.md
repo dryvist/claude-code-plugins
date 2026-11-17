@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.15.0](https://github.com/JacobPEvans-ai/claude-code-plugins/compare/github-workflows-v6.14.0...github-workflows-v6.15.0) (2026-11-17)
+
+
+### Features
+
+* **github-workflows:** check review claims with agentops instead of superpowers ([#828](https://github.com/JacobPEvans-ai/claude-code-plugins/issues/828)) ([6f3e23c](https://github.com/JacobPEvans-ai/claude-code-plugins/commit/6f3e23c2772b63929fd23d08c638f65a6923b1e9))
+
 ## [6.14.0](https://github.com/JacobPEvans-ai/claude-code-plugins/compare/github-workflows-v6.13.0...github-workflows-v6.14.0) (2026-11-17)
 
 
