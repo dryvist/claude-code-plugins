@@ -51,7 +51,7 @@ tables, examples).
 
 | Plugin | Type | Tools/Commands | Purpose |
 |--------|------|--------|------|
-| **ai-cli-harness-better-practices** | Skill | `/goal`, `/session-status`, `/resume`, `/replan`, `/wrap-up` (incl. `purge-pr` mode), `/wrap-up-docs` | Harness-agnostic session continuity: capped goal statements, done-vs-remaining snapshots, verify-before-trust resume, stale-plan repair, and end-of-session wrap-up. Runs without a git repository |
+| **ai-cli-harness-better-practices** | Skill | `/goal`, `/session-status`, `/replan`, `/wrap-up` (incl. `purge-pr` mode), `/wrap-up-docs` | Harness-agnostic session continuity: capped goal statements, done-vs-remaining snapshots, verify-before-trust resume, stale-plan repair, and end-of-session wrap-up. Runs without a git repository |
 | **ai-delegation** | Skill | `/premium-agent-orchestration`, `/local-subagents`, `/fast-subagent`, `/openrouter-models` (shims: `/delegate-to-ai`, `/auto-maintain`, `/multi-model-review`) | Lean orchestrator mode on top of `/agentops:orchestrate`, and routing of checkable work to local, free or cheap models |
 | **codeql-resolver** | Command/Skill/Agent | `/resolve-codeql` | Resolve CodeQL security alerts in GitHub Actions workflows |
 | **content-guards** | Pre/PostToolUse | Bash, Write, Edit | Token limits, markdown/README validation, webfetch guard, issue/PR backlog limits, public-repo leakage guard, credential guard |

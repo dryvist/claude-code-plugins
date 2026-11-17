@@ -18,8 +18,9 @@ The default `/wrap-up` does not.
   `/agentops:postmortem`, `/agentops:craft-goal` and `/agentops:doc`.
 - **`/track-followups`** — File triaged follow-ups in the task tracker or the
   incident system; `/agentops:triage` decides untriaged items first.
-- **Superseded shims** — `/goal` (use `/agentops:craft-goal`), `/session-status`,
-  `/resume` and `/wrap-up-docs` (use `/agentops:doc`), `/replan` (use `/agentops:plan`).
+- **Superseded shims** — `/goal` (use `/agentops:craft-goal`), `/session-status`
+  and `/wrap-up-docs` (use `/agentops:doc`), `/replan` (use `/agentops:plan`).
+  `/resume` is removed; use `/agentops:doc`.
 
 ## Usage
 

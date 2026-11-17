@@ -193,7 +193,7 @@ See [git-guards/ARCHITECTURE.md](../git-guards/ARCHITECTURE.md) and
   architecture (invoked by `/finalize-pr` Phase 2.2)
 - [git-workflows/ARCHITECTURE.md](../git-workflows/ARCHITECTURE.md) — `/troubleshoot-*`
 - [ai-cli-harness-better-practices/ARCHITECTURE.md](../ai-cli-harness-better-practices/ARCHITECTURE.md)
-  — `/goal`, `/resume`, `/replan`, `/session-status`, `/wrap-up`
+  — `/goal`, `/replan`, `/session-status`, `/wrap-up`
   bridging `gh pr create` to `/finalize-pr`
 - [git-guards/ARCHITECTURE.md](../git-guards/ARCHITECTURE.md) — PreToolUse hooks
 - [content-guards/ARCHITECTURE.md](../content-guards/ARCHITECTURE.md) — Content validation

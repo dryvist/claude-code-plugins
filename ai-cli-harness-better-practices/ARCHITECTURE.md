@@ -110,7 +110,7 @@ not silently take the "no" path and skip a check that would otherwise have run.
 
 ## agentops composition
 
-`/goal`, `/session-status`, `/resume`, `/replan` and `/wrap-up-docs` are shims
+`/goal`, `/session-status`, `/replan` and `/wrap-up-docs` are shims
 that point to agentops skills. `/wrap-up` composes those skills and keeps only
 what is specific here: the completion verdict, the git-flow promotion gate, the
 Path B resume blocks, and `purge-pr` mode. `/track-followups` keeps the tracker

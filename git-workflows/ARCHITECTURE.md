@@ -6,7 +6,7 @@ For branch creation and PR-branch sync, follow the [Git Town rule](https://githu
 For PR-related operations (refresh, rebase-merge, finalize, merge), see
 [github-workflows/ARCHITECTURE.md](../github-workflows/ARCHITECTURE.md).
 
-Session-continuity skills (`/goal`, `/session-status`, `/resume`,
+Session-continuity skills (`/goal`, `/session-status`,
 `/replan`, `/wrap-up`) are **not** here. They moved to
 [ai-cli-harness-better-practices](../ai-cli-harness-better-practices/ARCHITECTURE.md)
 because they are harness concerns, not git concerns — they run with or without a
@@ -47,7 +47,7 @@ flowchart LR
 
     subgraph harness["ai-cli-harness-better-practices — SESSION state"]
         direction TB
-        cont["/goal, /session-status\n/resume, /replan, /wrap-up"]:::external
+        cont["/goal, /session-status\n/replan, /wrap-up"]:::external
     end
 
     subgraph local["git-workflows — LOCAL git troubleshooting"]

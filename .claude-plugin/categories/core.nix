@@ -62,7 +62,6 @@
     # jacobpevans ai-cli-harness-better-practices
     "goal"
     "session-status"
-    "resume"
     "replan"
     "wrap-up"
     # jacobpevans codeql-resolver
