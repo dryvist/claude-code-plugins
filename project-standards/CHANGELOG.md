@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.16.0](https://github.com/JacobPEvans-ai/claude-code-plugins/compare/project-standards-v6.15.0...project-standards-v6.16.0) (2026-11-17)
+
+
+### Features
+
+* **project-standards:** point claude-skill-authoring to agentops skill-builder ([#830](https://github.com/JacobPEvans-ai/claude-code-plugins/issues/830)) ([3519878](https://github.com/JacobPEvans-ai/claude-code-plugins/commit/351987822baddec6cd5c8b63b8f9a20a3ed1ba69))
+
 ## [6.15.0](https://github.com/JacobPEvans-ai/claude-code-plugins/compare/project-standards-v6.14.0...project-standards-v6.15.0) (2026-11-17)
 
 
