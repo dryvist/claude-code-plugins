@@ -98,4 +98,4 @@ delegated result. Say when you fell back to doing the step yourself.
   model menu, the fast-subagent tier contract.
 - **premium-agent-orchestration** (ai-delegation) — which decisions a premium
   session keeps.
-- **delegate-to-ai** (ai-delegation) — generic delegation safeguards; the maintainer-specific executor ladder is in `jpe-ai-delegation`.
+- **`/agentops:orchestrate`** — dispatch and result checks for delegated work; the maintainer-specific executor ladder is in `jpe-ai-delegation`.

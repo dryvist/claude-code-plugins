@@ -18,8 +18,8 @@ Session continuity for AI CLI agents. No git repository required.
 Generic delegation guidance, model review, and autonomous maintenance workflows.
 
 - **Type**: Skill-based plugin
-- **Skills**: `/delegate-to-ai`, `/auto-maintain`, `/premium-agent-orchestration`
-- **Purpose**: Classify delegation work, verify delegated results, and preserve premium reasoning for judgment while cheaper agents handle checkable work
+- **Skills**: `/premium-agent-orchestration`, `/local-subagents`, `/fast-subagent`, `/openrouter-models`
+- **Purpose**: Lean orchestrator mode on top of `/agentops:orchestrate`; route checkable work to cheaper models
 
 ### jpe-ai-delegation
 
@@ -186,7 +186,7 @@ invocation. Skill-based plugins provide slash commands:
 /prune-branches           # Delete dead branches and worktrees
 /wrap-up                  # Session-completion verdict + forward artifact
 /resolve-codeql           # Fix CodeQL security alerts
-/delegate-to-ai           # Generic delegation guidance
+/agentops:orchestrate    # Dispatch and result checks
 /delegation-ladder        # Maintainer-specific executor ladder
 /premium-agent-orchestration # Preserve premium reasoning and delegate checkable work
 ```

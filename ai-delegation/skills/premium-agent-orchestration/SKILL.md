@@ -1,9 +1,13 @@
 ---
 name: premium-agent-orchestration
-description: Inject any time, including mid-task, to reset the session to lean orchestrator mode. Covers marathon or multi-workstream coordination and work larger than one context. Plan and fan out checkable work to the cheapest capable executor; keep goals, gates, decisions, and final review in the parent. Keep every worker and its subagents busy; re-engage or close idle workers on a schedule.
+description: Inject any time, including mid-task, to reset the session to lean orchestrator mode. Covers marathon or multi-workstream coordination and work larger than one context. Runs /agentops:orchestrate for dispatch and adds tiering, reserved decisions and fleet upkeep; keeps goals, gates, decisions, and final review in the parent.
 ---
 
 # Premium Agent Orchestration
+
+Run `/agentops:orchestrate` and follow it for every dispatch: packet checks,
+write-scope collisions, launch, observation, recovery, judging results and
+integration order. This skill adds only what that skill leaves to the caller.
 
 ## Reset to orchestrator (run on load)
 
@@ -12,31 +16,23 @@ Pause the current task and run this reset as soon as the skill loads.
 1. Re-read the current goal or plan and its success criteria.
 2. List every in-flight delegate and background job, with its task and
    current state.
-3. Judge each finished result against its named yes/no check. Accept it or
-   record the shortfall.
-4. Re-plan from live state: completed work, open checks, dependencies, and
-   blockers.
-5. Fan out every ready, independent task in parallel to the cheapest capable
-   executor.
-6. Schedule the idle sweep and the productivity check for the fleet.
-7. Keep for yourself only intent, goals, plans, design, risk, authority
-   gates, integration and merge choices, and final review.
-8. Answer the user briefly with the current state, next step, or blocker.
+3. Apply orchestrate's "Before any dispatch": judge each finished result
+   against its named yes/no check, and reconcile before resuming.
+4. Re-plan from live state and fan out every ready, independent task in
+   parallel, each at its cheapest capable rung (below).
+5. Schedule the idle sweep and the productivity check for the fleet.
+6. Answer the user briefly with the current state, next step, or blocker.
 
-## The parent's job
+## What the parent keeps
 
-The parent session orchestrates. It sets goals and plans, defines task
-boundaries, makes design and risk decisions, holds authority gates, integrates
-results, decides what may merge, and reviews the final work.
+The parent keeps intent, goals, plans, design, risk, security, permissions,
+migrations, data loss, shared state, concurrency, public interfaces,
+user-visible risk, authority gates, integration and merge choices, and final
+review. A worker may gather evidence for these; it never makes them.
 
 The parent does not do bulk reads, searches, edits, test runs, log digging, or
-long-output inspection. Delegate that volume to the cheapest capable executor
-and ask for a short result with evidence. Keep only judgment and coordination
-in the parent.
-
-Do a handful of tool calls inline when delegation setup, prompt writing, or
-result handoff would cost more than the work. If a task contains routine work
-and a hard decision, delegate the evidence gathering and keep the decision.
+long-output inspection. Do a handful of tool calls inline only when handoff
+would cost more than the work.
 
 ## Cheapest-capable ladder
 
@@ -44,8 +40,7 @@ Choose an executor for each task, not for the whole project. Start at the
 lowest rung that can meet the check. Haiku is the last resort, never the first
 pick.
 
-1. **Inline:** tiny work where handoff costs more than doing it, such as a few
-   simple tool calls.
+1. **Inline:** tiny work where handoff costs more than doing it.
 2. **Local or free model:** text-only extraction, summaries, classification,
    and drafts from approved inputs.
 3. **Untrusted low-cost tier:** work that uses public data only.
@@ -54,93 +49,29 @@ pick.
 5. **Premium peer:** judgment that cannot be delegated. Choose below the
    parent's tier; never use a peer at your own tier.
 
-At call time, read current prices, context-length price tiers, peak and
-off-peak windows, and quotas from the router or provider. Never hard-code
-prices, model names, or availability. Keep each worker below its model's
-context price tier. Split a task before it crosses that tier. Prefer off-peak
-windows for bulk work that can wait.
+Read prices, context-length price tiers, peak windows, and quotas live at call
+time; never hard-code them. Split a task before it crosses its model's context
+price tier, and prefer off-peak windows for bulk work that can wait. Executor
+detail: `references/model-tiers.md`. The maintainer's own route is
+`delegation-ladder` in `jpe-ai-delegation`.
 
-## Brief each task
+Secrets, credentials, private data, and restricted information go only to an
+executor approved for them; a public-data-only tier receives public data only.
 
-Give each worker one outcome, the exact inputs it may use, and a yes/no check.
-Put a static shared prefix first and task-specific text last so matching calls
-can use prefix caching. Keep the shared prefix byte-identical when the
-executor supports caching.
+## Briefs and tools
 
-Use this compact brief:
+Put a static shared prefix first and task-specific text last in every packet,
+byte-identical across calls, so matching calls hit the prefix cache.
 
-```text
-Use only the supplied scope and inputs. Do not expand the task, make reserved
-decisions, or ship work. If blocked, stop and report why. Return only the
-stated output contract.
-
-Goal and intent: [what outcome is needed and why]
-Exact scope and what not to touch: [files, data, systems, boundaries]
-Constraints and decisions: [paste the applicable constraints and decisions]
-Success check (yes/no): [one concrete pass condition]
-Output contract: [one line or exact schema]
-Stop and report: [the point to stop, or the blocker to report]
-Difficulty and risk: [plain words]
-```
-
-One agent per tool. The session knows only what the skill says: call this
-agent with these inputs and expect this output. The agent runs on a local
-model and carries the tool's instructions, so no other context does.
-
-## Judge every result
-
-A delegate's output is a claim until its check passes.
-
-- Compare the returned artifact and evidence with the named yes/no check.
-- Send failures back with the specific shortfall and the next check to pass.
-- Split oversized tasks into smaller pieces with separate checks.
-- Never let unreviewed output ship or merge. The parent owns the final review
-  and gate.
-
-## Boundaries and high-risk work
-
-Do not send secrets, credentials, private data, or restricted information to
-an executor unless that executor is approved for it. A public-data-only tier
-receives public data only.
-
-The parent keeps decisions about intent, design, security, permissions,
-migrations, data loss, shared state, concurrency, public interfaces, and
-user-visible risk. A worker may gather evidence or complete a scoped change,
-but it does not make reserved decisions or approve its own result.
-
-## Substrate resilience
-
-Check live executor availability and limits before a fan-out. Respect
-concurrency, quota, and rate limits. Give background work a clear stop
-condition and bounded waits. If a call fails, record the failure, then
-re-plan or choose the next eligible executor. Do not poll forever or silently
-absorb a failed task into the parent.
+One agent per tool. The session knows only the call contract: call this agent
+with these inputs and expect this output. The agent runs on a local model and
+carries the tool's instructions, so no other context does.
 
 ## Keep the fleet working
 
 Every worker and subagent is working, waiting on a named event with a
-background wake condition while its next item runs, or closed. Idle wastes
-a warm prompt cache, then costs a full re-read when the session wakes
-cold. While a job runs, start the next piece of work in the same turn
-and arm a background wait that wakes the session when the job ends.
-Never wake only to say "still waiting". Sweep the fleet for idle or
-near-idle sessions on an interval shorter than the prompt-cache
-lifetime, run the sweep on the cheapest session that can do it, and ask
-each worker on a fixed cadence whether it uses its full capacity, so no
-cached context is wasted. Both stop when the run ends or every worker is
-closed. The procedure is in `references/fleet-utilization.md`.
-
-## Token discipline
-
-- Batch related asks when one worker can handle them under one clear check.
-- Pull back conclusions and supporting evidence, not full dumps.
-- Do not re-read material a delegate has already summarized unless the check
-  or risk requires it.
-- Fork a separate context only when the task truly needs one.
-
-## Related skills
-
-- `local-subagents` — choose and use local or low-cost model tiers.
-- `fast-subagent` — send routine, checkable work through a fast local route.
-- `delegate-to-ai` — general safeguards for bounded delegation.
-- For the maintainer's own route, see `delegation-ladder`.
+background wake condition while its next item runs, or closed. While a job
+runs, start the next piece of work in the same turn and arm a background wait that wakes the session when the job ends.
+Never wake only to say "still waiting". Sweep for idle sessions on an interval shorter than the
+prompt-cache lifetime, on the cheapest session that can do it, never the lead.
+The procedure is in `references/fleet-utilization.md`.

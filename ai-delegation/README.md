@@ -11,11 +11,8 @@ The executor route, eligibility rules, and routing hook for the maintainer's own
 
 ## Skills
 
-- **`/delegate-to-ai`** - Classify and bound delegated tasks, protect sensitive content, and verify the exact result before handoff
-- **`/auto-maintain`** - Autonomous maintenance orchestrator that continuously finds and dispatches work
-- **`/premium-agent-orchestration`** - Preserve top-tier/SOTA model reasoning (any vendor,
-  current or future — the session's own model is assumed to be the premium lead)
-  for judgment while delegating checkable work to cheaper agents, local LLMs, or free tiers
+- **`/premium-agent-orchestration`** - Reset to lean orchestrator mode: runs `/agentops:orchestrate`
+  for dispatch and adds the cheapest-capable ladder, the decisions the parent keeps, and fleet upkeep
 - **`/local-subagents`** - Hand bulk reading, summarizing, classifying, extracting,
   boilerplate and first-pass code reads to a locally served or cheap model through the
   shared router: when to delegate, how to read the live menu (speed, quality, best-for,
@@ -28,9 +25,8 @@ The executor route, eligibility rules, and routing hook for the maintainer's own
 - **`/openrouter-models`** - Choose among hosted models by current price and context length
   from the public catalog, self-enforce a daily spend budget the router does not meter,
   and respect the free-tier prompt-logging caveat
-- **`/multi-model-review`** - Fan a plan or diff out to independent model families
-  (a cloud coding-agent CLI, a cloud reasoning-agent CLI, a local model server) for
-  adversarial review, plus the gotcha each invocation type hits
+- **`/delegate-to-ai`**, **`/auto-maintain`**, **`/multi-model-review`** - Superseded shims that
+  point to `/agentops:orchestrate`, `/agentops:navigate` and `/agentops:council`
 
 `local-subagents`, `fast-subagent` and `openrouter-models` are written to be harness-agnostic: they
 use only shell, `curl`, and `jq`, name no model ids, and read their endpoint from the
@@ -46,13 +42,10 @@ claude plugins add jacobpevans-cc-plugins/ai-delegation
 ## Usage
 
 ```text
-/delegate-to-ai
-/auto-maintain
 /premium-agent-orchestration
 /local-subagents
 /fast-subagent
 /openrouter-models
-/multi-model-review
 ```
 
 ## License
