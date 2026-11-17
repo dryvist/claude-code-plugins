@@ -16,17 +16,18 @@ more) or `unavailable` (no usable quota row). None of these stops dispatch; a
 failed Codex invocation moves to the next executor.
 
 Mandatory topics override model selection and name `[class: bulk-complex]`;
-explicit `plan` and `deep` tags retain their read-only sandbox. Model
-selection uses the newest listed Luna slug in the Codex cache; the command
-builder rejects any other family or effort. `Explore` and `Plan` spawns stay
-read-only. Sonnet, Opus and Fable choices are denied, including custom-agent
-definitions. Worktree isolation creates a separate checkout for Codex rather
+explicit `plan` and `deep` tags retain their read-only sandbox. Codex routing
+follows AGENTS.md, 'Delegation routing' in the shared instructions repository;
+the command builder enforces its model and effort pair. `Explore` and `Plan`
+spawns stay read-only. Sonnet, Opus and Fable choices are denied, including
+custom-agent definitions. Worktree isolation creates a separate checkout for Codex rather
 than selecting a later executor. Custom-agent instructions are loaded before
 classification; unresolved definitions fail closed.
 
-The permission judge uses Codex Luna `xhigh` while quota is available (`max`
-for mandatory bulk-complex topics), then configured GLM, OpenCode Go and Haiku
-`xhigh` only while exhausted; unknown quota leaves the core dialog. No verdict leaves the core dialog open. Prohibited
+The permission judge follows AGENTS.md, 'Delegation routing' in the shared
+instructions repository while quota is available, then configured GLM,
+OpenCode Go and Haiku `xhigh` only while exhausted; unknown quota leaves the
+core dialog. No verdict leaves the core dialog open. Prohibited
 inline content is screened locally before any classifier, judge or executor
 receives it; the lead classifies all remaining context before dispatch.
 

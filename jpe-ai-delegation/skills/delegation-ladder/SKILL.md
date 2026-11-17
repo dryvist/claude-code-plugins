@@ -13,13 +13,15 @@ Codex weekly).
 
 1. Small, quick, checkable tasks (summarize, extract, classify, reformat, a first pass over a file or log) go to
    the router local default or medium capability before any subscription; escalate only after a checked failure.
-2. A public sandbox (Qwen first, then ZCode) or Codex Luna:
+2. A public sandbox (Qwen first, then ZCode) or Codex:
    - Qwen (`zcode-job --tool opencode-qwen`), then ZCode (`zcode-job`): obvious, definitely non-sensitive work in public repos. Coding and coding-adjacent only:
      code, tests, GitHub automation and workflows, code reviews. Open-internet research needs a separate untrusted, internet-open container.
      The output is a ready PR labelled `human:review`. Leak-scan it before merge. Never auto-merge it.
-   - Codex Luna: anything even remotely sensitive, or any private repo. Luna `xhigh` default, `max` as needed.
-     Codex qualifies while `codex-quota` exits 0 (more than 5% left). Never Terra.
-     Complicated bulk and mandatory auth, secrets, router, memory and cluster topics take `max` and name `[class: bulk-complex]`.
+   - Codex: anything even remotely sensitive, or any private repo. Codex runs
+     Luna at `xhigh` (AGENTS.md, 'Delegation routing' in the shared instructions
+     repository). Codex qualifies while `codex-quota` exits 0 (more than 5% left).
+     Complicated bulk and mandatory auth, secrets, router, memory and cluster
+     topics name `[class: bulk-complex]`.
 3. Other subscriptions where they fit, e.g. OpenCode Go (`zcode-job --tool opencode`) and Z.ai GLM. Public work only,
    preferred while that subscription is at or under its pace for the billing period, tried last when over it.
 4. Haiku `xhigh`, the last resort, only after rungs 1, 2 and 3 are exhausted or do not qualify; even then Haiku runs before the orchestrator works solo.
@@ -42,8 +44,9 @@ systems. The hook screens inline payloads locally before calling any classifier
 or executor; it cannot inspect attachments or files that workers might read.
 The lead must keep prohibited content out of executor-accessible context.
 
-Codex uses the newest listed Luna slug in its local model cache. Plan, design
-and architecture review use the `plan` or `deep` class and a read-only sandbox,
+Codex model selection follows AGENTS.md, 'Delegation routing' in the shared
+instructions repository; the hook uses the newest listed slug in its local
+model cache. Plan, design and architecture review use the `plan` or `deep` class and a read-only sandbox,
 as do `Explore` and `Plan` agents. Explicit class tags select these routes;
 mandatory bulk-complex topics override model selection while preserving an
 explicit `plan` or `deep` read-only sandbox. Explicit models, named agents and
@@ -121,7 +124,7 @@ decision to `~/.claude/ai-delegation.log`:
 For sandbox coding, put `[task: code] [repo: owner/repository]` in the
 description. A public-repo tag alone does not establish that work is coding.
 The sandbox takes public repositories only; a private repository stays with
-Codex Luna. The hook verifies the returned PR belongs to the requested
+Codex. The hook verifies the returned PR belongs to the requested
 repository, is open and non-draft, and has `human:review`. When a job returns
 no verified PR, the hook reads `zcode-job status <job>` and acts on its `end`
 field. If the job ended without a PR, the task moves to the next eligible
