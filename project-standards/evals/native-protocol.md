@@ -161,7 +161,7 @@ CLI **2.1.319** has no validation-only/dry-run option for `claude plugin eval`.
 YAML validation proves structure only. Native loading and behavioral
 acceptance remain **not yet run**; the lead retains results or load errors.
 
-Authoring standards: estate agent-builder, agentops skill-builder, the root AGENTS.md
+Authoring standards: estate agent-builder, `/agentops:skill-builder`, the root AGENTS.md
 skill authoring limits, and agent-standards; Anthropic skill-creator; plugin-dev agent-, skill-, command-,
 and hook-development; writing-for-agents; R2 section 2 a–g.
 
