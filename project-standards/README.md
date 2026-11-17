@@ -7,7 +7,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for integration diagrams.
 ## Skills
 
 - **`/agent-builder`** - Canonical v2 agents, generated runtime exports, evals, and shadow-to-live evidence
-- **`/skill-builder`** - Portable skills with trigger tests, baseline comparisons, and held-out evaluation
+- **`/skill-builder`** - Superseded shim that points to `/agentops:skill-builder` and `/agentops:skill-eval`
 - **`/claude-skill-authoring`** - Superseded shim that points to `/agentops:skill-builder`; this repository's limits are in AGENTS.md
 - **`/workspace-standards`** - Cross-project standards, git workflow, security, cost management
 - **`/skills-registry`** - Lookup table for all available tools, skills, commands, agents, plugins

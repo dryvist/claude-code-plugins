@@ -20,7 +20,7 @@ agent-builder; `S` means skill-builder. This table records authoring coverage,
 not measured runtime performance. Shared sources are registered once in the
 [vendor register](sources.md) and the
 [ecosystem and research register](sources-ecosystem.md); skill-specific
-records live in [skill-builder sources](../../skill-builder/references/sources.md).
+records live in [skill sources](skill-sources.md).
 
 | Practice | Source | Date | Already follows? | Refresh coverage |
 | --- | --- | --- | --- | --- |
@@ -77,7 +77,7 @@ records live in [skill-builder sources](../../skill-builder/references/sources.m
   structure only.
 - Builder [native development cases](../../../evals/agent-builder/native/) are visible to the
   author. Independent evaluation owns the unseen acceptance cases and runs
-  them through the [shared native protocol](../../../evals/skill-builder/contract.md).
+  them through the [shared native protocol](../../../evals/native-protocol.md).
 
 ## Conflicts retained explicitly
 

@@ -17,7 +17,7 @@ Reverified **2026-11-09**: A1–A3 match their registered publication dates,
 O1 is unchanged, O2 (`f53c624`, 2026-10-13) and O3 (`9d2b318`,
 2026-09-30) remain the latest revisions touching those documents, and the
 2026-10-22 subagent-folding article is unchanged. The current Agent Skills
-documentation (see S6 in the [skill-builder register](../../skill-builder/references/sources.md))
+documentation (see S6 in the [skill source register](skill-sources.md))
 confirms the name/description limits and body-length guidance this estate
 applies to skills. No registered source contradicts this skill's rules. The
 recheck also registered O4, revised **2026-11-09** and dated after this

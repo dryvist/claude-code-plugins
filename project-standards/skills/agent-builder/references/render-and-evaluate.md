@@ -21,7 +21,7 @@ coverage manifest; ensure the new suite actually enters the executable matrix.
 - Compare against the current version, or a no-agent baseline for a new agent,
   using the same permitted model, configuration, cases, and repeated clean runs.
 - Shared evaluation-conduct rules live once in skill-builder's
-  [evaluation contract](../../skill-builder/SKILL.md#freeze-the-evaluation-contract-before-experiments)
+  [evaluation contract](evaluation-contract.md)
   and apply from there: hard-case difficulty with saturation and scaling
   diagnostics (A3), explicit argument comparison modes (G3), complete-session
   trajectory fidelity with injection timing, call batches, deduplication, and

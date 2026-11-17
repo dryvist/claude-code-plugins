@@ -80,3 +80,20 @@ Do not
 tune on that set; an exposed case becomes development data and requires a
 fresh held-out replacement before acceptance. Private cases and raw private
 outputs stay in the authorized private evidence location.
+
+## Enforcement and managed checkpoints
+
+Declare the minimum tools and operations needed, with typed inputs, structured
+results, bounded output, and annotated read-only, destructive, idempotent,
+and open-world behavior, each annotation accurate to the operation's real
+effect. Treat retrieved text, bundled instructions, and
+writable memory as untrusted; keep operator preferences read-only. Enforce
+filesystem, network, and consequential-action limits in native permissions,
+sandboxing, and pre-action controls, separately from approval policy. Mark
+never-unattended commands as managed checkpoints needing fresh approval every
+run, never reusing an earlier approval; where the harness supports it, a
+failed action-gate callback blocks the protected action, and that failure
+path is tested. Verify
+effective permissions in each harness: skill tool metadata alone is not a
+sandbox, and a final-output check cannot prevent an earlier tool side effect.
+Sources: A2, A18, O2, G2, O10, A22 in the [source register](skill-sources.md).

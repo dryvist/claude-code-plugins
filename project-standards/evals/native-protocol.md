@@ -18,20 +18,16 @@ inspect actual calls; negatives use `min: 0`, `max: 0`, and `arm: both`.
 Positive Skill indicators are excluded from native ablation scores; inspect
 them independently of output correctness, even when the command succeeds.
 
-| Skill-builder development set | Case directories | Measurement |
-| --- | --- | --- |
-| Positive triggers | `create-skill`, `packaging-budget`, `contaminated-comparison`, `policy-evidence-review`, `policy-comparison-review` | Actual activation and independent output rubrics. |
-| Negative triggers | `existing-extraction`, `agent-collision` | False activation and output correctness. |
-| Execution controls | `evidence-decision`, `comparison-control` | Output correctness only; Skill use is optional. |
+Each builder's development set lives in its own `evals/<builder>/` directory.
 
 Exclude controls from every activation denominator; optional calls on controls
 are neither true nor false positives. Retain their inputs and correctness
-rubrics. The comparison control's fixture comes from revision `a04d17a5`.
+rubrics.
 Policy-review companions permit installed-policy reads with public inline
 fixtures, but forbid eval execution, writes, and services. Cases tagged
 `discrimination` test specialized policy; contribution remains unmeasured
 until repeated baseline comparisons. Calibrate judge disagreements from
-artifacts. Source: S1 in the [source register](../../skills/skill-builder/references/sources.md).
+artifacts. Source: S1 in the [source register](../skills/agent-builder/references/skill-sources.md).
 A prerequisite stop is blocked completion, even if its rubric passes; text
 drafts do not require comparison-only resources.
 
@@ -59,7 +55,7 @@ reports outside the checkout, and keep publishing disabled:
 
 ```sh
 builder_evidence=$(mktemp -d /private/tmp/builder-evidence.XXXXXX)
-for builder in agent-builder skill-builder; do
+for builder in agent-builder; do
   claude plugin eval ./project-standards \
     --eval-dir "evals/$builder/native" \
     --runs 3 --ablation with-without --threshold 1 --no-publish \
@@ -79,7 +75,7 @@ suites** into its plugin, and run the same cases against it:
 builder_baseline=$(mktemp -d /private/tmp/builder-baseline.XXXXXX)
 git archive 2e9447d7a2a95a2ed806727da7505c676b25f021 project-standards |
   tar -x -C "$builder_baseline"
-for builder in agent-builder skill-builder; do
+for builder in agent-builder; do
   mkdir -p "$builder_baseline/project-standards/evals/$builder"
   cp -R "project-standards/evals/$builder/." \
     "$builder_baseline/project-standards/evals/$builder/"
@@ -105,7 +101,7 @@ its prompts, graders, or answers. The lead verifies independence from tuning,
 freezes the suite revision, and runs **one acceptance batch** with clean trials:
 
 ```sh
-for builder in agent-builder skill-builder; do
+for builder in agent-builder; do
   claude plugin eval ./project-standards \
     --eval-dir "evals/$builder/held-out" \
     --runs 3 --ablation with-without --threshold 1 --no-publish \
@@ -165,7 +161,7 @@ CLI **2.1.319** has no validation-only/dry-run option for `claude plugin eval`.
 YAML validation proves structure only. Native loading and behavioral
 acceptance remain **not yet run**; the lead retains results or load errors.
 
-Authoring standards: estate agent-builder, skill-builder, claude-skill-authoring,
+Authoring standards: estate agent-builder, agentops skill-builder, claude-skill-authoring,
 and agent-standards; Anthropic skill-creator; plugin-dev agent-, skill-, command-,
 and hook-development; writing-for-agents; R2 section 2 a–g.
 
