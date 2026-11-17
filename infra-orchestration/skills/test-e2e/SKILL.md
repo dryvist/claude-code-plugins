@@ -28,7 +28,7 @@ tofu plan
 
 ### Stage 3: Export Inventory
 
-Run `/infra-sync-inventory` to verify the RustFS artifact produced by the last
+Run `/sync-inventory` to verify the RustFS artifact produced by the last
 successful Terrakube apply.
 
 ### Stage 4: Ansible Syntax Check
