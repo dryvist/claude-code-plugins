@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.16.0](https://github.com/JacobPEvans-ai/claude-code-plugins/compare/github-workflows-v6.15.0...github-workflows-v6.16.0) (2026-11-17)
+
+
+### Features
+
+* **ai-cli-harness-better-practices:** compose agentops skills in wrap-up ([#840](https://github.com/JacobPEvans-ai/claude-code-plugins/issues/840)) ([d24b901](https://github.com/JacobPEvans-ai/claude-code-plugins/commit/d24b901280482daa1b89124bafcc3775368cb19c))
+
 ## [6.15.0](https://github.com/JacobPEvans-ai/claude-code-plugins/compare/github-workflows-v6.14.0...github-workflows-v6.15.0) (2026-11-17)
 
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.70.0](https://github.com/JacobPEvans-ai/claude-code-plugins/compare/v6.69.0...v6.70.0) (2026-11-17)
+
+
+### Features
+
+* **ai-cli-harness-better-practices:** compose agentops skills in wrap-up ([#840](https://github.com/JacobPEvans-ai/claude-code-plugins/issues/840)) ([d24b901](https://github.com/JacobPEvans-ai/claude-code-plugins/commit/d24b901280482daa1b89124bafcc3775368cb19c))
+
 ## [6.69.0](https://github.com/JacobPEvans-ai/claude-code-plugins/compare/v6.68.0...v6.69.0) (2026-11-17)
 
 
