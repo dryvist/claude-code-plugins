@@ -21,7 +21,7 @@ The `purge-pr` focused mode (bottom of this file) bypasses Step 0 entirely.
 ## Delegate the bulk read
 
 Everything this skill reads before it decides is token-heavy and reasoning-light:
-the `/session-status` report, the `origin/main..origin/develop` promotion log, the
+the plan checklist and TaskList, the `origin/main..origin/develop` promotion log, the
 open-PR listing, and the remaining plan/TaskList items Path B groups. Hand that
 raw material to the **router** via the `local-subagents` skill (ai-delegation)
 at the cheapest capable tier — capability `small`, or a subagent carrying an explicit
@@ -43,9 +43,10 @@ skill exists to make.
 
 ## Step 0: Determine session state
 
-Invoke the `/session-status` skill to analyze the plan checklist, TaskList state, and gather unfinished work and issues.
+Read the plan checklist and the TaskList, and list unfinished work and issues. Check each done claim with
+`/agentops:research` (does the claim hold) before you count it. This is the Step 0 report.
 
-Determine the completion outcome based on `/session-status`'s report:
+Determine the completion outcome from the Step 0 report:
 
 - **Path A** (complete): Every TaskList task is complete (or empty), AND
   every plan-file checklist item is checked or complete (or no plan file exists).
@@ -123,18 +124,12 @@ left with nothing useful:
 
 ### A2. Quick Retrospective
 
-Invoke `/retrospecting quick` to capture a brief session retrospective. Its git
-history analysis is empty outside a repository — the session-log half still
-works, so run it either way, but when the repository guard failed, record it in
-the summary as "retrospective: session log only, no git history" rather than
-reporting a full retrospective.
+Invoke `/agentops:postmortem` for a brief session retrospective: what went as
+planned, what did not, and proven causes kept apart from coincidence. Outside a
+repository it has no git history; record that in the summary as
+"retrospective: session log only, no git history".
 
-- Git history analysis (commits, files changed)
-- Session efficiency metrics
-- Key decisions and outcomes
-- Actionable improvements
-
-**Requires**: `claude-retrospective` plugin (external). If not installed, skip this step and note it was skipped.
+**Requires**: the `agentops` plugin. If it is not installed, skip this step and note it was skipped.
 
 When the session hit a real failure rather than merely finishing, deepen the
 retrospective with `/why` (Five Whys — drill from the symptom to the systemic
@@ -156,7 +151,7 @@ No follow-up work in the Step 0 report → skip this step and say so.
 
 ### A3. Follow-Up Session Prompt
 
-If `/session-status` in Step 0 surfaced follow-up work, invoke `/goal` for its
+If the Step 0 report surfaced follow-up work, invoke `/agentops:craft-goal` for its
 next-session objective. Print the statement and measured character count with
 the working directory, plan path, remaining work, and relevant context from
 the Step 0 report. Include full URLs for identifiers returned by A2.5.
@@ -166,11 +161,10 @@ work to be done, an incident ticket is operational/incident work — never relab
 one as the other. Items already tracked in A2.5 appear in the handoff as a
 one-line reference to their identifier, not as restated work.
 
-For a portable Markdown document, direct the user to explicitly invoke Matt
-Pocock's `/handoff`, installed through nix-ai. It writes to the OS temporary
-directory and has no goal-length cap. Never invoke it from this skill.
+For a portable handoff document, direct the user to invoke `/agentops:doc`.
+Never invoke it from this skill; this skill prints its own prompts.
 
-If no follow-up items are found in the `/session-status` report, state that
+If no follow-up items are found in the Step 0 report, state that
 explicitly — do not fabricate work.
 
 ### Path A Summary
@@ -199,7 +193,7 @@ in.
 
 Goal: emit one copy-pasteable, self-contained resume block per coherent
 group of remaining work, in dependency order, each carrying a real
-`/goal` statement — never "continue what you were doing".
+`/agentops:craft-goal` statement — never "continue what you were doing".
 
 Done when: every plan-checklist item still unchecked and every `TaskList`
 task not `completed` appears in exactly one block; each block states its
@@ -221,13 +215,12 @@ in one operation. Sequence and command shapes:
 
 ## Related Skills
 
-- **goal** (this plugin) — supplies the capped objective for Path A Step A3 and
-  Path B Step B2.
-- **handoff** (mattpocock/skills, installed through nix-ai) — user-invoked portable
-  Markdown document; independent of this skill's printed resume prompts.
-- **wrap-up-docs** (this plugin) — emits a documentation-catchup prompt for a
-  weaker local LLM; run alongside this skill when docs must absorb the
-  session's technical changes
+- **`/agentops:craft-goal`** — supplies the bounded objective for Path A Step A3
+  and the Path B resume blocks.
+- **`/agentops:postmortem`** — the Path A Step A2 retrospective.
+- **`/agentops:doc`** — the portable handoff document, and docs that must absorb
+  the session's technical changes.
+- **`/agentops:research`** — checks done claims in Step 0.
 - **refresh-repo** (github-workflows) — PR readiness check + default-branch sync (Path A Step A1)
 - **prune-branches** (github-workflows) — stale branch and worktree cleanup
   (Path A Step A1); also provides `--sweep` and `--prune-stale` modes
