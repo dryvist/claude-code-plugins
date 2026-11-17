@@ -12,7 +12,7 @@ flowchart TD
     classDef external fill:#f3e5f5,stroke:#6a1b9a,color:#4a148c
 
     subgraph standards["project-standards (this plugin)"]
-        AA["/claude-skill-authoring\ntoken budgets, progressive\ndisclosure, placement"]:::ai
+        AA["/agentops:skill-builder\nskill authoring (agentops);\nlimits in AGENTS.md"]:::external
         WS["/workspace-standards\nCross-project conventions,\nworktree layout, direnv"]:::ai
         SR["/skills-registry\nLookup table for all tools,\nskills, commands, agents"]:::ai
     end
@@ -36,6 +36,6 @@ flowchart TD
 This plugin does not participate in any runtime workflow. It provides reference
 documentation that governs how all other plugins are authored and organized:
 
-- **/claude-skill-authoring** — token budgets, progressive disclosure, placement, naming
+- **/agentops:skill-builder** — skill authoring; this repository's limits are in AGENTS.md
 - **/workspace-standards** — worktree layout, cross-repo conventions, direnv
 - **/skills-registry** — canonical lookup for discovering available capabilities
