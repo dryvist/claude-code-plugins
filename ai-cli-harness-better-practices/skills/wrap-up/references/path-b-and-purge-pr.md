@@ -26,7 +26,7 @@ in.
 
 ### B1. Group remaining items
 
-Use the remaining items identified by `/session-status` (plan checklist items still
+Use the remaining items identified by Step 0 (plan checklist items still
 unchecked + `TaskList` tasks with `status != "completed"`) and group them with
 judgement, not by repo alone:
 
@@ -52,11 +52,10 @@ Print blocks in dependency order. Each block must be copy-pasteable into a
 fresh terminal + new Claude session and runnable cold — the new session sees
 none of this conversation.
 
-For each block, invoke `/goal` scoped to that block's remaining items. Include
-the returned statement and measured character count in the resume prompt,
-followed by the context fields below. `/goal` owns the under-4000-character
-objective; the surrounding context has no length cap. Never invoke `/handoff`
-from this skill; users may explicitly request its portable Markdown document.
+For each block, invoke `/agentops:craft-goal` scoped to that block's remaining
+items. Include the returned goal and its measured character count in the resume
+prompt, followed by the context fields below. Keep the goal under 4000
+characters; the surrounding context has no length cap.
 
 ```text
 Resume Block N of M — <short label>
@@ -67,7 +66,7 @@ Working dir:
 Resume prompt:
 ──────────────────────────────
 <Self-contained prompt for this block. Must include:
- - Goal statement and measured character count from `/goal`
+ - Goal statement and measured character count from `/agentops:craft-goal`
  - Plan file path so the new session can re-enter plan mode against it:
    ~/.claude/plans/<slug>.md (use the resolved absolute path emitted by the
    plan-mode system reminder, not this literal example)

@@ -13,45 +13,26 @@ The default `/wrap-up` does not.
 
 ## Skills
 
-- **`/goal`** — Emit one objective statement, hard-capped under 4000 characters.
-  Takes an optional focus hint like `/compact`. Reads only the conversation, the
-  plan file, and the task list. No git, no network, no file writes — its one
-  command is a `wc -m` measurement piped from a heredoc.
-- **`/session-status`** — Done-versus-remaining snapshot from the plan checklist
-  and task list. `/session-status mid` gives a fast mid-flight orientation.
-- **`/resume`** — Pick up unfinished work cold. Re-derives state from live
-  evidence instead of trusting a prior summary.
-- **`/replan`** — Rebuild a plan that no longer matches reality.
 - **`/wrap-up`** — Decide whether the plan is actually complete, then emit the
-  right forward artifact for either answer.
-- **`/wrap-up-docs`** — Emit one paste-ready prompt for a weaker local LLM that
-  updates public and private documentation from every technical change the
-  session made: exhaustive per-item changelog with commit SHAs and PR URLs,
-  routed public/private by fixed rules.
+  right forward artifact for either answer. It composes `/agentops:research`,
+  `/agentops:postmortem`, `/agentops:craft-goal` and `/agentops:doc`.
+- **`/track-followups`** — File triaged follow-ups in the task tracker or the
+  incident system; `/agentops:triage` decides untriaged items first.
+- **Superseded shims** — `/goal` (use `/agentops:craft-goal`), `/session-status`
+  and `/wrap-up-docs` (use `/agentops:doc`), `/replan` (use `/agentops:plan`).
+  `/resume` is removed; use `/agentops:doc`.
 
 ## Usage
 
 ```bash
-/goal                                  # objective for the work in flight
-/goal focus on auth, ignore the docs   # optional focus hint, like /compact
-/session-status mid                    # quick done-vs-remaining snapshot
-/resume                                # pick up cold; verifies before trusting
-/replan                                # rebuild a plan that drifted from reality
 /wrap-up                               # end-of-session verdict + forward artifact
-/wrap-up-docs                          # docs-catchup prompt for a local LLM
+/wrap-up purge-pr 123                  # close one PR and purge its local state
+/track-followups                       # file follow-ups in the right tracker
 ```
 
-`/goal` is the atom — it runs anywhere, needs no repository, and writes nothing.
-The others build on it. In a git repository they add branch and PR facts; outside
-one they say what they skipped and carry on.
-
-For a portable handoff document, explicitly invoke `/handoff` from
-[mattpocock/skills](https://github.com/mattpocock/skills/tree/main/skills/productivity/handoff),
-installed separately through nix-ai. It writes Markdown to the OS temporary
-directory, references existing artifacts, and suggests skills for the next agent.
-It is user-invoked only; these continuity skills do not invoke it automatically.
-Use `/goal` separately when a capped objective is needed: `/handoff` has no
-goal-length guarantee.
+Both skills run without a repository. In a git repository they add branch and PR
+facts; outside one they say what they skipped and carry on. The agentops plugin
+supplies the goal, handoff, retrospective and triage skills they call.
 
 ## Why these are not in a git plugin
 
@@ -66,11 +47,13 @@ This plugin deliberately does not reimplement work that already exists:
 
 | Need | Use |
 | --- | --- |
-| Write an implementation plan from scratch | `superpowers:writing-plans` |
-| Execute a written plan with checkpoints | `superpowers:executing-plans` |
+| Plan or re-plan a change | `agentops:plan` |
+| Goal prompt with a finish line | `agentops:craft-goal` |
+| Handoff, resume and docs | `agentops:doc` |
+| Check whether a done claim holds | `agentops:research` |
+| Session retrospectives | `agentops:postmortem` |
 | Turn a goal into a metric and verify command | `autoresearch:plan` |
 | Verifiable success criteria, surfacing assumptions | `karpathy-skills:karpathy-guidelines` |
-| Session retrospectives | `claude-retrospective:retrospecting` |
 | Prose quality | `elements-of-style:writing-clearly-and-concisely` |
 
 The git-side actions the continuity skills delegate to live in their own

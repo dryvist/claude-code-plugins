@@ -11,11 +11,16 @@ flowchart TD
     classDef external fill:#f3e5f5,stroke:#6a1b9a,color:#4a148c
 
     subgraph core["Harness core (no git required)"]
-        goal["/goal"]
-        status["/session-status"]
-        resume["/resume"]
-        replan["/replan"]
         wrapup["/wrap-up"]
+        track["/track-followups"]
+    end
+
+    subgraph agentops["agentops plugin"]
+        research["/agentops:research"]:::external
+        post["/agentops:postmortem"]:::external
+        goal["/agentops:craft-goal"]:::external
+        doc["/agentops:doc"]:::external
+        triage["/agentops:triage"]:::external
     end
 
     subgraph optional["Optional git enrichment"]
@@ -24,29 +29,17 @@ flowchart TD
         ghcli["/gh-cli-patterns\n(github-workflows)"]:::external
     end
 
-    subgraph referred["Referred out, never rebuilt"]
-        retro["/retrospecting\n(claude-retrospective)"]:::external
-        karpathy["karpathy-guidelines\n(karpathy-skills)"]:::external
-        plans["writing-plans\n(superpowers)"]:::external
-        arplan["autoresearch:plan"]:::external
-    end
-
-    wrapup --> status
+    wrapup --> research
+    wrapup --> post
+    wrapup --> track
     wrapup --> goal
-    wrapup --> retro
+    wrapup --> doc
     wrapup -.->|"if git repo"| refresh
     wrapup -.->|"if git repo"| prune
+    wrapup -.->|"if git repo"| ghcli
+    track --> triage
 
-    status --> goal
-    status -.->|"if git repo"| ghcli
-
-    goal -.->|"criteria quality"| karpathy
-
-    resume --> replan
-    replan -.->|"write from scratch"| plans
-    replan -.->|"needs a metric"| arplan
-
-    class goal,status,resume,replan,wrapup ai
+    class wrapup,track ai
 ```
 
 ## The git guard
@@ -115,26 +108,10 @@ The same rule governs any check keyed on the default branch's *name* (for
 example "is this a git-flow repo?"): an unresolved default must report unknown,
 not silently take the "no" path and skip a check that would otherwise have run.
 
-## /goal composition
+## agentops composition
 
-`/goal` is the atom. It has no dependencies, reads no repository, and writes no
-files. `/session-status` and `/wrap-up` call it for the capped objective in
-their next-session prompts.
-
-Matt Pocock's `/handoff` is installed separately through nix-ai. Only an explicit
-user invocation writes its portable Markdown document to the OS temporary
-directory. It does not promise a capped goal or the continuity prompts' format.
-
-```mermaid
-flowchart LR
-    classDef ai fill:#e3f2fd,stroke:#1565c0,color:#0d47a1
-
-    args["focus argument\n(optional)"] --> goal
-    convo["conversation\n(recent pivots)"] --> goal
-    plan["plan file\n(if any)"] --> goal
-    tasks["TaskList\n(if any)"] --> goal
-    goal["/goal"]:::ai --> out["statement body + count\n< 4000 chars, measured\n(no heading — caller supplies)"]
-```
-
-Any missing input is skipped. All three state sources missing still yields a
-goal derived from the conversation alone.
+`/goal`, `/session-status`, `/replan` and `/wrap-up-docs` are shims
+that point to agentops skills. `/wrap-up` composes those skills and keeps only
+what is specific here: the completion verdict, the git-flow promotion gate, the
+Path B resume blocks, and `purge-pr` mode. `/track-followups` keeps the tracker
+routing and creation mechanics.

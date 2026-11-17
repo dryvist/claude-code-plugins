@@ -6,7 +6,7 @@ For branch creation and PR-branch sync, follow the [Git Town rule](https://githu
 For PR readiness and rebase-merge workflows, see the `github-workflows` plugin
 (`/refresh-repo`, `/rebase-pr`).
 
-Session-continuity skills (`/wrap-up`, `/resume`, `/replan`,
+Session-continuity skills (`/wrap-up`, `/replan`,
 `/session-status`) are **not** in this plugin. They live in
 `ai-cli-harness-better-practices` — they are session concerns, not git concerns,
 and run with or without a repository.

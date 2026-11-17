@@ -62,9 +62,9 @@
     # jacobpevans ai-cli-harness-better-practices
     "goal"
     "session-status"
-    "resume"
     "replan"
     "wrap-up"
+    "track-followups"
     # jacobpevans codeql-resolver
     "codeql-permission-classification"
     "github-workflow-security-patterns"
