@@ -37,7 +37,8 @@ description: Use when looking up available tools, skills, commands, agents, or p
 | PR & issue standards | `/pr-standards` | `github-workflows` | PR guards |
 | Code quality | `/code-quality-standards` | `code-standards` | Code rules |
 | Infrastructure | `/infrastructure-standards` | `infra-standards` | IaC standards |
-| Claude skill authoring | `/claude-skill-authoring` | `project-standards` | Token budgets & placement |
+| Skill authoring | `/agentops:skill-builder` | `agentops` | Create, repair, audit skills |
+| Skill evaluation | `/agentops:skill-eval` | `agentops` | Measure a skill |
 | Workspace management | `/workspace-standards` | `project-standards` | Multi-repo |
 | Capture app config | `/capture-app-config` | `project-standards` | Nix-managed app settings |
 | This registry | `/skills-registry` | `project-standards` | Tool lookup |
@@ -84,5 +85,5 @@ All plugins sourced from `jacobpevans-cc-plugins`.
 
 ## Related Skills
 
-- **claude-skill-authoring** (project-standards) — Use when authoring Claude skills/agents/rules — token budgets, progressive disclosure, placement
+- **`/agentops:skill-builder`** — Use when authoring skills; this repository's limits are in AGENTS.md
 - **workspace-standards** (project-standards) — Use when setting up or managing multi-repo workspaces

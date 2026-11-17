@@ -44,5 +44,5 @@ Define and monitor monthly budgets per environment.
 
 ## Related Skills
 
-- **claude-skill-authoring** (project-standards) — Use when authoring Claude skills/agents/rules — token budgets, progressive disclosure, placement
+- **`/agentops:skill-builder`** — Use when authoring skills; this repository's limits are in AGENTS.md
 - **skills-registry** (project-standards) — Use when looking up available tools, skills, commands, agents, or plugins
