@@ -1,5 +1,5 @@
 import type { EngineInterface, Register } from 'claude-code'
-import { CLASSIFIER, CLASSIFIER_ALIAS, CODEX, CODEX_QUOTA_THRESHOLD, JUDGE, JUDGE_ALIAS, JUDGE_OUTPUT_TOKENS, LAST_RESORT, LOCAL_OUTPUT_TOKENS, QUOTA_SELECTOR, EXECUTOR_TABLE, budgetsFromMetrics, codexArgv, harnessArgv, codingTask, eligibleRows, endAnchor, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, isGenericType, isShellCAsk, jobHistory, jobState, lastRungMarker, recentFailures, localTask, mandatoryLabel, newestModel, mergeExecutorRows, metricsResult, parseCodexQuota, parseVerdict, pickLabel, pickLocal, promptToken, quotaFromMetrics, rankRows, repositoryFromOrigin, safePayload, scoreWindows, KIND_CLASSIFIER, parseKind } from './lib/policy'
+import { CLASSIFIER, CLASSIFIER_ALIAS, CODEX, CODEX_QUOTA_THRESHOLD, JUDGE, JUDGE_ALIAS, JUDGE_OUTPUT_TOKENS, LAST_RESORT, LOCAL_OUTPUT_TOKENS, QUOTA_SELECTOR, EXECUTOR_TABLE, budgetsFromMetrics, codexArgv, harnessArgv, codingTask, eligibleRows, endAnchor, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, isGenericType, isShellCAsk, jobHistory, jobState, recentFailures, localTask, mandatoryLabel, newestModel, mergeExecutorRows, metricsResult, parseCodexQuota, parseVerdict, pickLabel, pickLocal, quotaFromMetrics, rankRows, repositoryFromOrigin, safePayload, scoreWindows, KIND_CLASSIFIER, parseKind } from './lib/policy'
 import type { CodexQuotaRead, Executor, ExecutorRow, JobOutcome, JobRecord, JobState, Label, QuotaReason, QuotaRow, Route, Sandbox, Score, SkipReason, Kind, Verdict } from './lib/policy'
 import { customAgentSandbox, parseAgentDefinition } from './lib/agent-definition'
 import type { AgentDefinition } from './lib/agent-definition'
@@ -824,16 +824,8 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
     if (definition.prompt) e = { ...e, prompt: `Custom agent instructions:\n${definition.prompt}\n\nTask:\n${e.prompt}` }
   }
   if (!safePayload(`${e.description ?? ''}\n${e.prompt}`)) return stopRoute($, e, event, 'payload contains prohibited content')
-  // The explicit re-issue of the last rung was reviewed with this exact input, so it reaches core unchanged.
-  const marker = lastRungMarker(original.description)
-  if (original.model === LAST_RESORT.model && original.effort === LAST_RESORT.effort && marker !== undefined && marker === await promptToken(original.prompt)) {
-    await logRoute($, event, LAST_RESORT.model, 'explicit last rung')
-    return core(original)
-  }
   if (definition && customSandbox === undefined) {
-    // An inherited model cannot be verified on a native pass-through.
-    const model = original.model ?? definition.model
-    if (!model || model === 'inherit') return stopRoute($, e, event, 'custom agent requires an explicit permitted model for native tools')
+    // The agent.spawn hook pins the model, so an inherited model never reaches the subagent.
     await logRoute($, event, 'native custom agent', 'custom tool policy')
     return core(original)
   }
@@ -960,15 +952,9 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
     }
     event.fell_through_from.push(executor)
   }
-  // No executor took the task: stop with the collected reasons and the one re-issue that reaches core. The marker
-  // is derived from the prompt, so a call re-issued with a different prompt cannot pass the check at the top.
-  const token = await promptToken(original.prompt)
-  const skippedList = Object.entries(event.skipped).map(([id, why]) => `${id}: ${why}`).join(', ') || 'none'
-  const instruction = token === undefined
-    ? 'The last rung is unavailable because this runtime cannot compute the marker; no re-issue is accepted.'
-    : `Re-issue the same call with model ${LAST_RESORT.model}, effort ${LAST_RESORT.effort} and the marker [rung: last ${token}] added to the description.`
-  await logRoute($, event, 'stopped', 'last rung needs an explicit re-issue')
-  return failure(original, `no other executor took the task (skipped: ${skippedList}). ${instruction}`)
+  // No executor took the task: the terminal rung runs in core at LAST_RESORT.effort; the agent.spawn hook sets its model.
+  await logRoute($, event, LAST_RESORT.model, 'terminal rung')
+  return core({ ...original, effort: LAST_RESORT.effort })
 }
 
 // One judge ask on the on-host medium alias, the same endpoint classifyKind uses: a parsed verdict, or why there is
@@ -1038,6 +1024,14 @@ ${PROMPT_POLICY}`, scope: 'session' }] }
 
   // An unexpected router failure must not bypass the model and payload guards.
   on('tool.call', { tool: 'Agent' }, ($, e, next) => route($, e as never, next as never) as never).catch(($, e) => stopRoute($, e as never, newEvent(e as never), 'routing failed closed') as never)
+
+  // Every Agent tool spawn that reaches core runs on LAST_RESORT.model. The Agent tool has no model parameter, so the
+  // pin is set here, where the engine decides the spawn's model. Forks inherit by design; workflow agents, teammates
+  // and resumed runs keep the model their own start chose.
+  on('agent.spawn', ($, e, next) => {
+    if (!e.tool_use_id || e.fork || e.workflow || e.isTeammate || e.resume || e.model === LAST_RESORT.model) return next(e)
+    return next({ ...e, model: LAST_RESORT.model })
+  }).catch(() => ({ deny: 'subagent model pin failed closed' }))
 
   // Permission judge for the bypass-immune ask. A failing hook leaves core's ask.
   on('tool.check', { tool: 'Bash' }, ($, e, next) => judge($, e, next as never) as never).catch(($, e, next) => next(e))
