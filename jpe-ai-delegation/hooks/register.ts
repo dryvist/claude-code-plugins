@@ -20,6 +20,9 @@ const CODEX_QUOTA_KEY = 'codex-quota'
 // A harness run that failed at least this long after it started did work and gave up, so the remaining harness rows
 // are skipped and the next row of another transport runs.
 const HARNESS_FALLBACK_MS = 30_000
+// Codex and harness children stream through `$.process.spawn`: `$.process.run` stops every child at ten minutes, and
+// a long task is not a failure. This bound ends the stream instead; leaving the loop kills the child.
+const LONG_RUN_MS = 3_600_000
 const QUOTA_TIMEOUT_MS = 3_000
 const QUOTA_REFRESH_MS = 600_000
 const QUOTA_TOKEN_MAX_BYTES = 4096
@@ -248,6 +251,23 @@ function quotaLine(score: Score | undefined): string {
 }
 
 // One `codex exec`; its final message is read from a temporary output file. The finite stdin string is closed by process.run.
+// One streamed child: its exit code and output once it ends, or a rejection when it is still running after timeoutMs,
+// with the child killed.
+async function runChild($: Engine, argv: string[], input: string, timeoutMs: number, env: Record<string, string>): Promise<{ exitCode: number; stdout: string; stderr: string }> {
+  const child = $.process.spawn({ argv, input, env })
+  const read = (async () => {
+    const out = { stdout: '', stderr: '' }
+    for await (const piece of child) out[piece.stream] += piece.text
+    return { exitCode: (await child.result).code ?? -1, ...out }
+  })()
+  try {
+    return await withTimeout($, read, timeoutMs)
+  } catch (err) {
+    void child.return(undefined as never).catch(() => {})
+    throw errText(err) === 'timeout' ? new Error(`still running after ${timeoutMs} ms`) : err
+  }
+}
+
 async function runCodex($: Engine, codexRoute: Route, sandbox: Sandbox, prompt: string, timeoutMs: number, cwd?: string): Promise<string | undefined> {
   let outputFile: string | undefined
   let failure: string | undefined
@@ -263,7 +283,7 @@ async function runCodex($: Engine, codexRoute: Route, sandbox: Sandbox, prompt: 
       const model = (await $.fs.exists(cache)) ? newestModel((await $.fs.read(cache)) as string, codexRoute.family) : undefined
       const argv = codexArgv(sandbox, codexRoute, model, outputFile)
       if (cwd) argv.splice(2, 0, '-C', cwd)
-      const r = await $.process.run(argv, { stdin: prompt, timeoutMs, env: { PATH: await childPath($) } })
+      const r = await runChild($, argv, prompt, timeoutMs, { PATH: await childPath($) })
       if (r.exitCode !== 0) {
         failure = `codex exec exited with code ${r.exitCode}${childDetail('', r.stderr)}`
       } else {
@@ -321,9 +341,8 @@ async function runHarness($: Engine, row: ExecutorRow, sandbox: Sandbox, prompt:
         PATH: await childPath($),
       }
       const argv = harnessArgv(sandbox, cwd ?? await $.session.cwd())
-      // The process API has no working-directory option, so a working directory goes through a shell that execs the
-      // child in it.
-      const r = await $.process.run(cwd ? ['/bin/sh', '-c', 'cd "$1" && shift && exec "$@"', 'sh', cwd, ...argv] : argv, { stdin: prompt, timeoutMs, env })
+      // A working directory goes through a shell that execs the child in it.
+      const r = await runChild($, cwd ? ['/bin/sh', '-c', 'cd "$1" && shift && exec "$@"', 'sh', cwd, ...argv] : argv, prompt, timeoutMs, env)
       if (r.exitCode !== 0) failure = `harness exited with code ${r.exitCode}${childDetail(r.stdout, r.stderr)}`
       else {
         const parsed = JSON.parse(r.stdout) as { is_error?: unknown; result?: unknown }
@@ -449,7 +468,7 @@ async function runRoutedCodex($: Engine, e: AgentCall, route: string, codexRoute
     if (worktree.exitCode !== 0) return undefined
     detail += `, worktree ${cwd}`
   }
-  const out = await runCodex($, codexRoute, sandbox, e.prompt, 600_000, cwd)
+  const out = await runCodex($, codexRoute, sandbox, e.prompt, LONG_RUN_MS, cwd)
   if (!out) return undefined
   await logDecision($, `route: ${route} -> codex ${codexRoute.family} ${codexRoute.effort} (${sandbox})`)
   return routedResult(e, 'ai-delegation-codex', out, `[routed: codex ${codexRoute.family} ${codexRoute.effort}, ${detail}]`, started === null ? 0 : ((await clockNow($)) ?? started) - started)
@@ -477,7 +496,7 @@ async function runRoutedHarness($: Engine, e: AgentCall, row: ExecutorRow, sandb
     const worktree = await $.process.run(['git', '-C', await $.session.cwd(), 'worktree', 'add', '--detach', cwd, 'HEAD'], { timeoutMs: 30_000 })
     if (worktree.exitCode !== 0) return undefined
   }
-  const out = await runHarness($, row, sandbox, e.prompt, 600_000, cwd)
+  const out = await runHarness($, row, sandbox, e.prompt, LONG_RUN_MS, cwd)
   if (!out) return undefined
   await logDecision($, `route: ${row.id} -> harness ${row.model} (${sandbox})`)
   return routedResult(e, 'ai-delegation-harness', out, `[routed: harness ${row.model}]`, started === null ? 0 : ((await clockNow($)) ?? started) - started)

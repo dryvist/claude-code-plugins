@@ -20,7 +20,7 @@ type World = {
   quota?: number; codexStderr?: string; codexWindows?: unknown[]; cursorWindows?: unknown[]; now?: number; gatewayFinish?: string; quotaThrows?: boolean; cache?: boolean; codexExit?: number; answer?: string; label?: string
   codexQuota?: 'absent' | 'hangs' | 'refused' | string
   env?: Record<string, string>; definition?: string; files?: Record<string, string>; fsThrows?: boolean; worktreeExit?: number; temporaryExit?: number
-  harnessAnswer?: string; harnessStdout?: string; harnessExit?: number; harnessElapsedMs?: number
+  harnessAnswer?: string; harnessStdout?: string; harnessExit?: number; harnessElapsedMs?: number; childHangs?: boolean
   repository?: unknown; properties?: unknown; githubPrivateAuth?: boolean; githubAuthDenied?: boolean; pr?: unknown; githubError?: boolean; githubInvalidJson?: boolean
   originUrl?: string; pathRealpaths?: Record<string, string>; pathGitRoots?: Record<string, string>; unresolvedPaths?: string[]; pathKinds?: Record<string, 'file' | 'directory'>
   zcodeExit?: number; zcodeOutput?: string; zcodeAvailable?: boolean; zcodeThrows?: boolean; zcodeTruncated?: boolean
@@ -54,6 +54,8 @@ function world(w: World = {}) {
   const fsStats: { path: string; resolve?: boolean }[] = []
   const modelCalls: unknown[] = []
   const nextCalls: any[] = []
+  const spawned: string[][] = []
+  const killed: string[][] = []
   const logs: string[] = []
   const env: Record<string, string> = { HOME: '/home/test', ...(w.quotaUrl === null ? {} : { AGENT_QUOTA_QUERY_URL: w.quotaUrl ?? QUOTA_BASE }), ...w.env }
   let output = ''
@@ -86,7 +88,7 @@ function world(w: World = {}) {
   const $ = {
     env: { get: async (key: string) => { if (key === w.envThrows) throw new Error('environment read failed'); return env[key] } },
     session: { cwd: async () => '/workspace' },
-    clock: { now: async () => { if (w.clockThrows) throw new Error('clock failed'); if (w.clockHangs) return new Promise<number>(() => {}); return clockNow }, after: (delay: number, callback: () => void) => { if ((w.clockHangs && delay === 5_000) || (w.gatewayTimeout && (delay >= 60_000 || delay === 20_000)) || (w.quotaTimeout && delay === 3_000) || (w.classifierTimeout && delay === 20_000) || (w.codexQuota === 'hangs' && delay === 15_000) || (w.statusHangs && (delay === 3_000 || delay === 15_000))) Promise.resolve().then(callback); return { cancel() {} } } },
+    clock: { now: async () => { if (w.clockThrows) throw new Error('clock failed'); if (w.clockHangs) return new Promise<number>(() => {}); return clockNow }, after: (delay: number, callback: () => void) => { if ((w.childHangs && delay === 3_600_000) || (w.clockHangs && delay === 5_000) || (w.gatewayTimeout && ((delay >= 60_000 && delay < 3_600_000) || delay === 20_000)) || (w.quotaTimeout && delay === 3_000) || (w.classifierTimeout && delay === 20_000) || (w.codexQuota === 'hangs' && delay === 15_000) || (w.statusHangs && (delay === 3_000 || delay === 15_000))) Promise.resolve().then(callback); return { cancel() {} } } },
     ui: { log: (line: string) => logs.push(line) },
     fs: {
       ...fs,
@@ -194,6 +196,19 @@ function world(w: World = {}) {
       set: async (key: string, value: unknown) => { storeMap.set(key, value) },
     },
   }
+  // A streamed child answers from the same fixtures as process.run, in one stdout and one stderr piece.
+  ;($.process as Record<string, unknown>).spawn = (req: { argv: string[]; input?: string; env?: Record<string, string> }) => {
+    spawned.push(req.argv)
+    const ran = w.childHangs ? new Promise<never>(() => {}) : $.process.run(req.argv, { stdin: req.input, env: req.env }) as Promise<{ exitCode: number; stdout: string; stderr: string }>
+    const stream = (async function* () {
+      const r = await ran
+      if (r.stdout) yield { stream: 'stdout', text: r.stdout }
+      if (r.stderr) yield { stream: 'stderr', text: r.stderr }
+      return { code: r.exitCode, signal: null }
+    })()
+    // defineProperties, not assignment: the runtime's frozen generator prototype makes an assigned `return` throw.
+    return Object.defineProperties(stream, { result: { value: ran.then((r) => ({ code: r.exitCode, signal: null })) }, return: { value: async () => { killed.push(req.argv); clockNow += 3_600_000; return { done: true, value: undefined } } } })
+  }
   async function invoke(event: string, e: unknown, core: unknown = { result: { content: [{ text: 'haiku result' }] } }) {
     const handler = handlers.get(event)!
     const next = async (value: unknown) => { nextCalls.push(value); if (w.nextRejects) throw new Error('core failed'); return core }
@@ -202,7 +217,7 @@ function world(w: World = {}) {
       return handler.caught($, e, next)
     }
   }
-  return { calls, writes, storeMap, fetches, quotaFetches, quotaHeaders, allFetches, fsTouches, fsReads, fsStats, modelCalls, nextCalls, logs, invoke, setNow: (ms: number) => { clockNow = ms },
+  return { spawned, killed, calls, writes, storeMap, fetches, quotaFetches, quotaHeaders, allFetches, fsTouches, fsReads, fsStats, modelCalls, nextCalls, logs, invoke, setNow: (ms: number) => { clockNow = ms },
     agent: (e: Record<string, unknown> = {}) => invoke('tool.call', { tool: 'Agent', description: '[class: standard]', prompt: 'Implement the change.', ...e }),
   }
 }
@@ -282,10 +297,10 @@ describe('policy', () => {
     expect(EXECUTOR_TABLE[0].transport).toBe('harness')
     expect(EXECUTOR_TABLE[0].private_ok).toBe(true)
     expect(eligibleRows([EXECUTOR_TABLE[0]], false, 0).rows.map((r) => r.id)).toEqual(['homelab-harness'])
-    expect(harnessArgv('read-only', '/workspace')).toEqual(['claude', '-p', '--bare', '--exclude-dynamic-system-prompt-sections', '--no-session-persistence', '--output-format', 'json', '--max-turns', '40', '--permission-mode', 'dontAsk', '--tools', 'Bash,Read', '--settings', JSON.stringify({ sandbox: { enabled: true, autoAllowBashIfSandboxed: true, allowUnsandboxedCommands: false, failIfUnavailable: true, filesystem: { denyWrite: ['/workspace'] } } })])
+    expect(harnessArgv('read-only', '/workspace')).toEqual(['claude', '-p', '--bare', '--exclude-dynamic-system-prompt-sections', '--no-session-persistence', '--output-format', 'json', '--permission-mode', 'dontAsk', '--tools', 'Bash,Read', '--settings', JSON.stringify({ sandbox: { enabled: true, autoAllowBashIfSandboxed: true, allowUnsandboxedCommands: false, failIfUnavailable: true, filesystem: { denyWrite: ['/workspace'] } } })])
     expect(() => harnessArgv('read-only')).toThrow('absolute directory')
     expect(() => harnessArgv('read-only', 'relative/path')).toThrow('absolute directory')
-    expect(harnessArgv('workspace-write')).toEqual(['claude', '-p', '--bare', '--exclude-dynamic-system-prompt-sections', '--no-session-persistence', '--output-format', 'json', '--max-turns', '40', '--permission-mode', 'acceptEdits', '--tools', 'Bash,Read,Edit,Write,Grep,Glob', '--settings', JSON.stringify({ sandbox: { enabled: true, autoAllowBashIfSandboxed: true, allowUnsandboxedCommands: false, failIfUnavailable: true } })])
+    expect(harnessArgv('workspace-write')).toEqual(['claude', '-p', '--bare', '--exclude-dynamic-system-prompt-sections', '--no-session-persistence', '--output-format', 'json', '--permission-mode', 'acceptEdits', '--tools', 'Bash,Read,Edit,Write,Grep,Glob', '--settings', JSON.stringify({ sandbox: { enabled: true, autoAllowBashIfSandboxed: true, allowUnsandboxedCommands: false, failIfUnavailable: true } })])
   })
   test('harness row validation: a good row passes; a missing model and a bad window fail', () => {
     const row = { id: 'host-harness', transport: 'harness', model: 'medium', window: 80000, trust: 'subscription-trusted', private_ok: true, price: 0 }
@@ -1922,6 +1937,18 @@ describe('harness executor', () => {
     const w = world({ env: gateways, harnessExit: 1, harnessStdout: '{"is_error":true,"subtype":"error_max_turns","num_turns":40}' })
     await w.agent()
     expect(w.writes.some((s) => s.includes('harness failure: harness exited with code 1 (error_max_turns, 40 turns)'))).toBe(true)
+  })
+  test('codex and harness children stream through process.spawn, never the ten-minute process.run', async () => {
+    const w = world({ env: gateways, harnessExit: 7 })
+    expect(text(await w.agent())).toContain('[routed: codex luna xhigh')
+    expect(w.spawned.map((argv) => argv[0])).toEqual(['claude', 'claude', 'codex'])
+  })
+  test('a child still running at the long-run bound is killed and routing goes on', async () => {
+    const w = world({ env: gateways, childHangs: true })
+    await w.agent()
+    expect(w.writes.some((s) => s.includes('harness failure: harness invocation failed: still running after 3600000 ms'))).toBe(true)
+    expect(w.writes.some((s) => s.includes('codex failure: codex exec invocation or output read failed: still running after 3600000 ms'))).toBe(true)
+    expect(w.killed.map((argv) => argv[0])).toEqual(['claude', 'codex'])
   })
   test('a harness call that throws logs the error text with the failure', async () => {
     const w = world({ env: gateways, harnessStdout: 'not json' })

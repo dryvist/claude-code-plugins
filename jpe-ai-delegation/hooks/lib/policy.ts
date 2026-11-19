@@ -142,7 +142,7 @@ export function codexArgv(sandbox: Sandbox, route: Route, model: string | undefi
 // environment, not the command line.
 export function harnessArgv(sandbox: Sandbox, tree?: string): string[] {
   if (sandbox !== 'read-only' && sandbox !== 'workspace-write') throw new Error(`harness sandbox must be read-only or workspace-write, got ${sandbox}`)
-  const argv = ['claude', '-p', '--bare', '--exclude-dynamic-system-prompt-sections', '--no-session-persistence', '--output-format', 'json', '--max-turns', '40', '--permission-mode', sandbox === 'read-only' ? 'dontAsk' : 'acceptEdits']
+  const argv = ['claude', '-p', '--bare', '--exclude-dynamic-system-prompt-sections', '--no-session-persistence', '--output-format', 'json', '--permission-mode', sandbox === 'read-only' ? 'dontAsk' : 'acceptEdits']
   if (sandbox === 'read-only') {
     if (!tree?.startsWith('/')) throw new Error('a read-only harness needs the absolute directory it runs in')
     return [...argv, '--tools', 'Bash,Read', '--settings', JSON.stringify({ sandbox: { enabled: true, autoAllowBashIfSandboxed: true, allowUnsandboxedCommands: false, failIfUnavailable: true, filesystem: { denyWrite: [tree] } } })]
