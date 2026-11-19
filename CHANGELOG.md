@@ -1,5 +1,13 @@
 # Changelog
 
+## [6.71.1](https://github.com/JacobPEvans-ai/claude-code-plugins/compare/v6.71.0...v6.71.1) (2026-11-19)
+
+
+### Bug Fixes
+
+* **jpe-ai-delegation:** pin Haiku at agent.spawn so the last rung runs ([#847](https://github.com/JacobPEvans-ai/claude-code-plugins/issues/847)) ([33dc434](https://github.com/JacobPEvans-ai/claude-code-plugins/commit/33dc434b9fcae39cf97f686cae702b6e575d5391))
+* **jpe-ai-delegation:** stream codex and harness runs past ten minutes ([#848](https://github.com/JacobPEvans-ai/claude-code-plugins/issues/848)) ([b1eb850](https://github.com/JacobPEvans-ai/claude-code-plugins/commit/b1eb850b0222a88fe256f9fb69d5ff633f9a0dfc))
+
 ## [6.71.0](https://github.com/JacobPEvans-ai/claude-code-plugins/compare/v6.70.0...v6.71.0) (2026-11-17)
 
 
