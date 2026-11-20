@@ -72,6 +72,8 @@ export const forbiddenRowModel = (model: string | undefined): boolean => /sonnet
 // Local screening happens before any classifier or executor receives the payload.
 export const safePayload = (text: string): boolean => !/(-----BEGIN (?:[A-Z]+ )?PRIVATE KEY-----|\b(?:gh[pousr]_|github_pat_|xox[baprs]-|sk-(?:proj-|ant-)?)[A-Za-z0-9_-]{12,}|\bAKIA[A-Z0-9]{16}\b|\b(?:password|passwd|token|api[_-]?key|secret[_-]?key)["']?\s*[:=]\s*\S+|\bauthorization\s*:\s*bearer\s+\S+|\[content:\s*(?:secrets|credentials|inventory|incident)\]|\b(?:ansible_host|ansible_password)\s*:|\b(?:incident|outage)\s+(?:timeline|report)\s*:)/i.test(text)
 export const codingTask = (description: string | undefined): boolean => /\[task: code\]/.test(description ?? '')
+// Work that needs network or GitHub writes: no executor sandbox has that egress or may hold its credentials.
+export const networkTask = (description: string | undefined): boolean => /\[needs: network\]/.test(description ?? '')
 
 // The owner/name candidate named by a GitHub https or ssh origin URL, with or without .git; undefined for anything
 // else. Only a candidate: the caller still verifies visibility before the repository grants eligibility.

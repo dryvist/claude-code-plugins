@@ -1020,6 +1020,36 @@ describe('terminal rung', () => {
   })
 })
 
+describe('network work', () => {
+  const call = { description: '[class: standard] [needs: network]', prompt: 'Merge the green PRs.' }
+  test('a [needs: network] spawn runs on the in-session last rung and never reaches an executor', async () => {
+    const w = world({ env: gateways })
+    expect(text(await w.agent(call))).toBe('haiku result')
+    expect(w.nextCalls).toEqual([{ tool: 'Agent', ...terminal(call) }])
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: LAST_RESORT.model, reason: 'network work' })
+    expect(work(w)).toEqual([])
+  })
+  test('a custom agent declaring egress: network runs in core under its own type', async () => {
+    const w = world({ env: gateways, definition: '---\nname: gh-ops\negress: network\ntools:\n  - Bash\n  - Read\n---\nOperate GitHub.' })
+    const spawn = { subagent_type: 'gh-ops', description: '[class: standard]', prompt: 'Merge the green PRs.' }
+    await w.agent(spawn)
+    expect(w.nextCalls).toEqual([{ tool: 'Agent', ...terminal(spawn) }])
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: LAST_RESORT.model, reason: 'network work' })
+    expect(work(w)).toEqual([])
+  })
+  test('a background network spawn stays a native background spawn and starts no routed job', async () => {
+    const w = world({ env: gateways })
+    await w.agent({ ...call, run_in_background: true })
+    expect(w.nextCalls).toEqual([{ tool: 'Agent', ...terminal({ ...call, run_in_background: true }) }])
+    expect(w.submitted).toEqual([])
+  })
+  test('an unknown egress value fails the definition closed', async () => {
+    const w = world({ definition: '---\negress: internet\ntools: Bash\n---\nOperate.' })
+    expect(text(await w.agent({ subagent_type: 'gh-ops', prompt: 'Merge.' }))).toContain('could not be read')
+    expect(w.nextCalls).toEqual([])
+  })
+})
+
 describe('agent.spawn model pin', () => {
   const spawn = { tool_use_id: 'toolu_1', prompt: 'Do it.', description: 'd', subagentType: 'vikunja-specialist', parentModel: 'parent-model', background: false, fork: false }
   for (const model of [undefined, 'inherit', 'sonnet', 'parent-model']) {
@@ -1217,7 +1247,7 @@ describe('judge and session policy', () => {
       const policy = r.sections[0].text
       expect(policy).not.toContain('Check codex-quota first')
       expect(policy).toStartWith(`codex-quota: ${status}\nThe jpe-ai-delegation hook places every Agent spawn.`)
-      for (const fragment of ['Tag self-contained text work [class: text]', 'put all of its text in the prompt', 'on-host local model first', 'ranked by usage pace', 'non-sensitive coding tagged [task: code] [repo: owner/repository] in a public repository', 'ready PR labelled human:review', 'leak-scan it before merge', 'never auto-merge', 'Codex runs Luna at xhigh, the only Codex model and effort', 'Delegation routing', 'Haiku xhigh is always last', 'Nothing stops because an executor is unavailable', 'Never Sonnet, Opus or Fable subagents', 'Never send secrets, credentials, inventory or incident content to any executor', 'Antigravity stays a second-opinion reviewer']) expect(policy).toContain(fragment)
+      for (const fragment of ['Tag self-contained text work [class: text]', 'put all of its text in the prompt', 'on-host local model first', 'ranked by usage pace', 'non-sensitive coding tagged [task: code] [repo: owner/repository] in a public repository', 'ready PR labelled human:review', 'leak-scan it before merge', 'never auto-merge', 'Codex runs Luna at xhigh, the only Codex model and effort', 'Delegation routing', 'Tag work that needs network or GitHub writes [needs: network]', 'Haiku xhigh is always last', 'Nothing stops because an executor is unavailable', 'Never Sonnet, Opus or Fable subagents', 'Never send secrets, credentials, inventory or incident content to any executor', 'Antigravity stays a second-opinion reviewer']) expect(policy).toContain(fragment)
     })
   }
 })
