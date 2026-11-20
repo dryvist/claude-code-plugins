@@ -5,7 +5,7 @@ import { customAgentSandbox, parseAgentDefinition } from './lib/agent-definition
 import type { AgentDefinition } from './lib/agent-definition'
 
 type Engine = EngineInterface
-type AgentCall = { description?: string; prompt: string; subagent_type?: string; model?: string; effort?: string; name?: string; isolation?: string }
+type AgentCall = { description?: string; prompt: string; subagent_type?: string; model?: string; effort?: string; name?: string; isolation?: string; run_in_background?: boolean }
 const TEXT_EXECUTOR_TIMEOUT_MS = 120_000
 const KIND_TIMEOUT_MS = 20_000
 const KIND_OUTPUT_TOKENS = 16
@@ -69,6 +69,7 @@ let quotaRead: Promise<QuotaFetch> | undefined
 let quotaAt = 0
 let localWindows: Promise<Record<string, number | undefined>> | undefined
 let executorTable: Promise<ExecutorRow[]> | undefined
+let backgroundJobs = 0
 
 // The built-in executor table merged with the operator override, read once per session. A bad override is logged and ignored.
 function loadExecutorTable($: Engine): Promise<ExecutorRow[]> {
@@ -250,7 +251,6 @@ function quotaLine(score: Score | undefined): string {
   return score.exhausted ? 'codex-quota: exhausted' : 'codex-quota: available'
 }
 
-// One `codex exec`; its final message is read from a temporary output file. The finite stdin string is closed by process.run.
 // One streamed child: its exit code and output once it ends, or a rejection when it is still running after timeoutMs,
 // with the child killed.
 async function runChild($: Engine, argv: string[], input: string, timeoutMs: number, env: Record<string, string>): Promise<{ exitCode: number; stdout: string; stderr: string }> {
@@ -268,6 +268,7 @@ async function runChild($: Engine, argv: string[], input: string, timeoutMs: num
   }
 }
 
+// One `codex exec`; its final message is read from a temporary output file.
 async function runCodex($: Engine, codexRoute: Route, sandbox: Sandbox, prompt: string, timeoutMs: number, cwd?: string): Promise<string | undefined> {
   let outputFile: string | undefined
   let failure: string | undefined
@@ -816,6 +817,29 @@ async function stopRoute($: Engine, e: AgentCall, event: RouteEvent, reason: str
   return failure(e, reason)
 }
 
+// A background spawn returns at once. The same route runs detached with the spawn in the foreground; the terminal rung
+// starts a last-rung agent through $.agent.spawn, which reports on its own, and the routed result arrives through
+// $.prompt.submit, queued until the session is idle.
+function startBackground($: Engine, call: AgentCall): unknown {
+  const job = `bg-${++backgroundJobs}`
+  const terminal = async (value: AgentCall): Promise<unknown> => {
+    const spawned = await $.agent.spawn({ prompt: value.prompt, description: value.description ?? '', subagentType: value.subagent_type ?? 'general-purpose', model: LAST_RESORT.model })
+    const text = 'deny' in spawned ? `FAIL | router | the terminal rung was refused: ${spawned.deny}` : `The terminal rung started agent ${spawned.agentId}; its result arrives on its own.`
+    return routedResult(value, 'ai-delegation-background', text, `[routed: ${LAST_RESORT.model}]`, 0)
+  }
+  void (async () => {
+    let text: string
+    try {
+      const out = await route($, { ...call, run_in_background: false }, terminal as never) as { result?: { content?: { text?: string }[] } }
+      text = out.result?.content?.[0]?.text ?? 'FAIL | router | the background route returned no result'
+    } catch (err) {
+      text = `FAIL | router | the background route failed: ${errText(err)}`
+    }
+    await $.prompt.submit({ text: `[ai-delegation ${job}] Result of the background spawn "${call.description ?? ''}":\n\n${text}` }).catch(() => logDecision($, `background ${job}: result delivery failed`))
+  })()
+  return routedResult(call, `ai-delegation-${job}`, `Started background job ${job}. Its result arrives later as a message from jpe-ai-delegation.`, `[routed: background ${job}]`, 0)
+}
+
 async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknown>): Promise<unknown> {
   const event = newEvent(e)
   // The route line is already written when core runs, so a core failure returns FAIL without a second line.
@@ -847,6 +871,10 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
     // The agent.spawn hook pins the model, so an inherited model never reaches the subagent.
     await logRoute($, event, 'native custom agent', 'custom tool policy')
     return core(original)
+  }
+  if (original.run_in_background === true) {
+    await logRoute($, event, 'background', 'run_in_background')
+    return startBackground($, original)
   }
 
   // One three-way kind per spawn. An explicit tag wins without a request; an untagged eligible spawn asks the
