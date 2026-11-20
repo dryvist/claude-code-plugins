@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.28.0](https://github.com/JacobPEvans-ai/claude-code-plugins/compare/jpe-ai-delegation-v1.27.1...jpe-ai-delegation-v1.28.0) (2026-11-20)
+
+
+### Features
+
+* **jpe-ai-delegation:** return background spawns at once and report later ([#850](https://github.com/JacobPEvans-ai/claude-code-plugins/issues/850)) ([fcf8a9c](https://github.com/JacobPEvans-ai/claude-code-plugins/commit/fcf8a9ce53110463faf0ef948a8d0f5ff7e068cc))
+
 ## [1.27.1](https://github.com/JacobPEvans-ai/claude-code-plugins/compare/jpe-ai-delegation-v1.27.0...jpe-ai-delegation-v1.27.1) (2026-11-19)
 
 
