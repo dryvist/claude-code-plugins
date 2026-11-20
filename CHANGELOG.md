@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.73.1](https://github.com/JacobPEvans-ai/claude-code-plugins/compare/v6.73.0...v6.73.1) (2026-11-20)
+
+
+### Bug Fixes
+
+* **jpe-ai-delegation:** fall through when a sandbox dispatcher accepts no job ([#864](https://github.com/JacobPEvans-ai/claude-code-plugins/issues/864)) ([a17582d](https://github.com/JacobPEvans-ai/claude-code-plugins/commit/a17582d9e37fdbc2809a693d59f90640dae2140e))
+
 ## [6.73.0](https://github.com/JacobPEvans-ai/claude-code-plugins/compare/v6.72.4...v6.73.0) (2026-11-20)
 
 
