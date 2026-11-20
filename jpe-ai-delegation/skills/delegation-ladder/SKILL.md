@@ -20,8 +20,8 @@ Codex weekly).
    - Codex: anything even remotely sensitive, or any private repo. Codex runs
      Luna at `xhigh` (AGENTS.md, 'Delegation routing' in the shared instructions
      repository). Codex qualifies while `codex-quota` exits 0 (more than 5% left).
-     Complicated bulk and mandatory auth, secrets, router, memory and cluster
-     topics name `[class: bulk-complex]`.
+   - The hook asks the router's `sensitivity` role for one verdict on the brief. A brief it does not clear (a
+     `sensitive` reply, an error, a timeout or any other reply) goes only to zero-retention executor rows, else stops.
 3. Other subscriptions where they fit, e.g. OpenCode Go (`zcode-job --tool opencode`) and Z.ai GLM. Public work only,
    preferred while that subscription is at or under its pace for the billing period, tried last when over it.
 4. Haiku `xhigh`, the last resort, only after rungs 1, 2 and 3 are exhausted or do not qualify; even then Haiku runs before the orchestrator works solo.
@@ -47,9 +47,7 @@ The lead must keep prohibited content out of executor-accessible context.
 Codex model selection follows AGENTS.md, 'Delegation routing' in the shared
 instructions repository; the hook uses the newest listed slug in its local
 model cache. Plan, design and architecture review use the `plan` or `deep` class and a read-only sandbox,
-as do `Explore` and `Plan` agents. Explicit class tags select these routes;
-mandatory bulk-complex topics override model selection while preserving an
-explicit `plan` or `deep` read-only sandbox. Explicit models, named agents and
+as do `Explore` and `Plan` agents. Explicit class tags select these routes. Explicit models, named agents and
 worktree isolation cannot bypass the ladder. Isolated Codex tasks get a
 detached worktree, whose path is returned for review. Custom-agent
 instructions are preserved; namespaced plugin agents resolve from the local

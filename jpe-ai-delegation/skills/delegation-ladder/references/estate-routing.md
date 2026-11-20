@@ -15,8 +15,8 @@ The session status line says `available`, `exhausted` (a live window at 95% or
 more) or `unavailable` (no usable quota row). None of these stops dispatch; a
 failed Codex invocation moves to the next executor.
 
-Mandatory topics override model selection and name `[class: bulk-complex]`;
-explicit `plan` and `deep` tags retain their read-only sandbox. Codex routing
+Sensitivity comes from one verdict of the router's `sensitivity` role, never a word list; a brief it does not clear
+routes only to zero-retention rows. Explicit `plan` and `deep` tags retain their read-only sandbox. Codex routing
 follows AGENTS.md, 'Delegation routing' in the shared instructions repository;
 the command builder enforces its model and effort pair. `Explore` and `Plan`
 spawns stay read-only. Sonnet, Opus and Fable choices are denied, including

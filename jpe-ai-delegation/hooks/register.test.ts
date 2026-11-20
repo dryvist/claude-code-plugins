@@ -2,7 +2,8 @@ import { describe, expect, test } from 'claude-code/testing'
 import type { EngineInterface } from 'claude-code'
 import { endAnchor, jobHistory, jobState, recentFailures } from './lib/policy'
 import { register } from './register'
-import { CODEX, CLASSIFIER, CODEX_QUOTA_THRESHOLD, EXECUTOR_TABLE, LAST_RESORT, codexArgv, harnessArgv, eligibleRows, mergeExecutorRows, metricsResult, parseCodexQuota, peakMultiplier, QUOTA_SELECTOR, quotaFromMetrics, rankRows, repositoryFromOrigin, validRow, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, codingTask, credentialBrief, localTask, networkTask, mandatoryLabel, newestModel, parseVerdict, pickLocal, safePayload, scoreWindows, budgetsFromMetrics, forbiddenRowModel, KIND_CLASSIFIER, parseKind } from './lib/policy'
+import * as policy from './lib/policy'
+import { CODEX, CLASSIFIER, CODEX_QUOTA_THRESHOLD, EXECUTOR_TABLE, LAST_RESORT, codexArgv, harnessArgv, eligibleRows, mergeExecutorRows, metricsResult, parseCodexQuota, peakMultiplier, QUOTA_SELECTOR, quotaFromMetrics, rankRows, repositoryFromOrigin, validRow, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, codingTask, localTask, networkTask, newestModel, parseVerdict, pickLocal, safePayload, scoreWindows, budgetsFromMetrics, forbiddenRowModel, KIND_CLASSIFIER, parseKind, parseSensitivity, SENSITIVITY_OUTPUT_TOKENS, SENSITIVITY_PROMPT, SENSITIVITY_ROLE } from './lib/policy'
 import { customAgentSandbox, parseAgentDefinition } from './lib/agent-definition'
 import { RECORDED_QUOTA } from './fixtures/quota-instant-query'
 
@@ -26,12 +27,13 @@ type World = {
   originUrl?: string; pathRealpaths?: Record<string, string>; pathGitRoots?: Record<string, string>; unresolvedPaths?: string[]; pathKinds?: Record<string, 'file' | 'directory'>
   zcodeExit?: number; zcodeOutput?: string; zcodeAvailable?: boolean; zcodeThrows?: boolean; zcodeTruncated?: boolean
   sandboxRuns?: Record<string, { exit: number; output: string }>; jobStatus?: Record<string, unknown>; statusHangs?: boolean; statusExit?: number; logTail?: unknown[]; tailTruncated?: boolean
-  gatewayTimeout?: boolean; gatewayStatus?: Record<string, number>; gatewayAnswer?: Record<string, string>; gatewayInvalidJson?: boolean; classifierTimeout?: boolean
+  gatewayTimeout?: boolean; gatewayTimeoutModels?: string[]; gatewayStatus?: Record<string, number>; gatewayAnswer?: Record<string, string>; gatewayInvalidJson?: boolean; gatewayInvalidJsonModels?: string[]; gatewayFinishByModel?: Record<string, string>; classifierTimeout?: boolean
   quotaUrl?: string | null; quotaTimeout?: boolean; quotaText?: string; quotaSampleAge?: number; quotaStatus?: number
   quotaFileTypes?: Record<string, 'file' | 'directory' | 'symlink'>
   readThrows?: string; readHangs?: string
   envThrows?: string; clockThrows?: boolean; clockHangs?: boolean; teeThrows?: boolean; teeExit?: number; nextRejects?: boolean
   localDefaultWindow?: number
+  sensitivityElapsedMs?: number
 }
 
 // Exercise the registered hooks with all IO captured; no subprocess or HTTP request escapes the fixture.
@@ -61,9 +63,13 @@ function world(w: World = {}) {
   const spawned: string[][] = []
   const killed: string[][] = []
   const logs: string[] = []
-  const env: Record<string, string> = { HOME: '/home/test', ...(w.quotaUrl === null ? {} : { AGENT_QUOTA_QUERY_URL: w.quotaUrl ?? QUOTA_BASE }), ...w.env }
+  const env: Record<string, string> = { HOME: '/home/test', ...(w.quotaUrl === null ? {} : { AGENT_QUOTA_QUERY_URL: w.quotaUrl ?? QUOTA_BASE }), ...(w.env ? {} : { LITELLM_LOCAL_BASE_URL: 'http://localhost:8000' }), ...w.env }
   let output = ''
   let clockNow = w.now ?? 1_000_000
+  // Whether the most recent request was a chat completion the world left hanging. Delay-keyed timers fire only then,
+  // so a fault injected for one model cannot time out a different request of the same delay (the sensitivity judge
+  // also waits 20 s).
+  let lastChatHung = false
   const fs: Pick<EngineInterface['fs'], 'exists' | 'stat'> = {
     exists: async (path: string) => {
       fsTouches.push(path)
@@ -92,7 +98,7 @@ function world(w: World = {}) {
   const $ = {
     env: { get: async (key: string) => { if (key === w.envThrows) throw new Error('environment read failed'); return env[key] } },
     session: { cwd: async () => '/workspace' },
-    clock: { now: async () => { if (w.clockThrows) throw new Error('clock failed'); if (w.clockHangs) return new Promise<number>(() => {}); return clockNow }, after: (delay: number, callback: () => void) => { if ((w.childHangs && delay === 3_600_000) || (w.clockHangs && delay === 5_000) || (w.gatewayTimeout && ((delay >= 60_000 && delay < 3_600_000) || delay === 20_000)) || (w.quotaTimeout && delay === 3_000) || (w.classifierTimeout && delay === 20_000) || (w.codexQuota === 'hangs' && delay === 15_000) || (w.statusHangs && (delay === 3_000 || delay === 15_000))) Promise.resolve().then(callback); return { cancel() {} } } },
+    clock: { now: async () => { if (w.clockThrows) throw new Error('clock failed'); if (w.clockHangs) return new Promise<number>(() => {}); return clockNow }, after: (delay: number, callback: () => void) => { if ((w.childHangs && delay === 3_600_000) || (w.clockHangs && delay === 5_000) || (lastChatHung && ((delay >= 60_000 && delay < 3_600_000) || delay === 20_000)) || (w.quotaTimeout && delay === 3_000) ||(w.codexQuota === 'hangs' && delay === 15_000) || (w.statusHangs && (delay === 3_000 || delay === 15_000))) Promise.resolve().then(callback); return { cancel() {} } } },
     ui: { log: (line: string) => logs.push(line) },
     plugin: { name: 'jpe-ai-delegation', root: w.pluginRoot ?? '' },
     fs: {
@@ -162,6 +168,7 @@ function world(w: World = {}) {
       return RAN
     } },
     http: { fetch: async (url: string, init: { body?: string; headers?: Record<string, string> }) => {
+      lastChatHung = false
       allFetches.push({ url, headers: { ...init.headers }, body: init.body })
       if (url.includes('/api/v1/query?')) {
         quotaFetches.push(url)
@@ -192,9 +199,12 @@ function world(w: World = {}) {
       ] }) }
       const body = JSON.parse(init.body ?? '{}')
       if (url.endsWith('/systemone')) return { ok: true, text: JSON.stringify({ answers: { route: { choice: w.label ?? 'standard', answer_confidence: 1 } } }) }
-      if (w.gatewayTimeout || (w.classifierTimeout && body.model === 'small')) return new Promise<never>(() => {})
+      lastChatHung = Boolean(w.gatewayTimeout || w.gatewayTimeoutModels?.includes(body.model) || (w.classifierTimeout && body.model === 'small'))
+      if (lastChatHung) return new Promise<never>(() => {})
+      if (body.model === SENSITIVITY_ROLE) clockNow += w.sensitivityElapsedMs ?? 0
       const status = w.gatewayStatus?.[body.model] ?? 200
-      return { ok: status === 200, text: w.gatewayInvalidJson ? '{' : JSON.stringify({ choices: [{ finish_reason: w.gatewayFinish ?? 'stop', message: { content: w.gatewayAnswer?.[body.model] ?? 'gateway result' } }] }) }
+      const invalidJson = w.gatewayInvalidJson || w.gatewayInvalidJsonModels?.includes(body.model)
+      return { ok: status === 200, text: invalidJson ? '{' : JSON.stringify({ choices: [{ finish_reason: w.gatewayFinishByModel?.[body.model] ?? w.gatewayFinish ?? 'stop', message: { content: w.gatewayAnswer?.[body.model] ?? (body.model === 'sensitivity' ? 'clear' : 'gateway result') } }] }) }
     } },
     model: { complete: async (input: unknown) => { modelCalls.push(input); return { isAnswered: true, text: w.answer ?? '' } } },
     agent: { spawn: async (args: unknown) => { agentSpawns.push(args); return w.spawnDeny ? { deny: 'refused' } : { model: 'haiku', agentId: 'agent-1' } } },
@@ -253,6 +263,9 @@ const work = (w: ReturnType<typeof world>) => w.calls.filter((c) => c.argv[0] !=
 const nonGithub = (w: ReturnType<typeof world>) => w.fetches.filter((f) => !f.url.startsWith('https://api.github.com/'))
 // Chat-completion requests that carry the untagged-kind instruction, i.e. the classifier's own traffic.
 const classifierCalls = (w: ReturnType<typeof world>) => w.fetches.filter((f) => f.body !== undefined && JSON.parse(f.body).messages?.[0]?.content?.startsWith(KIND_CLASSIFIER) === true)
+// Chat-completion requests to the sensitivity role, i.e. the judge's own traffic.
+const sensitivityCalls = (w: ReturnType<typeof world>) => w.fetches.filter((f) => f.body !== undefined && JSON.parse(f.body).model === SENSITIVITY_ROLE)
+const withoutSensitivity = (w: ReturnType<typeof world>) => w.fetches.filter((f) => !sensitivityCalls(w).includes(f))
 // Chat-completion requests that carry the label-classifier instruction, i.e. the Codex rung's classification traffic.
 const labelClassifyCalls = (w: ReturnType<typeof world>) => w.fetches.filter((f) => f.body !== undefined && JSON.parse(f.body).messages?.[0]?.content?.startsWith(CLASSIFIER) === true)
 // The fixed native quota command, one entry per call.
@@ -402,7 +415,9 @@ describe('custom agent tool authority', () => {
             expect(w.nextCalls).toEqual([{ tool: 'Agent', ...again }])
           }
           expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
-          expect(w.fetches).toEqual([])
+          // The only request is the sensitivity verdict; no classifier or executor request follows it.
+          expect(sensitivityCalls(w)).toHaveLength(1)
+          expect(withoutSensitivity(w)).toEqual([])
         }
       })
     }
@@ -507,7 +522,7 @@ describe('custom agent tool authority', () => {
       const again = terminal(call)
       expect(w.nextCalls).toEqual([{ tool: 'Agent', ...again }])
       expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
-      expect(w.fetches.filter((f) => !classifierCalls(w).includes(f) && !labelClassifyCalls(w).includes(f))).toEqual([])
+      expect(w.fetches.filter((f) => !classifierCalls(w).includes(f) && !labelClassifyCalls(w).includes(f) && !sensitivityCalls(w).includes(f))).toEqual([])
     })
   }
   test('omitting tools keeps unrestricted sandbox eligibility at every quota', async () => {
@@ -627,18 +642,17 @@ describe('Codex rung', () => {
     })
   }
   for (const topic of ['auth', 'secrets', 'router', 'memory', 'cluster']) {
-    test(`${topic} overrides an explicit standard class and names bulk-complex`, async () => {
+    test(`a ${topic} topic keeps the explicit standard class`, async () => {
       const w = world()
       const r = await w.agent({ prompt: `Implement ${topic} support using placeholders.` })
-      expect(mandatoryLabel(`${topic} work`)).toBe('bulk-complex')
-      expect(text(r)).toContain('codex luna xhigh, class bulk-complex')
+      expect(text(r)).toContain('codex luna xhigh, class standard')
       expect(runs(w)).toHaveLength(1)
     })
   }
   for (const label of ['plan', 'deep']) {
-    test(`mandatory auth classification preserves explicit ${label} sandbox`, async () => {
+    test(`an auth topic keeps the explicit ${label} class and its read-only sandbox`, async () => {
       const w = world()
-      expect(text(await w.agent({ description: `[class: ${label}]`, prompt: 'Review authentication design using placeholders.' }))).toContain('codex luna xhigh, class bulk-complex')
+      expect(text(await w.agent({ description: `[class: ${label}]`, prompt: 'Review authentication design using placeholders.' }))).toContain(`codex luna xhigh, class ${label}`)
       expect(runs(w)).toHaveLength(1)
       expect(runs(w)[0].argv).toContain('read-only')
       expect(runs(w)[0].argv).not.toContain('workspace-write')
@@ -650,13 +664,16 @@ describe('Codex rung', () => {
     expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'codex', eligible: ['qwen', 'zcode', 'opencode-go', 'codex', 'cursor', 'haiku'], scores: { codex: { used: 50, line: 50 } } })
     expect(runs(w)).toHaveLength(1)
     expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
-    expect(w.fetches.map((f) => f.url)).toEqual(['https://api.github.com/repos/owner/project'])
+    // Router traffic: the sensitivity verdict and the label classification that precedes the Codex run.
+    expect(sensitivityCalls(w)).toHaveLength(1)
+    expect(labelClassifyCalls(w)).toHaveLength(1)
+    expect(withoutSensitivity(w).filter((f) => !labelClassifyCalls(w).includes(f)).map((f) => f.url)).toEqual(['https://api.github.com/repos/owner/project'])
   })
   test('untagged public work still classifies onto Codex Luna', async () => {
     const w = world({ env: gateways })
     expect(text(await w.agent({ description: '[class: public] [repo: owner/project]' }))).toContain('codex luna xhigh')
     expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
-    expect(w.fetches.filter((f) => !classifierCalls(w).includes(f) && !labelClassifyCalls(w).includes(f))).toEqual([])
+    expect(w.fetches.filter((f) => !classifierCalls(w).includes(f) && !labelClassifyCalls(w).includes(f) && !sensitivityCalls(w).includes(f))).toEqual([])
     expect(labelClassifyCalls(w)).toHaveLength(1)
     expect(JSON.parse(labelClassifyCalls(w)[0].body!).model).toBe('small')
   })
@@ -700,7 +717,7 @@ describe('Codex rung', () => {
       expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'haiku', reason: 'terminal rung', fell_through_from: ['homelab-harness', 'host-harness', 'codex'] })
       const again = terminal(issued)
       expect(w.nextCalls).toEqual([{ tool: 'Agent', ...again }])
-      expect(w.fetches.filter((f) => !classifierCalls(w).includes(f) && !labelClassifyCalls(w).includes(f))).toEqual([])
+      expect(w.fetches.filter((f) => !classifierCalls(w).includes(f) && !labelClassifyCalls(w).includes(f) && !sensitivityCalls(w).includes(f))).toEqual([])
       expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'haiku', reason: 'terminal rung' })
     })
   }
@@ -761,7 +778,7 @@ describe('model and payload guards', () => {
       expect(pin.nextCalls).toEqual([{ ...spawn, model: LAST_RESORT.model }])
     })
   }
-  for (const payload of ['password: sensitive-value', '{"password":"actual-value"}', '{"passwd": "actual-value"}', '{"token":"actual-value"}', '{"api_key":"actual-value"}', '{"secret-key":"actual-value"}', "'password': 'actual-value'", 'Authorization: Bearer example-value', '-----BEGIN PRIVATE KEY-----', 'ansible_host: 192.0.2.1', '[content: incident] details', 'outage timeline: details', 'token=abc123', 'ghp_abcdefghijklmnop']) {
+  for (const payload of ['password: sensitive-value', '{"password":"actual-value"}', '{"passwd": "actual-value"}', '{"token":"actual-value"}', '{"api_key":"actual-value"}', '{"secret-key":"actual-value"}', "'password': 'actual-value'", 'Authorization: Bearer example-value', '-----BEGIN PRIVATE KEY-----', '[content: incident] details', 'token=abc123', 'ghp_abcdefghijklmnop']) {
     test(`prohibited payload never reaches any executor: ${payload.split(':')[0]}`, async () => {
       expect(safePayload(payload)).toBe(false)
       for (const quota of [0, 1]) {
@@ -793,14 +810,22 @@ describe('model and payload guards', () => {
       'token=writer',
     ]) expect(safePayload(payload)).toBe(false)
   })
-  test('permission levels and environment references pass the payload scan; their token words keep the brief off the sandbox rows', async () => {
+  test('permission levels and environment references pass the payload scan, and a cleared brief keeps the sandbox rows', async () => {
     const w = world({ quota: 1, env: gateways })
     const prompt = 'Grant `id-token: write` and read api_key: $TOKEN_ENV; the writer role is service-writer-role.'
     expect(safePayload(prompt)).toBe(true)
     await w.agent({ ...coding, prompt })
-    expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
-    expect(routeEvents(w).at(-1)).toMatchObject({ kind: { value: 'code', source: 'tag' }, skipped: { qwen: 'ineligible', zcode: 'ineligible' } })
+    expect(routeEvents(w).at(-1)).toMatchObject({ kind: { value: 'code', source: 'tag' }, chosen: 'qwen', sensitivity: { verdict: 'clear', model: 'sensitivity' } })
   })
+  for (const phrase of ['ansible_host: 192.0.2.1', 'outage timeline: details']) {
+    test(`a topic phrase passes the payload scan and the sensitivity role decides: ${phrase.split(':')[0]}`, async () => {
+      expect(safePayload(phrase)).toBe(true)
+      const w = world({ quota: 1, env: gateways, gatewayAnswer: { sensitivity: 'sensitive' } })
+      await w.agent({ ...coding, prompt: phrase })
+      expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
+      expect(routeEvents(w).at(-1).sensitivity).toMatchObject({ verdict: 'sensitive' })
+    })
+  }
   for (const model of ['haiku', 'sonnet', undefined]) {
     test(`installed plugin agent ${model} definition is loaded and screened`, async () => {
       const w = world({ files: {
@@ -842,7 +867,7 @@ describe('model and payload guards', () => {
     })
   }
   test('project plugin installation precedes the user installation', async () => {
-    const w = world({ env: { CLAUDE_CONFIG_DIR: '/config' }, files: {
+    const w = world({ env: { ...gateways, CLAUDE_CONFIG_DIR: '/config' }, files: {
       '/config/plugins/installed_plugins.json': JSON.stringify({ version: 2, plugins: { 'codeql-resolver@marketplace': [
         { scope: 'user', installPath: '/plugins/user' },
         { scope: 'project', projectPath: '/workspace', installPath: '/plugins/project' },
@@ -869,7 +894,7 @@ describe('capped ladder', () => {
     const w = world({ quota: 1, env: gateways, definition: '---\nmodel: haiku\n---\nRead app.ts and run its tests.' })
     expect(text(await w.agent(call))).toBe('haiku result')
     const again = terminal(call)
-      expect(w.fetches.filter((f) => !classifierCalls(w).includes(f) && !labelClassifyCalls(w).includes(f))).toEqual([])
+      expect(w.fetches.filter((f) => !classifierCalls(w).includes(f) && !labelClassifyCalls(w).includes(f) && !sensitivityCalls(w).includes(f))).toEqual([])
     expect(w.nextCalls).toEqual([{ tool: 'Agent', ...again }])
   })
   for (const task of [
@@ -885,7 +910,7 @@ describe('capped ladder', () => {
       const w = world({ quota: 1, zcodeAvailable: false, env: gateways })
       expect(text(await w.agent(task))).toBe('haiku result')
       const again = terminal(task)
-      expect(nonGithub(w).filter((f) => !classifierCalls(w).includes(f) && !labelClassifyCalls(w).includes(f))).toEqual([])
+      expect(nonGithub(w).filter((f) => !classifierCalls(w).includes(f) && !labelClassifyCalls(w).includes(f) && !sensitivityCalls(w).includes(f))).toEqual([])
       expect(w.nextCalls).toEqual([{ tool: 'Agent', ...again }])
     })
   }
@@ -896,7 +921,8 @@ describe('capped ladder', () => {
     expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'qwen', kind: { value: 'code', source: 'tag' } })
     expect(w.calls.find((c) => c.argv[1] === 'start')?.env).toEqual({ UNTRUSTED_OK: 'public' })
     expect(w.calls.filter((c) => c.argv[0] !== 'claude' && c.argv[1] !== 'start').every((c) => c.env === undefined)).toBe(true)
-    expect(w.fetches.map((f) => f.url)).toEqual(['https://api.github.com/repos/owner/project', 'https://api.github.com/repos/owner/project/pulls/12'])
+    expect(sensitivityCalls(w)).toHaveLength(1)
+    expect(withoutSensitivity(w).map((f) => f.url)).toEqual(['https://api.github.com/repos/owner/project', 'https://api.github.com/repos/owner/project/pulls/12'])
     expect(w.nextCalls).toEqual([])
   })
   test('AGENT_ROUTE_ZCODE_TOOLS without opencode-qwen skips the qwen row and dispatches zcode plainly', async () => {
@@ -953,7 +979,8 @@ describe('capped ladder', () => {
       pathGitRoots: { '/workspace': '/workspace' }, pathKinds: { '/workspace': 'directory' } })
     await w.agent({ description: '[task: code] [repo: example-org/example-repo]', prompt: '[repo: other-org/other-repo] Update src/main.ts.' })
     expect(w.calls.some((c) => c.argv[0] === 'realpath')).toBe(false)
-    expect(w.fetches[0].url).toBe('https://api.github.com/repos/example-org/example-repo')
+    expect(sensitivityCalls(w)).toHaveLength(1)
+    expect(withoutSensitivity(w)[0].url).toBe('https://api.github.com/repos/example-org/example-repo')
     expect(w.calls.find((c) => c.argv[0] === 'zcode-job')?.argv.slice(0, 5)).toEqual(['zcode-job', 'start', '--tool', 'opencode-qwen', 'example-org/example-repo'])
   })
   for (const options of [{ repository: { visibility: 'private', private: true } }, { repository: { visibility: 'private', private: true }, properties: [{ property_name: 'ai-untrusted-ok', value: 'true' }] }, { githubError: true }, { githubInvalidJson: true }]) {
@@ -963,7 +990,7 @@ describe('capped ladder', () => {
       expect(text(await w.agent(call))).toBe('haiku result')
       const again = terminal(call)
       expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
-      expect(w.fetches.some((f) => f.url.endsWith('/chat/completions') && !classifierCalls(w).includes(f) && !labelClassifyCalls(w).includes(f))).toBe(false)
+      expect(w.fetches.some((f) => f.url.endsWith('/chat/completions') && !classifierCalls(w).includes(f) && !labelClassifyCalls(w).includes(f) && !sensitivityCalls(w).includes(f))).toBe(false)
       expect(w.nextCalls).toEqual([{ tool: 'Agent', ...again }])
     })
   }
@@ -974,7 +1001,7 @@ describe('capped ladder', () => {
       expect(text(await w.agent(call))).toBe('haiku result')
       const again = terminal(call)
       expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
-      expect(w.fetches.some((f) => f.url.endsWith('/chat/completions') && !classifierCalls(w).includes(f) && !labelClassifyCalls(w).includes(f))).toBe(false)
+      expect(w.fetches.some((f) => f.url.endsWith('/chat/completions') && !classifierCalls(w).includes(f) && !labelClassifyCalls(w).includes(f) && !sensitivityCalls(w).includes(f))).toBe(false)
     })
   }
   for (const options of [
@@ -993,7 +1020,7 @@ describe('capped ladder', () => {
         : 'zcodeTruncated' in options ? { chosen: 'stopped', reason: 'qwen dispatch failed before the job was accepted' }
           : { chosen: 'qwen', reason: 'sandbox job without a verified PR' }
       expect(routeEvents(w).at(-1)).toMatchObject(expected)
-      expect(w.fetches.some((f) => f.url.endsWith('/chat/completions') && !classifierCalls(w).includes(f) && !labelClassifyCalls(w).includes(f))).toBe(false)
+      expect(w.fetches.some((f) => f.url.endsWith('/chat/completions') && !classifierCalls(w).includes(f) && !labelClassifyCalls(w).includes(f) && !sensitivityCalls(w).includes(f))).toBe(false)
       expect(w.nextCalls).toEqual([])
     })
   }
@@ -1004,7 +1031,7 @@ describe('capped ladder', () => {
     expect(JSON.parse(w.fetches[1].body!).model).toBe('small')
     expect(w.nextCalls).toEqual([])
   })
-  for (const options of [{ env: {} }, { env: gateways, gatewayStatus: { small: 503 } }, { env: gateways, gatewayAnswer: { small: '' } }, { env: gateways, gatewayInvalidJson: true }, { env: gateways, gatewayTimeout: true }, { env: gateways, gatewayFinish: 'length' }]) {
+  for (const options of [{ env: gateways, gatewayStatus: { small: 503 } }, { env: gateways, gatewayAnswer: { small: '' } }, { env: gateways, gatewayInvalidJsonModels: ['small'] }, { env: gateways, gatewayTimeoutModels: ['small'] }, { env: gateways, gatewayFinishByModel: { small: 'length' } }]) {
     test(`a failed local check falls through to the last rung: ${JSON.stringify(options)}`, async () => {
       const call = { ...textTask, model: 'haiku', effort: 'low' }
       const w = world({ quota: 1, ...options })
@@ -1012,15 +1039,25 @@ describe('capped ladder', () => {
       const again = terminal(call)
       expect(w.nextCalls).toEqual([{ tool: 'Agent', ...again }])
       expect(runs(w)).toEqual([])
-      expect(w.fetches.every((f) => !f.body || JSON.parse(f.body).model === 'small')).toBe(true)
+      // The fault is scoped to the local model. The sensitivity verdict is the one other request, and it answers clear.
+      expect(sensitivityCalls(w)).toHaveLength(1)
+      expect(withoutSensitivity(w).every((f) => !f.body || JSON.parse(f.body).model === 'small')).toBe(true)
     })
   }
+  test('without a router URL the local check cannot run, the sensitivity verdict is unknown, and routing stops fail-closed', async () => {
+    const call = { ...textTask, model: 'haiku', effort: 'low' }
+    const w = world({ quota: 1, env: {} })
+    expect(text(await w.agent(call))).toContain('brief not cleared by the sensitivity role (unknown) and no zero-retention executor answered')
+    expect(w.nextCalls).toEqual([])
+    expect(runs(w)).toEqual([])
+    expect(w.fetches).toEqual([])
+  })
   test('capped isolation skips transports that cannot preserve worktrees', async () => {
     const call = { ...textTask, isolation: 'worktree' }
     const w = world({ quota: 1, env: gateways })
     expect(text(await w.agent(call))).toBe('haiku result')
     const again = terminal(call)
-    expect(w.fetches.filter((f) => !classifierCalls(w).includes(f) && !labelClassifyCalls(w).includes(f))).toEqual([])
+    expect(w.fetches.filter((f) => !classifierCalls(w).includes(f) && !labelClassifyCalls(w).includes(f) && !sensitivityCalls(w).includes(f))).toEqual([])
     expect(w.nextCalls).toEqual([{ tool: 'Agent', ...again }])
   })
 })
@@ -1076,7 +1113,9 @@ describe('terminal rung', () => {
     expect(text(await w.agent(call))).toBe('haiku result')
     expect(w.nextCalls).toEqual([{ tool: 'Agent', ...terminal(call) }])
     expect(routeEvents(w).at(-1)).toMatchObject({ chosen: LAST_RESORT.model, reason: 'terminal rung' })
-    expect(w.fetches.some((f) => f.url.endsWith('/chat/completions'))).toBe(false)
+    // The only chat requests are the untagged-kind classifier, the label classifier and the sensitivity verdict.
+    expect(sensitivityCalls(w)).toHaveLength(1)
+    expect(withoutSensitivity(w).every((f) => classifierCalls(w).includes(f) || labelClassifyCalls(w).includes(f))).toBe(true)
   })
   test('a forbidden model is still refused before any rung', async () => {
     const w = world()
@@ -1217,7 +1256,7 @@ describe('untagged kind classification', () => {
       ['other reply', { env: gateways, gatewayAnswer: { small: 'other' } }, undefined],
       ['timeout', { env: gateways, classifierTimeout: true }, 'classifier: timeout\n'],
       ['non-OK status', { env: gateways, gatewayStatus: { small: 503 } }, 'classifier: non-OK status\n'],
-      ['unparsable body', { env: gateways, gatewayInvalidJson: true }, 'classifier: unparsable body\n'],
+      ['unparsable body', { env: gateways, gatewayInvalidJsonModels: ['small'] }, 'classifier: unparsable body\n'],
     ] as const) {
       const w = world({ quota: 1, ...options })
       expect(text(await w.agent())).toBe(baselineResult)
@@ -1235,11 +1274,11 @@ describe('untagged kind classification', () => {
     }
   })
 
-  test('a mandatory topic records kind none without a classifier request', async () => {
-    const w = world({ quota: 1, env: gateways, gatewayAnswer: { small: 'text' } })
+  test('a topic word no longer skips the untagged classifier', async () => {
+    const w = world({ quota: 1, env: gateways, gatewayAnswer: { small: 'other' } })
     await w.agent({ prompt: 'Rotate the auth signing key using placeholders.' })
-    expect(w.fetches).toEqual([])
-    expect(routeEvents(w).at(-1).kind).toEqual({ value: 'other', source: 'none' })
+    expect(classifierCalls(w)).toHaveLength(1)
+    expect(routeEvents(w).at(-1).kind).toEqual({ value: 'other', source: 'classifier' })
   })
 
   test('Explore, Plan, isolation and custom agents never reach the classifier', async () => {
@@ -1292,7 +1331,7 @@ describe('judge and session policy', () => {
   test('the judge leaves the dialog to the person on no verdict', async () => {
     for (const [name, options, line] of [
       ['unparsable verdict', { env: gateways, gatewayAnswer: { medium: 'not a verdict' } }, 'judge: no verdict (unparsable body), dialog left to the person\n'],
-      ['router unset', {}, 'judge: no verdict (no router URL), dialog left to the person\n'],
+      ['router unset', { env: {} }, 'judge: no verdict (no router URL), dialog left to the person\n'],
       ['non-OK status', { env: gateways, gatewayStatus: { medium: 503 } }, 'judge: no verdict (non-OK status), dialog left to the person\n'],
       ['timeout', { env: gateways, gatewayTimeout: true }, 'judge: no verdict (timeout), dialog left to the person\n'],
     ] as const) {
@@ -1311,13 +1350,13 @@ describe('judge and session policy', () => {
     expect(w.modelCalls).toEqual([])
     expect(runs(w)).toEqual([])
   })
-  test('mandatory judge topics judge locally on the medium alias and name the class', async () => {
+  test('judge topics judge locally on the medium alias with no class prefix', async () => {
     const w = world({ env: gateways, gatewayAnswer: { medium: '{"verdict":"safe","reason":"bounded"}' } })
     const r = await w.invoke('tool.check', { input: { command: 'rm ./auth-cache' } }, CORE_ASK)
     expect(r.decision).toBe('allow')
     const ask = w.fetches.filter((f) => f.url.endsWith('/chat/completions'))
     expect(ask).toHaveLength(1)
-    expect(JSON.parse(ask[0].body!).messages[0].content).toStartWith('[class: bulk-complex]')
+    expect(JSON.parse(ask[0].body!).messages[0].content).not.toContain('[class:')
     expect(w.writes.some((s) => s.startsWith('judge: safe by local medium'))).toBe(true)
   })
   test('unknown quota and sensitive shell input leave core ask without model calls', async () => {
@@ -1496,17 +1535,16 @@ describe('routing batch', () => {
     expect(text(await w.agent({ description: '[class: text]', prompt: `Extract fields: ${'a'.repeat(140_000)}` }))).toContain('[routed: local local-only]')
     expect(JSON.parse(w.fetches[1].body!).model).toBe('local-only')
   })
-  test('3: a 200k-token classification is too large for local and stops at the last rung', async () => {
+  test('3: a 200k-token classification is too large for local and, past the sensitivity chunk cap, stops fail-closed', async () => {
     const w = world({ quota: 1, env: gateways })
     const call = { description: '[class: text]', prompt: `Classify: ${'a'.repeat(700_000)}` }
     await w.agent(call)
-    expect(w.fetches.map((f) => f.url)).toEqual(['http://localhost:8000/model/info', 'http://localhost:8000/v1/chat/completions'])
-    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'haiku', local: { alias: null } })
-    const again = terminal(call)
-    expect(w.nextCalls).toEqual([{ tool: 'Agent', ...again }])
-    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'haiku', reason: 'terminal rung' })
+    expect(withoutSensitivity(w).map((f) => f.url)).toEqual(['http://localhost:8000/model/info', 'http://localhost:8000/v1/chat/completions'])
+    expect(sensitivityCalls(w)).toEqual([])
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'stopped', local: { alias: null }, sensitivity: { verdict: 'unknown', failure: 'brief too long' } })
+    expect(w.nextCalls).toEqual([])
   })
-  for (const [name, options] of [['empty', { gatewayAnswer: { small: '' } }], ['times out', { gatewayTimeout: true }]] as const) {
+  for (const [name, options] of [['empty', { gatewayAnswer: { small: '' } }], ['times out', { gatewayTimeoutModels: ['small'] }]] as const) {
     test(`4: local ${name} stops at the last rung for an explicit re-issue`, async () => {
       const w = world({ quota: 1, env: gateways, ...options })
       await w.agent(textTask)
@@ -1525,18 +1563,25 @@ describe('routing batch', () => {
     await w.agent({ ...coding, prompt: 'Implement the router routing change for the memory cluster.' })
     expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'qwen', eligible: ['qwen', 'zcode', 'opencode-go', 'codex', 'cursor', 'haiku'] })
   })
+  // No word list decides: a credential word changes nothing by itself. The sensitivity verdict alone gates the sandbox.
   for (const word of ['credential', 'auth', 'secret', 'token', 'password', 'key']) {
-    test(`a ${word} brief in a verified public repository never reaches a sandbox row`, async () => {
-      const w = world({ quota: 1, env: gateways })
-      await w.agent({ ...coding, prompt: `Implement the ${word} change.` })
+    test(`a ${word} brief the sensitivity role does not clear never reaches a sandbox row, even in a verified public repository`, async () => {
+      const w = world({ quota: 1, env: gateways, gatewayAnswer: { sensitivity: 'sensitive' } })
+      const r = text(await w.agent({ ...coding, prompt: `Implement the ${word} change.` }))
+      expect(r).toContain('brief not cleared by the sensitivity role (sensitive)')
       expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
       expect(routeEvents(w).at(-1).skipped).toMatchObject({ qwen: 'ineligible', zcode: 'ineligible', 'opencode-go': 'ineligible', cursor: 'ineligible' })
+      expect(routeEvents(w).at(-1).eligible).toEqual(['homelab-harness', 'host-harness'])
+    })
+    test(`a ${word} brief the sensitivity role clears keeps the sandbox rows in a verified public repository`, async () => {
+      const w = world({ quota: 1, env: gateways, gatewayAnswer: { sensitivity: 'clear' } })
+      await w.agent({ ...coding, prompt: `Implement the ${word} change.` })
+      expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'qwen', sensitivity: { verdict: 'clear' }, eligible: ['qwen', 'zcode', 'opencode-go', 'codex', 'cursor', 'haiku'] })
     })
   }
-  test('credentialBrief matches credential words only, and mandatoryLabel still labels router work', () => {
-    for (const t of ['auth', 'authentication', 'secrets', 'credential', 'tokens', 'password', 'keys']) expect(credentialBrief(`the ${t} change`)).toBe(true)
-    for (const t of ['router', 'routing', 'memory', 'clusters', 'keyboard', 'monkey']) expect(credentialBrief(`the ${t} change`)).toBe(false)
-    expect(mandatoryLabel('router work')).toBe('bulk-complex')
+  test('policy no longer exports the word-list helpers credentialBrief or mandatoryLabel', () => {
+    expect('credentialBrief' in policy).toBe(false)
+    expect('mandatoryLabel' in policy).toBe(false)
   })
   test('6: with Qwen and ZCode disabled, public-repo code takes OpenCode Go', async () => {
     const w = world({ quota: 1, env: { ...gateways, AGENT_ROUTE_ZCODE_TOOLS: 'opencode' } })
@@ -1563,18 +1608,20 @@ describe('routing batch', () => {
     expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
   })
   for (const quota of [0, 1]) {
-    test(`9: sensitive public-repo code never reaches a sandbox (quota ${quota})`, async () => {
-      const w = world({ quota, env: gateways })
-      const call = { ...coding, prompt: 'Rotate the auth signing key using placeholders.' }
-      const r = await w.agent(call)
+    test(`9: public-repo code the sensitivity role does not clear never reaches a sandbox or Codex (quota ${quota})`, async () => {
+      const w = world({ quota, env: gateways, gatewayAnswer: { sensitivity: 'sensitive' } })
+      const r = text(await w.agent({ ...coding, prompt: 'Rotate the auth signing key using placeholders.' }))
+      expect(r).toContain('brief not cleared by the sensitivity role (sensitive) and no zero-retention executor answered')
       expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
-      expect(w.fetches.filter((f) => !classifierCalls(w).includes(f) && !labelClassifyCalls(w).includes(f))).toEqual([])
-      if (quota === 0) expect(text(r)).toContain('codex luna xhigh, class bulk-complex')
-      else {
-        expect(text(r)).toBe('haiku result')
-        const again = terminal(call)
-        expect(w.nextCalls).toEqual([{ tool: 'Agent', ...again }])
-      }
+      expect(runs(w)).toEqual([])
+      expect(w.fetches.some((f) => f.url.startsWith('https://api.github.com/'))).toBe(false)
+      expect(w.nextCalls).toEqual([])
+    })
+    test(`9b: the same public-repo code, cleared by the sensitivity role, keeps its routing (quota ${quota})`, async () => {
+      const w = world({ quota, env: gateways, gatewayAnswer: { sensitivity: 'clear' } })
+      const r = text(await w.agent({ ...coding, prompt: 'Rotate the auth signing key using placeholders.' }))
+      if (quota === 0) expect(r).toContain('codex luna xhigh')
+      else expect(r).toContain('[routed: Qwen sandbox;')
     })
   }
   test('10: Explore needs tools and stops at the last rung when Codex is exhausted', async () => {
@@ -1582,7 +1629,8 @@ describe('routing batch', () => {
     const w = world({ quota: 1, env: gateways })
     expect(text(await w.agent(call))).toBe('haiku result')
     const again = terminal(call)
-    expect(w.fetches).toEqual([])
+    expect(sensitivityCalls(w)).toHaveLength(1)
+    expect(withoutSensitivity(w)).toEqual([])
     expect(w.nextCalls).toEqual([{ tool: 'Agent', ...again }])
   })
   test('11: a token-shaped payload fails before any executor', async () => {
@@ -1616,12 +1664,12 @@ describe('routing batch', () => {
     const call = { description: '[class: bulk]', prompt: 'Summarize the files under src/.' }
     const w = world({ quota: 1, env: gateways })
     await w.agent(call)
-    expect(w.fetches.filter((f) => !classifierCalls(w).includes(f))).toEqual([])
+    expect(withoutSensitivity(w).filter((f) => !classifierCalls(w).includes(f))).toEqual([])
     expect(classifierCalls(w)).toHaveLength(1)
     expect(routeEvents(w).at(-1)).toMatchObject({ local: null, chosen: 'haiku', reason: 'terminal rung' })
     const again = terminal(call)
     expect(w.nextCalls).toEqual([{ tool: 'Agent', ...again }])
-    expect(w.fetches.filter((f) => !classifierCalls(w).includes(f))).toEqual([])
+    expect(withoutSensitivity(w).filter((f) => !classifierCalls(w).includes(f))).toEqual([])
     expect(classifierCalls(w)).toHaveLength(1)
   })
 })
@@ -1693,11 +1741,13 @@ describe('quota from the metrics store', () => {
     expect(event.quota_source).toEqual({ 'codex/five_hour': 'provider', 'codex/weekly': 'provider', 'cursor/monthly': 'estimate' })
     expect(typeof event.scores.codex.score).toBe('number')
   })
-  test('env unset: every quota is unknown, no request is made, and an absent native read skips Codex', async () => {
-    const w = world({ quotaUrl: null })
+  test('env unset: every quota is unknown, no quota request is made, and an absent native read skips Codex', async () => {
+    const w = world({ quotaUrl: null, env: gateways })
     expect(text(await w.agent())).toBe('haiku result')
     expect(w.quotaFetches).toEqual([])
-    expect(w.fetches).toEqual([])
+    // The router requests are the untagged-kind classifier, the label classifier on the harness rung and the sensitivity verdict.
+    expect(sensitivityCalls(w)).toHaveLength(1)
+    expect(withoutSensitivity(w).every((f) => classifierCalls(w).includes(f) || labelClassifyCalls(w).includes(f))).toBe(true)
     expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'haiku', skipped: { codex: 'quota_unknown' }, scores: { codex: { used: null, line: null } }, quota_unknown: { codex: 'quota_unconfigured', cursor: 'quota_unconfigured' } })
   })
   for (const [name, options] of unknownCases.slice(1)) {
@@ -1858,7 +1908,7 @@ describe('quota from the metrics store', () => {
   test('quota runs only the fixed codex-quota command, never an environment-named one', async () => {
     const envs: Record<string, string>[] = [{}, { TOKEN_METER_BIN: '/opt/meter' }]
     for (const env of envs) {
-      const w = world({ quotaUrl: null, env })
+      const w = world({ quotaUrl: null, env: { ...gateways, ...env } })
       await w.agent({ description: '[class: standard]' })
       expect(w.calls.filter((c) => /meter|^which /.test(c.argv.join(' ')))).toEqual([])
       expect(codexQuotaCalls(w).map((c) => c.argv)).toEqual([['codex-quota']])
@@ -1979,8 +2029,21 @@ describe('executor table', () => {
   test('the built-in table holds every row and validates', () => {
     expect(EXECUTOR_TABLE.map((r) => r.id)).toEqual(['homelab-harness', 'host-harness', 'qwen', 'zcode', 'opencode-go', 'codex', 'cursor'])
     expect(EXECUTOR_TABLE.every((r) => validRow(r))).toBe(true)
-    expect(EXECUTOR_TABLE[0]).toEqual({ id: 'homelab-harness', transport: 'harness', model: 'medium-homelab', window: 80000, trust: 'subscription-trusted', private_ok: true, price: 0 })
-    expect(EXECUTOR_TABLE[2]).toEqual({ id: 'qwen', transport: 'sandbox', tool: 'opencode-qwen', trust: 'sandbox-public', private_ok: false, price: 0.5 })
+    expect(EXECUTOR_TABLE.map((r) => [r.id, r.zdr])).toEqual([['homelab-harness', true], ['host-harness', true], ['qwen', false], ['zcode', false], ['opencode-go', false], ['codex', false], ['cursor', false]])
+    expect(EXECUTOR_TABLE[0]).toEqual({ id: 'homelab-harness', transport: 'harness', model: 'medium-homelab', window: 80000, trust: 'subscription-trusted', private_ok: true, zdr: true, price: 0 })
+    expect(EXECUTOR_TABLE[2]).toEqual({ id: 'qwen', transport: 'sandbox', tool: 'opencode-qwen', trust: 'sandbox-public', private_ok: false, zdr: false, price: 0.5 })
+  })
+  test('zdr is a boolean, true only on a harness row, and absent means false', () => {
+    expect(validRow({ ...EXECUTOR_TABLE[0], zdr: 'yes' })).toBeUndefined()
+    expect(validRow({ ...EXECUTOR_TABLE[0], zdr: null })).toBeUndefined()
+    expect(validRow({ ...EXECUTOR_TABLE[2], zdr: true })).toBeUndefined()
+    expect(validRow({ ...EXECUTOR_TABLE[5], zdr: true })).toBeUndefined()
+    expect(validRow({ ...EXECUTOR_TABLE[0], zdr: true })?.zdr).toBe(true)
+    expect(validRow({ ...EXECUTOR_TABLE[0], zdr: false })?.zdr).toBe(false)
+    expect(validRow({ ...EXECUTOR_TABLE[0], zdr: undefined })?.zdr).toBe(false)
+    const { zdr, ...absent } = EXECUTOR_TABLE[2]
+    expect(zdr).toBe(false)
+    expect(validRow(absent)?.zdr).toBe(false)
   })
   test('validation: only subscription-trusted rows may take private work; ids and promotions are strict', () => {
     expect(validRow({ ...EXECUTOR_TABLE[2], private_ok: true })).toBeUndefined()
@@ -2063,7 +2126,7 @@ describe('executor table', () => {
   // The last rung stops only when every other eligible row is exhausted, failed, expired or not installed.
   for (const [name, options, task] of [
     ['codex exhausted, sandboxes missing', { quota: 1, zcodeAvailable: false }, coding],
-    ['codex failing, sandboxes disabled', { codexExit: 7, env: { AGENT_ROUTE_ZCODE_TOOLS: 'none' } }, coding],
+    ['codex failing, sandboxes disabled', { codexExit: 7, env: { ...gateways, AGENT_ROUTE_ZCODE_TOOLS: 'none' } }, coding],
     ['private, codex exhausted', { quota: 1, repository: { visibility: 'private', private: true } }, coding],
     ['non-code, codex failing', { answer: '' }, { description: '[class: standard]', prompt: 'Implement the change.' }],
   ] as const) {
@@ -2132,11 +2195,13 @@ describe('harness executor', () => {
     expect(w.calls.filter((c) => c.argv[0] === 'claude')).toHaveLength(firstCount + 2)
     expect(routeEvents(w).at(-1)).toMatchObject({ skipped: { 'homelab-harness': 'failed', 'host-harness': 'failed' } })
   })
-  test('without a router base URL the harness rows are skipped as not_installed and no child runs', async () => {
-    const w = world({})
-    expect(text(await w.agent())).toContain('[routed: codex luna xhigh')
+  test('without a router base URL the harness rows are skipped as not_installed, no child runs, and routing stops fail-closed', async () => {
+    // No router URL means no verdict: the brief is not cleared, so Codex is never tried and the terminal rung never runs.
+    const w = world({ env: {} })
+    expect(text(await w.agent())).toContain('brief not cleared by the sensitivity role (unknown) and no zero-retention executor answered')
     expect(w.calls.filter((c) => c.argv[0] === 'claude')).toHaveLength(0)
-    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'codex', skipped: { 'homelab-harness': 'not_installed', 'host-harness': 'not_installed' } })
+    expect(runs(w)).toEqual([])
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'stopped', skipped: { 'homelab-harness': 'not_installed', 'host-harness': 'not_installed' } })
   })
   test('a harness run that fails 30 s or more after it started skips the remaining harness row', async () => {
     const w = world({ env: gateways, harnessExit: 7, harnessElapsedMs: 30_000 })
@@ -2291,14 +2356,14 @@ describe('paid rows and router-chat', () => {
     const r = await w.agent(textTask)
     expect(text(r)).toContain('router answer')
     expect(text(r)).toContain('[routed: router-chat local-only]')
-    const sent = w.fetches.filter((f) => f.url === 'http://localhost:8000/v1/chat/completions' && !classifierCalls(w).includes(f) && !labelClassifyCalls(w).includes(f)).map((f) => JSON.parse(f.body!).model)
+    const sent = w.fetches.filter((f) => f.url === 'http://localhost:8000/v1/chat/completions' && !classifierCalls(w).includes(f) && !labelClassifyCalls(w).includes(f) && !sensitivityCalls(w).includes(f)).map((f) => JSON.parse(f.body!).model)
     expect(sent).toEqual(['small', 'local-only'])
     expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'chat-flat', fell_through_from: ['local small', 'homelab-harness', 'host-harness'] })
   })
   test('a router-chat row never re-sends the prompt to the alias the local rung just failed', async () => {
     const w = world({ quota: 1, env: localDown, gatewayStatus: noLocal, files: { [OVERRIDE]: JSON.stringify([{ ...flat, model: 'small' }]) } })
     await w.agent(textTask)
-    const sent = w.fetches.filter((f) => f.url === 'http://localhost:8000/v1/chat/completions' && !classifierCalls(w).includes(f) && !labelClassifyCalls(w).includes(f)).map((f) => JSON.parse(f.body!).model)
+    const sent = w.fetches.filter((f) => f.url === 'http://localhost:8000/v1/chat/completions' && !classifierCalls(w).includes(f) && !labelClassifyCalls(w).includes(f) && !sensitivityCalls(w).includes(f)).map((f) => JSON.parse(f.body!).model)
     expect(sent).toEqual(['small'])
     expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'haiku', reason: 'terminal rung', skipped: { 'chat-flat': 'failed' } })
   })
@@ -2306,8 +2371,9 @@ describe('paid rows and router-chat', () => {
     const big = { description: '[class: text]', prompt: `Summarize this supplied text: ${'word '.repeat(60_000)}` }
     const w = world({ quota: 1, env: localDown, files: { [OVERRIDE]: JSON.stringify([flat]) } })
     await w.agent(big)
-    expect(w.fetches.some((f) => f.url.endsWith('/chat/completions') && !classifierCalls(w).includes(f) && !labelClassifyCalls(w).includes(f))).toBe(false)
-    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'haiku', reason: 'terminal rung', skipped: { 'chat-flat': 'ineligible' } })
+    expect(w.fetches.some((f) => f.url.endsWith('/chat/completions') && !classifierCalls(w).includes(f) && !labelClassifyCalls(w).includes(f) && !sensitivityCalls(w).includes(f))).toBe(false)
+    // The prompt is past the sensitivity chunk cap, so after the size gate skips the row the route stops fail-closed.
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'stopped', skipped: { 'chat-flat': 'ineligible' }, sensitivity: { failure: 'brief too long' } })
   })
   for (const [name, task] of [
     ['[task: code]', { ...coding, description: `${coding.description} [class: text]` }],
@@ -2604,5 +2670,95 @@ describe('route telemetry content and bounds', () => {
     expect(event.fell_through_from).toContain('qwen')
     expect(event.chosen).not.toBe('stopped')
     expect(event.reason).not.toBe('qwen dispatch failed before the job was accepted')
+  })
+})
+
+// The stop text when the sensitivity role does not clear a brief and no zero-retention row answers.
+const notCleared = (verdict: string) => `brief not cleared by the sensitivity role (${verdict}) and no zero-retention executor answered`
+
+describe('sensitivity verdict', () => {
+  // Anything but a clear verdict routes only to zero-retention rows. Codex and every sandbox stay out, even with quota to spare.
+  for (const [name, options, failure] of [
+    ['HTTP 500', { gatewayStatus: { sensitivity: 500 } }, 'non-OK status'],
+    ['timeout', { gatewayTimeoutModels: ['sensitivity'] }, 'timeout'],
+    ['maybe', { gatewayAnswer: { sensitivity: 'maybe' } }, 'no verdict in reply'],
+    ['empty reply', { gatewayAnswer: { sensitivity: '' } }, 'no verdict in reply'],
+  ] as const) {
+    test(`a sensitivity ${name} ends fail-closed: only zero-retention rows are tried, and no sandbox or Codex runs`, async () => {
+      const w = world({ quota: 0, env: gateways, ...options })
+      expect(text(await w.agent(coding))).toContain(notCleared('unknown'))
+      expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
+      expect(runs(w)).toEqual([])
+      expect(w.fetches.some((f) => f.url.startsWith('https://api.github.com/'))).toBe(false)
+      expect(w.nextCalls).toEqual([])
+      expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'stopped', eligible: ['homelab-harness', 'host-harness'], fell_through_from: ['homelab-harness', 'host-harness'], sensitivity: { verdict: 'unknown', model: 'sensitivity', failure } })
+    })
+  }
+  test('a zero-retention row that answers takes a brief the role could not clear, and Codex and the sandboxes still never run', async () => {
+    const w = world({ quota: 0, env: gateways, gatewayStatus: { sensitivity: 500 }, harnessAnswer: 'zero-retention answer' })
+    expect(text(await w.agent(coding))).toContain('[routed: harness medium-homelab]')
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'homelab-harness', sensitivity: { verdict: 'unknown' } })
+    expect(runs(w)).toEqual([])
+    expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
+  })
+  test('every sensitivity request names the role at temperature 0 with the output cap, and no other request uses the role', async () => {
+    for (const options of [{}, { gatewayAnswer: { sensitivity: 'sensitive' } }, { gatewayStatus: { sensitivity: 500 } }]) {
+      const w = world({ quota: 0, env: gateways, ...options })
+      await w.agent(coding)
+      const judged = w.fetches.filter((f) => f.body !== undefined && JSON.parse(f.body).messages?.[0]?.content === SENSITIVITY_PROMPT)
+      expect(judged).toHaveLength(1)
+      expect(sensitivityCalls(w)).toEqual(judged)
+      const body = JSON.parse(judged[0].body!)
+      expect(body).toMatchObject({ model: 'sensitivity', max_tokens: SENSITIVITY_OUTPUT_TOKENS, temperature: 0, chat_template_kwargs: { enable_thinking: false } })
+      expect(body.messages).toEqual([{ role: 'system', content: SENSITIVITY_PROMPT }, { role: 'user', content: `${coding.description}\n${coding.prompt}` }])
+    }
+  })
+  test('the route line carries the verdict, the role and the latency, and never the brief text', async () => {
+    const phrase = 'Harbor-Lantern-Ledger-7319'
+    const brief = { ...coding, prompt: `Implement the ${phrase} change.` }
+    const cleared = world({ quota: 0, env: gateways, sensitivityElapsedMs: 42 })
+    await cleared.agent(brief)
+    expect(routeEvents(cleared).at(-1).sensitivity).toEqual({ verdict: 'clear', model: 'sensitivity', latency_ms: 42 })
+    const withheld = world({ quota: 0, env: gateways, sensitivityElapsedMs: 42, gatewayAnswer: { sensitivity: 'sensitive' } })
+    await withheld.agent(brief)
+    expect(routeEvents(withheld).at(-1).sensitivity).toEqual({ verdict: 'sensitive', model: 'sensitivity', latency_ms: 42 })
+    for (const w of [cleared, withheld]) {
+      const line = w.writes.find((s) => s.includes('"event":"route"'))!
+      expect(line).toBeDefined()
+      expect(line).not.toContain(phrase)
+      expect(w.writes.join('')).not.toContain(phrase)
+    }
+  })
+  test('a long brief is judged in full, chunk by chunk, and stops at the first chunk not cleared', async () => {
+    const long = { ...coding, prompt: 'x'.repeat(40_000) }
+    const full = `${long.description}\n${long.prompt}`
+    const cleared = world({ quota: 0, env: gateways })
+    await cleared.agent(long)
+    const chunks = sensitivityCalls(cleared).map((f) => JSON.parse(f.body!).messages[1].content)
+    expect(chunks).toHaveLength(Math.ceil(full.length / 16_000))
+    expect(chunks.join('')).toBe(full)
+    expect(routeEvents(cleared).at(-1).sensitivity).toMatchObject({ verdict: 'clear' })
+    const withheld = world({ quota: 0, env: gateways, gatewayAnswer: { sensitivity: 'sensitive' } })
+    await withheld.agent(long)
+    expect(sensitivityCalls(withheld)).toHaveLength(1)
+    expect(routeEvents(withheld).at(-1).sensitivity).toMatchObject({ verdict: 'sensitive' })
+  })
+  test('a brief past the chunk cap is never cleared and routes fail-closed without a role call', async () => {
+    const w = world({ quota: 0, env: gateways })
+    await w.agent({ ...coding, prompt: 'x'.repeat(64_001) })
+    expect(sensitivityCalls(w)).toEqual([])
+    expect(runs(w)).toEqual([])
+    expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
+    expect(routeEvents(w).at(-1)).toMatchObject({ sensitivity: { verdict: 'unknown', model: 'sensitivity', failure: 'brief too long' } })
+  })
+})
+
+describe('sensitivity verdict parser', () => {
+  test('accepts exactly one word, sensitive or clear, and returns undefined for anything else', () => {
+    expect(parseSensitivity('clear')).toBe('clear')
+    expect(parseSensitivity(' Sensitive.\n')).toBe('sensitive')
+    for (const reply of ['maybe', '', 'not clear', 'clear and sensitive', 'clear\nsensitive', 'sensitive?', undefined, 7]) {
+      expect(parseSensitivity(reply)).toBeUndefined()
+    }
   })
 })
