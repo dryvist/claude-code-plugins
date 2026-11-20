@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """Credential pre-flight hook (PreToolUse: Write, Edit, MultiEdit, Bash).
 
-One process, four rules, no external calls:
+One process, five rules, no external calls:
 
+  credential-in-curl-argv  BLOCK  a shell curl or wget argument carries a
+                                  credential (inline header, query token,
+                                  user:password)
   password-literal-assign  WARN   a write assigns a literal password-like value
   public-repo-leakage      BLOCK  a write under /git/public/ names an internal
                                   host, a node name, a private tool or a
@@ -55,6 +58,19 @@ _SECRET_REDIRECT = re.compile(
     _FLAGS,
 )
 
+# A curl or wget call up to the next command boundary, then a credential in its
+# argv: an inline Authorization header, a token query parameter, user:password,
+# or a wget password. Raw-text matching also covers calls inside bash -c strings.
+# @-, @file and @<(...) header forms start with @, so they never match.
+_CURL_ARGV = re.compile(
+    r"(?<![\w-])(?:curl|wget)(?=\s)(?:(?!&&|\|)[^\n;])*?"
+    r"(?:(?:-H|--header)(?:\s+|=)?['\"]?authorization:"
+    r"|[?&](?:access_token|token|api_key)="
+    r"|\s(?:-u|--user)(?:\s+|=)['\"]?[^\s'\"]*:[^\s'\"]"
+    r"|\s--password(?:\s+|=)['\"]?[^\s'\"-])",
+    _FLAGS,
+)
+
 _SECRET_SHAPES = re.compile(
     r"AKIA(?!IOSFODNN7EXAMPLE)[0-9A-Z]{16}"
     r"|gh[pousr]_[A-Za-z0-9]{20,}"
@@ -89,6 +105,13 @@ _BLOCK_SHAPES = (
     "Read the secret into a shell variable in the command that consumes it. For "
     "documentation, use the official placeholder forms."
 )
+_BLOCK_CURL_ARGV = (
+    "BLOCKED (credential-in-curl-argv): this curl or wget argument carries a "
+    "credential, so the value would be visible in the process list. Send it on "
+    "stdin instead: `-H @<(printf 'Authorization: Bearer %s\\n' \"$TOKEN\")`, "
+    "`-H @-` with the header on stdin, `--data-binary @-` for bodies, and "
+    "`-K -` (curl config on stdin) for `-u` credentials."
+)
 
 
 def new_text(tool_name: str, tool_input: dict) -> str:
@@ -106,7 +129,10 @@ def new_text(tool_name: str, tool_input: dict) -> str:
 def evaluate(tool_name: str, tool_input: dict) -> tuple[str, str] | None:
     """Return ("block" | "warn", message) or None when the call is clean."""
     if tool_name == "Bash":
-        if _SECRET_REDIRECT.search(str(tool_input.get("command", ""))):
+        command = str(tool_input.get("command", ""))
+        if _CURL_ARGV.search(command):
+            return "block", _BLOCK_CURL_ARGV
+        if _SECRET_REDIRECT.search(command):
             return "block", _BLOCK_REDIRECT
         return None
     text = new_text(tool_name, tool_input)

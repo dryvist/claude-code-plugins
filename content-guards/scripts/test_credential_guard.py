@@ -43,6 +43,27 @@ CASES = [
     ("keychain redirect", "Bash", {"command": "security find-generic-password -s x -w > f"}, "block"),
     ("echo piped", "Bash", {"command": 'echo "$API_TOKEN" | consumer'}, None),
     ("plain echo", "Bash", {"command": "echo hello > out.txt"}, None),
+    ("curl bearer variable", "Bash", {"command": 'curl -H "Authorization: Bearer $TOKEN" https://example.test'}, "block"),
+    ("curl bearer literal", "Bash", {"command": "curl -H 'Authorization: Bearer literal-token' https://example.test"}, "block"),
+    ("curl unquoted authorization", "Bash", {"command": "curl -H Authorization:Bearer-$TOKEN https://example.test"}, "block"),
+    ("wget authorization header", "Bash", {"command": 'wget --header="Authorization: Bearer $TOKEN" https://example.test'}, "block"),
+    ("curl token query literal", "Bash", {"command": "curl 'https://example.test/?token=literal-token'"}, "block"),
+    ("curl access token query variable", "Bash", {"command": 'curl "https://example.test/?access_token=$TOKEN"'}, "block"),
+    ("wget api key query", "Bash", {"command": "wget 'https://example.test/?api_key=literal-key'"}, "block"),
+    ("curl user password variable", "Bash", {"command": 'curl -u "user:$PASSWORD" https://example.test'}, "block"),
+    ("curl user password literal", "Bash", {"command": "curl --user user:literal-password https://example.test"}, "block"),
+    ("wget password variable", "Bash", {"command": "wget --password=$PASSWORD https://example.test"}, "block"),
+    ("wget password literal", "Bash", {"command": "wget --password literal-password https://example.test"}, "block"),
+    ("curl bearer inside bash -c", "Bash", {"command": "runner -- bash -c 'curl -sf -H \"Authorization: Bearer $T\" https://example.test'"}, "block"),
+    ("curl content type and stdin body", "Bash", {"command": 'curl -sf -X POST -H "Content-Type: application/json" --data-binary @- https://example.test/login'}, None),
+    ("curl user without password", "Bash", {"command": "curl -u user: https://example.test"}, None),
+    ("authorization after the curl command", "Bash", {"command": 'curl -fsS https://example.test; printf "Authorization: Bearer %s" x'}, None),
+    ("curl header stdin", "Bash", {"command": "curl -H @- https://example.test"}, None),
+    ("curl process substitution header", "Bash", {"command": 'curl -H @<(printf \'Authorization: Bearer %s\\n\' "$TOKEN") https://example.test'}, None),
+    ("curl header file", "Bash", {"command": "curl -H @/path/file https://example.test"}, None),
+    ("curl body stdin", "Bash", {"command": "curl --data-binary @- https://example.test"}, None),
+    ("curl without credentials", "Bash", {"command": "curl -fsS https://example.test/health"}, None),
+    ("authorization outside curl", "Bash", {"command": 'printf "Authorization: Bearer $TOKEN\\n"'}, None),
     ("read tool ignored", "Read", {"file_path": PUB}, None),
     ("empty write", "Write", {"file_path": PUB, "content": ""}, None),
 ]
@@ -62,6 +83,24 @@ def run() -> int:
 
 def test_cases():
     assert run() == 0
+
+
+def test_curl_argv_block_message():
+    verdict = cg.evaluate(
+        "Bash",
+        {"command": 'curl -H "Authorization: Bearer $TOKEN" https://example.test'},
+    )
+    assert verdict is not None
+    assert verdict[0] == "block"
+    for expected in (
+        "credential-in-curl-argv",
+        "visible in the process list",
+        "-H @<(printf",
+        "-H @-",
+        "--data-binary @-",
+        "-K -",
+    ):
+        assert expected in verdict[1]
 
 
 if __name__ == "__main__":
