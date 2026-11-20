@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.72.1](https://github.com/JacobPEvans-ai/claude-code-plugins/compare/v6.72.0...v6.72.1) (2026-11-20)
+
+
+### Bug Fixes
+
+* **jpe-ai-delegation:** mark background spawn results as data ([#852](https://github.com/JacobPEvans-ai/claude-code-plugins/issues/852)) ([9fed9a0](https://github.com/JacobPEvans-ai/claude-code-plugins/commit/9fed9a0d98471c7055a05a8ff0ef1b20d0cbcb02))
+
 ## [6.72.0](https://github.com/JacobPEvans-ai/claude-code-plugins/compare/v6.71.1...v6.72.0) (2026-11-20)
 
 
