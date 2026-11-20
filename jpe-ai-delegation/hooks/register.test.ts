@@ -2,7 +2,7 @@ import { describe, expect, test } from 'claude-code/testing'
 import type { EngineInterface } from 'claude-code'
 import { endAnchor, jobHistory, jobState, recentFailures } from './lib/policy'
 import { register } from './register'
-import { CODEX, CLASSIFIER, CODEX_QUOTA_THRESHOLD, EXECUTOR_TABLE, LAST_RESORT, codexArgv, harnessArgv, eligibleRows, mergeExecutorRows, metricsResult, parseCodexQuota, peakMultiplier, QUOTA_SELECTOR, quotaFromMetrics, rankRows, repositoryFromOrigin, validRow, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, localTask, mandatoryLabel, newestModel, parseVerdict, pickLocal, safePayload, scoreWindows, budgetsFromMetrics, forbiddenRowModel, KIND_CLASSIFIER, parseKind } from './lib/policy'
+import { CODEX, CLASSIFIER, CODEX_QUOTA_THRESHOLD, EXECUTOR_TABLE, LAST_RESORT, codexArgv, harnessArgv, eligibleRows, mergeExecutorRows, metricsResult, parseCodexQuota, peakMultiplier, QUOTA_SELECTOR, quotaFromMetrics, rankRows, repositoryFromOrigin, validRow, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, codingTask, localTask, networkTask, mandatoryLabel, newestModel, parseVerdict, pickLocal, safePayload, scoreWindows, budgetsFromMetrics, forbiddenRowModel, KIND_CLASSIFIER, parseKind } from './lib/policy'
 import { customAgentSandbox, parseAgentDefinition } from './lib/agent-definition'
 import { RECORDED_QUOTA } from './fixtures/quota-instant-query'
 
@@ -282,7 +282,14 @@ describe('policy', () => {
   })
   test('labels, advisory classes and verdict parsing remain strict', () => {
     expect(explicitLabel('[class: bulk-complex]')).toBe('bulk-complex')
+    expect(explicitLabel(undefined, '[class: plan]')).toBe('plan')
+    expect(explicitLabel('[class: complex]', '[class: plan]')).toBe('complex')
     expect(explicitLabel('[class: public]')).toBeUndefined()
+    expect(localTask('[class: text]', '[class: code]')).toBe(true)
+    expect(codingTask('[task: ignored]', '[task: code]')).toBe(false)
+    expect(codingTask(undefined, '[class: code]')).toBe(true)
+    expect(networkTask(undefined, '[needs: network]')).toBe(true)
+    expect(networkTask('[needs: none]', '[needs: network]')).toBe(false)
     expect(isAdvisory('plan')).toBe(true)
     expect(isAdvisory('deep')).toBe(true)
     expect(isAdvisory('complex')).toBe(false)
@@ -303,10 +310,10 @@ describe('policy', () => {
     expect(EXECUTOR_TABLE[0].transport).toBe('harness')
     expect(EXECUTOR_TABLE[0].private_ok).toBe(true)
     expect(eligibleRows([EXECUTOR_TABLE[0]], false, 0).rows.map((r) => r.id)).toEqual(['homelab-harness'])
-    expect(harnessArgv('read-only', '/workspace')).toEqual(['claude', '-p', '--bare', '--exclude-dynamic-system-prompt-sections', '--no-session-persistence', '--output-format', 'json', '--permission-mode', 'dontAsk', '--tools', 'Bash,Read', '--settings', JSON.stringify({ sandbox: { enabled: true, autoAllowBashIfSandboxed: true, allowUnsandboxedCommands: false, failIfUnavailable: true, filesystem: { denyWrite: ['/workspace'] } } })])
+    expect(harnessArgv('read-only', '/workspace')).toEqual(['claude', '-p', '--max-turns', '30', '--bare', '--exclude-dynamic-system-prompt-sections', '--no-session-persistence', '--output-format', 'json', '--permission-mode', 'dontAsk', '--tools', 'Bash,Read', '--settings', JSON.stringify({ sandbox: { enabled: true, autoAllowBashIfSandboxed: true, allowUnsandboxedCommands: false, failIfUnavailable: true, filesystem: { denyWrite: ['/workspace'] } } })])
     expect(() => harnessArgv('read-only')).toThrow('absolute directory')
     expect(() => harnessArgv('read-only', 'relative/path')).toThrow('absolute directory')
-    expect(harnessArgv('workspace-write')).toEqual(['claude', '-p', '--bare', '--exclude-dynamic-system-prompt-sections', '--no-session-persistence', '--output-format', 'json', '--permission-mode', 'acceptEdits', '--tools', 'Bash,Read,Edit,Write,Grep,Glob', '--settings', JSON.stringify({ sandbox: { enabled: true, autoAllowBashIfSandboxed: true, allowUnsandboxedCommands: false, failIfUnavailable: true } })])
+    expect(harnessArgv('workspace-write')).toEqual(['claude', '-p', '--max-turns', '30', '--bare', '--exclude-dynamic-system-prompt-sections', '--no-session-persistence', '--output-format', 'json', '--permission-mode', 'acceptEdits', '--tools', 'Bash,Read,Edit,Write,Grep,Glob', '--settings', JSON.stringify({ sandbox: { enabled: true, autoAllowBashIfSandboxed: true, allowUnsandboxedCommands: false, failIfUnavailable: true } })])
   })
   test('harness row validation: a good row passes; a missing model and a bad window fail', () => {
     const row = { id: 'host-harness', transport: 'harness', model: 'medium', window: 80000, trust: 'subscription-trusted', private_ok: true, price: 0 }
@@ -941,7 +948,7 @@ describe('capped ladder', () => {
   test('an explicit repository tag wins without running inference', async () => {
     const w = world({ quota: 1, env: gateways, originUrl: 'https://github.com/other-org/other-repo.git',
       pathGitRoots: { '/workspace': '/workspace' }, pathKinds: { '/workspace': 'directory' } })
-    await w.agent({ description: '[task: code] [repo: example-org/example-repo]', prompt: 'Update src/main.ts.' })
+    await w.agent({ description: '[task: code] [repo: example-org/example-repo]', prompt: '[repo: other-org/other-repo] Update src/main.ts.' })
     expect(w.calls.some((c) => c.argv[0] === 'realpath')).toBe(false)
     expect(w.fetches[0].url).toBe('https://api.github.com/repos/example-org/example-repo')
     expect(w.calls.find((c) => c.argv[0] === 'zcode-job')?.argv.slice(0, 5)).toEqual(['zcode-job', 'start', '--tool', 'opencode-qwen', 'example-org/example-repo'])
@@ -1085,6 +1092,14 @@ describe('network work', () => {
     expect(routeEvents(w).at(-1)).toMatchObject({ chosen: LAST_RESORT.model, reason: 'network work' })
     expect(work(w)).toEqual([])
   })
+  test('a prompt-head [needs: network] tag runs on the in-session last rung', async () => {
+    const spawn = { description: 'review request', prompt: '[needs: network] Merge the green PRs.' }
+    const w = world({ env: gateways })
+    await w.agent(spawn)
+    expect(w.nextCalls).toEqual([{ tool: 'Agent', ...terminal(spawn) }])
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: LAST_RESORT.model, reason: 'network work' })
+    expect(work(w)).toEqual([])
+  })
   test('a custom agent declaring egress: network runs in core under its own type', async () => {
     const w = world({ env: gateways, definition: '---\nname: gh-ops\negress: network\ntools:\n  - Bash\n  - Read\n---\nOperate GitHub.' })
     const spawn = { subagent_type: 'gh-ops', description: '[class: standard]', prompt: 'Merge the green PRs.' }
@@ -1157,6 +1172,22 @@ describe('untagged kind classification', () => {
     expect(sent.chat_template_kwargs).toEqual({ enable_thinking: false })
     expect(sent.messages[0].content).toContain('quick favor')
     expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'local small', kind: { value: 'text', source: 'classifier' } })
+  })
+
+  test('a prompt-head [class: text] tag runs local first without kind classification', async () => {
+    const w = world({ quota: 1, env: gateways, gatewayAnswer: { small: 'text' } })
+    await w.agent({ description: 'quick favor', prompt: '[class: text] Summarize this supplied text.' })
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'local small', kind: { value: 'text', source: 'tag' } })
+    expect(classifierCalls(w)).toEqual([])
+  })
+
+  test('prompt-head code and repository tags beat a classifier text result', async () => {
+    const w = world({ quota: 1, env: gateways, gatewayAnswer: { small: 'text' } })
+    await w.agent({ description: 'Update the project', prompt: '[class: code] [task: code] [repo: example-org/example-repo] Update src/main.ts.' })
+    expect(classifierCalls(w)).toEqual([])
+    expect(w.fetches).toContainEqual({ url: 'https://api.github.com/repos/example-org/example-repo', body: undefined })
+    expect(w.calls.find((c) => c.argv[0] === 'zcode-job')?.argv.slice(0, 5)).toEqual(['zcode-job', 'start', '--tool', 'opencode-qwen', 'example-org/example-repo'])
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'qwen', kind: { value: 'code', source: 'tag' } })
   })
 
   test('a code reply makes an inferred public repository eligible for the sandbox rows', async () => {
@@ -2056,6 +2087,22 @@ describe('harness executor', () => {
     expect(claude).toHaveLength(2)
     expect(claude[1].env?.ANTHROPIC_MODEL).toBe('medium')
     expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'codex', skipped: { 'homelab-harness': 'failed', 'host-harness': 'failed' } })
+  })
+  test('failed harness rows cool down for ten minutes and become eligible again after expiry', async () => {
+    const w = world({ env: gateways, harnessExit: 1 })
+    await w.agent()
+    expect(routeEvents(w).at(-1)).toMatchObject({ skipped: { 'homelab-harness': 'failed', 'host-harness': 'failed' } })
+    const firstCount = w.calls.filter((c) => c.argv[0] === 'claude').length
+
+    w.setNow(1_599_999)
+    await w.agent()
+    expect(w.calls.filter((c) => c.argv[0] === 'claude')).toHaveLength(firstCount)
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'codex', skipped: { 'homelab-harness': 'recent_failures', 'host-harness': 'recent_failures' } })
+
+    w.setNow(1_600_001)
+    await w.agent()
+    expect(w.calls.filter((c) => c.argv[0] === 'claude')).toHaveLength(firstCount + 2)
+    expect(routeEvents(w).at(-1)).toMatchObject({ skipped: { 'homelab-harness': 'failed', 'host-harness': 'failed' } })
   })
   test('without a router base URL the harness rows are skipped as not_installed and no child runs', async () => {
     const w = world({})
