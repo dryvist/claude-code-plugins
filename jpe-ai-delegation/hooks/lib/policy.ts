@@ -69,8 +69,22 @@ export const forbiddenModel = (model: string | undefined): boolean => /(?:^|[-/\
 // non-alphanumeric are removed. Over-blocking an odd router name is the safe direction; agent type names keep forbiddenModel.
 export const forbiddenRowModel = (model: string | undefined): boolean => /sonnet|opus|fable/.test((model ?? '').toLowerCase().replace(/[^a-z0-9]/g, ''))
 
+export const LOCAL_DEFAULT_ROLE = 'local-default'
+// A key assignment whose value is a reference, not a credential: a workflow permission level, an environment
+// variable, a placeholder, or a digit-free path such as a secret-store location.
+const SENSITIVE_ASSIGNMENT = /\b(?:password|passwd|token|api[_-]?key|secret[_-]?key)["']?\s*[:=]\s*(\S+)/gi
+const assignmentReference = (raw: string): boolean => {
+  const value = raw.replace(/^[`"']+|[`"',.;)]+$/g, '')
+  return /^(?:read|write|none)$/.test(value) || /^\$(?:[A-Za-z_]\w*|\{[^}]+\})$/.test(value) || /^<[^>]+>$/.test(value) ||
+    (value.includes('/') && /^[A-Za-z_./~#-]+$/.test(value))
+}
+const hasSensitiveAssignment = (text: string): boolean => [...text.matchAll(SENSITIVE_ASSIGNMENT)].some((m) => !assignmentReference(m[1]))
+
 // Local screening happens before any classifier or executor receives the payload.
-export const safePayload = (text: string): boolean => !/(-----BEGIN (?:[A-Z]+ )?PRIVATE KEY-----|\b(?:gh[pousr]_|github_pat_|xox[baprs]-|sk-(?:proj-|ant-)?)[A-Za-z0-9_-]{12,}|\bAKIA[A-Z0-9]{16}\b|\b(?:password|passwd|token|api[_-]?key|secret[_-]?key)["']?\s*[:=]\s*\S+|\bauthorization\s*:\s*bearer\s+\S+|\[content:\s*(?:secrets|credentials|inventory|incident)\]|\b(?:ansible_host|ansible_password)\s*:|\b(?:incident|outage)\s+(?:timeline|report)\s*:)/i.test(text)
+export const safePayload = (text: string): boolean => {
+  if (/(-----BEGIN (?:[A-Z]+ )?PRIVATE KEY-----|\b(?:gh[pousr]_|github_pat_|xox[baprs]-|sk-(?:proj-|ant-)?)[A-Za-z0-9_-]{12,}|\bAKIA[A-Z0-9]{16}\b|\bauthorization\s*:\s*bearer\s+\S+|\[content:\s*(?:secrets|credentials|inventory|incident)\]|\b(?:ansible_host|ansible_password)\s*:|\b(?:incident|outage)\s+(?:timeline|report)\s*:)/i.test(text)) return false
+  return !hasSensitiveAssignment(text)
+}
 export const codingTask = (description: string | undefined): boolean => /\[task: code\]/.test(description ?? '')
 // Work that needs network or GitHub writes: no executor sandbox has that egress or may hold its credentials.
 export const networkTask = (description: string | undefined): boolean => /\[needs: network\]/.test(description ?? '')
@@ -341,8 +355,9 @@ export const LOCAL_OUTPUT_TOKENS = 2048
 // Only work the lead marks as self-contained text; a chat-only model cannot read files or run tools.
 export const localTask = (description: string | undefined): boolean => /\[class: text\]/.test(description ?? '')
 export const estimateTokens = (prompt: string): number => Math.ceil(prompt.length / 3.5) + LOCAL_OUTPUT_TOKENS
-// First alias whose context window holds the estimate with 40% headroom.
-export function pickLocal(estimate: number, windows: Record<string, number | undefined>): (typeof LOCAL_ALIASES)[number] | undefined {
+// The declared local-default role when its window holds the estimate with 40% headroom; else the first such alias.
+export function pickLocal(estimate: number, windows: Record<string, number | undefined>): { alias: string; timeoutMs: number } | undefined {
+  if ((windows[LOCAL_DEFAULT_ROLE] ?? 0) * 0.6 >= estimate) return { alias: LOCAL_DEFAULT_ROLE, timeoutMs: LOCAL_ALIASES[0].timeoutMs }
   return LOCAL_ALIASES.find((l) => (windows[l.alias] ?? 0) * 0.6 >= estimate)
 }
 
