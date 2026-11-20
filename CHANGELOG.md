@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.73.2](https://github.com/JacobPEvans-ai/claude-code-plugins/compare/v6.73.1...v6.73.2) (2026-11-20)
+
+
+### Bug Fixes
+
+* **jpe-ai-delegation:** keep code briefs off the harness rungs ([#866](https://github.com/JacobPEvans-ai/claude-code-plugins/issues/866)) ([c9d2369](https://github.com/JacobPEvans-ai/claude-code-plugins/commit/c9d23690d7c6dec0b70eaa6edaa37c4802746359))
+
 ## [6.73.1](https://github.com/JacobPEvans-ai/claude-code-plugins/compare/v6.73.0...v6.73.1) (2026-11-20)
 
 
