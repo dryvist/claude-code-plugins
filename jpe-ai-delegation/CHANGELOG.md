@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.28.4](https://github.com/JacobPEvans-ai/claude-code-plugins/compare/jpe-ai-delegation-v1.28.3...jpe-ai-delegation-v1.28.4) (2026-11-20)
+
+
+### Bug Fixes
+
+* **jpe-ai-delegation:** keep code-tagged spawns off the local rung ([#859](https://github.com/JacobPEvans-ai/claude-code-plugins/issues/859)) ([ee0a4a5](https://github.com/JacobPEvans-ai/claude-code-plugins/commit/ee0a4a5ec99c200d38f9308c8b63ff62d4bbd217))
+
 ## [1.28.3](https://github.com/JacobPEvans-ai/claude-code-plugins/compare/jpe-ai-delegation-v1.28.2...jpe-ai-delegation-v1.28.3) (2026-11-20)
 
 
