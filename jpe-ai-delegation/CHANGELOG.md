@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.28.1](https://github.com/JacobPEvans-ai/claude-code-plugins/compare/jpe-ai-delegation-v1.28.0...jpe-ai-delegation-v1.28.1) (2026-11-20)
+
+
+### Bug Fixes
+
+* **jpe-ai-delegation:** mark background spawn results as data ([#852](https://github.com/JacobPEvans-ai/claude-code-plugins/issues/852)) ([9fed9a0](https://github.com/JacobPEvans-ai/claude-code-plugins/commit/9fed9a0d98471c7055a05a8ff0ef1b20d0cbcb02))
+
 ## [1.28.0](https://github.com/JacobPEvans-ai/claude-code-plugins/compare/jpe-ai-delegation-v1.27.1...jpe-ai-delegation-v1.28.0) (2026-11-20)
 
 
