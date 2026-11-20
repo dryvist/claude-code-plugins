@@ -723,7 +723,8 @@ async function jobOutcomes($: Engine, nowMs: number): Promise<JobOutcome[]> {
 // No result only before dispatch (zcode-job not installed); after dispatch it returns the PR or a FAIL result. `accepted`
 // is true once the dispatcher's answer names a job, so a FAIL without it means receipt is unverified.
 // `unconfirmed` is true when the dispatch call threw or timed out, so whether the job was submitted is unknown.
-type SandboxRun = { result?: unknown; record?: JobRecord; state?: JobState; accepted: boolean; unconfirmed?: boolean }
+// `refused` is true when the dispatcher answered in full and named no job: nothing was submitted, so the next rung runs.
+type SandboxRun = { result?: unknown; record?: JobRecord; state?: JobState; accepted: boolean; unconfirmed?: boolean; refused?: boolean }
 // A result with a `cancelled` state stops routing. Other ended states without a PR let the task move to the next executor.
 async function runSandboxExecutor($: Engine, e: AgentCall, repo: string, tool: string, executor: string): Promise<SandboxRun> {
   const started = await clockNow($)
@@ -746,6 +747,7 @@ async function runSandboxExecutor($: Engine, e: AgentCall, repo: string, tool: s
     const line = response.stdout.replace(/\r?\n$/, '')
     const job = response.isStdoutTruncated === true ? undefined : line.match(/^(?:DONE|FAIL)\|(j-[0-9a-f]{16})\|/)?.[1]
     accepted = Boolean(job)
+    if (!job && response.isStdoutTruncated !== true) return { accepted, refused: true }
     if (job) record = { job, repo, executor, started_ms: started ?? 0 }
     const done = line.match(/^DONE\|(j-[0-9a-f]{16})\|(https:\/\/github\.com\/([A-Za-z0-9-]+\/[A-Za-z0-9._-]+)\/pull\/(\d+))$/)
     const pullUrl = done?.[2]
@@ -814,11 +816,27 @@ type RouteEvent = {
 }
 
 // One JSON telemetry line per routing decision. It never throws, so a failed write cannot change the decision.
+// The loaded hook's manifest version, read once per plugin root, so a route line traces to the session that wrote it.
+const hookVersions = new Map<string, Promise<string | null>>()
+function hookVersion($: Engine): Promise<string | null> {
+  const root = $.plugin.root
+  if (!root) return Promise.resolve(null)
+  let read = hookVersions.get(root)
+  if (!read) {
+    read = Promise.resolve($.fs.read(`${root}/.claude-plugin/plugin.json`))
+      .then((text) => (JSON.parse(text as string) as { version?: unknown }).version)
+      .then((version) => (typeof version === 'string' ? version : null), () => null)
+    hookVersions.set(root, read)
+  }
+  return read
+}
+
 async function logRoute($: Engine, event: RouteEvent, chosen: string, reason: string): Promise<void> {
   try {
     // A clock that does not answer in time leaves ts_ms null rather than dropping the line.
     const ts_ms = await clockNow($)
-    await logDecision($, JSON.stringify({ ts_ms, event: 'route', ...event, chosen, reason }))
+    const hook_version = await hookVersion($)
+    await logDecision($, JSON.stringify({ ts_ms, hook_version, event: 'route', ...event, chosen, reason }))
   } catch {
     // The log is advisory.
   }
@@ -1018,7 +1036,7 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
       const run = await runSandboxExecutor($, e, repo, row.tool!, executor)
       if (run.record) event.jobs.push(run.record)
       if (run.record && run.state) await logOutcomes($, [{ record: run.record, state: run.state }])
-      if (!run.result) skipped[executor] = run.state ? 'failed' : 'not_installed'
+      if (!run.result) skipped[executor] = run.state || run.refused ? 'failed' : 'not_installed'
       cancelled = run.state?.end === 'cancelled'
       result = run.result
       unconfirmed = Boolean(result) && run.unconfirmed === true
