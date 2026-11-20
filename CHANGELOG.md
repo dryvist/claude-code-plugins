@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.72.3](https://github.com/JacobPEvans-ai/claude-code-plugins/compare/v6.72.2...v6.72.3) (2026-11-20)
+
+
+### Bug Fixes
+
+* **jpe-ai-delegation:** route agent types without a file natively and prefer the local-default role ([#857](https://github.com/JacobPEvans-ai/claude-code-plugins/issues/857)) ([049f0fe](https://github.com/JacobPEvans-ai/claude-code-plugins/commit/049f0febab4cc5375983f0994d9540e71db8d054))
+
 ## [6.72.2](https://github.com/JacobPEvans-ai/claude-code-plugins/compare/v6.72.1...v6.72.2) (2026-11-20)
 
 
