@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.73.3](https://github.com/JacobPEvans-ai/claude-code-plugins/compare/v6.73.2...v6.73.3) (2026-11-20)
+
+
+### Bug Fixes
+
+* **jpe-ai-delegation:** gate public sandbox eligibility on credential words only ([#868](https://github.com/JacobPEvans-ai/claude-code-plugins/issues/868)) ([8700f36](https://github.com/JacobPEvans-ai/claude-code-plugins/commit/8700f364a5af078b5327c88de20f34fc79240d5d))
+
 ## [6.73.2](https://github.com/JacobPEvans-ai/claude-code-plugins/compare/v6.73.1...v6.73.2) (2026-11-20)
 
 
