@@ -20,7 +20,7 @@ type World = {
   quota?: number; codexStderr?: string; codexWindows?: unknown[]; cursorWindows?: unknown[]; now?: number; gatewayFinish?: string; quotaThrows?: boolean; cache?: boolean; codexExit?: number; answer?: string; label?: string
   codexQuota?: 'absent' | 'hangs' | 'refused' | string
   env?: Record<string, string>; definition?: string; files?: Record<string, string>; fsThrows?: boolean; worktreeExit?: number; temporaryExit?: number
-  harnessAnswer?: string; harnessStdout?: string; harnessExit?: number; harnessElapsedMs?: number; childHangs?: boolean
+  harnessAnswer?: string; harnessStdout?: string; harnessExit?: number; harnessElapsedMs?: number; spawnDeny?: boolean; childHangs?: boolean
   repository?: unknown; properties?: unknown; githubPrivateAuth?: boolean; githubAuthDenied?: boolean; pr?: unknown; githubError?: boolean; githubInvalidJson?: boolean
   originUrl?: string; pathRealpaths?: Record<string, string>; pathGitRoots?: Record<string, string>; unresolvedPaths?: string[]; pathKinds?: Record<string, 'file' | 'directory'>
   zcodeExit?: number; zcodeOutput?: string; zcodeAvailable?: boolean; zcodeThrows?: boolean; zcodeTruncated?: boolean
@@ -54,6 +54,8 @@ function world(w: World = {}) {
   const fsStats: { path: string; resolve?: boolean }[] = []
   const modelCalls: unknown[] = []
   const nextCalls: any[] = []
+  const agentSpawns: any[] = []
+  const submitted: string[] = []
   const spawned: string[][] = []
   const killed: string[][] = []
   const logs: string[] = []
@@ -191,6 +193,8 @@ function world(w: World = {}) {
       return { ok: status === 200, text: w.gatewayInvalidJson ? '{' : JSON.stringify({ choices: [{ finish_reason: w.gatewayFinish ?? 'stop', message: { content: w.gatewayAnswer?.[body.model] ?? 'gateway result' } }] }) }
     } },
     model: { complete: async (input: unknown) => { modelCalls.push(input); return { isAnswered: true, text: w.answer ?? '' } } },
+    agent: { spawn: async (args: unknown) => { agentSpawns.push(args); return w.spawnDeny ? { deny: 'refused' } : { model: 'haiku', agentId: 'agent-1' } } },
+    prompt: { submit: async (input: { text: string }) => { submitted.push(input.text); return {} } },
     store: {
       get: async (key: string) => storeMap.get(key),
       set: async (key: string, value: unknown) => { storeMap.set(key, value) },
@@ -217,7 +221,7 @@ function world(w: World = {}) {
       return handler.caught($, e, next)
     }
   }
-  return { spawned, killed, calls, writes, storeMap, fetches, quotaFetches, quotaHeaders, allFetches, fsTouches, fsReads, fsStats, modelCalls, nextCalls, logs, invoke, setNow: (ms: number) => { clockNow = ms },
+  return { agentSpawns, submitted, spawned, killed, calls, writes, storeMap, fetches, quotaFetches, quotaHeaders, allFetches, fsTouches, fsReads, fsStats, modelCalls, nextCalls, logs, invoke, setNow: (ms: number) => { clockNow = ms },
     agent: (e: Record<string, unknown> = {}) => invoke('tool.call', { tool: 'Agent', description: '[class: standard]', prompt: 'Implement the change.', ...e }),
   }
 }
@@ -952,6 +956,48 @@ describe('capped ladder', () => {
     const again = terminal(call)
     expect(w.fetches.filter((f) => !classifierCalls(w).includes(f) && !labelClassifyCalls(w).includes(f))).toEqual([])
     expect(w.nextCalls).toEqual([{ tool: 'Agent', ...again }])
+  })
+})
+
+describe('background spawns', () => {
+  // The detached route settles over mocked promises alone, so draining the microtask queue completes it.
+  const settle = async () => { for (let i = 0; i < 5000; i++) await Promise.resolve() }
+  test('a background spawn returns at once and its routed result arrives as a submitted prompt', async () => {
+    const w = world({ env: gateways })
+    const r = text(await w.agent({ run_in_background: true }))
+    expect(r).toContain('Started background job bg-')
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'background', reason: 'run_in_background' })
+    await settle()
+    expect(w.submitted).toHaveLength(1)
+    expect(w.submitted[0]).toContain('[routed: codex luna xhigh')
+    expect(w.nextCalls).toEqual([])
+  })
+  test('an exhausted background chain starts the terminal rung through agent.spawn, never core', async () => {
+    const w = world({ quota: 1, zcodeAvailable: false })
+    await w.agent({ run_in_background: true })
+    await settle()
+    expect(w.agentSpawns).toEqual([{ prompt: 'Implement the change.', description: '[class: standard]', subagentType: 'general-purpose', model: LAST_RESORT.model }])
+    expect(w.submitted[0]).toContain('The terminal rung started agent agent-1')
+    expect(w.nextCalls).toEqual([])
+  })
+  test('a refused terminal spawn reports the refusal', async () => {
+    const w = world({ quota: 1, zcodeAvailable: false, spawnDeny: true })
+    await w.agent({ run_in_background: true })
+    await settle()
+    expect(w.submitted[0]).toContain('FAIL | router | the terminal rung was refused: refused')
+  })
+  test('a forbidden model stops at once and starts no background job', async () => {
+    const w = world()
+    expect(text(await w.agent({ run_in_background: true, model: 'opus' }))).toContain('subagents are forbidden')
+    await settle()
+    expect(w.submitted).toEqual([])
+  })
+  test('a native custom agent in the background still passes through to core', async () => {
+    const w = world({ definition: '---\nmodel: haiku\ntools: mcp__tracker__*\n---\nPerform the task.' })
+    await w.agent({ subagent_type: 'tracker-specialist', run_in_background: true })
+    expect(w.nextCalls[0]).toMatchObject({ subagent_type: 'tracker-specialist', run_in_background: true })
+    await settle()
+    expect(w.submitted).toEqual([])
   })
 })
 
