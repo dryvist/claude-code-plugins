@@ -1,5 +1,5 @@
 import type { EngineInterface, Register } from 'claude-code'
-import { CLASSIFIER, CLASSIFIER_ALIAS, CODEX, CODEX_QUOTA_THRESHOLD, JUDGE, JUDGE_ALIAS, JUDGE_OUTPUT_TOKENS, LAST_RESORT, LOCAL_OUTPUT_TOKENS, QUOTA_SELECTOR, EXECUTOR_TABLE, budgetsFromMetrics, codexArgv, harnessArgv, codingTask, credentialBrief, networkTask, eligibleRows, endAnchor, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, isGenericType, isShellCAsk, jobHistory, jobState, recentFailures, localTask, mandatoryLabel, newestModel, mergeExecutorRows, metricsResult, parseCodexQuota, parseVerdict, pickLabel, pickLocal, quotaFromMetrics, rankRows, repositoryFromOrigin, safePayload, scoreWindows, taggedText, KIND_CLASSIFIER, parseKind } from './lib/policy'
+import { CLASSIFIER, CLASSIFIER_ALIAS, CODEX, CODEX_QUOTA_THRESHOLD, JUDGE, JUDGE_ALIAS, JUDGE_OUTPUT_TOKENS, LAST_RESORT, LOCAL_OUTPUT_TOKENS, QUOTA_SELECTOR, EXECUTOR_TABLE, budgetsFromMetrics, codexArgv, harnessArgv, codingTask, networkTask, eligibleRows, endAnchor, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, isGenericType, isShellCAsk, jobHistory, jobState, recentFailures, localTask, newestModel, mergeExecutorRows, metricsResult, parseCodexQuota, parseVerdict, pickLabel, pickLocal, quotaFromMetrics, rankRows, repositoryFromOrigin, safePayload, scoreWindows, taggedText, KIND_CLASSIFIER, parseKind, SENSITIVITY_OUTPUT_TOKENS, SENSITIVITY_PROMPT, SENSITIVITY_ROLE, parseSensitivity } from './lib/policy'
 import type { CodexQuotaRead, Executor, ExecutorRow, JobOutcome, JobRecord, JobState, Label, QuotaReason, QuotaRow, Route, Sandbox, Score, SkipReason, Kind, Verdict } from './lib/policy'
 import { customAgentSandbox, parseAgentDefinition } from './lib/agent-definition'
 import type { AgentDefinition } from './lib/agent-definition'
@@ -9,6 +9,10 @@ type AgentCall = { description?: string; prompt: string; subagent_type?: string;
 const TEXT_EXECUTOR_TIMEOUT_MS = 120_000
 const KIND_TIMEOUT_MS = 20_000
 const KIND_OUTPUT_TOKENS = 16
+const SENSITIVITY_TIMEOUT_MS = 20_000
+// shortcut: a brief over 4 x 16000 characters is never cleared (fails closed); raise the cap if real briefs hit it.
+const SENSITIVITY_CHUNK_CHARS = 16_000
+const SENSITIVITY_MAX_CHUNKS = 4
 // One-word and one-object utility asks: a model that reasons first spends the output limit before it answers.
 const NO_THINKING = { chat_template_kwargs: { enable_thinking: false } }
 const JUDGE_TIMEOUT_MS = 60_000
@@ -454,11 +458,46 @@ async function classifyKind($: Engine, e: AgentCall): Promise<Kind> {
   }
 }
 
+// One word from the router's sensitivity role about the brief itself. A router error, a timeout or any reply other than
+// `sensitive` or `clear` is `unknown`, which routes exactly as `sensitive`. The brief text is never logged.
+type Sensitivity = { verdict: 'sensitive' | 'clear' | 'unknown'; model: string; latency_ms: number | null; failure?: string }
+async function judgeSensitivity($: Engine, e: AgentCall, base: string | undefined): Promise<Sensitivity> {
+  const started = await clockNow($)
+  let failure = 'no router URL'
+  let verdict: Sensitivity['verdict'] = 'unknown'
+  try {
+    if (!base) throw new Error('router URL unset')
+    // Every character is judged: the brief goes in chunks, and a brief longer than the chunk cap is never cleared.
+    // Known limit: a secret that straddles a chunk boundary is judged in two halves.
+    const brief = `${e.description ?? ''}\n${e.prompt}`
+    failure = 'brief too long'
+    if (brief.length > SENSITIVITY_CHUNK_CHARS * SENSITIVITY_MAX_CHUNKS) throw new Error('too long')
+    for (let at = 0; at < brief.length; at += SENSITIVITY_CHUNK_CHARS) {
+      failure = 'timeout'
+      const response = await withTimeout($, $.http.fetch(`${base}/v1/chat/completions`, {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ model: SENSITIVITY_ROLE, max_tokens: SENSITIVITY_OUTPUT_TOKENS, temperature: 0, ...NO_THINKING, messages: [
+          { role: 'system', content: SENSITIVITY_PROMPT },
+          { role: 'user', content: brief.slice(at, at + SENSITIVITY_CHUNK_CHARS) },
+        ] }),
+      }), SENSITIVITY_TIMEOUT_MS)
+      failure = 'non-OK status'
+      if (!response.ok) throw new Error('HTTP failure')
+      failure = 'no verdict in reply'
+      verdict = parseSensitivity(JSON.parse(response.text)?.choices?.[0]?.message?.content) ?? 'unknown'
+      if (verdict !== 'clear') break
+    }
+  } catch (error) {
+    if (failure === 'timeout' && (error as Error)?.message !== 'timeout') failure = 'unreachable'
+  }
+  const ended = await clockNow($)
+  const latency_ms = started === null || ended === null ? null : ended - started
+  return verdict === 'unknown' ? { verdict, model: SENSITIVITY_ROLE, latency_ms, failure } : { verdict, model: SENSITIVITY_ROLE, latency_ms }
+}
+
 // Classification runs on the on-host small alias, the same chat endpoint classifyKind uses; any failure classifies
 // standard, as it always has.
 async function classify($: Engine, e: AgentCall): Promise<Label> {
-  const mandatory = mandatoryLabel(`${e.description ?? ''}\n${e.prompt}`)
-  if (mandatory) return mandatory
   const named = explicitLabel(e.description, e.prompt)
   if (named) return named
   if (e.subagent_type === 'Plan') return 'plan'
@@ -501,7 +540,6 @@ async function runRoutedCodex($: Engine, e: AgentCall, route: string, codexRoute
 async function runCodexRung($: Engine, e: AgentCall, customSandbox: Sandbox | undefined, rungLabel: () => Promise<Label>): Promise<unknown | undefined> {
   const label = await rungLabel()
   const advisory = isAdvisory(label) || isAdvisory(explicitLabel(e.description, e.prompt) ?? label)
-  if (mandatoryLabel(`${e.description ?? ''}\n${e.prompt}`)) e = { ...e, description: `${e.description ?? ''} [class: bulk-complex]` }
   const codexSandbox: Sandbox = advisory || e.subagent_type === 'Explore' || e.subagent_type === 'Plan' || customSandbox === 'read-only' ? 'read-only' : 'workspace-write'
   return runRoutedCodex($, e, label, CODEX[label], codexSandbox, `class ${label}`)
 }
@@ -528,7 +566,6 @@ async function runRoutedHarness($: Engine, e: AgentCall, row: ExecutorRow, sandb
 async function runHarnessRung($: Engine, e: AgentCall, row: ExecutorRow, customSandbox: Sandbox | undefined, rungLabel: () => Promise<Label>): Promise<unknown | undefined> {
   const label = await rungLabel()
   const advisory = isAdvisory(label) || isAdvisory(explicitLabel(e.description, e.prompt) ?? label)
-  if (mandatoryLabel(`${e.description ?? ''}\n${e.prompt}`)) e = { ...e, description: `${e.description ?? ''} [class: bulk-complex]` }
   const sandbox: Sandbox = advisory || e.subagent_type === 'Explore' || e.subagent_type === 'Plan' || customSandbox === 'read-only' ? 'read-only' : 'workspace-write'
   return runRoutedHarness($, e, row, sandbox)
 }
@@ -660,7 +697,7 @@ async function github($: Engine, path: string): Promise<unknown> {
 // coding in a verified public repository; otherwise undefined. `codeTask` is an explicit `[task: code]` tag or a
 // `code` classification. Either way GitHub visibility decides.
 async function publicCodeRepo($: Engine, e: AgentCall, codeTask: boolean): Promise<string | undefined> {
-  if (!codeTask || credentialBrief(`${e.description ?? ''}\n${e.prompt}`)) return undefined
+  if (!codeTask) return undefined
   try {
     const tagged = repositoryTag(e.description, e.prompt)
     const root = tagged ? undefined : await repositoryRoot($, e)
@@ -813,6 +850,8 @@ type RouteEvent = {
   scores: Record<string, { score: number | null; exhausted: boolean; effective: number | null; used: number | null; line: number | null } | null>; fell_through_from: string[]
   skipped: Record<string, SkipReason>; jobs: JobRecord[]
   quota_unknown: Record<string, QuotaReason>; quota_source: Record<string, string>
+  // The sensitivity role's verdict, the model name asked and the call's latency; null before the subscription rungs.
+  sensitivity: Sensitivity | null
 }
 
 // One JSON telemetry line per routing decision. It never throws, so a failed write cannot change the decision.
@@ -848,7 +887,7 @@ const agentType = (e: AgentCall, verified: boolean): string => {
   const type = e.subagent_type ?? 'general-purpose'
   return (verified || isGenericType(e)) && /^[\w:.-]{1,80}$/.test(type) && safePayload(type) ? type : 'unrecognized'
 }
-const newEvent = (e: AgentCall): RouteEvent => ({ agent_type: agentType(e, false), kind: { value: 'other', source: 'none' }, local: null, eligible: [], scores: {}, fell_through_from: [], skipped: {}, jobs: [], quota_unknown: {}, quota_source: {} })
+const newEvent = (e: AgentCall): RouteEvent => ({ agent_type: agentType(e, false), kind: { value: 'other', source: 'none' }, local: null, eligible: [], scores: {}, fell_through_from: [], skipped: {}, jobs: [], quota_unknown: {}, quota_source: {}, sensitivity: null })
 
 // Every exit that stops routing writes its route line too.
 async function stopRoute($: Engine, e: AgentCall, event: RouteEvent, reason: string): Promise<unknown> {
@@ -932,7 +971,7 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
   const genericRung = !definition && !e.isolation && isGenericType(e) && !['Explore', 'Plan'].includes(e.subagent_type ?? '')
   if (codingTask(e.description, e.prompt)) event.kind = { value: 'code', source: 'tag' }
   else if (localTask(e.description, e.prompt)) event.kind = { value: 'text', source: 'tag' }
-  else if (!genericRung || mandatoryLabel(`${e.description ?? ''}\n${e.prompt}`)) event.kind = { value: 'other', source: 'none' }
+  else if (!genericRung) event.kind = { value: 'other', source: 'none' }
   else event.kind = { value: await classifyKind($, e), source: 'classifier' }
 
   // Self-contained text work: the only work the local rung and router-chat rows take.
@@ -954,9 +993,12 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
     }
   }
 
-  // Subscription rungs: eligibility, then usage pace; Haiku always ends the list.
+  // Subscription rungs: eligibility, then usage pace; Haiku ends the list. A brief the sensitivity role does not clear
+  // goes only to zero-retention rows, code included, and stops rather than reach the terminal rung.
+  event.sensitivity = await judgeSensitivity($, e, base)
+  const sensitive = event.sensitivity.verdict !== 'clear'
   const restricted = definition && (definition.tools !== undefined || Boolean(definition.disallowedTools?.length))
-  const repo = restricted ? undefined : await publicCodeRepo($, e, event.kind.value === 'code')
+  const repo = restricted || sensitive ? undefined : await publicCodeRepo($, e, event.kind.value === 'code')
   const table = await loadExecutorTable($)
   // Without a clock reading no promotion is proven unexpired (Infinity expires them all) and no peak applies.
   const now = (await clockNow($)) ?? Number.POSITIVE_INFINITY
@@ -964,8 +1006,11 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
   const quota = await currentQuota($, table)
   const eligible = eligibleRows(table, Boolean(repo), now, quota.budgets)
   const { skipped } = eligible
-  // Harness rows take text and first-pass work only: code briefs run them out of turns.
-  const rows = eligible.rows.filter((r) => r.transport !== 'harness' || event.kind.value !== 'code' || !(skipped[r.id] = 'ineligible'))
+  // Harness rows take text and first-pass work only, since code briefs run them out of turns, unless the brief is not
+  // cleared and they are its only rows.
+  const rows = eligible.rows.filter((r) => sensitive
+    ? r.zdr || !(skipped[r.id] = 'ineligible')
+    : r.transport !== 'harness' || event.kind.value !== 'code' || !(skipped[r.id] = 'ineligible'))
   const { scores } = quota
   const activeRows: ExecutorRow[] = []
   for (const row of rows) {
@@ -978,7 +1023,7 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
   Object.assign(skipped, ranked.skipped)
   // A codex row the native read could not decide is not a candidate, whatever its feed telemetry says.
   for (const [id, why] of Object.entries(quota.nativeSkips)) skipped[id] = why
-  event.eligible = [...rows.map((r) => r.id), LAST_RESORT.model]
+  event.eligible = [...rows.map((r) => r.id), ...(sensitive ? [] : [LAST_RESORT.model])]
   event.skipped = skipped
   for (const r of rows) {
     const s = scores[r.id]
@@ -1058,6 +1103,7 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
     }
     event.fell_through_from.push(executor)
   }
+  if (sensitive) return stopRoute($, e, event, `brief not cleared by the sensitivity role (${event.sensitivity.verdict}) and no zero-retention executor answered`)
   // No executor took the task: the terminal rung runs in core at LAST_RESORT.effort; the agent.spawn hook sets its model.
   await logRoute($, event, LAST_RESORT.model, 'terminal rung')
   return core({ ...original, effort: LAST_RESORT.effort })
@@ -1096,8 +1142,7 @@ async function judge($: Engine, e: { input: unknown }, next: (e: never) => Promi
 
   const command = String((e.input as { command?: unknown })?.command ?? '')
   if (!safePayload(command)) return core
-  const label = mandatoryLabel(command)
-  const ask = `${label ? `[class: ${label}]\n` : ''}${JUDGE}\n\nCommand:\n\`\`\`\n${command}\n\`\`\``
+  const ask = `${JUDGE}\n\nCommand:\n\`\`\`\n${command}\n\`\`\``
   const { verdict, failure } = await judgeVerdict($, ask)
   if (!verdict) {
     await logDecision($, `judge: no verdict (${failure}), dialog left to the person`)
