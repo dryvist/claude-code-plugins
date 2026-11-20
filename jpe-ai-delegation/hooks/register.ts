@@ -862,14 +862,18 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
     } catch {
       return stopRoute($, e, event, 'custom agent model or tool restrictions could not be read')
     }
-    if (!definition) return stopRoute($, e, event, 'custom agent definition could not be verified')
-    event.agent_type = agentType(original, true)
-    if (forbiddenModel(definition.model)) return stopRoute($, e, event, 'Sonnet, Opus and Fable subagents are forbidden')
-    customSandbox = customAgentSandbox(definition)
-    if (definition.prompt) e = { ...e, prompt: `Custom agent instructions:\n${definition.prompt}\n\nTask:\n${e.prompt}` }
+    event.agent_type = agentType(original, definition !== undefined)
+    // No agent file: a built-in or plugin agent, which takes the native path below with its model pinned. A name
+    // that cannot be an agent type still stops.
+    if (!definition && !/^[\w:.-]{1,80}$/.test(e.subagent_type)) return stopRoute($, e, event, 'custom agent definition could not be verified')
+    if (definition) {
+      if (forbiddenModel(definition.model)) return stopRoute($, e, event, 'Sonnet, Opus and Fable subagents are forbidden')
+      customSandbox = customAgentSandbox(definition)
+      if (definition.prompt) e = { ...e, prompt: `Custom agent instructions:\n${definition.prompt}\n\nTask:\n${e.prompt}` }
+    }
   }
   if (!safePayload(`${e.description ?? ''}\n${e.prompt}`)) return stopRoute($, e, event, 'payload contains prohibited content')
-  if (definition && customSandbox === undefined) {
+  if (e.subagent_type && !isGenericType(e) && customSandbox === undefined) {
     // The agent.spawn hook pins the model, so an inherited model never reaches the subagent.
     await logRoute($, event, 'native custom agent', 'custom tool policy')
     return core(original)

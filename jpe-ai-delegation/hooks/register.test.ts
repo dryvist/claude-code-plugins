@@ -30,6 +30,7 @@ type World = {
   quotaFileTypes?: Record<string, 'file' | 'directory' | 'symlink'>
   readThrows?: string; readHangs?: string
   envThrows?: string; clockThrows?: boolean; clockHangs?: boolean; teeThrows?: boolean; teeExit?: number; nextRejects?: boolean
+  localDefaultWindow?: number
 }
 
 // Exercise the registered hooks with all IO captured; no subprocess or HTTP request escapes the fixture.
@@ -183,6 +184,7 @@ function world(w: World = {}) {
       }
       if (url.endsWith('/model/info')) return { ok: true, text: JSON.stringify({ data: [
         { model_name: 'small', model_info: { max_input_tokens: 32768 } },
+        ...(w.localDefaultWindow === undefined ? [] : [{ model_name: 'local-default', model_info: { max_input_tokens: w.localDefaultWindow } }]),
         { model_name: 'local-only', model_info: { max_input_tokens: 131072 } },
         { model_name: 'small-homelab', model_info: { max_input_tokens: 9_999_999 } },
       ] }) }
@@ -724,13 +726,32 @@ describe('model and payload guards', () => {
     expect(text(await w.agent({ subagent_type: 'reviewer' }))).toContain('codex luna xhigh')
     expect(runs(w)[0].stdin).toContain('Follow the review rubric.')
   })
-  test('missing or unreadable custom definitions fail closed', async () => {
-    for (const options of [{}, { fsThrows: true }]) {
-      const w = world(options)
-      expect(text(await w.agent({ subagent_type: 'reviewer' }))).toStartWith('FAIL | router |')
-      expect(w.nextCalls).toEqual([])
-    }
+  test('a missing custom definition uses the native agent path while an unreadable definition fails closed', async () => {
+    const call = { subagent_type: 'reviewer', description: '[class: standard]', prompt: 'Perform the task.' }
+    const missing = world()
+    expect(text(await missing.agent(call))).toBe('haiku result')
+    expect(missing.nextCalls).toEqual([{ tool: 'Agent', ...call }])
+    expect(routeEvents(missing).at(-1)).toMatchObject({ chosen: 'native custom agent', reason: 'custom tool policy' })
+
+    const unreadable = world({ fsThrows: true })
+    expect(text(await unreadable.agent(call))).toStartWith('FAIL | router |')
+    expect(unreadable.nextCalls).toEqual([])
   })
+  for (const [name, subagentType] of [['built-in', 'claude-code-guide'], ['plugin', 'codex:codex-rescue']] as const) {
+    test(`missing ${name} agent definition proceeds on the native path with the model pinned`, async () => {
+      const w = world()
+      const call = { subagent_type: subagentType, description: '[class: standard]', prompt: 'Perform the task.' }
+      expect(text(await w.agent(call))).toBe('haiku result')
+      expect(w.nextCalls).toEqual([{ tool: 'Agent', ...call }])
+      expect(work(w)).toEqual([])
+      expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'native custom agent', reason: 'custom tool policy' })
+
+      const spawn = { tool_use_id: 'toolu_1', prompt: call.prompt, description: call.description, subagentType, parentModel: 'parent-model', background: false, fork: false }
+      const pin = world()
+      await pin.invoke('agent.spawn', spawn)
+      expect(pin.nextCalls).toEqual([{ ...spawn, model: LAST_RESORT.model }])
+    })
+  }
   for (const payload of ['password: sensitive-value', '{"password":"actual-value"}', '{"passwd": "actual-value"}', '{"token":"actual-value"}', '{"api_key":"actual-value"}', '{"secret-key":"actual-value"}', "'password': 'actual-value'", 'Authorization: Bearer example-value', '-----BEGIN PRIVATE KEY-----', 'ansible_host: 192.0.2.1', '[content: incident] details', 'outage timeline: details', 'token=abc123', 'ghp_abcdefghijklmnop']) {
     test(`prohibited payload never reaches any executor: ${payload.split(':')[0]}`, async () => {
       expect(safePayload(payload)).toBe(false)
@@ -743,6 +764,33 @@ describe('model and payload guards', () => {
       }
     })
   }
+  test('workflow permission levels, environment references and placeholders are allowed', () => {
+    for (const payload of [
+      'permissions:\n  id-token: write\n  contents: read',
+      'Grant `id-token: write`.',
+      'api_key: $TOKEN_ENV',
+      'secret-key: ${SECRET_REFERENCE}',
+      'password: <configured-role>',
+    ]) expect(safePayload(payload)).toBe(true)
+    // Built at runtime so the secret scanner does not read a credential-shaped literal.
+    const mixed = ['abc', 'defghijklmnop', 'QRSTUVWX', '123456'].join('')
+    for (const payload of [
+      'token: abc123 and explanatory text',
+      `token: ${mixed}`,
+      'token: /var/run/agent/token-file',
+      'token: secret/data/app/service',
+      'token: service-writer-role',
+      'password: correcthorse',
+      'token=writer',
+    ]) expect(safePayload(payload)).toBe(false)
+  })
+  test('permission levels and environment references in a public coding brief continue to routing', async () => {
+    const w = world({ quota: 1, env: gateways })
+    const prompt = 'Grant `id-token: write` and read api_key: $TOKEN_ENV; the writer role is service-writer-role.'
+    expect(safePayload(prompt)).toBe(true)
+    expect(text(await w.agent({ ...coding, prompt }))).toContain('[routed: Qwen sandbox;')
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'qwen', kind: { value: 'code', source: 'tag' } })
+  })
   for (const model of ['haiku', 'sonnet', undefined]) {
     test(`installed plugin agent ${model} definition is loaded and screened`, async () => {
       const w = world({ files: {
@@ -758,21 +806,29 @@ describe('model and payload guards', () => {
       expect(w.nextCalls).toEqual([])
     })
   }
-  for (const options of [
-    { registry: '{', definition: true },
-    { registry: JSON.stringify({ version: 2, plugins: {} }), definition: true },
-    { registry: JSON.stringify({ version: 2, plugins: { 'codeql-resolver@marketplace': [{ scope: 'user', installPath: '/plugins/codeql-resolver' }] } }), definition: false },
-    { registry: JSON.stringify({ version: 2, plugins: { 'codeql-resolver@marketplace': [{ scope: 'project', projectPath: '/other-project', installPath: '/plugins/codeql-resolver' }] } }), definition: true },
-  ]) {
-    test(`unverifiable plugin definitions fail closed: ${JSON.stringify(options)}`, async () => {
+  for (const [name, options, native] of [
+    ['malformed registry', { registry: '{', definition: true }, false],
+    ['no registered installation', { registry: JSON.stringify({ version: 2, plugins: {} }), definition: true }, true],
+    ['missing definition file', { registry: JSON.stringify({ version: 2, plugins: { 'codeql-resolver@marketplace': [{ scope: 'user', installPath: '/plugins/codeql-resolver' }] } }), definition: false }, true],
+    ['installation for another project', { registry: JSON.stringify({ version: 2, plugins: { 'codeql-resolver@marketplace': [{ scope: 'project', projectPath: '/other-project', installPath: '/plugins/codeql-resolver' }] } }), definition: true }, true],
+  ] as const) {
+    test(`${name} ${native ? 'uses the native path' : 'fails closed'}`, async () => {
       const w = world({ env: gateways, files: {
         '/home/test/.claude/plugins/installed_plugins.json': options.registry,
         ...(options.definition ? { '/plugins/codeql-resolver/agents/codeql-permissions-auditor.md': '---\nmodel: haiku\n---\nFollow the plugin rubric.' } : {}),
       } })
-      expect(text(await w.agent({ subagent_type: 'codeql-resolver:codeql-permissions-auditor' }))).toStartWith('FAIL | router |')
+      const call = { subagent_type: 'codeql-resolver:codeql-permissions-auditor', description: '[class: standard]', prompt: 'Review the change.' }
+      const result = await w.agent(call)
+      if (native) {
+        expect(text(result)).toBe('haiku result')
+        expect(w.nextCalls).toEqual([{ tool: 'Agent', ...call }])
+        expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'native custom agent', reason: 'custom tool policy' })
+      } else {
+        expect(text(result)).toStartWith('FAIL | router |')
+        expect(w.nextCalls).toEqual([])
+      }
       expect(work(w)).toEqual([])
       expect(w.fetches).toEqual([])
-      expect(w.nextCalls).toEqual([])
     })
   }
   test('project plugin installation precedes the user installation', async () => {
@@ -1288,6 +1344,8 @@ describe('scoring and eligibility policy', () => {
     expect(pickLocal(estimateTokens('a'.repeat(140_000)), windows)?.alias).toBe('local-only')
     expect(pickLocal(estimateTokens('a'.repeat(700_000)), windows)).toBeUndefined()
     expect(pickLocal(100, {})).toBeUndefined()
+    expect(pickLocal(300, { ...windows, 'local-default': 500 })?.alias).toBe('local-default')
+    expect(pickLocal(301, { ...windows, 'local-default': 500 })?.alias).toBe('small')
   })
   test('repository candidates come only from GitHub https and ssh origins', () => {
     expect(repositoryFromOrigin('https://github.com/example-org/example-repo.git')).toBe('example-org/example-repo')
@@ -1385,6 +1443,18 @@ describe('routing batch', () => {
     const w = world({ quota: 1, env: gateways })
     expect(text(await w.agent({ description: '[class: text]', prompt: `Summarize: ${'a'.repeat(10_000)}` }))).toContain('[routed: local small]')
     expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'local small', local: { alias: 'small' }, kind: { value: 'text', source: 'tag' } })
+  })
+  test('local-default is preferred when listed and its own context window fits', async () => {
+    const w = world({ quota: 1, env: gateways, localDefaultWindow: 32768 })
+    expect(text(await w.agent(textTask))).toContain('[routed: local local-default]')
+    expect(JSON.parse(w.fetches[1].body!).model).toBe('local-default')
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'local local-default', local: { alias: 'local-default' } })
+  })
+  test('a listed local-default role that does not fit falls back to the first local alias that does', async () => {
+    const w = world({ quota: 1, env: gateways, localDefaultWindow: 1000 })
+    await w.agent(textTask)
+    expect(routeEvents(w).at(-1)?.local).not.toMatchObject({ alias: 'local-default' })
+    expect(w.fetches.filter((f) => f.url.endsWith('/v1/chat/completions')).map((f) => JSON.parse(f.body!).model)).not.toContain('local-default')
   })
   test('2: a 40k-token extraction lands on local-only', async () => {
     const w = world({ quota: 1, env: gateways })
@@ -2314,7 +2384,7 @@ describe('route telemetry', () => {
     ['forbidden explicit model', {}, { model: 'sonnet' }, 'stopped', 'Sonnet, Opus and Fable subagents are forbidden'],
     ['forbidden custom agent model', { definition: '---\nmodel: opus\n---\nReview.' }, { subagent_type: 'reviewer' }, 'stopped', 'Sonnet, Opus and Fable subagents are forbidden'],
     ['unreadable custom agent', { fsThrows: true }, { subagent_type: 'reviewer' }, 'stopped', 'custom agent model or tool restrictions could not be read'],
-    ['unverified custom agent', {}, { subagent_type: 'reviewer' }, 'stopped', 'custom agent definition could not be verified'],
+    ['missing custom agent definition', {}, { subagent_type: 'reviewer' }, 'native custom agent', 'custom tool policy'],
     ['prohibited payload', {}, { prompt: 'Use token=abc123 here.' }, 'stopped', 'payload contains prohibited content'],
     ['native custom agent without a model', { definition: tracker.replace('model: haiku', 'model: inherit') }, { subagent_type: 'reviewer' }, 'native custom agent', 'custom tool policy'],
     ['native custom agent', { definition: tracker }, { subagent_type: 'reviewer' }, 'native custom agent', 'custom tool policy'],
@@ -2395,7 +2465,7 @@ describe('route telemetry content and bounds', () => {
     expect(routeEvents(custom).at(-1).agent_type).toBe('reviewer')
     const missing = world()
     await missing.agent({ subagent_type: 'reviewer' })
-    expect(routeEvents(missing).at(-1)).toMatchObject({ agent_type: 'unrecognized', chosen: 'stopped' })
+    expect(routeEvents(missing).at(-1)).toMatchObject({ agent_type: 'unrecognized', chosen: 'native custom agent' })
   })
   test('quota labels reach telemetry only when short, plain and free of prohibited content', async () => {
     const at = 1000 - 60
