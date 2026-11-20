@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.5.0](https://github.com/JacobPEvans-ai/claude-code-plugins/compare/content-guards-v6.4.0...content-guards-v6.5.0) (2026-11-20)
+
+
+### Features
+
+* **content-guards:** block credentials in curl and wget arguments ([#862](https://github.com/JacobPEvans-ai/claude-code-plugins/issues/862)) ([f3ea8f7](https://github.com/JacobPEvans-ai/claude-code-plugins/commit/f3ea8f76eb13704fb486daf68af9b5d409505c97))
+
 ## [6.4.0](https://github.com/dryvist/claude-code-plugins/compare/content-guards-v6.3.1...content-guards-v6.4.0) (2026-11-12)
 
 
