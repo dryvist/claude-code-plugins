@@ -1,5 +1,5 @@
 import type { EngineInterface, Register } from 'claude-code'
-import { CLASSIFIER, CLASSIFIER_ALIAS, CODEX, CODEX_QUOTA_THRESHOLD, JUDGE, JUDGE_ALIAS, JUDGE_OUTPUT_TOKENS, LAST_RESORT, LOCAL_OUTPUT_TOKENS, QUOTA_SELECTOR, EXECUTOR_TABLE, budgetsFromMetrics, codexArgv, harnessArgv, codingTask, eligibleRows, endAnchor, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, isGenericType, isShellCAsk, jobHistory, jobState, recentFailures, localTask, mandatoryLabel, newestModel, mergeExecutorRows, metricsResult, parseCodexQuota, parseVerdict, pickLabel, pickLocal, quotaFromMetrics, rankRows, repositoryFromOrigin, safePayload, scoreWindows, KIND_CLASSIFIER, parseKind } from './lib/policy'
+import { CLASSIFIER, CLASSIFIER_ALIAS, CODEX, CODEX_QUOTA_THRESHOLD, JUDGE, JUDGE_ALIAS, JUDGE_OUTPUT_TOKENS, LAST_RESORT, LOCAL_OUTPUT_TOKENS, QUOTA_SELECTOR, EXECUTOR_TABLE, budgetsFromMetrics, codexArgv, harnessArgv, codingTask, networkTask, eligibleRows, endAnchor, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, isGenericType, isShellCAsk, jobHistory, jobState, recentFailures, localTask, mandatoryLabel, newestModel, mergeExecutorRows, metricsResult, parseCodexQuota, parseVerdict, pickLabel, pickLocal, quotaFromMetrics, rankRows, repositoryFromOrigin, safePayload, scoreWindows, KIND_CLASSIFIER, parseKind } from './lib/policy'
 import type { CodexQuotaRead, Executor, ExecutorRow, JobOutcome, JobRecord, JobState, Label, QuotaReason, QuotaRow, Route, Sandbox, Score, SkipReason, Kind, Verdict } from './lib/policy'
 import { customAgentSandbox, parseAgentDefinition } from './lib/agent-definition'
 import type { AgentDefinition } from './lib/agent-definition'
@@ -58,7 +58,7 @@ const JOB_STATUS_BUDGET_MS = 3_000
 const JOB_STATUS_TIMEOUT_MS = 15_000
 const JOB_LOG_BYTES = 131_072
 const LOG_TIMEOUT_MS = 5_000
-const PROMPT_POLICY = 'The jpe-ai-delegation hook places every Agent spawn. Tag self-contained text work [class: text] and put all of its text in the prompt; the hook sends it to an on-host local model first. An untagged spawn is classified by the hook itself, and an explicit tag always remains the override. Every other spawn, and any local answer that fails its check, goes to the subscription executors it is eligible for, ranked by usage pace. ZCode, OpenCode Go and Cursor take only non-sensitive coding tagged [task: code] [repo: owner/repository] in a public repository; their output is a ready PR labelled human:review; leak-scan it before merge; never auto-merge. Codex runs Luna at xhigh, the only Codex model and effort (AGENTS.md, \'Delegation routing\'). Haiku xhigh is always last. Nothing stops because an executor is unavailable. Never Sonnet, Opus or Fable subagents. Never send secrets, credentials, inventory or incident content to any executor. Antigravity stays a second-opinion reviewer, never an executor.'
+const PROMPT_POLICY = 'The jpe-ai-delegation hook places every Agent spawn. Tag self-contained text work [class: text] and put all of its text in the prompt; the hook sends it to an on-host local model first. An untagged spawn is classified by the hook itself, and an explicit tag always remains the override. Every other spawn, and any local answer that fails its check, goes to the subscription executors it is eligible for, ranked by usage pace. ZCode, OpenCode Go and Cursor take only non-sensitive coding tagged [task: code] [repo: owner/repository] in a public repository; their output is a ready PR labelled human:review; leak-scan it before merge; never auto-merge. Codex runs Luna at xhigh, the only Codex model and effort (AGENTS.md, \'Delegation routing\'). Tag work that needs network or GitHub writes [needs: network]; it runs on the in-session last rung, never an executor sandbox. Haiku xhigh is always last. Nothing stops because an executor is unavailable. Never Sonnet, Opus or Fable subagents. Never send secrets, credentials, inventory or incident content to any executor. Antigravity stays a second-opinion reviewer, never an executor.'
 
 // A quota read: the instant-query result, or why there is none.
 type QuotaFetch = { result?: unknown[]; failure?: 'quota_unconfigured' | 'quota_unreachable' }
@@ -873,6 +873,11 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
     // The agent.spawn hook pins the model, so an inherited model never reaches the subagent.
     await logRoute($, event, 'native custom agent', 'custom tool policy')
     return core(original)
+  }
+  // Network or GitHub-write work runs in the session: executor sandboxes deny egress and never hold credentials.
+  if (networkTask(original.description) || definition?.egress === 'network') {
+    await logRoute($, event, LAST_RESORT.model, 'network work')
+    return core({ ...original, effort: LAST_RESORT.effort })
   }
   if (original.run_in_background === true) {
     await logRoute($, event, 'background', 'run_in_background')

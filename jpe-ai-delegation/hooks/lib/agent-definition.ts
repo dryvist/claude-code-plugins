@@ -1,6 +1,6 @@
 import type { Sandbox } from './policy'
 
-export type AgentDefinition = { model?: string; prompt: string; tools?: string[]; disallowedTools?: string[] }
+export type AgentDefinition = { model?: string; prompt: string; tools?: string[]; disallowedTools?: string[]; egress?: 'network' }
 const WRITERS = ['Edit', 'Write', 'NotebookEdit', 'Bash']
 const CODEX_TOOLS = ['Read', 'Grep', 'Glob', ...WRITERS]
 
@@ -89,7 +89,7 @@ export function parseAgentDefinition(text: string): AgentDefinition {
     const field = line.match(/^([A-Za-z_][\w-]*)[ \t]*:([ \t]|$)/)
     if (!field) throw new Error('unsupported agent frontmatter key')
     const key = parent = field[1]
-    if (key !== 'model' && key !== 'tools' && key !== 'disallowedTools') continue
+    if (key !== 'model' && key !== 'tools' && key !== 'disallowedTools' && key !== 'egress') continue
     if (seen.has(key)) throw new Error('duplicate agent frontmatter key')
     seen.add(key)
     const value = line.slice(field[0].length).trim().replace(/^#.*$/, '')
@@ -111,7 +111,10 @@ export function parseAgentDefinition(text: string): AgentDefinition {
     } else {
       if (continuation.length) throw new Error('unsupported agent policy continuation')
       if (toolField) definition[key] = toolList(value)
-      else definition.model = scalar(value)
+      else if (key === 'egress') {
+        if (scalar(value) !== 'network') throw new Error('unsupported agent egress value')
+        definition.egress = 'network'
+      } else definition.model = scalar(value)
     }
   }
   return definition
