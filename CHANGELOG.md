@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.72.2](https://github.com/JacobPEvans-ai/claude-code-plugins/compare/v6.72.1...v6.72.2) (2026-11-20)
+
+
+### Bug Fixes
+
+* **jpe-ai-delegation:** run network work on the in-session last rung ([#854](https://github.com/JacobPEvans-ai/claude-code-plugins/issues/854)) ([768b9bc](https://github.com/JacobPEvans-ai/claude-code-plugins/commit/768b9bcbb91748c954fbc9f55fd3f20bc185c68a))
+
 ## [6.72.1](https://github.com/JacobPEvans-ai/claude-code-plugins/compare/v6.72.0...v6.72.1) (2026-11-20)
 
 
