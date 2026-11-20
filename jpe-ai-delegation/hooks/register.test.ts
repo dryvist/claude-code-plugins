@@ -17,6 +17,7 @@ const PR = { html_url: 'https://github.com/owner/project/pull/12', state: 'open'
 const CORE_ASK = { decision: 'ask', reason: 'This shell -c script runs rm.' }
 type Call = { argv: string[]; stdin?: string; env?: Record<string, string> }
 type World = {
+  pluginRoot?: string
   quota?: number; codexStderr?: string; codexWindows?: unknown[]; cursorWindows?: unknown[]; now?: number; gatewayFinish?: string; quotaThrows?: boolean; cache?: boolean; codexExit?: number; answer?: string; label?: string
   codexQuota?: 'absent' | 'hangs' | 'refused' | string
   env?: Record<string, string>; definition?: string; files?: Record<string, string>; fsThrows?: boolean; worktreeExit?: number; temporaryExit?: number
@@ -93,6 +94,7 @@ function world(w: World = {}) {
     session: { cwd: async () => '/workspace' },
     clock: { now: async () => { if (w.clockThrows) throw new Error('clock failed'); if (w.clockHangs) return new Promise<number>(() => {}); return clockNow }, after: (delay: number, callback: () => void) => { if ((w.childHangs && delay === 3_600_000) || (w.clockHangs && delay === 5_000) || (w.gatewayTimeout && ((delay >= 60_000 && delay < 3_600_000) || delay === 20_000)) || (w.quotaTimeout && delay === 3_000) || (w.classifierTimeout && delay === 20_000) || (w.codexQuota === 'hangs' && delay === 15_000) || (w.statusHangs && (delay === 3_000 || delay === 15_000))) Promise.resolve().then(callback); return { cancel() {} } } },
     ui: { log: (line: string) => logs.push(line) },
+    plugin: { name: 'jpe-ai-delegation', root: w.pluginRoot ?? '' },
     fs: {
       ...fs,
       read: async (path: string) => {
@@ -2558,9 +2560,23 @@ describe('route telemetry content and bounds', () => {
       terminal.model = saved
     }
   })
-  test('zcode-job start refusing before it accepts a job logs stopped, not the executor', async () => {
+  test('every route line carries the loaded hook version, or null without a readable manifest', async () => {
+    const w = world({ quota: 1, zcodeAvailable: false, pluginRoot: '/plugin', files: { '/plugin/.claude-plugin/plugin.json': '{"version":"9.9.9"}' } })
+    await w.agent()
+    await w.agent()
+    expect(routeEvents(w).map((event) => event.hook_version)).toEqual(['9.9.9', '9.9.9'])
+    expect(w.fsReads.filter((path) => path === '/plugin/.claude-plugin/plugin.json')).toHaveLength(1)
+    const bare = world({ quota: 1, zcodeAvailable: false })
+    await bare.agent()
+    expect(routeEvents(bare).at(-1).hook_version).toBeNull()
+  })
+  test('zcode-job start refusing before it accepts a job marks the rung failed and falls through', async () => {
     const w = world({ quota: 1, env: gateways, zcodeExit: 64, zcodeOutput: '{"error":"Repository is not approved for ZCode"}\n' })
-    expect(text(await w.agent(coding))).toStartWith('FAIL | router |')
-    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'stopped', reason: 'qwen dispatch failed before the job was accepted' })
+    await w.agent(coding)
+    const event = routeEvents(w).at(-1)
+    expect(event.skipped.qwen).toBe('failed')
+    expect(event.fell_through_from).toContain('qwen')
+    expect(event.chosen).not.toBe('stopped')
+    expect(event.reason).not.toBe('qwen dispatch failed before the job was accepted')
   })
 })
