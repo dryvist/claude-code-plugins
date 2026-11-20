@@ -69,6 +69,9 @@ export const explicitLabel = (description: string | undefined, prompt?: string):
 }
 
 export const mandatoryLabel = (text: string): Label | undefined => /\b(auth(?:entication|orization)?|secrets?|credentials?|routers?|routing|memory|clusters?)\b/i.test(text) ? 'bulk-complex' : undefined
+// Words that keep a brief off the public sandbox rows even in a verified public repository; labelling stays with
+// mandatoryLabel.
+export const credentialBrief = (text: string): boolean => /\b(auth(?:entication|orization)?|secrets?|credentials?|tokens?|passwords?|keys?)\b/i.test(text)
 export const forbiddenModel = (model: string | undefined): boolean => /(?:^|[-/\s])(sonnet|opus|fable)(?:$|[-/\s\d])/i.test(model ?? '')
 // Stricter, for an executor row's model only: any spelling that contains sonnet, opus or fable once case and every
 // non-alphanumeric are removed. Over-blocking an odd router name is the safe direction; agent type names keep forbiddenModel.

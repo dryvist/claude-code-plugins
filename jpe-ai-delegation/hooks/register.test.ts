@@ -2,7 +2,7 @@ import { describe, expect, test } from 'claude-code/testing'
 import type { EngineInterface } from 'claude-code'
 import { endAnchor, jobHistory, jobState, recentFailures } from './lib/policy'
 import { register } from './register'
-import { CODEX, CLASSIFIER, CODEX_QUOTA_THRESHOLD, EXECUTOR_TABLE, LAST_RESORT, codexArgv, harnessArgv, eligibleRows, mergeExecutorRows, metricsResult, parseCodexQuota, peakMultiplier, QUOTA_SELECTOR, quotaFromMetrics, rankRows, repositoryFromOrigin, validRow, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, codingTask, localTask, networkTask, mandatoryLabel, newestModel, parseVerdict, pickLocal, safePayload, scoreWindows, budgetsFromMetrics, forbiddenRowModel, KIND_CLASSIFIER, parseKind } from './lib/policy'
+import { CODEX, CLASSIFIER, CODEX_QUOTA_THRESHOLD, EXECUTOR_TABLE, LAST_RESORT, codexArgv, harnessArgv, eligibleRows, mergeExecutorRows, metricsResult, parseCodexQuota, peakMultiplier, QUOTA_SELECTOR, quotaFromMetrics, rankRows, repositoryFromOrigin, validRow, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, codingTask, credentialBrief, localTask, networkTask, mandatoryLabel, newestModel, parseVerdict, pickLocal, safePayload, scoreWindows, budgetsFromMetrics, forbiddenRowModel, KIND_CLASSIFIER, parseKind } from './lib/policy'
 import { customAgentSandbox, parseAgentDefinition } from './lib/agent-definition'
 import { RECORDED_QUOTA } from './fixtures/quota-instant-query'
 
@@ -793,12 +793,13 @@ describe('model and payload guards', () => {
       'token=writer',
     ]) expect(safePayload(payload)).toBe(false)
   })
-  test('permission levels and environment references in a public coding brief continue to routing', async () => {
+  test('permission levels and environment references pass the payload scan; their token words keep the brief off the sandbox rows', async () => {
     const w = world({ quota: 1, env: gateways })
     const prompt = 'Grant `id-token: write` and read api_key: $TOKEN_ENV; the writer role is service-writer-role.'
     expect(safePayload(prompt)).toBe(true)
-    expect(text(await w.agent({ ...coding, prompt }))).toContain('[routed: Qwen sandbox;')
-    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'qwen', kind: { value: 'code', source: 'tag' } })
+    await w.agent({ ...coding, prompt })
+    expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
+    expect(routeEvents(w).at(-1)).toMatchObject({ kind: { value: 'code', source: 'tag' }, skipped: { qwen: 'ineligible', zcode: 'ineligible' } })
   })
   for (const model of ['haiku', 'sonnet', undefined]) {
     test(`installed plugin agent ${model} definition is loaded and screened`, async () => {
@@ -1518,6 +1519,24 @@ describe('routing batch', () => {
     const w = world({ quota: 1, env: gateways })
     expect(text(await w.agent(coding))).toContain('[routed: Qwen sandbox;')
     expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'qwen', kind: { value: 'code', source: 'tag' }, eligible: ['qwen', 'zcode', 'opencode-go', 'codex', 'cursor', 'haiku'] })
+  })
+  test('a router brief in a verified public repository keeps the sandbox rows eligible', async () => {
+    const w = world({ quota: 1, env: gateways })
+    await w.agent({ ...coding, prompt: 'Implement the router routing change for the memory cluster.' })
+    expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'qwen', eligible: ['qwen', 'zcode', 'opencode-go', 'codex', 'cursor', 'haiku'] })
+  })
+  for (const word of ['credential', 'auth', 'secret', 'token', 'password', 'key']) {
+    test(`a ${word} brief in a verified public repository never reaches a sandbox row`, async () => {
+      const w = world({ quota: 1, env: gateways })
+      await w.agent({ ...coding, prompt: `Implement the ${word} change.` })
+      expect(w.calls.some((c) => c.argv[0] === 'zcode-job')).toBe(false)
+      expect(routeEvents(w).at(-1).skipped).toMatchObject({ qwen: 'ineligible', zcode: 'ineligible', 'opencode-go': 'ineligible', cursor: 'ineligible' })
+    })
+  }
+  test('credentialBrief matches credential words only, and mandatoryLabel still labels router work', () => {
+    for (const t of ['auth', 'authentication', 'secrets', 'credential', 'tokens', 'password', 'keys']) expect(credentialBrief(`the ${t} change`)).toBe(true)
+    for (const t of ['router', 'routing', 'memory', 'clusters', 'keyboard', 'monkey']) expect(credentialBrief(`the ${t} change`)).toBe(false)
+    expect(mandatoryLabel('router work')).toBe('bulk-complex')
   })
   test('6: with Qwen and ZCode disabled, public-repo code takes OpenCode Go', async () => {
     const w = world({ quota: 1, env: { ...gateways, AGENT_ROUTE_ZCODE_TOOLS: 'opencode' } })
