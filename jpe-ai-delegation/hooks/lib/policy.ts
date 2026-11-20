@@ -57,9 +57,14 @@ export const parseKind = (reply: unknown): Kind => {
 
 export const pickLabel = (text: string | undefined): Label | undefined => LABELS.find((l) => text?.toLowerCase().includes(l))
 
+// Explicit metadata may be in the description or prompt head; keeping the description first makes it win per tag key.
+export const taggedText = (description: string | undefined, prompt?: string): string => `${description ?? ''}\n${prompt?.slice(0, 2000) ?? ''}`
+const tagValue = (description: string | undefined, prompt: string | undefined, key: 'class' | 'task' | 'needs'): string | undefined =>
+  taggedText(description, prompt).match(new RegExp(`\\[${key}: ([a-z-]+)\\]`))?.[1]
+
 // A lead escalating an off-base answer names the class itself; the classifier is skipped.
-export const explicitLabel = (description: string | undefined): Label | undefined => {
-  const named = description?.match(/\[class: ([a-z-]+)\]/)?.[1]
+export const explicitLabel = (description: string | undefined, prompt?: string): Label | undefined => {
+  const named = tagValue(description, prompt, 'class')
   return LABELS.find((l) => l === named)
 }
 
@@ -84,9 +89,9 @@ export const safePayload = (text: string): boolean => {
   if (/(-----BEGIN (?:[A-Z]+ )?PRIVATE KEY-----|\b(?:gh[pousr]_|github_pat_|xox[baprs]-|sk-(?:proj-|ant-)?)[A-Za-z0-9_-]{12,}|\bAKIA[A-Z0-9]{16}\b|\bauthorization\s*:\s*bearer\s+\S+|\[content:\s*(?:secrets|credentials|inventory|incident)\]|\b(?:ansible_host|ansible_password)\s*:|\b(?:incident|outage)\s+(?:timeline|report)\s*:)/i.test(text)) return false
   return !hasSensitiveAssignment(text)
 }
-export const codingTask = (description: string | undefined): boolean => /\[task: code\]/.test(description ?? '')
+export const codingTask = (description: string | undefined, prompt?: string): boolean => tagValue(description, prompt, 'task') === 'code' || tagValue(description, prompt, 'class') === 'code'
 // Work that needs network or GitHub writes: no executor sandbox has that egress or may hold its credentials.
-export const networkTask = (description: string | undefined): boolean => /\[needs: network\]/.test(description ?? '')
+export const networkTask = (description: string | undefined, prompt?: string): boolean => tagValue(description, prompt, 'needs') === 'network'
 
 // The owner/name candidate named by a GitHub https or ssh origin URL, with or without .git; undefined for anything
 // else. Only a candidate: the caller still verifies visibility before the repository grants eligibility.
@@ -157,7 +162,7 @@ export function codexArgv(sandbox: Sandbox, route: Route, model: string | undefi
 // environment, not the command line.
 export function harnessArgv(sandbox: Sandbox, tree?: string): string[] {
   if (sandbox !== 'read-only' && sandbox !== 'workspace-write') throw new Error(`harness sandbox must be read-only or workspace-write, got ${sandbox}`)
-  const argv = ['claude', '-p', '--bare', '--exclude-dynamic-system-prompt-sections', '--no-session-persistence', '--output-format', 'json', '--permission-mode', sandbox === 'read-only' ? 'dontAsk' : 'acceptEdits']
+  const argv = ['claude', '-p', '--max-turns', '30', '--bare', '--exclude-dynamic-system-prompt-sections', '--no-session-persistence', '--output-format', 'json', '--permission-mode', sandbox === 'read-only' ? 'dontAsk' : 'acceptEdits']
   if (sandbox === 'read-only') {
     if (!tree?.startsWith('/')) throw new Error('a read-only harness needs the absolute directory it runs in')
     return [...argv, '--tools', 'Bash,Read', '--settings', JSON.stringify({ sandbox: { enabled: true, autoAllowBashIfSandboxed: true, allowUnsandboxedCommands: false, failIfUnavailable: true, filesystem: { denyWrite: [tree] } } })]
@@ -352,7 +357,7 @@ export const JUDGE_ALIAS = 'medium'
 export const JUDGE_OUTPUT_TOKENS = 200
 export const LOCAL_OUTPUT_TOKENS = 2048
 // Only work the lead marks as self-contained text; a chat-only model cannot read files or run tools.
-export const localTask = (description: string | undefined): boolean => /\[class: text\]/.test(description ?? '')
+export const localTask = (description: string | undefined, prompt?: string): boolean => tagValue(description, prompt, 'class') === 'text'
 export const estimateTokens = (prompt: string): number => Math.ceil(prompt.length / 3.5) + LOCAL_OUTPUT_TOKENS
 // The declared local-default role when its window holds the estimate with 40% headroom; else the first such alias.
 export function pickLocal(estimate: number, windows: Record<string, number | undefined>): { alias: string; timeoutMs: number } | undefined {

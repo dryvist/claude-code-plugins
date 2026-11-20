@@ -1,5 +1,5 @@
 import type { EngineInterface, Register } from 'claude-code'
-import { CLASSIFIER, CLASSIFIER_ALIAS, CODEX, CODEX_QUOTA_THRESHOLD, JUDGE, JUDGE_ALIAS, JUDGE_OUTPUT_TOKENS, LAST_RESORT, LOCAL_OUTPUT_TOKENS, QUOTA_SELECTOR, EXECUTOR_TABLE, budgetsFromMetrics, codexArgv, harnessArgv, codingTask, networkTask, eligibleRows, endAnchor, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, isGenericType, isShellCAsk, jobHistory, jobState, recentFailures, localTask, mandatoryLabel, newestModel, mergeExecutorRows, metricsResult, parseCodexQuota, parseVerdict, pickLabel, pickLocal, quotaFromMetrics, rankRows, repositoryFromOrigin, safePayload, scoreWindows, KIND_CLASSIFIER, parseKind } from './lib/policy'
+import { CLASSIFIER, CLASSIFIER_ALIAS, CODEX, CODEX_QUOTA_THRESHOLD, JUDGE, JUDGE_ALIAS, JUDGE_OUTPUT_TOKENS, LAST_RESORT, LOCAL_OUTPUT_TOKENS, QUOTA_SELECTOR, EXECUTOR_TABLE, budgetsFromMetrics, codexArgv, harnessArgv, codingTask, networkTask, eligibleRows, endAnchor, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, isGenericType, isShellCAsk, jobHistory, jobState, recentFailures, localTask, mandatoryLabel, newestModel, mergeExecutorRows, metricsResult, parseCodexQuota, parseVerdict, pickLabel, pickLocal, quotaFromMetrics, rankRows, repositoryFromOrigin, safePayload, scoreWindows, taggedText, KIND_CLASSIFIER, parseKind } from './lib/policy'
 import type { CodexQuotaRead, Executor, ExecutorRow, JobOutcome, JobRecord, JobState, Label, QuotaReason, QuotaRow, Route, Sandbox, Score, SkipReason, Kind, Verdict } from './lib/policy'
 import { customAgentSandbox, parseAgentDefinition } from './lib/agent-definition'
 import type { AgentDefinition } from './lib/agent-definition'
@@ -17,6 +17,7 @@ const CODEX_QUOTA_TIMEOUT_MS = 15_000
 const CODEX_QUOTA_TTL_MS = 14_400_000
 const CODEX_QUOTA_FAILURE_TTL_MS = 600_000
 const CODEX_QUOTA_KEY = 'codex-quota'
+const HARNESS_FAILURE_KEY = 'harness-failure:'
 // A harness run that failed at least this long after it started did work and gave up, so the remaining harness rows
 // are skipped and the next row of another transport runs.
 const HARNESS_FALLBACK_MS = 30_000
@@ -201,6 +202,26 @@ async function nativeCodexQuota($: Engine): Promise<NativeQuota> {
     }
   }
   return read
+}
+
+// A failed on-host harness row sits out for the same ten-minute window as a failed native quota read.
+async function recentHarnessFailure($: Engine, executor: Executor, now: number): Promise<boolean> {
+  if (!Number.isFinite(now)) return false
+  try {
+    const failedAt = await $.store.get(`${HARNESS_FAILURE_KEY}${executor}`)
+    return typeof failedAt === 'number' && Number.isFinite(failedAt) && now >= failedAt && now - failedAt < CODEX_QUOTA_FAILURE_TTL_MS
+  } catch {
+    return false
+  }
+}
+
+async function recordHarnessFailure($: Engine, executor: Executor, at: number | null): Promise<void> {
+  if (at === null) return
+  try {
+    await $.store.set(`${HARNESS_FAILURE_KEY}${executor}`, at)
+  } catch {
+    // A failed store write only costs the next spawn its cooldown.
+  }
 }
 
 // The native read decides codex whenever the feed left it without a score: eligible below the threshold with its used
@@ -438,7 +459,7 @@ async function classifyKind($: Engine, e: AgentCall): Promise<Kind> {
 async function classify($: Engine, e: AgentCall): Promise<Label> {
   const mandatory = mandatoryLabel(`${e.description ?? ''}\n${e.prompt}`)
   if (mandatory) return mandatory
-  const named = explicitLabel(e.description)
+  const named = explicitLabel(e.description, e.prompt)
   if (named) return named
   if (e.subagent_type === 'Plan') return 'plan'
   if (e.subagent_type === 'Explore') return 'bulk'
@@ -479,7 +500,7 @@ async function runRoutedCodex($: Engine, e: AgentCall, route: string, codexRoute
 // the shared per-spawn classifier, so a rung that runs after another asks no second classification.
 async function runCodexRung($: Engine, e: AgentCall, customSandbox: Sandbox | undefined, rungLabel: () => Promise<Label>): Promise<unknown | undefined> {
   const label = await rungLabel()
-  const advisory = isAdvisory(label) || isAdvisory(explicitLabel(e.description) ?? label)
+  const advisory = isAdvisory(label) || isAdvisory(explicitLabel(e.description, e.prompt) ?? label)
   if (mandatoryLabel(`${e.description ?? ''}\n${e.prompt}`)) e = { ...e, description: `${e.description ?? ''} [class: bulk-complex]` }
   const codexSandbox: Sandbox = advisory || e.subagent_type === 'Explore' || e.subagent_type === 'Plan' || customSandbox === 'read-only' ? 'read-only' : 'workspace-write'
   return runRoutedCodex($, e, label, CODEX[label], codexSandbox, `class ${label}`)
@@ -506,7 +527,7 @@ async function runRoutedHarness($: Engine, e: AgentCall, row: ExecutorRow, sandb
 // The harness rung: classify, pick the sandbox by exactly the Codex rung's input, run.
 async function runHarnessRung($: Engine, e: AgentCall, row: ExecutorRow, customSandbox: Sandbox | undefined, rungLabel: () => Promise<Label>): Promise<unknown | undefined> {
   const label = await rungLabel()
-  const advisory = isAdvisory(label) || isAdvisory(explicitLabel(e.description) ?? label)
+  const advisory = isAdvisory(label) || isAdvisory(explicitLabel(e.description, e.prompt) ?? label)
   if (mandatoryLabel(`${e.description ?? ''}\n${e.prompt}`)) e = { ...e, description: `${e.description ?? ''} [class: bulk-complex]` }
   const sandbox: Sandbox = advisory || e.subagent_type === 'Explore' || e.subagent_type === 'Plan' || customSandbox === 'read-only' ? 'read-only' : 'workspace-write'
   return runRoutedHarness($, e, row, sandbox)
@@ -531,8 +552,8 @@ function failure(e: AgentCall, reason: string): unknown {
   return routedResult(e, 'ai-delegation-policy', `FAIL | router | ${reason}`, '[routing stopped]', 0)
 }
 
-function repositoryTag(description: string | undefined): string | undefined {
-  const repo = description?.match(/\[repo: ([A-Za-z0-9][A-Za-z0-9-]{0,38}\/[A-Za-z0-9._-]{1,100})\]/)?.[1]
+function repositoryTag(description: string | undefined, prompt?: string): string | undefined {
+  const repo = taggedText(description, prompt).match(/\[repo: ([A-Za-z0-9][A-Za-z0-9-]{0,38}\/[A-Za-z0-9._-]{1,100})\]/)?.[1]
   const repository = repo?.split('/')[1]
   return repo && repository !== undefined && !['.', '..'].includes(repository) ? repo : undefined
 }
@@ -641,7 +662,7 @@ async function github($: Engine, path: string): Promise<unknown> {
 async function publicCodeRepo($: Engine, e: AgentCall, codeTask: boolean): Promise<string | undefined> {
   if (!codeTask || mandatoryLabel(`${e.description ?? ''}\n${e.prompt}`)) return undefined
   try {
-    const tagged = repositoryTag(e.description)
+    const tagged = repositoryTag(e.description, e.prompt)
     const root = tagged ? undefined : await repositoryRoot($, e)
     const repo = tagged ?? (root ? await inferredRepository($, root) : undefined)
     if (!repo) return undefined
@@ -879,7 +900,7 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
     return core(original)
   }
   // Network or GitHub-write work runs in the session: executor sandboxes deny egress and never hold credentials.
-  if (networkTask(original.description) || definition?.egress === 'network') {
+  if (networkTask(original.description, original.prompt) || definition?.egress === 'network') {
     await logRoute($, event, LAST_RESORT.model, 'network work')
     return core({ ...original, effort: LAST_RESORT.effort })
   }
@@ -891,8 +912,8 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
   // One three-way kind per spawn. An explicit tag wins without a request; an untagged eligible spawn asks the
   // on-host small alias once, after the forbidden-model, custom-agent and payload checks above.
   const genericRung = !definition && !e.isolation && isGenericType(e) && !['Explore', 'Plan'].includes(e.subagent_type ?? '')
-  if (codingTask(e.description)) event.kind = { value: 'code', source: 'tag' }
-  else if (localTask(e.description)) event.kind = { value: 'text', source: 'tag' }
+  if (codingTask(e.description, e.prompt)) event.kind = { value: 'code', source: 'tag' }
+  else if (localTask(e.description, e.prompt)) event.kind = { value: 'text', source: 'tag' }
   else if (!genericRung || mandatoryLabel(`${e.description ?? ''}\n${e.prompt}`)) event.kind = { value: 'other', source: 'none' }
   else event.kind = { value: await classifyKind($, e), source: 'classifier' }
 
@@ -925,9 +946,14 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
   const quota = await currentQuota($, table)
   const { rows, skipped } = eligibleRows(table, Boolean(repo), now, quota.budgets)
   const { scores } = quota
+  const activeRows: ExecutorRow[] = []
+  for (const row of rows) {
+    if (row.transport === 'harness' && await recentHarnessFailure($, row.id, now)) skipped[row.id] = 'recent_failures'
+    else activeRows.push(row)
+  }
   event.quota_unknown = quota.unknown
   event.quota_source = quota.sources
-  const ranked = rankRows(rows, scores, now)
+  const ranked = rankRows(activeRows, scores, now)
   Object.assign(skipped, ranked.skipped)
   // A codex row the native read could not decide is not a candidate, whatever its feed telemetry says.
   for (const [id, why] of Object.entries(quota.nativeSkips)) skipped[id] = why
@@ -968,6 +994,7 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
       if (!result) {
         skipped[executor] = 'failed'
         const ended = await clockNow($)
+        await recordHarnessFailure($, executor, ended ?? startedAt)
         if (startedAt !== null && ended !== null && ended - startedAt >= HARNESS_FALLBACK_MS) harnessDown = true
       }
     } else if (row.transport === 'codex') {
