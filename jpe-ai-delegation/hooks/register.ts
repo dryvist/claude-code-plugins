@@ -962,7 +962,10 @@ async function route($: Engine, e: AgentCall, next: (e: never) => Promise<unknow
   const now = (await clockNow($)) ?? Number.POSITIVE_INFINITY
   // Every quota executor in the table is reported, so the event shows why an ineligible row's quota is unknown too.
   const quota = await currentQuota($, table)
-  const { rows, skipped } = eligibleRows(table, Boolean(repo), now, quota.budgets)
+  const eligible = eligibleRows(table, Boolean(repo), now, quota.budgets)
+  const { skipped } = eligible
+  // Harness rows take text and first-pass work only: code briefs run them out of turns.
+  const rows = eligible.rows.filter((r) => r.transport !== 'harness' || event.kind.value !== 'code' || !(skipped[r.id] = 'ineligible'))
   const { scores } = quota
   const activeRows: ExecutorRow[] = []
   for (const row of rows) {
