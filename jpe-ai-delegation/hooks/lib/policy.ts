@@ -93,6 +93,9 @@ export const safePayload = (text: string): boolean => {
   return !hasSensitiveAssignment(text)
 }
 export const codingTask = (description: string | undefined, prompt?: string): boolean => tagValue(description, prompt, 'task') === 'code' || tagValue(description, prompt, 'class') === 'code'
+// A review ask: the text asks for a review, audit or verdict and asks for no change, so the task never needs to write.
+export const reviewOnly = (text: string): boolean =>
+  /\b(review|audit|verdict)\b/i.test(text) && !/\b(fix|implement|edit|write|apply|commit|refactor|change the|update the)\b/i.test(text)
 // Work that needs network or GitHub writes: no executor sandbox has that egress or may hold its credentials.
 export const networkTask = (description: string | undefined, prompt?: string): boolean => tagValue(description, prompt, 'needs') === 'network'
 
@@ -146,6 +149,10 @@ export function newestModel(cacheText: string, family: string): string | undefin
   return found[0]?.slug
 }
 
+// One wall-clock budget shared by both routed children, a `codex exec` and a headless harness child: measured local
+// coding runs needed up to 92 turns and 1,192 s, so a routed task gets 100 turns and 25 minutes.
+export const ROUTED_CHILD_TIMEOUT_MS = 1_500_000
+
 // The only way to build a `codex exec` command. Reject mismatched families and unsupported efforts;
 // a missing model throws too, because `codex` would then fall back to its configured default.
 export function codexArgv(sandbox: Sandbox, route: Route, model: string | undefined, outputFile: string): string[] {
@@ -165,7 +172,7 @@ export function codexArgv(sandbox: Sandbox, route: Route, model: string | undefi
 // environment, not the command line.
 export function harnessArgv(sandbox: Sandbox, tree?: string): string[] {
   if (sandbox !== 'read-only' && sandbox !== 'workspace-write') throw new Error(`harness sandbox must be read-only or workspace-write, got ${sandbox}`)
-  const argv = ['claude', '-p', '--max-turns', '30', '--bare', '--exclude-dynamic-system-prompt-sections', '--no-session-persistence', '--output-format', 'json', '--permission-mode', sandbox === 'read-only' ? 'dontAsk' : 'acceptEdits']
+  const argv = ['claude', '-p', '--max-turns', '100', '--bare', '--exclude-dynamic-system-prompt-sections', '--no-session-persistence', '--output-format', 'json', '--permission-mode', sandbox === 'read-only' ? 'dontAsk' : 'acceptEdits']
   if (sandbox === 'read-only') {
     if (!tree?.startsWith('/')) throw new Error('a read-only harness needs the absolute directory it runs in')
     return [...argv, '--tools', 'Bash,Read', '--settings', JSON.stringify({ sandbox: { enabled: true, autoAllowBashIfSandboxed: true, allowUnsandboxedCommands: false, failIfUnavailable: true, filesystem: { denyWrite: [tree] } } })]
