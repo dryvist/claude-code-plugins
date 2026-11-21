@@ -2,7 +2,7 @@ import { describe, expect, test } from 'claude-code/testing'
 import type { EngineInterface } from 'claude-code'
 import { endAnchor, jobHistory, jobState, recentFailures } from './lib/policy'
 import { register } from './register'
-import { CODEX, CLASSIFIER, CODEX_QUOTA_THRESHOLD, EXECUTOR_TABLE, LAST_RESORT, codexArgv, harnessArgv, eligibleRows, mergeExecutorRows, metricsResult, parseCodexQuota, peakMultiplier, QUOTA_SELECTOR, quotaFromMetrics, rankRows, repositoryFromOrigin, validRow, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, codingTask, credentialBrief, localTask, networkTask, mandatoryLabel, newestModel, parseVerdict, pickLocal, safePayload, scoreWindows, budgetsFromMetrics, forbiddenRowModel, KIND_CLASSIFIER, parseKind } from './lib/policy'
+import { CODEX, CLASSIFIER, CODEX_QUOTA_THRESHOLD, EXECUTOR_TABLE, LAST_RESORT, ROUTED_CHILD_TIMEOUT_MS, codexArgv, harnessArgv, eligibleRows, mergeExecutorRows, metricsResult, parseCodexQuota, peakMultiplier, QUOTA_SELECTOR, quotaFromMetrics, rankRows, repositoryFromOrigin, reviewOnly, validRow, estimateTokens, explicitLabel, forbiddenModel, isAdvisory, codingTask, credentialBrief, localTask, networkTask, mandatoryLabel, newestModel, parseVerdict, pickLocal, safePayload, scoreWindows, budgetsFromMetrics, forbiddenRowModel, KIND_CLASSIFIER, parseKind } from './lib/policy'
 import { customAgentSandbox, parseAgentDefinition } from './lib/agent-definition'
 import { RECORDED_QUOTA } from './fixtures/quota-instant-query'
 
@@ -15,7 +15,7 @@ const CACHE = JSON.stringify({ models: [
 ] })
 const PR = { html_url: 'https://github.com/owner/project/pull/12', state: 'open', draft: false, labels: [{ name: 'human:review' }] }
 const CORE_ASK = { decision: 'ask', reason: 'This shell -c script runs rm.' }
-type Call = { argv: string[]; stdin?: string; env?: Record<string, string> }
+type Call = { argv: string[]; stdin?: string; env?: Record<string, string>; timeoutMs?: number }
 type World = {
   pluginRoot?: string
   quota?: number; codexStderr?: string; codexWindows?: unknown[]; cursorWindows?: unknown[]; now?: number; gatewayFinish?: string; quotaThrows?: boolean; cache?: boolean; codexExit?: number; answer?: string; label?: string
@@ -92,7 +92,7 @@ function world(w: World = {}) {
   const $ = {
     env: { get: async (key: string) => { if (key === w.envThrows) throw new Error('environment read failed'); return env[key] } },
     session: { cwd: async () => '/workspace' },
-    clock: { now: async () => { if (w.clockThrows) throw new Error('clock failed'); if (w.clockHangs) return new Promise<number>(() => {}); return clockNow }, after: (delay: number, callback: () => void) => { if ((w.childHangs && delay === 3_600_000) || (w.clockHangs && delay === 5_000) || (w.gatewayTimeout && ((delay >= 60_000 && delay < 3_600_000) || delay === 20_000)) || (w.quotaTimeout && delay === 3_000) || (w.classifierTimeout && delay === 20_000) || (w.codexQuota === 'hangs' && delay === 15_000) || (w.statusHangs && (delay === 3_000 || delay === 15_000))) Promise.resolve().then(callback); return { cancel() {} } } },
+    clock: { now: async () => { if (w.clockThrows) throw new Error('clock failed'); if (w.clockHangs) return new Promise<number>(() => {}); return clockNow }, after: (delay: number, callback: () => void) => { if ((w.childHangs && delay === 1_500_000) || (w.clockHangs && delay === 5_000) || (w.gatewayTimeout && (delay === 20_000 || (delay >= 60_000 && delay < 1_500_000))) || (w.quotaTimeout && delay === 3_000) || (w.classifierTimeout && delay === 20_000) || (w.codexQuota === 'hangs' && delay === 15_000) || (w.statusHangs && (delay === 3_000 || delay === 15_000))) Promise.resolve().then(callback); return { cancel() {} } } },
     ui: { log: (line: string) => logs.push(line) },
     plugin: { name: 'jpe-ai-delegation', root: w.pluginRoot ?? '' },
     fs: {
@@ -105,8 +105,8 @@ function world(w: World = {}) {
         return path === '/token' ? 'test-token' : path.endsWith('models_cache.json') ? CACHE : path === '/tmp/final' ? output : w.files?.[path] ?? w.definition ?? ''
       },
     },
-    process: { run: async (argv: string[], init?: { stdin?: string; env?: Record<string, string> }) => {
-      calls.push({ argv, stdin: init?.stdin, env: init?.env })
+    process: { run: async (argv: string[], init?: { stdin?: string; env?: Record<string, string>; timeoutMs?: number }) => {
+      calls.push({ argv, stdin: init?.stdin, env: init?.env, timeoutMs: init?.timeoutMs })
       if (argv[0] === 'tee' && w.teeThrows) throw new Error('log write failed')
       if (argv[0] === 'tee') { if ((w.teeExit ?? 0) === 0) writes.push(init?.stdin ?? ''); return { ...RAN, exitCode: w.teeExit ?? 0 } }
       if (argv[0] === 'mktemp') return { ...RAN, exitCode: w.temporaryExit ?? 0, stdout: argv[1] === '-d' ? '/tmp/worktree' : '/tmp/final' }
@@ -207,7 +207,7 @@ function world(w: World = {}) {
   // A streamed child answers from the same fixtures as process.run, in one stdout and one stderr piece.
   ;($.process as Record<string, unknown>).spawn = (req: { argv: string[]; input?: string; env?: Record<string, string> }) => {
     spawned.push(req.argv)
-    const ran = w.childHangs ? new Promise<never>(() => {}) : $.process.run(req.argv, { stdin: req.input, env: req.env }) as Promise<{ exitCode: number; stdout: string; stderr: string }>
+    const ran = w.childHangs ? new Promise<never>(() => {}) : $.process.run(req.argv, { stdin: req.input, env: req.env, timeoutMs: 1_500_000 }) as Promise<{ exitCode: number; stdout: string; stderr: string }>
     const stream = (async function* () {
       const r = await ran
       if (r.stdout) yield { stream: 'stdout', text: r.stdout }
@@ -215,7 +215,7 @@ function world(w: World = {}) {
       return { code: r.exitCode, signal: null }
     })()
     // defineProperties, not assignment: the runtime's frozen generator prototype makes an assigned `return` throw.
-    return Object.defineProperties(stream, { result: { value: ran.then((r) => ({ code: r.exitCode, signal: null })) }, return: { value: async () => { killed.push(req.argv); clockNow += 3_600_000; return { done: true, value: undefined } } } })
+    return Object.defineProperties(stream, { result: { value: ran.then((r) => ({ code: r.exitCode, signal: null })) }, return: { value: async () => { killed.push(req.argv); clockNow += 1_500_000; return { done: true, value: undefined } } } })
   }
   async function invoke(event: string, e: unknown, core: unknown = { result: { content: [{ text: 'haiku result' }] } }) {
     const handler = handlers.get(event)!
@@ -298,6 +298,16 @@ describe('policy', () => {
     expect(parseVerdict('{"verdict":"safe","reason":"bounded"}')).toEqual({ verdict: 'safe', reason: 'bounded' })
     expect(parseVerdict('{"verdict":"maybe","reason":"x"}')).toBeUndefined()
   })
+  test('reviewOnly matches a review, audit or verdict ask that requests no change', () => {
+    expect(reviewOnly('Review the supplied changes.')).toBe(true)
+    expect(reviewOnly('Audit the router configuration and report.')).toBe(true)
+    expect(reviewOnly('Give your verdict on the design.')).toBe(true)
+    expect(reviewOnly('REVIEW the diff')).toBe(true)
+    expect(reviewOnly('Review the change and fix the bug')).toBe(false)
+    expect(reviewOnly('Implement the review checklist')).toBe(false)
+    expect(reviewOnly('Update the review doc')).toBe(false)
+    expect(reviewOnly('Interview the candidate')).toBe(false)
+  })
   test('the native codex-quota read parses the threshold and fails closed', () => {
     expect(CODEX_QUOTA_THRESHOLD).toBe(80)
     expect(parseCodexQuota('codex-quota: available {"p":85.0,"s":null}', 80)).toEqual({ kind: 'exhausted', used: 85 })
@@ -312,6 +322,7 @@ describe('policy', () => {
     expect(EXECUTOR_TABLE[0].transport).toBe('harness')
     expect(EXECUTOR_TABLE[0].private_ok).toBe(true)
     expect(eligibleRows([EXECUTOR_TABLE[0]], false, 0).rows.map((r) => r.id)).toEqual(['homelab-harness'])
+    expect(ROUTED_CHILD_TIMEOUT_MS).toBe(1_500_000)
     expect(harnessArgv('read-only', '/workspace')).toEqual(['claude', '-p', '--max-turns', '30', '--bare', '--exclude-dynamic-system-prompt-sections', '--no-session-persistence', '--output-format', 'json', '--permission-mode', 'dontAsk', '--tools', 'Bash,Read', '--settings', JSON.stringify({ sandbox: { enabled: true, autoAllowBashIfSandboxed: true, allowUnsandboxedCommands: false, failIfUnavailable: true, filesystem: { denyWrite: ['/workspace'] } } })])
     expect(() => harnessArgv('read-only')).toThrow('absolute directory')
     expect(() => harnessArgv('read-only', 'relative/path')).toThrow('absolute directory')
@@ -622,6 +633,7 @@ describe('Codex rung', () => {
       expect(runs(w)).toHaveLength(1)
       expect(runs(w)[0].argv).toContain(`gpt-newer-${route.family}`)
       expect(runs(w)[0].argv).toContain(isAdvisory(label as never) ? 'read-only' : 'workspace-write')
+      expect(runs(w)[0].timeoutMs).toBe(ROUTED_CHILD_TIMEOUT_MS)
       expect(w.quotaFetches).toEqual([QUERY_URL])
       expect(w.nextCalls).toEqual([])
     })
@@ -2106,7 +2118,21 @@ describe('harness executor', () => {
     expect(claude[0].stdin).toBe('Implement the change.')
     expect(claude[0].env).toMatchObject({ ANTHROPIC_BASE_URL: 'http://localhost:8000', ANTHROPIC_AUTH_TOKEN: 'local-proxy', ANTHROPIC_API_KEY: '', CLAUDE_CODE_OAUTH_TOKEN: '', ANTHROPIC_MODEL: 'medium-homelab', ANTHROPIC_DEFAULT_OPUS_MODEL: 'medium-homelab', ANTHROPIC_DEFAULT_SONNET_MODEL: 'medium-homelab', ANTHROPIC_DEFAULT_HAIKU_MODEL: 'medium-homelab', CLAUDE_CODE_SUBAGENT_MODEL: 'medium-homelab', CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1', CLAUDE_CODE_MAX_CONTEXT_TOKENS: '80000', CLAUDE_CODE_MAX_OUTPUT_TOKENS: '8000', CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT: '', CLAUDE_CODE_USE_BEDROCK: '', CLAUDE_CODE_USE_VERTEX: '', CLAUDE_CODE_USE_FOUNDRY: '', ANTHROPIC_CUSTOM_HEADERS: '' })
     expect(claude[0].env?.PATH).toBe('/home/test/.local/bin:/run/current-system/sw/bin')
+    expect(claude[0].timeoutMs).toBe(ROUTED_CHILD_TIMEOUT_MS)
     expect(routeEvents(w).at(-1)).toMatchObject({ chosen: 'homelab-harness', reason: 'highest-ranked eligible executor that answered' })
+  })
+  test('a review ask that requests no change runs every routed child read-only', async () => {
+    const w = world({ env: gateways })
+    await w.agent({ prompt: 'Review the supplied diff and report the findings.' })
+    expect(w.calls.filter((c) => c.argv[0] === 'claude')[0].argv).toEqual(harnessArgv('read-only', '/workspace'))
+    expect(runs(w)[0].argv).toContain('read-only')
+    expect(runs(w)[0].argv).not.toContain('workspace-write')
+  })
+  test('a review ask that also requests a change keeps the write sandbox', async () => {
+    const w = world({ env: gateways })
+    await w.agent({ prompt: 'Review the supplied diff, then implement the fixes.' })
+    expect(w.calls.filter((c) => c.argv[0] === 'claude')[0].argv).toEqual(harnessArgv('workspace-write'))
+    expect(runs(w)[0].argv).toContain('workspace-write')
   })
   test('a harness answer that fails its check moves to the next row, the second harness row, then Codex', async () => {
     const w = world({ env: gateways, harnessStdout: '{"is_error":false,"result":"   "}' })
@@ -2169,8 +2195,8 @@ describe('harness executor', () => {
   test('a child still running at the long-run bound is killed and routing goes on', async () => {
     const w = world({ env: gateways, childHangs: true })
     await w.agent()
-    expect(w.writes.some((s) => s.includes('harness failure: harness invocation failed: still running after 3600000 ms'))).toBe(true)
-    expect(w.writes.some((s) => s.includes('codex failure: codex exec invocation or output read failed: still running after 3600000 ms'))).toBe(true)
+    expect(w.writes.some((s) => s.includes('harness failure: harness invocation failed: still running after 1500000 ms'))).toBe(true)
+    expect(w.writes.some((s) => s.includes('codex failure: codex exec invocation or output read failed: still running after 1500000 ms'))).toBe(true)
     expect(w.killed.map((argv) => argv[0])).toEqual(['claude', 'codex'])
   })
   test('a harness call that throws logs the error text with the failure', async () => {

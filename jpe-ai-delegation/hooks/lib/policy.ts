@@ -93,6 +93,9 @@ export const safePayload = (text: string): boolean => {
   return !hasSensitiveAssignment(text)
 }
 export const codingTask = (description: string | undefined, prompt?: string): boolean => tagValue(description, prompt, 'task') === 'code' || tagValue(description, prompt, 'class') === 'code'
+// A review ask: the text asks for a review, audit or verdict and asks for no change, so the task never needs to write.
+export const reviewOnly = (text: string): boolean =>
+  /\b(review|audit|verdict)\b/i.test(text) && !/\b(fix|implement|edit|write|apply|commit|refactor|change the|update the)\b/i.test(text)
 // Work that needs network or GitHub writes: no executor sandbox has that egress or may hold its credentials.
 export const networkTask = (description: string | undefined, prompt?: string): boolean => tagValue(description, prompt, 'needs') === 'network'
 
@@ -145,6 +148,10 @@ export function newestModel(cacheText: string, family: string): string | undefin
   found.sort((a: { priority?: number }, b: { priority?: number }) => (a.priority ?? Infinity) - (b.priority ?? Infinity))
   return found[0]?.slug
 }
+
+// One wall-clock budget shared by both routed children, a `codex exec` and a headless harness child: measured local
+// coding runs ran up to 1,192 s, so a routed task gets 25 minutes.
+export const ROUTED_CHILD_TIMEOUT_MS = 1_500_000
 
 // The only way to build a `codex exec` command. Reject mismatched families and unsupported efforts;
 // a missing model throws too, because `codex` would then fall back to its configured default.
