@@ -148,7 +148,7 @@ jobs:
   # hook module under 3.9 to catch that runtime breakage before release.
   hook-runtime-py39:
     # setup-python publishes no Python 3.9 build for newer images than this one.
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     steps:
       - name: Checkout code
