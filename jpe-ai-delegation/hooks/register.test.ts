@@ -323,10 +323,10 @@ describe('policy', () => {
     expect(EXECUTOR_TABLE[0].private_ok).toBe(true)
     expect(eligibleRows([EXECUTOR_TABLE[0]], false, 0).rows.map((r) => r.id)).toEqual(['homelab-harness'])
     expect(ROUTED_CHILD_TIMEOUT_MS).toBe(1_500_000)
-    expect(harnessArgv('read-only', '/workspace')).toEqual(['claude', '-p', '--max-turns', '100', '--bare', '--exclude-dynamic-system-prompt-sections', '--no-session-persistence', '--output-format', 'json', '--permission-mode', 'dontAsk', '--tools', 'Bash,Read', '--settings', JSON.stringify({ sandbox: { enabled: true, autoAllowBashIfSandboxed: true, allowUnsandboxedCommands: false, failIfUnavailable: true, filesystem: { denyWrite: ['/workspace'] } } })])
+    expect(harnessArgv('read-only', '/workspace')).toEqual(['claude', '-p', '--max-turns', '30', '--bare', '--exclude-dynamic-system-prompt-sections', '--no-session-persistence', '--output-format', 'json', '--permission-mode', 'dontAsk', '--tools', 'Bash,Read', '--settings', JSON.stringify({ sandbox: { enabled: true, autoAllowBashIfSandboxed: true, allowUnsandboxedCommands: false, failIfUnavailable: true, filesystem: { denyWrite: ['/workspace'] } } })])
     expect(() => harnessArgv('read-only')).toThrow('absolute directory')
     expect(() => harnessArgv('read-only', 'relative/path')).toThrow('absolute directory')
-    expect(harnessArgv('workspace-write')).toEqual(['claude', '-p', '--max-turns', '100', '--bare', '--exclude-dynamic-system-prompt-sections', '--no-session-persistence', '--output-format', 'json', '--permission-mode', 'acceptEdits', '--tools', 'Bash,Read,Edit,Write,Grep,Glob', '--settings', JSON.stringify({ sandbox: { enabled: true, autoAllowBashIfSandboxed: true, allowUnsandboxedCommands: false, failIfUnavailable: true } })])
+    expect(harnessArgv('workspace-write')).toEqual(['claude', '-p', '--max-turns', '30', '--bare', '--exclude-dynamic-system-prompt-sections', '--no-session-persistence', '--output-format', 'json', '--permission-mode', 'acceptEdits', '--tools', 'Bash,Read,Edit,Write,Grep,Glob', '--settings', JSON.stringify({ sandbox: { enabled: true, autoAllowBashIfSandboxed: true, allowUnsandboxedCommands: false, failIfUnavailable: true } })])
   })
   test('harness row validation: a good row passes; a missing model and a bad window fail', () => {
     const row = { id: 'host-harness', transport: 'harness', model: 'medium', window: 80000, trust: 'subscription-trusted', private_ok: true, price: 0 }

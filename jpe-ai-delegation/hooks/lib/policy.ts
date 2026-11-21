@@ -150,7 +150,7 @@ export function newestModel(cacheText: string, family: string): string | undefin
 }
 
 // One wall-clock budget shared by both routed children, a `codex exec` and a headless harness child: measured local
-// coding runs needed up to 92 turns and 1,192 s, so a routed task gets 100 turns and 25 minutes.
+// coding runs ran up to 1,192 s, so a routed task gets 25 minutes.
 export const ROUTED_CHILD_TIMEOUT_MS = 1_500_000
 
 // The only way to build a `codex exec` command. Reject mismatched families and unsupported efforts;
@@ -172,7 +172,7 @@ export function codexArgv(sandbox: Sandbox, route: Route, model: string | undefi
 // environment, not the command line.
 export function harnessArgv(sandbox: Sandbox, tree?: string): string[] {
   if (sandbox !== 'read-only' && sandbox !== 'workspace-write') throw new Error(`harness sandbox must be read-only or workspace-write, got ${sandbox}`)
-  const argv = ['claude', '-p', '--max-turns', '100', '--bare', '--exclude-dynamic-system-prompt-sections', '--no-session-persistence', '--output-format', 'json', '--permission-mode', sandbox === 'read-only' ? 'dontAsk' : 'acceptEdits']
+  const argv = ['claude', '-p', '--max-turns', '30', '--bare', '--exclude-dynamic-system-prompt-sections', '--no-session-persistence', '--output-format', 'json', '--permission-mode', sandbox === 'read-only' ? 'dontAsk' : 'acceptEdits']
   if (sandbox === 'read-only') {
     if (!tree?.startsWith('/')) throw new Error('a read-only harness needs the absolute directory it runs in')
     return [...argv, '--tools', 'Bash,Read', '--settings', JSON.stringify({ sandbox: { enabled: true, autoAllowBashIfSandboxed: true, allowUnsandboxedCommands: false, failIfUnavailable: true, filesystem: { denyWrite: [tree] } } })]
