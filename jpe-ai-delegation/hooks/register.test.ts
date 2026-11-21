@@ -92,7 +92,7 @@ function world(w: World = {}) {
   const $ = {
     env: { get: async (key: string) => { if (key === w.envThrows) throw new Error('environment read failed'); return env[key] } },
     session: { cwd: async () => '/workspace' },
-    clock: { now: async () => { if (w.clockThrows) throw new Error('clock failed'); if (w.clockHangs) return new Promise<number>(() => {}); return clockNow }, after: (delay: number, callback: () => void) => { if ((w.childHangs && delay === 3_600_000) || (w.clockHangs && delay === 5_000) || (w.gatewayTimeout && ((delay >= 60_000 && delay < 3_600_000) || delay === 20_000)) || (w.quotaTimeout && delay === 3_000) || (w.classifierTimeout && delay === 20_000) || (w.codexQuota === 'hangs' && delay === 15_000) || (w.statusHangs && (delay === 3_000 || delay === 15_000))) Promise.resolve().then(callback); return { cancel() {} } } },
+    clock: { now: async () => { if (w.clockThrows) throw new Error('clock failed'); if (w.clockHangs) return new Promise<number>(() => {}); return clockNow }, after: (delay: number, callback: () => void) => { if ((w.childHangs && delay === 1_500_000) || (w.clockHangs && delay === 5_000) || (w.gatewayTimeout && (delay === 20_000 || (delay >= 60_000 && delay < 1_500_000))) || (w.quotaTimeout && delay === 3_000) || (w.classifierTimeout && delay === 20_000) || (w.codexQuota === 'hangs' && delay === 15_000) || (w.statusHangs && (delay === 3_000 || delay === 15_000))) Promise.resolve().then(callback); return { cancel() {} } } },
     ui: { log: (line: string) => logs.push(line) },
     plugin: { name: 'jpe-ai-delegation', root: w.pluginRoot ?? '' },
     fs: {
@@ -207,7 +207,7 @@ function world(w: World = {}) {
   // A streamed child answers from the same fixtures as process.run, in one stdout and one stderr piece.
   ;($.process as Record<string, unknown>).spawn = (req: { argv: string[]; input?: string; env?: Record<string, string> }) => {
     spawned.push(req.argv)
-    const ran = w.childHangs ? new Promise<never>(() => {}) : $.process.run(req.argv, { stdin: req.input, env: req.env }) as Promise<{ exitCode: number; stdout: string; stderr: string }>
+    const ran = w.childHangs ? new Promise<never>(() => {}) : $.process.run(req.argv, { stdin: req.input, env: req.env, timeoutMs: 1_500_000 }) as Promise<{ exitCode: number; stdout: string; stderr: string }>
     const stream = (async function* () {
       const r = await ran
       if (r.stdout) yield { stream: 'stdout', text: r.stdout }
@@ -215,7 +215,7 @@ function world(w: World = {}) {
       return { code: r.exitCode, signal: null }
     })()
     // defineProperties, not assignment: the runtime's frozen generator prototype makes an assigned `return` throw.
-    return Object.defineProperties(stream, { result: { value: ran.then((r) => ({ code: r.exitCode, signal: null })) }, return: { value: async () => { killed.push(req.argv); clockNow += 3_600_000; return { done: true, value: undefined } } } })
+    return Object.defineProperties(stream, { result: { value: ran.then((r) => ({ code: r.exitCode, signal: null })) }, return: { value: async () => { killed.push(req.argv); clockNow += 1_500_000; return { done: true, value: undefined } } } })
   }
   async function invoke(event: string, e: unknown, core: unknown = { result: { content: [{ text: 'haiku result' }] } }) {
     const handler = handlers.get(event)!
@@ -2195,8 +2195,8 @@ describe('harness executor', () => {
   test('a child still running at the long-run bound is killed and routing goes on', async () => {
     const w = world({ env: gateways, childHangs: true })
     await w.agent()
-    expect(w.writes.some((s) => s.includes('harness failure: harness invocation failed: still running after 3600000 ms'))).toBe(true)
-    expect(w.writes.some((s) => s.includes('codex failure: codex exec invocation or output read failed: still running after 3600000 ms'))).toBe(true)
+    expect(w.writes.some((s) => s.includes('harness failure: harness invocation failed: still running after 1500000 ms'))).toBe(true)
+    expect(w.writes.some((s) => s.includes('codex failure: codex exec invocation or output read failed: still running after 1500000 ms'))).toBe(true)
     expect(w.killed.map((argv) => argv[0])).toEqual(['claude', 'codex'])
   })
   test('a harness call that throws logs the error text with the failure', async () => {
