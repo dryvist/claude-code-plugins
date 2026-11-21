@@ -18,12 +18,13 @@ on:
 permissions:
   actions: read
   contents: write
+  id-token: write
   issues: write
   pull-requests: write
 
 jobs:
   fix:
-    uses: JacobPEvans/.github-ai/.github/workflows/cc-ci-fix.yml@5737c65c9a6ba4bf9df44dc2bdefb96029fa8b08 # v2.11.3
+    uses: JacobPEvans/.github-ai/.github/workflows/cc-ci-fix-oidc.yml@v2
     with:
       # Hosted runners cannot reach the model router; the review pool can.
       runner_label: review
